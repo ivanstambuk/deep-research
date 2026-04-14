@@ -1146,7 +1146,7 @@ flowchart LR
 
 #### §3.1.1 Concept
 
-The most direct response to PII in URL query parameters is to move that data into the request body and issue the request via POST (or PATCH, PUT) instead of GET. The query string becomes empty — or contains only non-sensitive filters — while the PII travels inside the encrypted TLS payload of the body, invisible to the exposure surfaces described in §1.2 (server logs, Referer headers, browser history, proxy logs).
+The most direct response to PII in URL query parameters is to move that data into the request body and issue the request via POST (or PATCH, PUT) instead of GET. The query string becomes empty — or contains only non-sensitive filters — while the PII travels inside the encrypted TLS payload of the body, invisible to the exposure surfaces described in §1 (server logs, Referer headers, browser history, proxy logs).
 
 This pattern is the one most organizations reach for first, because it requires no special infrastructure — only a change to the HTTP method and payload structure.
 
@@ -1558,7 +1558,7 @@ Content-Type: application/json
 }
 ```
 
-Placing PII in the body rather than the URL is critical: URL parameters are logged in web server access logs, proxy logs, CDN logs, and browser history — creating an uncontrolled proliferation of PII copies that are difficult to audit and impossible to retract (OWASP ASVS v4.0.3, §5.1.2). The POST body, by contrast, is not logged by default and can be encrypted at the transport layer without leaving residual traces.
+Placing PII in the body rather than the URL is critical: URL parameters are logged in web server access logs, proxy logs, CDN logs, and browser history — creating an uncontrolled proliferation of PII copies that are difficult to audit and impossible to retract (OWASP ASVS v4.0.3 §5.1.2). The POST body, by contrast, is not logged by default and can be encrypted at the transport layer without leaving residual traces.
 
 The client must be authenticated before this request — either through a prior authentication step or by including credentials (API key, OAuth token, mTLS certificate) in this request. Submitting PII to an unauthenticated session endpoint would allow any caller to create sessions populated with arbitrary PII.
 
@@ -1917,7 +1917,7 @@ POST /reset-password?token=xK8vN2m_P9qR7wL5tY3jB1hF6dA0cE4gU8iS
 → 200 OK: Token consumed, password reset performed
 ```
 
-This approach also aligns with HTTP semantics — GET is safe and idempotent (RFC 9110, §9.2.1) and should never cause state-changing side effects.
+This approach also aligns with HTTP semantics — GET is safe and idempotent (RFC 9110 §9.2.1) and should never cause state-changing side effects.
 
 **Split link + code flow.** The email contains a URL that does not include the token, plus a separate short alphanumeric code displayed in the email body:
 
@@ -10193,7 +10193,7 @@ The dual-entry pattern — one from the Crypto Service, one from the Application
 
 <details><summary><strong>9. Application Service returns response to API Gateway</strong></summary>
 
-The Application Service completes the business operation and returns the response to the API Gateway. The response body may contain the processed data (e.g., a customer profile with the SSN displayed in a masked format), but the critical design constraint is that plaintext PII must never appear in the URL — not in the response path, not in redirect locations, and not in `Location` headers. The URL channel is permanently compromised for PII due to its uncontrolled proliferation across logs, proxies, and browser history (OWASP ASVS v4.0.3, §5.1.2).
+The Application Service completes the business operation and returns the response to the API Gateway. The response body may contain the processed data (e.g., a customer profile with the SSN displayed in a masked format), but the critical design constraint is that plaintext PII must never appear in the URL — not in the response path, not in redirect locations, and not in `Location` headers. The URL channel is permanently compromised for PII due to its uncontrolled proliferation across logs, proxies, and browser history (OWASP ASVS v4.0.3 §5.1.2).
 
 ```
 HTTP/1.1 200 OK
@@ -12341,7 +12341,7 @@ After erasure, the controller should be able to demonstrate to a DPA or auditor 
 
 2. **Decryption attempt**: After key destruction, attempt to decrypt a sample of the "erased" ciphertext. The decryption should fail with a definitive error (`KeyNotFoundException` or similar). Log the failed decryption attempt as proof.
 
-3. **Backup verification**: If encrypted backups exist, demonstrate that the key version needed to decrypt the erased subject's data has been destroyed. The KMS audit trail (§13.6) shows the key destruction event.
+3. **Backup verification**: If encrypted backups exist, demonstrate that the key version needed to decrypt the erased subject's data has been destroyed. The KMS audit trail (§14.6.3) shows the key destruction event.
 
 
 
@@ -13036,8 +13036,8 @@ The exact wording of CWE-598 is query-string specific, but the operational expos
 | Exposure pattern | Standards signal | Practical meaning | Main document response |
 |:-----------------|:-----------------|:------------------|:-----------------------|
 | Sensitive email, phone, or national ID in query parameters | CWE-598; OWASP ASVS V9.3 | Recognized vulnerability, not just poor API taste | §3.1, §3.3, §7.2, §9 |
-| Sensitive identifier embedded in path segments | Same exposure model, even if not named verbatim by CWE-598 | Same logging, caching, and propagation risk as query strings | §1.2, §3, §6, §9 |
-| "HTTPS is enough" reasoning | OWASP guidance rejects that assumption | Transport confidentiality does not prevent server-side persistence and re-exposure | §1.2, §2.5.3, §6, §16 |
+| Sensitive identifier embedded in path segments | Same exposure model, even if not named verbatim by CWE-598 | Same logging, caching, and propagation risk as query strings | §1, §3, §6, §9 |
+| "HTTPS is enough" reasoning | OWASP guidance rejects that assumption | Transport confidentiality does not prevent server-side persistence and re-exposure | §1, §2, §6, §16 |
 
 ---
 

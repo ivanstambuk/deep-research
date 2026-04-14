@@ -1,5 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
+import GithubSlugger from 'github-slugger';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+import {
+  applyTextReplacements,
+  buildSectionTargetIndex,
+  collectMarkdownCrossReferenceReplacements,
+  normalizeWhitespace,
+  slugifyHeadingText,
+} from './cross-reference-links.js';
 import { lowerDirectivesToMarkdown } from './directives.js';
 
 function syncVisibleLineCount(output) {
@@ -15,9 +26,61 @@ function syncVisibleLineCount(output) {
   return next;
 }
 
+function normalizeCrossReferenceTypography(output) {
+  return output
+    .replace(/\(\s*[sS]ee\s+(§[0-9]+(?:\.[0-9]+)*)\s*\)/g, '($1)')
+    .replace(/\(\s*[Ss]ection\s+([0-9]+(?:\.[0-9]+)*)\s*\)/g, '(§$1)')
+    .replace(/(?<=\s)[Ss]ection\s+([0-9]+(?:\.[0-9]+)*)\b(?!\s*of\b)/g, '§$1')
+    .replace(/(?<=\s)[Cc]hapter\s+([0-9]+(?:\.[0-9]+)*)\b(?!\s*of\b)/g, '§$1');
+}
+
 function isPathInside(childPath, parentPath) {
   const relative = path.relative(parentPath, childPath);
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function extractMdastText(node) {
+  if (!node) {
+    return '';
+  }
+
+  if (node.type === 'text' || node.type === 'inlineCode') {
+    return node.value ?? '';
+  }
+
+  if (!Array.isArray(node.children)) {
+    return '';
+  }
+
+  return node.children.map(extractMdastText).join('');
+}
+
+function collectMarkdownHeadingTargets(tree) {
+  const slugger = new GithubSlugger();
+  const headings = [];
+
+  function visit(node) {
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+
+    if (node.type === 'heading' && node.depth >= 2 && node.depth <= 6) {
+      const { id, text } = slugifyHeadingText(normalizeWhitespace(extractMdastText(node)), slugger);
+      if (text) {
+        headings.push({
+          headingId: id,
+          text,
+        });
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+  }
+
+  visit(tree);
+  return headings;
 }
 
 // This script compiles .mdx from `src/papers/` into pure .md in the root `papers/`
@@ -25,6 +88,8 @@ async function compileMdxToMarkdown() {
   const srcPapersDir = path.join(process.cwd(), 'src', 'papers');
   const targetPapersDir = path.join(process.cwd(), 'papers');
   const requestedArgs = process.argv.slice(2);
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const crossReferenceDiagnostics = [];
 
   try {
     // Check if src/papers exists, if not, nothing to do
@@ -49,12 +114,24 @@ async function compileMdxToMarkdown() {
       ? fileContent.slice(frontMatterMatch[0].length)
       : fileContent;
     const loweredBody = lowerDirectivesToMarkdown(markdownBody);
+    const tree = parser.parse(loweredBody);
+    const targetIndex = buildSectionTargetIndex({
+      headings: collectMarkdownHeadingTargets(tree),
+    });
+    const markdownRewrites = collectMarkdownCrossReferenceReplacements(tree, {
+      diagnosticBase: {
+        documentSlug: relativePath.replace(/\.mdx$/, ''),
+      },
+      targetIndex,
+    });
+    const linkedBody = applyTextReplacements(loweredBody, markdownRewrites.replacements);
     const header = `<!-- AUTO-GENERATED FROM src/papers/${relativePath}. DO NOT EDIT. -->\n\n`;
+    crossReferenceDiagnostics.push(...markdownRewrites.diagnostics);
 
     const output = frontMatter
-      ? `${frontMatter}\n\n${header}${loweredBody}`
-      : `${header}${loweredBody}`;
-    await fs.writeFile(targetMdPath, syncVisibleLineCount(output));
+      ? `${frontMatter}\n\n${header}${linkedBody}`
+      : `${header}${linkedBody}`;
+    await fs.writeFile(targetMdPath, syncVisibleLineCount(normalizeCrossReferenceTypography(output)));
   }
 
   // Recursively process directories
@@ -90,6 +167,11 @@ async function compileMdxToMarkdown() {
   } else {
     await processDirectory(srcPapersDir);
   }
+
+  if (crossReferenceDiagnostics.length > 0) {
+    console.log(`[markdown xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
+  }
+
   console.log('MDX to Markdown compilation complete!');
 }
 

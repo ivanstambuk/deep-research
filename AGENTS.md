@@ -455,6 +455,8 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **Spec / tracker refinement rule.** When the user asks to "refine", "improve", "make another pass", or otherwise iterate on an existing `.scratch/` specification, plan, tracker, or analysis document, you must update the existing file in place. Do **not** create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. The default behavior is one evolving canonical document.
 
+**Canonical spec rule.** When iterating on a user-facing `.scratch/` specification, proposal, plan, tracker, or analysis document, the file itself is the deliverable and must read as a clean source of truth. Do **not** accumulate process-history sections such as "first pass", "second pass", "third pass", "changes from previous pass", or similar meta narration inside the document unless the user explicitly asks for review history. On each refinement round, rewrite the document as needed so the current file stands alone as the canonical target artifact. Preserve the substance; remove the editorial archaeology.
+
 **Lightweight retro workflow.** Retrospectives are **not** automatic for every session. Use them only rarely, after costly debugging or architectural sessions — for example: multi-hour bug hunts, repeated regressions in the same subsystem, reader/runtime architecture changes, or when the user explicitly asks for a retro. In those cases:
 - **Proactively propose** a short retro to the user; do not silently create one every session.
 - If the user agrees, write **one** canonical `.scratch/` retro markdown file and keep refining that same file in place if the thread continues.

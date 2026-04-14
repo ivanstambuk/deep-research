@@ -273,7 +273,7 @@ This document is intended to function as a **comprehensive reference** for API t
 | **§1–§2** | Problem definition, GDPR, standards, and regulatory baseline | **Architects**, **security engineers**, **privacy/compliance**, and decision-makers who need the policy and risk foundation |
 | **§3–§5** | Core remediation patterns: architectural, cryptographic, tokenization, and pseudonymization | **API architects** and **backend engineers** choosing the primary protection model |
 | **§6–§8** | Operational controls, design-time governance, and protocol/deployment contexts | **Platform teams**, **security engineers**, and teams implementing enforcement around live APIs |
-| **§9** | Migration and remediation of existing APIs | **Engineering leadership**, **program owners**, and teams fixing live systems |
+| **[§9](#9-migration-playbook-for-existing-apis)** | Migration and remediation of existing APIs | **Engineering leadership**, **program owners**, and teams fixing live systems |
 | **§10–§16** | Vendor platforms, build-vs-buy, auditability, key governance, erasure, and traceability | **Platform owners**, **security architecture**, **compliance**, and **engineering leadership** |
 | **§17–§20** | Standards synthesis, findings, recommendations, and open questions | **Decision-makers** and teams synthesizing the document into action |
 
@@ -281,19 +281,19 @@ This document is intended to function as a **comprehensive reference** for API t
 
 | Persona | Start Here | Then Read | Finally |
 |:--------|:-----------|:----------|:--------|
-| **API Architect** | **§3 Architectural Patterns** | §3.6 comparison → §5 tokenization → §9 migration | §19 recommendations |
-| **Backend Engineer** | §3.1 POST body migration → §3.3 opaque IDs | §6 operational controls → §7 design-time governance | §8 protocol contexts |
-| **Security Engineer** | §2.5 standards alignment → §6 infrastructure controls | §7 governance → §13 audit trails → §16 traceability → §17 synthesis | §18 findings |
-| **Platform / Gateway Team** | §6 operational patterns | §7 governance → §11 cloud/API gateway solutions | §9 migration |
-| **Privacy / Compliance / DPO** | §2 regulatory landscape | §5 pseudonymization → §15 erasure → §16 traceability → §17 synthesis | §18 findings → §19 recommendations |
-| **Engineering Leadership** | **Executive Decision Summary** | §12 build-vs-buy → §9 migration playbook → §17 synthesis | §19 recommendations |
+| **API Architect** | **[§3](#3-architectural-patterns) Architectural Patterns** | [§3.6](#36-comparative-analysis-architectural-patterns) comparison → [§5](#5-pseudonymization-and-tokenization-patterns) tokenization → [§9](#9-migration-playbook-for-existing-apis) migration | [§19](#19-recommendations) recommendations |
+| **Backend Engineer** | [§3.1](#31-post-body-migration) POST body migration → [§3.3](#33-opaque-internal-identifiers) opaque IDs | [§6](#6-infrastructure-and-operational-patterns) operational controls → [§7](#7-design-time-api-governance-and-contract-enforcement) design-time governance | [§8](#8-protocol-and-deployment-contexts) protocol contexts |
+| **Security Engineer** | [§2.5](#25-nist-and-owasp-standards) standards alignment → [§6](#6-infrastructure-and-operational-patterns) infrastructure controls | [§7](#7-design-time-api-governance-and-contract-enforcement) governance → [§13](#13-audit-trails-for-cryptographic-operations) audit trails → [§16](#16-call-chain-traceability) traceability → [§17](#17-owasp-asvs-and-cwe-synthesis) synthesis | [§18](#18-findings) findings |
+| **Platform / Gateway Team** | [§6](#6-infrastructure-and-operational-patterns) operational patterns | [§7](#7-design-time-api-governance-and-contract-enforcement) governance → [§11](#11-cloud-native-and-api-gateway-solutions) cloud/API gateway solutions | [§9](#9-migration-playbook-for-existing-apis) migration |
+| **Privacy / Compliance / DPO** | [§2](#2-regulatory-landscape) regulatory landscape | [§5](#5-pseudonymization-and-tokenization-patterns) pseudonymization → [§15](#15-right-to-erasure-in-encrypted-contexts) erasure → [§16](#16-call-chain-traceability) traceability → [§17](#17-owasp-asvs-and-cwe-synthesis) synthesis | [§18](#18-findings) findings → [§19](#19-recommendations) recommendations |
+| **Engineering Leadership** | **Executive Decision Summary** | [§12](#12-build-vs-buy-decision-framework) build-vs-buy → [§9](#9-migration-playbook-for-existing-apis) migration playbook → [§17](#17-owasp-asvs-and-cwe-synthesis) synthesis | [§19](#19-recommendations) recommendations |
 
-If you already have live APIs exposing personal data in URLs, skip directly to **§9 Migration Playbook for Existing APIs**, then return to **§3** and **§7** for the default target state.
+If you already have live APIs exposing personal data in URLs, skip directly to **[§9](#9-migration-playbook-for-existing-apis) Migration Playbook for Existing APIs**, then return to **[§3](#3-architectural-patterns)** and **[§7](#7-design-time-api-governance-and-contract-enforcement)** for the default target state.
 
 A practical way to use this reference is:
 
 1. Choose the main contract or transformation pattern in **§3–§5**.
-2. Read **§7** for design-time enforcement and **§9** for rollout if the problem exists in production already.
+2. Read **[§7](#7-design-time-api-governance-and-contract-enforcement)** for design-time enforcement and **[§9](#9-migration-playbook-for-existing-apis)** for rollout if the problem exists in production already.
 3. Read only the relevant supporting chapters in **§10–§16** based on what your chosen pattern implies operationally.
 4. End with **§17–§20** for the standards map, synthesized findings, recommendations, and unresolved questions.
 
@@ -305,14 +305,14 @@ This document's central conclusion is straightforward: **the default answer is t
 
 #### Top Design Decisions
 
-1. **Default to opaque internal identifiers.** Treat opaque IDs as the greenfield baseline for resource references and object lookup continuity (§3.3).
-2. **Use POST bodies for lookup-by-PII workflows.** When a caller must submit personal data to find or verify something, move that data into the request body, return opaque IDs, and switch subsequent reads back to safe identifiers (§3.1).
-3. **Use single-use or short-lived tokens for bounded link workflows.** Password reset, magic links, and email verification should not expose reusable personal data in the URL (§3.5).
-4. **Treat cryptographic URL protection as legacy accommodation, not greenfield default.** JWE, FPE, deterministic encryption, and tokenization are valuable when migration or schema constraints force them, but they should not replace simpler clean designs where clean designs are possible (§4, §5).
-5. **Assume leak surfaces extend beyond the request URL.** Responses, logs, traces, analytics systems, browser storage, and error channels can re-expose the same data if the architecture is careless (§6, §13, §16).
-6. **Use protocol mechanisms only for bounded adjacent problems.** HTTP Message Signing helps request integrity, PAR protects browser-visible OAuth parameters, and mTLS helps in B2B/M2M identity-bound scenarios. None of these is the general default answer to business-data PII in URLs (§8).
-7. **Enforce the design at contract time, not only at incident time.** API contracts, linting, CI gates, inventory discipline, exception workflows, and migration governance are required to keep the problem from reappearing (§7, §9).
-8. **Plan remediation for existing APIs explicitly.** The hard part is rarely inventing the safe design; the hard part is migrating live consumers, deprecating bad endpoints, and cleaning up historical observability artifacts (§9).
+1. **Default to opaque internal identifiers.** Treat opaque IDs as the greenfield baseline for resource references and object lookup continuity ([§3.3](#33-opaque-internal-identifiers)).
+2. **Use POST bodies for lookup-by-PII workflows.** When a caller must submit personal data to find or verify something, move that data into the request body, return opaque IDs, and switch subsequent reads back to safe identifiers ([§3.1](#31-post-body-migration)).
+3. **Use single-use or short-lived tokens for bounded link workflows.** Password reset, magic links, and email verification should not expose reusable personal data in the URL ([§3.5](#35-temporary-single-use-tokens)).
+4. **Treat cryptographic URL protection as legacy accommodation, not greenfield default.** JWE, FPE, deterministic encryption, and tokenization are valuable when migration or schema constraints force them, but they should not replace simpler clean designs where clean designs are possible ([§4](#4-cryptographic-patterns), [§5](#5-pseudonymization-and-tokenization-patterns)).
+5. **Assume leak surfaces extend beyond the request URL.** Responses, logs, traces, analytics systems, browser storage, and error channels can re-expose the same data if the architecture is careless ([§6](#6-infrastructure-and-operational-patterns), [§13](#13-audit-trails-for-cryptographic-operations), [§16](#16-call-chain-traceability)).
+6. **Use protocol mechanisms only for bounded adjacent problems.** HTTP Message Signing helps request integrity, PAR protects browser-visible OAuth parameters, and mTLS helps in B2B/M2M identity-bound scenarios. None of these is the general default answer to business-data PII in URLs ([§8](#8-protocol-and-deployment-contexts)).
+7. **Enforce the design at contract time, not only at incident time.** API contracts, linting, CI gates, inventory discipline, exception workflows, and migration governance are required to keep the problem from reappearing ([§7](#7-design-time-api-governance-and-contract-enforcement), [§9](#9-migration-playbook-for-existing-apis)).
+8. **Plan remediation for existing APIs explicitly.** The hard part is rarely inventing the safe design; the hard part is migrating live consumers, deprecating bad endpoints, and cleaning up historical observability artifacts ([§9](#9-migration-playbook-for-existing-apis)).
 9. **Keep governance and operating model aligned with the design choice.** Centralized decryption authority, key governance, auditability, erasure capability, and traceability should support the main remediation pattern rather than pull the document away from it (§13–§16).
 
 ---
@@ -395,14 +395,14 @@ This is not a theoretical risk. It is a well-documented weakness catalogued by b
 
 Before the detailed analysis, the following rules represent the opinionated default guidance for API designers. Each rule is derived from and justified by the analysis in subsequent chapters.
 
-1. **Do not place personal data in URL path or query parameters.** Use opaque internal identifiers instead (§3.3).
-2. **For search/lookup by personal data, use POST request bodies.** Return opaque identifiers and switch subsequent reads back to GET (§3.1).
-3. **Use single-use or short-lived tokens for bounded link workflows** — email verification, password reset, magic links (§3.5).
-4. **Treat encryption and tokenization in URLs as legacy accommodation, not greenfield default.** FPE, JWE, and vault-based tokenization are powerful but add complexity that is unnecessary when opaque identifiers suffice (§4, §5).
-5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity (§8).
+1. **Do not place personal data in URL path or query parameters.** Use opaque internal identifiers instead ([§3.3](#33-opaque-internal-identifiers)).
+2. **For search/lookup by personal data, use POST request bodies.** Return opaque identifiers and switch subsequent reads back to GET ([§3.1](#31-post-body-migration)).
+3. **Use single-use or short-lived tokens for bounded link workflows** — email verification, password reset, magic links ([§3.5](#35-temporary-single-use-tokens)).
+4. **Treat encryption and tokenization in URLs as legacy accommodation, not greenfield default.** FPE, JWE, and vault-based tokenization are powerful but add complexity that is unnecessary when opaque identifiers suffice ([§4](#4-cryptographic-patterns), [§5](#5-pseudonymization-and-tokenization-patterns)).
+5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity ([§8](#8-protocol-and-deployment-contexts)).
 6. **Enforce all of these at design time** via API contracts, linting rules, CI gates, and review processes.
-7. **Remember that pseudonymised and encrypted data remains personal data under GDPR.** Tokenization and encryption reduce risk but do not remove compliance obligations (§2.3.3, F3).
-8. **Audit observability pipelines for re-exposure.** Logs, traces, analytics, and error responses can reintroduce the PII that encryption was supposed to protect (§6, §16, F8).
+7. **Remember that pseudonymised and encrypted data remains personal data under GDPR.** Tokenization and encryption reduce risk but do not remove compliance obligations ([§2.3.3](#233-encrypted-personal-data-remains-personal-data), F3).
+8. **Audit observability pipelines for re-exposure.** Logs, traces, analytics, and error responses can reintroduce the PII that encryption was supposed to protect ([§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability), F8).
 
 ---
 
@@ -677,7 +677,7 @@ The practical implications are severe:
 
 
 
-The most architecturally robust mitigation is to **prevent PII from entering URLs in the first place.** If the API uses body-based PII with tokenised references (`GET /api/v1/users/uuid-a1b2c3d4/preferences`), the token itself is personal data (it links to a natural person), but it is far easier to manage: the mapping table can be deleted, and the token in the log becomes unlinkable. This is precisely the pattern that the EDPB Guidelines 01/2025 on Pseudonymisation endorse (§2.4).
+The most architecturally robust mitigation is to **prevent PII from entering URLs in the first place.** If the API uses body-based PII with tokenised references (`GET /api/v1/users/uuid-a1b2c3d4/preferences`), the token itself is personal data (it links to a natural person), but it is far easier to manage: the mapping table can be deleted, and the token in the log becomes unlinkable. This is precisely the pattern that the EDPB Guidelines 01/2025 on Pseudonymisation endorse ([§2.4](#24-edpb-guidelines-012025-on-pseudonymisation)).
 
 #### §2.3.3 Encrypted Personal Data Remains Personal Data
 
@@ -839,7 +839,7 @@ While the GDPR provides the primary regulatory framework for EU-based data proce
 
 ### §2.5 NIST and OWASP Standards
 
-**URL PII Decision Tree.** The following decision tree synthesises the NIST PII taxonomy (§2.5.1) and the GDPR risk-based approach (§2.1.1) into an actionable flow. An API designer can trace their specific identifier through the tree to determine whether it can safely appear in a URL.
+**URL PII Decision Tree.** The following decision tree synthesises the NIST PII taxonomy ([§2.5.1](#251-nist-sp-800-122-guide-to-protecting-the-confidentiality-of-pii)) and the GDPR risk-based approach ([§2.1.1](#211-the-risk-based-approach)) into an actionable flow. An API designer can trace their specific identifier through the tree to determine whether it can safely appear in a URL.
 
 ```mermaid
 flowchart TD
@@ -898,7 +898,7 @@ For API design, the NIST taxonomy provides a practical heuristic: any data eleme
 
 
 
-The OWASP Application Security Verification Standard (ASVS) is the industry-standard checklist for application security. Version 4.0.3, §9 (Communications Verification Requirements), contains a direct and unambiguous requirement:
+The OWASP Application Security Verification Standard (ASVS) is the industry-standard checklist for application security. Version 4.0.3, [§9](#9-migration-playbook-for-existing-apis) (Communications Verification Requirements), contains a direct and unambiguous requirement:
 
 
 
@@ -910,7 +910,7 @@ This requirement is classified at **Level 2** (the standard security level for m
 
 
 
-The rationale is straightforward and aligns with the exposure analysis in §2.1.2: URL parameters are logged, cached, stored in browser history, leaked via Referer headers, and visible in the address bar. The ASVS requirement captures this consensus and codifies it as a verifiable security control.
+The rationale is straightforward and aligns with the exposure analysis in [§2.1.2](#212-what-constitutes-appropriate-security-for-url-borne-pii): URL parameters are logged, cached, stored in browser history, leaked via Referer headers, and visible in the address bar. The ASVS requirement captures this consensus and codifies it as a verifiable security control.
 
 #### §2.5.3 CWE-598 and OWASP Query String Exposure
 
@@ -936,7 +936,7 @@ CWE-598 is classified with the following attributes:
 
 - **Detection difficulty:** Difficult — while the vulnerability is easy to introduce, automated detection requires scanning URLs for PII patterns, which produces both false positives and false negatives.
 
-The OWASP community vulnerability page on *Information Exposure Through Query Strings in URL* provides practical attack context that reinforces CWE-598's classification. It emphasises that "simply using HTTPS does not resolve this vulnerability" — a critical point that counters a common misconception. The exposure vectors — Referer header leakage, server log persistence, browser history, shared system visibility, and shoulder surfing — are the same vectors analysed in §2.1.2; the CWE classification confirms that this is a formally recognised vulnerability class, not merely a design concern.
+The OWASP community vulnerability page on *Information Exposure Through Query Strings in URL* provides practical attack context that reinforces CWE-598's classification. It emphasises that "simply using HTTPS does not resolve this vulnerability" — a critical point that counters a common misconception. The exposure vectors — Referer header leakage, server log persistence, browser history, shared system visibility, and shoulder surfing — are the same vectors analysed in [§2.1.2](#212-what-constitutes-appropriate-security-for-url-borne-pii); the CWE classification confirms that this is a formally recognised vulnerability class, not merely a design concern.
 
 A real-world example cited by OWASP illustrates the severity: a web application sent a one-time password (OTP) and the user's email address in the query string of a login URL. The OTP — "a secret credential equivalent to a password" — and the email address — "confidential PII" that "in many applications also serves as a login identifier" — were exposed in browser history, server logs, and third-party monitoring tools.
 
@@ -1113,9 +1113,9 @@ timeline
 
 This chapter analyses the five principal architectural patterns for removing PII from URL query parameters and path segments. Unlike cryptographic or tokenization approaches (covered in Chapters 4–5), these patterns restructure the HTTP request itself — changing *where* PII travels rather than *how* it is encoded. Each pattern trades off REST purity, caching behaviour, operational complexity, and implementation cost against varying levels of PII protection.
 
-The patterns are presented in rough order of implementation complexity, from the simplest (POST body migration) to the most involved (single-use tokens). A comparative analysis in §3.6 provides a decision matrix for selecting the right pattern — or combination of patterns — for a given use case.
+The patterns are presented in rough order of implementation complexity, from the simplest (POST body migration) to the most involved (single-use tokens). A comparative analysis in [§3.6](#36-comparative-analysis-architectural-patterns) provides a decision matrix for selecting the right pattern — or combination of patterns — for a given use case.
 
-In standards terms, this chapter is the main implementation answer to the baseline established in §2.5 and synthesized again in §17: it is how teams actually satisfy the OWASP ASVS requirement to keep sensitive data out of URL parameters and how they avoid instantiating the request-target exposure model formalized by CWE-598.
+In standards terms, this chapter is the main implementation answer to the baseline established in [§2.5](#25-nist-and-owasp-standards) and synthesized again in [§17](#17-owasp-asvs-and-cwe-synthesis): it is how teams actually satisfy the OWASP ASVS requirement to keep sensitive data out of URL parameters and how they avoid instantiating the request-target exposure model formalized by CWE-598.
 
 The diagram below shows the five patterns organized by implementation complexity, with the most common combination paths:
 
@@ -1148,7 +1148,7 @@ flowchart LR
 
 #### §3.1.1 Concept
 
-The most direct response to PII in URL query parameters is to move that data into the request body and issue the request via POST (or PATCH, PUT) instead of GET. The query string becomes empty — or contains only non-sensitive filters — while the PII travels inside the encrypted TLS payload of the body, invisible to the exposure surfaces described in §1.2 (server logs, Referer headers, browser history, proxy logs).
+The most direct response to PII in URL query parameters is to move that data into the request body and issue the request via POST (or PATCH, PUT) instead of GET. The query string becomes empty — or contains only non-sensitive filters — while the PII travels inside the encrypted TLS payload of the body, invisible to the exposure surfaces described in [§1](#1-introduction-and-problem-definition) (server logs, Referer headers, browser history, proxy logs).
 
 This pattern is the one most organizations reach for first, because it requires no special infrastructure — only a change to the HTTP method and payload structure.
 
@@ -1177,7 +1177,7 @@ The loss of caching is the most consequential operational impact. Consider a use
 
 Application-level caches (Redis, Memcached, in-process LRU) are unaffected because they operate independently of HTTP semantics — the application decides when to cache. But all HTTP-layer caching is lost, which can significantly increase origin server load for high-traffic read endpoints.
 
-Organizations that adopt POST body migration for PII protection typically compensate by implementing application-level caching keyed on a hash of the PII input, or by combining this pattern with §3.3 (Opaque Internal Identifiers) so that subsequent requests can use GET with a non-sensitive UUID.
+Organizations that adopt POST body migration for PII protection typically compensate by implementing application-level caching keyed on a hash of the PII input, or by combining this pattern with [§3.3](#33-opaque-internal-identifiers) (Opaque Internal Identifiers) so that subsequent requests can use GET with a non-sensitive UUID.
 
 #### §3.1.4 When POST Body Migration Is Appropriate
 
@@ -1238,7 +1238,7 @@ The email now travels exclusively within the TLS-encrypted request body. Server 
 192.168.1.42 - - [08/Apr/2026:14:23:01 +0000] "POST /api/v1/users/lookup HTTP/1.1" 200 1842
 ```
 
-The PII has disappeared from the log line entirely — the simplest possible form of log redaction, requiring no special log-scanning infrastructure (cf. §7.2).
+The PII has disappeared from the log line entirely — the simplest possible form of log redaction, requiring no special log-scanning infrastructure (cf. [§7.2](#72-linting-rules-for-pii-in-urls)).
 
 #### §3.1.7 Security Assessment
 
@@ -1470,14 +1470,14 @@ This pattern is the strongest general-purpose solution for PII protection in URL
 
 This pattern has limitations in specific scenarios:
 
-- **Search operations.** When the consumer does not have the opaque identifier and must search by PII (e.g., "find user by email"), the initial lookup requires a different pattern — typically §3.1 (POST body migration) or §3.5 (single-use token) for the search request, followed by opaque-ID-based access for subsequent requests.
+- **Search operations.** When the consumer does not have the opaque identifier and must search by PII (e.g., "find user by email"), the initial lookup requires a different pattern — typically [§3.1](#31-post-body-migration) (POST body migration) or [§3.5](#35-temporary-single-use-tokens) (single-use token) for the search request, followed by opaque-ID-based access for subsequent requests.
 - **Cross-system lookups.** When integrating with external systems that identify entities by PII (e.g., a government tax ID system, a credit bureau), the external system's identifier is itself PII. The opaque ID must be mapped to the external PII for outbound calls, which requires a secure reverse lookup.
 - **Human readability.** UUIDs are not human-readable. Customer support agents, logs analysts, and debuggers cannot glance at a URL and understand which user or order it refers to. This is a feature for security but a challenge for operations. Mitigate with internal admin dashboards that resolve UUIDs to human-readable labels, and with structured logging that includes both the UUID and (in restricted-access logs) a truncated PII reference.
 - **Legacy system migration.** If an existing API has been using PII in URLs for years (e.g., `/customers/john.doe@example.com/invoices`), migrating to opaque identifiers requires a coordinated migration: new clients use opaque IDs, old clients continue with PII until deprecated, and a translation layer handles both during the transition.
 
 #### §3.3.7 Combining with Other Patterns
 
-Opaque identifiers combine naturally with other patterns in this chapter — see §3.6 for detailed combination analysis and implementation guidance for the five most effective pairings.
+Opaque identifiers combine naturally with other patterns in this chapter — see [§3.6](#36-comparative-analysis-architectural-patterns) for detailed combination analysis and implementation guidance for the five most effective pairings.
 
 #### §3.3.8 Security Assessment
 
@@ -1560,7 +1560,7 @@ Content-Type: application/json
 }
 ```
 
-Placing PII in the body rather than the URL is critical: URL parameters are logged in web server access logs, proxy logs, CDN logs, and browser history — creating an uncontrolled proliferation of PII copies that are difficult to audit and impossible to retract (OWASP ASVS v4.0.3, §5.1.2). The POST body, by contrast, is not logged by default and can be encrypted at the transport layer without leaving residual traces.
+Placing PII in the body rather than the URL is critical: URL parameters are logged in web server access logs, proxy logs, CDN logs, and browser history — creating an uncontrolled proliferation of PII copies that are difficult to audit and impossible to retract (OWASP ASVS v4.0.3 §5.1.2). The POST body, by contrast, is not logged by default and can be encrypted at the transport layer without leaving residual traces.
 
 The client must be authenticated before this request — either through a prior authentication step or by including credentials (API key, OAuth token, mTLS certificate) in this request. Submitting PII to an unauthenticated session endpoint would allow any caller to create sessions populated with arbitrary PII.
 
@@ -1699,7 +1699,7 @@ Despite the statelessness tension, session-based resolution has legitimate use c
 
 #### §3.4.7 When Session-Based Resolution Is Inappropriate
 
-- **RESTful stateless APIs.** APIs that follow strict REST principles should not introduce session state. Use opaque identifiers (§3.3) or tokens (§3.5) instead.
+- **RESTful stateless APIs.** APIs that follow strict REST principles should not introduce session state. Use opaque identifiers ([§3.3](#33-opaque-internal-identifiers)) or tokens ([§3.5](#35-temporary-single-use-tokens)) instead.
 - **Microservice architectures.** Sessions that are consumed by multiple services require a shared session store and cross-service session propagation — both of which add operational complexity. Prefer per-service opaque identifiers.
 - **Long-lived PII storage.** Sessions have an inherent temporary nature (TTL-based expiry). If PII must persist across sessions (e.g., user profile data), sessions are the wrong abstraction — use a database with proper access controls.
 - **API versioning and evolution.** Session schemas are harder to version than request/response schemas. Adding a new PII field to a session requires migration logic; adding it to a request body is a simple schema change.
@@ -1919,7 +1919,7 @@ POST /reset-password?token=xK8vN2m_P9qR7wL5tY3jB1hF6dA0cE4gU8iS
 → 200 OK: Token consumed, password reset performed
 ```
 
-This approach also aligns with HTTP semantics — GET is safe and idempotent (RFC 9110, §9.2.1) and should never cause state-changing side effects.
+This approach also aligns with HTTP semantics — GET is safe and idempotent (RFC 9110 §9.2.1) and should never cause state-changing side effects.
 
 **Split link + code flow.** The email contains a URL that does not include the token, plus a separate short alphanumeric code displayed in the email body:
 
@@ -1961,7 +1961,7 @@ The primary cost of this pattern is the extra round-trip:
 1. **Token generation request.** The client must first request a token before performing the actual operation. This adds one HTTP round-trip.
 2. **Token resolution on the server.** Each request that uses a token requires a lookup operation against the token store.
 
-For most applications, this overhead is negligible — the token generation is a one-time operation per workflow, and the lookup is a fast primary-key read. However, in high-frequency API scenarios where PII-based lookups occur on every request (e.g., per-request user resolution), the extra round-trip and lookup add latency that compounds across millions of requests. In these cases, §3.3 (Opaque Internal Identifiers) is more efficient — the opaque ID is assigned once during registration and reused indefinitely without token generation.
+For most applications, this overhead is negligible — the token generation is a one-time operation per workflow, and the lookup is a fast primary-key read. However, in high-frequency API scenarios where PII-based lookups occur on every request (e.g., per-request user resolution), the extra round-trip and lookup add latency that compounds across millions of requests. In these cases, [§3.3](#33-opaque-internal-identifiers) (Opaque Internal Identifiers) is more efficient — the opaque ID is assigned once during registration and reused indefinitely without token generation.
 
 #### §3.5.9 When Single-Use Tokens Are Appropriate
 
@@ -1983,7 +1983,7 @@ Temporary single-use tokens provide **strong** PII protection for specific use c
 - ✅ **URL completely clean.** No PII in URLs, query parameters, or path segments.
 - ✅ **Replay prevention.** Single-use semantics prevent token reuse even within the TTL window.
 - ✅ **Automatic expiry.** Time-based TTL limits the exposure window.
-- ✅ **No server-side session state needed.** Unlike §3.4, tokens do not require session management infrastructure — a simple key-value store suffices.
+- ✅ **No server-side session state needed.** Unlike [§3.4](#34-session-based-resolution), tokens do not require session management infrastructure — a simple key-value store suffices.
 - ⚠️ **Token store compromise.** If the token store is breached, valid (unused) tokens can be consumed by the attacker before their TTL expires. Mitigate with short TTLs and encrypted PII values in the store.
 - ⚠️ **Interception risk.** If the delivery channel (email) is compromised, the attacker can use the token before the legitimate user. This is a limitation of any URL-based mechanism and cannot be fully mitigated — only reduced through short TTLs and notification emails.
 - ⚠️ **Token guessing.** With 256 bits of entropy, token guessing is computationally infeasible. However, if token generation is accidentally implemented with insufficient randomness (e.g., `Math.random()` instead of `crypto.randomBytes()`), the entropy drops to ~32 bits — trivially guessable. Audit token generation code for CSPRNG usage.
@@ -1996,7 +1996,7 @@ Temporary single-use tokens provide **strong** PII protection for specific use c
 
 The five architectural patterns address the same fundamental problem — removing PII from URLs — but differ significantly in their security properties, REST compliance, operational complexity, and suitability for different use cases. The following matrix provides a structured comparison across key dimensions.
 
-| Dimension | §3.1 POST Body Migration | §3.2 Header-Based Placeholders | §3.3 Opaque Internal Identifiers | §3.4 Session-Based Resolution | §3.5 Single-Use Tokens |
+| Dimension | [§3.1](#31-post-body-migration) POST Body Migration | [§3.2](#32-header-based-placeholders) Header-Based Placeholders | [§3.3](#33-opaque-internal-identifiers) Opaque Internal Identifiers | [§3.4](#34-session-based-resolution) Session-Based Resolution | [§3.5](#35-temporary-single-use-tokens) Single-Use Tokens |
 |:--|:--|:--|:--|:--|:--|
 | **PII removed from URL** | ✅ Complete | ✅ Complete | ✅ Complete | ✅ Complete (after session creation) | ✅ Complete |
 | **REST compliance** | ⚠️ Violates GET semantics | ⚠️ Non-standard header usage | ✅ Full compliance | ❌ Violates statelessness | ✅ Full compliance |
@@ -2040,34 +2040,34 @@ flowchart TB
 
 Ranked from strongest to weakest for PII protection in the URL channel:
 
-1. **§3.3 Opaque Internal Identifiers** — Strongest general-purpose pattern. Complete URL decontamination with full REST compliance, caching support, and enumeration resistance. The lookup table is the only additional attack surface.
+1. **[§3.3](#33-opaque-internal-identifiers) Opaque Internal Identifiers** — Strongest general-purpose pattern. Complete URL decontamination with full REST compliance, caching support, and enumeration resistance. The lookup table is the only additional attack surface.
 
-2. **§3.5 Single-Use Tokens** — Tied for strongest in specific use cases. Excellent for email links and one-time operations. Replay prevention and automatic expiry provide additional security beyond what opaque identifiers offer. Limited to scenarios where a token-generation round-trip is acceptable.
+2. **[§3.5](#35-temporary-single-use-tokens) Single-Use Tokens** — Tied for strongest in specific use cases. Excellent for email links and one-time operations. Replay prevention and automatic expiry provide additional security beyond what opaque identifiers offer. Limited to scenarios where a token-generation round-trip is acceptable.
 
-3. **§3.4 Session-Based Resolution** — Strong when implemented with a secure session store, short TTLs, and proper cookie attributes. The session store is a concentrated target, and statelessness violations introduce operational complexity.
+3. **[§3.4](#34-session-based-resolution) Session-Based Resolution** — Strong when implemented with a secure session store, short TTLs, and proper cookie attributes. The session store is a concentrated target, and statelessness violations introduce operational complexity.
 
-4. **§3.2 Header-Based Placeholders** — Moderate protection equivalent to §3.1, with additional proxy compatibility risks. Useful when PII must be separated from the URL but POST body migration is not feasible (e.g., GET must be preserved for caching).
+4. **[§3.2](#32-header-based-placeholders) Header-Based Placeholders** — Moderate protection equivalent to [§3.1](#31-post-body-migration), with additional proxy compatibility risks. Useful when PII must be separated from the URL but POST body migration is not feasible (e.g., GET must be preserved for caching).
 
-5. **§3.1 POST Body Migration** — Moderate protection. Simplest to implement but sacrifices REST purity, caching, and idempotency. Best as a quick fix or migration step toward a more robust pattern.
+5. **[§3.1](#31-post-body-migration) POST Body Migration** — Moderate protection. Simplest to implement but sacrifices REST purity, caching, and idempotency. Best as a quick fix or migration step toward a more robust pattern.
 
 #### §3.6.3 Decision Matrix: Pattern Selection by Use Case
 
 | Use case | Recommended pattern(s) | Rationale |
 |:--|:--|:--|
-| **User profile lookup** | §3.3 (opaque IDs) | High-frequency GET; must be cacheable; UUID as user ID is standard practice |
-| **Search by PII (email, SSN)** | §3.1 (POST body) → §3.3 (opaque ID for results) | Initial search uses POST; results reference opaque IDs for subsequent GETs |
-| **Password reset email link** | §3.5 (single-use token) | One-time operation; token in URL is replay-safe and time-limited |
-| **Email verification link** | §3.5 (single-use token) | Same as password reset — one-time, email-delivered |
-| **Multi-step registration flow** | §3.4 (session) or §3.5 (token per step) | Session captures accumulated PII; tokens work if each step is independent |
-| **Internal microservice communication** | §3.3 (opaque IDs) + mTLS | Backend-to-backend; opaque IDs + mutual TLS for transport security |
-| **Public API with browser clients** | §3.3 (opaque IDs) | Full REST compliance; cacheable; no CORS issues |
-| **Legacy API migration (PII in URLs)** | §3.1 (immediate) → §3.3 (target) | POST body migration as stopgap; opaque IDs as long-term solution |
-| **Government/tax ID lookups** | §3.1 (POST body) + §3.3 (opaque ID) | Tax ID is PII; use POST for initial lookup, return opaque ID for caching |
-| **Healthcare patient lookup** | §3.3 (opaque IDs) + §3.2 (headers for filters) | Patient ID is opaque; additional PII filters in headers if needed |
-| **Account activation from email** | §3.5 (single-use token) | One-time; email-delivered; must not be replayable |
-| **Document signing invitation** | §3.5 (single-use token) | One-time; recipient identity must not be exposed in URL |
-| **Dashboard bookmarkable URLs** | §3.3 (opaque IDs) | Must be cacheable and bookmarkable; opaque IDs in path are ideal |
-| **Shared report link (time-limited)** | §3.5 (single-use or time-limited token) | URL must expire; single-use prevents unauthorized sharing |
+| **User profile lookup** | [§3.3](#33-opaque-internal-identifiers) (opaque IDs) | High-frequency GET; must be cacheable; UUID as user ID is standard practice |
+| **Search by PII (email, SSN)** | [§3.1](#31-post-body-migration) (POST body) → [§3.3](#33-opaque-internal-identifiers) (opaque ID for results) | Initial search uses POST; results reference opaque IDs for subsequent GETs |
+| **Password reset email link** | [§3.5](#35-temporary-single-use-tokens) (single-use token) | One-time operation; token in URL is replay-safe and time-limited |
+| **Email verification link** | [§3.5](#35-temporary-single-use-tokens) (single-use token) | Same as password reset — one-time, email-delivered |
+| **Multi-step registration flow** | [§3.4](#34-session-based-resolution) (session) or [§3.5](#35-temporary-single-use-tokens) (token per step) | Session captures accumulated PII; tokens work if each step is independent |
+| **Internal microservice communication** | [§3.3](#33-opaque-internal-identifiers) (opaque IDs) + mTLS | Backend-to-backend; opaque IDs + mutual TLS for transport security |
+| **Public API with browser clients** | [§3.3](#33-opaque-internal-identifiers) (opaque IDs) | Full REST compliance; cacheable; no CORS issues |
+| **Legacy API migration (PII in URLs)** | [§3.1](#31-post-body-migration) (immediate) → [§3.3](#33-opaque-internal-identifiers) (target) | POST body migration as stopgap; opaque IDs as long-term solution |
+| **Government/tax ID lookups** | [§3.1](#31-post-body-migration) (POST body) + [§3.3](#33-opaque-internal-identifiers) (opaque ID) | Tax ID is PII; use POST for initial lookup, return opaque ID for caching |
+| **Healthcare patient lookup** | [§3.3](#33-opaque-internal-identifiers) (opaque IDs) + [§3.2](#32-header-based-placeholders) (headers for filters) | Patient ID is opaque; additional PII filters in headers if needed |
+| **Account activation from email** | [§3.5](#35-temporary-single-use-tokens) (single-use token) | One-time; email-delivered; must not be replayable |
+| **Document signing invitation** | [§3.5](#35-temporary-single-use-tokens) (single-use token) | One-time; recipient identity must not be exposed in URL |
+| **Dashboard bookmarkable URLs** | [§3.3](#33-opaque-internal-identifiers) (opaque IDs) | Must be cacheable and bookmarkable; opaque IDs in path are ideal |
+| **Shared report link (time-limited)** | [§3.5](#35-temporary-single-use-tokens) (single-use or time-limited token) | URL must expire; single-use prevents unauthorized sharing |
 
 ```mermaid
 flowchart TD
@@ -2125,21 +2125,21 @@ flowchart TB
     COMBO4 ~~~ COMBO5
 ```
 
-**§3.1 + §3.3 (POST search → opaque ID result).** The most common combination. A search endpoint accepts PII in a POST body, returns opaque identifiers in the response, and all subsequent access uses GET with opaque IDs. This preserves caching for the common case while protecting the initial PII-based lookup.
+**[§3.1](#31-post-body-migration) + [§3.3](#33-opaque-internal-identifiers) (POST search → opaque ID result).** The most common combination. A search endpoint accepts PII in a POST body, returns opaque identifiers in the response, and all subsequent access uses GET with opaque IDs. This preserves caching for the common case while protecting the initial PII-based lookup.
 
-**§3.2 + §3.3 (Headers for dynamic PII, opaque IDs for resources).** Opaque IDs identify resources in the URL path, while dynamic PII (e.g., filter values in search) travels in `X-PII-*` headers. This keeps the URL clean while allowing complex PII-based filtering.
+**[§3.2](#32-header-based-placeholders) + [§3.3](#33-opaque-internal-identifiers) (Headers for dynamic PII, opaque IDs for resources).** Opaque IDs identify resources in the URL path, while dynamic PII (e.g., filter values in search) travels in `X-PII-*` headers. This keeps the URL clean while allowing complex PII-based filtering.
 
-**§3.3 + §3.5 (Opaque ID + single-use token for email links).** When an email must contain a link to a user-specific resource, generate a single-use token that resolves to the opaque ID. The user clicks the link, the token resolves to the opaque ID, and the opaque ID is used for all subsequent navigation within the application.
+**[§3.3](#33-opaque-internal-identifiers) + [§3.5](#35-temporary-single-use-tokens) (Opaque ID + single-use token for email links).** When an email must contain a link to a user-specific resource, generate a single-use token that resolves to the opaque ID. The user clicks the link, the token resolves to the opaque ID, and the opaque ID is used for all subsequent navigation within the application.
 
-**§3.4 + §3.5 (Session for workflow, token for handoff).** In a multi-step workflow that begins with an email link, use a single-use token for the initial email click, create a session on first access, and use the session for subsequent steps. The session provides stateful storage for the workflow; the token provides secure, replay-safe handoff from email to web.
+**[§3.4](#34-session-based-resolution) + [§3.5](#35-temporary-single-use-tokens) (Session for workflow, token for handoff).** In a multi-step workflow that begins with an email link, use a single-use token for the initial email click, create a session on first access, and use the session for subsequent steps. The session provides stateful storage for the workflow; the token provides secure, replay-safe handoff from email to web.
 
-**§3.1 + §3.2 (POST body + headers for mixed PII).** When both body and URL would contain PII (e.g., a POST with a search filter in the body and a user reference in the URL), move the body PII to the body (by definition) and the URL PII to headers. This is a fallback combination when neither pattern alone is sufficient.
+**[§3.1](#31-post-body-migration) + [§3.2](#32-header-based-placeholders) (POST body + headers for mixed PII).** When both body and URL would contain PII (e.g., a POST with a search filter in the body and a user reference in the URL), move the body PII to the body (by definition) and the URL PII to headers. This is a fallback combination when neither pattern alone is sufficient.
 
 #### §3.6.5 Summary
 
 Architectural patterns are the first line of defence against PII exposure in URLs. They require no cryptography, no specialised vendor products, and no changes to the data itself — only changes to *where* the data travels within the HTTP request. The trade-offs are primarily around REST compliance, caching, and operational complexity.
 
-For new API designs, **§3.3 (Opaque Internal Identifiers)** should be the default choice — it provides the strongest combination of security, REST compliance, and usability. Use **§3.5 (Single-Use Tokens)** for email-delivered links and one-time operations. Reserve **§3.1 (POST Body Migration)** for rapid migrations and **§3.4 (Session-Based Resolution)** for multi-step web application workflows. **§3.2 (Header-Based Placeholders)** fills a niche when headers must carry PII but POST body migration is not feasible.
+For new API designs, **[§3.3](#33-opaque-internal-identifiers) (Opaque Internal Identifiers)** should be the default choice — it provides the strongest combination of security, REST compliance, and usability. Use **[§3.5](#35-temporary-single-use-tokens) (Single-Use Tokens)** for email-delivered links and one-time operations. Reserve **[§3.1](#31-post-body-migration) (POST Body Migration)** for rapid migrations and **[§3.4](#34-session-based-resolution) (Session-Based Resolution)** for multi-step web application workflows. **[§3.2](#32-header-based-placeholders) (Header-Based Placeholders)** fills a niche when headers must carry PII but POST body migration is not feasible.
 
 Architectural patterns alone are necessary but not sufficient for comprehensive PII protection. They protect the URL channel but do not encrypt PII at rest, do not protect PII in response bodies, and do not address log redaction or audit requirements. The following chapters build on this foundation with cryptographic patterns (Chapter 4), pseudonymization and tokenization (Chapter 5), infrastructure patterns (Chapter 6), and protocol-level patterns (Chapter 8).
 
@@ -2147,10 +2147,10 @@ Use the later reference chapters selectively based on the pattern you choose:
 
 | If your primary answer is... | Read next | Why |
 |:-----------------------------|:----------|:----|
-| **POST-body lookup, opaque IDs, or single-use tokens** | §7, §9 | Turn the contract decision into policy, migration, and deprecation work |
-| **A design with residual leak surfaces or browser/tooling exposure** | §6, §16 | Control logs, caches, traces, analytics, and support systems |
-| **A reversible or tokenized implementation** | §13, §14, §15 | Govern decryption, auditability, key lifecycle, and erasure |
-| **A product-backed implementation path** | §10, §11, §12 | Compare vendors, cloud primitives, and build-vs-buy scope |
+| **POST-body lookup, opaque IDs, or single-use tokens** | [§7](#7-design-time-api-governance-and-contract-enforcement), [§9](#9-migration-playbook-for-existing-apis) | Turn the contract decision into policy, migration, and deprecation work |
+| **A design with residual leak surfaces or browser/tooling exposure** | [§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability) | Control logs, caches, traces, analytics, and support systems |
+| **A reversible or tokenized implementation** | [§13](#13-audit-trails-for-cryptographic-operations), [§14](#14-key-management-and-governance), [§15](#15-right-to-erasure-in-encrypted-contexts) | Govern decryption, auditability, key lifecycle, and erasure |
+| **A product-backed implementation path** | [§10](#10-tokenization-and-encryption-platforms), [§11](#11-cloud-native-and-api-gateway-solutions), [§12](#12-build-vs-buy-decision-framework) | Compare vendors, cloud primitives, and build-vs-buy scope |
 
 ---
 
@@ -2160,7 +2160,7 @@ Cryptographic patterns transform PII into ciphertext before it enters a URL, pro
 
 #### Chapter Roadmap
 
-This chapter examines seven cryptographic patterns organized from simple and standardized (JWE, §4.1) through specialized (FPE §4.2, Deterministic AES §4.3, Searchable Encryption §4.4) to operationally complex (Envelope Encryption §4.5, Client-Side Encryption §4.6, Session-Bound Key §4.7). The chapter concludes with a comparative analysis (§4.8) that synthesizes trade-offs across all patterns. The diagram below maps the relationships between patterns, their foundational building blocks, and the synthesis section:
+This chapter examines seven cryptographic patterns organized from simple and standardized (JWE, [§4.1](#41-jwtjwe-encrypted-parameters)) through specialized (FPE [§4.2](#42-format-preserving-encryption-fpe), Deterministic AES [§4.3](#43-deterministic-aes-encryption), Searchable Encryption [§4.4](#44-searchable-encryption)) to operationally complex (Envelope Encryption [§4.5](#45-envelope-encryption), Client-Side Encryption [§4.6](#46-client-side-encryption), Session-Bound Key [§4.7](#47-session-bound-symmetric-key-distribution)). The chapter concludes with a comparative analysis ([§4.8](#48-comparative-analysis-cryptographic-patterns)) that synthesizes trade-offs across all patterns. The diagram below maps the relationships between patterns, their foundational building blocks, and the synthesis section:
 
 ```mermaid
 %%{init: {themeVariables: {fontSize: "14px"}}}%%
@@ -2236,7 +2236,7 @@ flowchart TD
     SBK --> COMP
 ```
 
-Readers who need a quick recommendation should jump to §4.8; readers evaluating a specific pattern should navigate directly to the relevant section.
+Readers who need a quick recommendation should jump to [§4.8](#48-comparative-analysis-cryptographic-patterns); readers evaluating a specific pattern should navigate directly to the relevant section.
 
 ---
 
@@ -2368,7 +2368,7 @@ The JWT payload is a JSON object containing registered, public, and private clai
 }
 ```
 
-The namespaced approach (`https://example.com/claims`) follows the JWT best practice of using reverse-domain notation to prevent claim name collisions (RFC 7519, §4.2).
+The namespaced approach (`https://example.com/claims`) follows the JWT best practice of using reverse-domain notation to prevent claim name collisions (RFC 7519, [§4.2](#42-format-preserving-encryption-fpe)).
 
 #### §4.1.5 Expiry Claims for Automatic Token Invalidation
 
@@ -2397,11 +2397,11 @@ JWS(JWE(payload))
 
 The sender first encrypts the PII claims into a JWE, then signs the resulting JWE string as a JWS. The recipient verifies the JWS signature (authenticating the sender), then decrypts the inner JWE (recovering the PII). This encrypt-then-sign approach provides both confidentiality and authenticity, and is the composition recommended by RFC 8725 (JSON Web Token Best Current Practices) for tokens carrying sensitive data.
 
-RFC 7516 does not mandate nesting; the specification treats encryption and signing as independent operations. However, the security community broadly recommends nesting for tokens carrying sensitive data (see RFC 8725, §2.6 and §3.2).
+RFC 7516 does not mandate nesting; the specification treats encryption and signing as independent operations. However, the security community broadly recommends nesting for tokens carrying sensitive data (see RFC 8725, [§2.6](#26-adjacent-regulatory-frameworks) and [§3.2](#32-header-based-placeholders)).
 
 #### §4.1.7 URL-Safe base64url Encoding
 
-All five JWE segments use base64url encoding (RFC 4648, §5), which replaces `+` with `-` and `/` with `_`, and strips trailing `=` padding. This encoding is safe for use in URL query parameters and path segments without additional escaping.
+All five JWE segments use base64url encoding (RFC 4648, [§5](#5-pseudonymization-and-tokenization-patterns)), which replaces `+` with `-` and `/` with `_`, and strips trailing `=` padding. This encoding is safe for use in URL query parameters and path segments without additional escaping.
 
 | Standard base64 | base64url |
 |:----------------|:----------|
@@ -2432,7 +2432,7 @@ The most significant practical constraint on JWE tokens in URLs is **length**. A
 1. **Use POST instead of GET.** Moving the JWE to the request body eliminates URL length constraints entirely. The body is not logged by most proxies and CDNs.
 2. **Minimize claim payload.** Include only the PII fields the downstream service actually needs. Replace verbose claims (full address) with references (address_id pointing to server-side storage).
 3. **Use EC keys instead of RSA.** ECDH-ES key agreement produces shorter encrypted keys than RSA-OAEP (65 bytes vs 256 bytes for RSA-2048).
-4. **Use `dir` key agreement.** When the client and server share a symmetric key, the `dir` algorithm (RFC 7518, §4.1) eliminates the Encrypted Key segment entirely, reducing token length by ~256 bytes.
+4. **Use `dir` key agreement.** When the client and server share a symmetric key, the `dir` algorithm (RFC 7518, [§4.1](#41-jwtjwe-encrypted-parameters)) eliminates the Encrypted Key segment entirely, reducing token length by ~256 bytes.
 
 #### §4.1.9 Key Management: Symmetric vs Asymmetric
 
@@ -2550,7 +2550,7 @@ FF1 uses a 10-round Feistel network operating on numerically-encoded plaintext. 
 
 **FF3-1 (Revised FF3):**
 
-FF3-1 is the revised version of the original FF3 algorithm, which was found to have a security weakness (see §4.2.6 below). The revision increases the minimum domain size from the vulnerable range. FF3-1 uses an 8-round Feistel network with a different tweak schedule.
+FF3-1 is the revised version of the original FF3 algorithm, which was found to have a security weakness (see [§4.2.6](#426-deterministic-vs-non-deterministic-modes) below). The revision increases the minimum domain size from the vulnerable range. FF3-1 uses an 8-round Feistel network with a different tweak schedule.
 
 - **Radix:** Up to 2^16.
 - **Min plaintext length:** At least 100 elements in the domain (radix^minlen ≥ 100). This is the key change from FF3, which was vulnerable for small domains.
@@ -2724,7 +2724,7 @@ Because the SIV is a deterministic function of the plaintext, the same plaintext
 
 **When used with a fixed nonce** (or an empty nonce), AES-GCM-SIV becomes fully deterministic. This is the mode relevant for PII tokenization in URL parameters.
 
-**Security properties (RFC 8452, §6):**
+**Security properties (RFC 8452, [§6](#6-infrastructure-and-operational-patterns)):**
 - 128-bit or 256-bit key size
 - Provides 128-bit integrity for the ciphertext
 - Deterministic: same plaintext → same ciphertext
@@ -2817,7 +2817,7 @@ While deterministic encryption produces consistent tokens for the same plaintext
 - **Range queries:** Finding tokens where the plaintext falls within a date range
 - **Fuzzy matching:** Finding tokens where the plaintext is similar to a given value
 
-For exact-match lookups, the server simply encrypts the search term with the same key and looks up the resulting token in the database. This is fast (single AES operation) and requires no index beyond the standard B-tree on the token column. But for any richer query, additional structures (searchable encryption indexes, see §4.4) are needed.
+For exact-match lookups, the server simply encrypts the search term with the same key and looks up the resulting token in the database. This is fast (single AES operation) and requires no index beyond the standard B-tree on the token column. But for any richer query, additional structures (searchable encryption indexes, see [§4.4](#44-searchable-encryption)) are needed.
 
 #### §4.3.9 Example: Email to AES-GCM-SIV Token to URL Parameter
 
@@ -2872,7 +2872,7 @@ Searchable encryption is a family of cryptographic techniques that allow a serve
 Searchable encryption falls under the broader category of **property-preserving encryption** — encryption schemes that preserve specific properties of the plaintext in the ciphertext, enabling computation on encrypted data. The three main categories are:
 
 - **Order-preserving encryption (OPE):** Ciphertexts preserve the order of plaintexts. If A < B, then Enc(A) < Enc(B). Enables range queries and sorting.
-- **Equality-preserving encryption (deterministic encryption):** Same plaintext → same ciphertext. Enables exact-match lookups. This is what §4.3 (AES-GCM-SIV) provides.
+- **Equality-preserving encryption (deterministic encryption):** Same plaintext → same ciphertext. Enables exact-match lookups. This is what [§4.3](#43-deterministic-aes-encryption) (AES-GCM-SIV) provides.
 - **Subset-preserving / keyword search encryption:** Enables searching for documents containing specific keywords, without revealing the full plaintext.
 
 #### §4.4.2 Order-Preserving Encryption (OPE)
@@ -2894,7 +2894,7 @@ OPE is primarily a database technology — it enables encrypted indexes, sorted 
 
 #### §4.4.3 Equality-Preserving Encryption
 
-This is the simplest form of searchable encryption and is already covered by §4.3 (deterministic AES). The server can look up exact matches by encrypting the search term with the same key and comparing ciphertexts.
+This is the simplest form of searchable encryption and is already covered by [§4.3](#43-deterministic-aes-encryption) (deterministic AES). The server can look up exact matches by encrypting the search term with the same key and comparing ciphertexts.
 
 The security limitation is that equality-preserving encryption leaks whether two ciphertexts correspond to the same plaintext. This frequency analysis attack is well-studied: if the same email address appears in 1,000 records, the corresponding ciphertext also appears 1,000 times, allowing an attacker to correlate frequency information with known email distributions.
 
@@ -3142,7 +3142,7 @@ The PII remains in the server's working memory only for the duration of this que
 
 <details><summary><strong>12. Backend DB returns query results to API Server</strong></summary>
 
-The database returns the matching records (order details, account information, etc.) to the API Server. These results may themselves contain PII (order amounts, delivery addresses) — the envelope encryption pattern protects PII in the *inbound* request URL, not in the *outbound* response body. If the response requires PII protection, additional patterns apply (response filtering, field-level encryption — see §7).
+The database returns the matching records (order details, account information, etc.) to the API Server. These results may themselves contain PII (order amounts, delivery addresses) — the envelope encryption pattern protects PII in the *inbound* request URL, not in the *outbound* response body. If the response requires PII protection, additional patterns apply (response filtering, field-level encryption — see [§7](#7-design-time-api-governance-and-contract-enforcement)).
 
 </details>
 
@@ -3276,7 +3276,7 @@ Envelope encryption is appropriate for PII in URL parameters when:
 3. **Audit trail for decryption.** Every unwrapping operation goes through the KMS, which provides an audit log of every decryption event — valuable for compliance and forensics.
 4. **Key rotation without data re-encryption.** When the KEK is rotated, existing ciphertexts (encrypted with per-request DEKs) do not need to be re-encrypted. Only the DEK wrapping needs to be updated for the KEK rotation — and even that can be deferred.
 
-For simpler use cases, JWE (§4.1) with asymmetric keys provides most of the same benefits (the encrypted CEK in JWE is conceptually identical to a wrapped DEK) with less implementation complexity, since the JWE standard handles the envelope format.
+For simpler use cases, JWE ([§4.1](#41-jwtjwe-encrypted-parameters)) with asymmetric keys provides most of the same benefits (the encrypted CEK in JWE is conceptually identical to a wrapped DEK) with less implementation complexity, since the JWE standard handles the envelope format.
 
 ---
 
@@ -3347,7 +3347,7 @@ The central challenge of CSE is key distribution: how does the client obtain the
 
 2. **Asymmetric key pair (client-generated).** The client generates an RSA or EC key pair and uploads the public key to the server. The client encrypts with its private key; anyone with the public key cannot decrypt (this is actually a signing operation). For encryption, the server's public key encrypts, and the client's private key decrypts — but this means the server's public key must be available to the client, which is the normal TLS pattern.
 
-3. **Hybrid: client-generated DEK + server KEK.** The client generates a per-use DEK, encrypts PII with it, then wraps the DEK with the server's public key (or a shared KEK). The server unwraps the DEK with its private key and decrypts. This is essentially envelope encryption (§4.5) with client-side DEK generation — the server can decrypt but must explicitly do so.
+3. **Hybrid: client-generated DEK + server KEK.** The client generates a per-use DEK, encrypts PII with it, then wraps the DEK with the server's public key (or a shared KEK). The server unwraps the DEK with its private key and decrypts. This is essentially envelope encryption ([§4.5](#45-envelope-encryption)) with client-side DEK generation — the server can decrypt but must explicitly do so.
 
 4. **Key wrapping service.** A dedicated key management service distributes keys to authorized clients. The client authenticates to the service, receives a key, and uses it for encryption. The key service maintains an audit trail of key distribution events.
 
@@ -3430,7 +3430,7 @@ In the context of REST API URL parameters, a zero-knowledge architecture means:
 
 3. **Key loss = data loss.** If the client loses the encryption key (cleared browser cache, lost device), the encrypted data is permanently unrecoverable. There is no "forgot password" reset for CSE keys.
 
-4. **Search and query are impossible.** The server cannot search, filter, or aggregate encrypted data without additional structures (searchable encryption, see §4.4) that add complexity and often reduce the security guarantees.
+4. **Search and query are impossible.** The server cannot search, filter, or aggregate encrypted data without additional structures (searchable encryption, see [§4.4](#44-searchable-encryption)) that add complexity and often reduce the security guarantees.
 
 5. **No server-side audit of plaintext.** Compliance requirements that mandate logging of PII access (who accessed whose data, and when) cannot be satisfied when the server never sees the plaintext. Audit must happen on the client side, which is inherently less trustworthy.
 
@@ -3440,7 +3440,7 @@ In the context of REST API URL parameters, a zero-knowledge architecture means:
 
 ### §4.7 Session-Bound Symmetric Key Distribution
 
-The key distribution models in §4.6 assume either a **static public key** (JWKS endpoint, rotated operationally) or a **pre-shared symmetric key**. An alternative model shifts key generation to the server's session lifecycle: the server generates a unique symmetric encryption key at session establishment, stores it in the server-side session store, and delivers it to the frontend. The frontend uses this per-session key to encrypt PII via the Web Crypto API before transmitting it; the server decrypts using the same key from its session store. This pattern — termed **Session-Bound Symmetric Key Distribution** — occupies a middle ground between §3.4 (session-based resolution) and §4.6 (full client-side encryption with static keys).
+The key distribution models in [§4.6](#46-client-side-encryption) assume either a **static public key** (JWKS endpoint, rotated operationally) or a **pre-shared symmetric key**. An alternative model shifts key generation to the server's session lifecycle: the server generates a unique symmetric encryption key at session establishment, stores it in the server-side session store, and delivers it to the frontend. The frontend uses this per-session key to encrypt PII via the Web Crypto API before transmitting it; the server decrypts using the same key from its session store. This pattern — termed **Session-Bound Symmetric Key Distribution** — occupies a middle ground between [§3.4](#34-session-based-resolution) (session-based resolution) and [§4.6](#46-client-side-encryption) (full client-side encryption with static keys).
 
 ```mermaid
 %%{init: {sequence: {actorMargin: 250}, themeVariables: {noteBkgColor: "transparent", noteBorderColor: "transparent"}}}%%
@@ -3665,9 +3665,9 @@ const encryptedParam = btoa(String.fromCharCode(...iv, ...new Uint8Array(ciphert
 
 #### §4.7.3 Comparison with Static Key Distribution
 
-The session-bound symmetric key differs fundamentally from the static JWKS-based key distribution described in §4.6:
+The session-bound symmetric key differs fundamentally from the static JWKS-based key distribution described in [§4.6](#46-client-side-encryption):
 
-| Dimension | Static JWKS (§4.6 hybrid) | Session-Bound Symmetric Key |
+| Dimension | Static JWKS ([§4.6](#46-client-side-encryption) hybrid) | Session-Bound Symmetric Key |
 |:----------|:--------------------------|:----------------------------|
 | Key type | Asymmetric (RSA/EC) + per-message DEK | Symmetric (AES-256) |
 | Key generation | Client generates DEK; server's static public key wraps it | Server generates per-session key; sends to client |
@@ -3683,9 +3683,9 @@ The session-bound symmetric key differs fundamentally from the static JWKS-based
 
 #### §4.7.4 Security Analysis
 
-**XSS remains the fundamental weakness** — the same caveat that applies to all client-side encryption patterns (§4.6). A per-session symmetric key compounds this risk because XSS can both encrypt *and* decrypt, whereas a static public key approach limits XSS to encryption-only (the private key never leaves the server). However, for the common case of "user enters PII → encrypt → send," XSS has access to plaintext before encryption regardless of the key distribution model.
+**XSS remains the fundamental weakness** — the same caveat that applies to all client-side encryption patterns ([§4.6](#46-client-side-encryption)). A per-session symmetric key compounds this risk because XSS can both encrypt *and* decrypt, whereas a static public key approach limits XSS to encryption-only (the private key never leaves the server). However, for the common case of "user enters PII → encrypt → send," XSS has access to plaintext before encryption regardless of the key distribution model.
 
-**The session store becomes a high-value target.** A compromise of the session store exposes all active session keys, each of which can decrypt PII encrypted during its session. This is the same concentration risk noted in §3.4 for session-based resolution. Mitigation requires a dedicated, hardened session store with encryption at rest, access logging, network isolation, and short session TTLs.
+**The session store becomes a high-value target.** A compromise of the session store exposes all active session keys, each of which can decrypt PII encrypted during its session. This is the same concentration risk noted in [§3.4](#34-session-based-resolution) for session-based resolution. Mitigation requires a dedicated, hardened session store with encryption at rest, access logging, network isolation, and short session TTLs.
 
 **Key transport relies entirely on TLS.** Unlike the TLS handshake (which uses asymmetric key exchange for forward secrecy), the session key is sent as payload data over TLS. If the TLS session is recorded and the server's TLS private key is later compromised, the recorded session key can be decrypted. This is a trade-off of the symmetric approach — it sacrifices application-layer forward secrecy for implementation simplicity.
 
@@ -3710,7 +3710,7 @@ The session-bound symmetric key pattern is not standardized by any RFC or IETF d
 
 **Angular HTTP Interceptor Pattern.** A community-documented implementation uses Angular HTTP interceptors to transparently encrypt request/response payloads using a session-based symmetric key. The key is established during session creation and applied by the interceptor layer, centralizing the encryption logic and removing it from individual API call sites. This pattern is suitable for single-page applications where a centralized HTTP layer can intercept all requests.
 
-**Adyen Client-Side Encryption (contrast).** Adyen's classic integration encrypts card data in the browser before submission, but uses **asymmetric** (public key) encryption rather than a per-session symmetric key. The library encrypts card data using a public key; the encrypted data is sent through the merchant's server to Adyen, where it is decrypted with the private key. This is the static JWKS approach (§4.6, option 3) — listed here as a contrast to highlight the industry's preference for asymmetric key distribution in payment contexts.
+**Adyen Client-Side Encryption (contrast).** Adyen's classic integration encrypts card data in the browser before submission, but uses **asymmetric** (public key) encryption rather than a per-session symmetric key. The library encrypts card data using a public key; the encrypted data is sent through the merchant's server to Adyen, where it is decrypted with the private key. This is the static JWKS approach ([§4.6](#46-client-side-encryption), option 3) — listed here as a contrast to highlight the industry's preference for asymmetric key distribution in payment contexts.
 
 **Cloudflare WAF Payload Encryption with HPKE (contrast).** Cloudflare encrypts WAF-triggered payloads using Hybrid Public Key Encryption (RFC 9180), where a static key pair is used for asymmetric encryption at the edge. Like Adyen, this demonstrates the industry trend toward HPKE-based asymmetric key distribution rather than per-session symmetric keys — but HPKE could also serve as the key encapsulation mechanism for transporting a per-session key, combining the benefits of both approaches.
 
@@ -3718,7 +3718,7 @@ The session-bound symmetric key pattern is not standardized by any RFC or IETF d
 
 The session-bound symmetric key is most appropriate when:
 
-- **The server must decrypt PII for business logic** (the common case for REST APIs — email validation, deduplication, name matching), making true zero-knowledge encryption (§4.6) impractical.
+- **The server must decrypt PII for business logic** (the common case for REST APIs — email validation, deduplication, name matching), making true zero-knowledge encryption ([§4.6](#46-client-side-encryption)) impractical.
 - **Automatic key rotation is desired** without operational key rotation ceremonies. Session TTL provides natural rotation measured in minutes rather than months.
 - **Implementation simplicity is preferred** over maximum key separation. Symmetric AES-GCM is significantly simpler to implement correctly than JWE with RSA/EC key wrapping.
 - **Defense-in-depth against TLS compromise** is needed. The per-session key adds an application-layer encryption boundary that persists even if the TLS channel is compromised by a rogue CDN, WAF, or proxy that logs request bodies.
@@ -3726,7 +3726,7 @@ The session-bound symmetric key is most appropriate when:
 The pattern is **not appropriate** when:
 
 - **The API is stateless** (JWT-only, no session store). The pattern requires server-side state to hold the session key.
-- **Zero-knowledge properties are required** (the server must never be able to decrypt). Use §4.6 with client-generated key pairs instead.
+- **Zero-knowledge properties are required** (the server must never be able to decrypt). Use [§4.6](#46-client-side-encryption) with client-generated key pairs instead.
 - **Regulatory requirements mandate asymmetric key separation** (e.g., PCI DSS key management requirements that specify separate encryption and decryption keys).
 
 #### §4.7.7 Browser Key Derivation Variant
@@ -3781,7 +3781,7 @@ The server performs the same HKDF derivation with identical parameters to produc
 
 #### §4.8.1 Key Compromise Blast Radius
 
-Each cryptographic pattern ties PII confidentiality to a secret key, but the consequences of key compromise vary dramatically. A compromised session key (§4.7) exposes only the PII exchanged during that browser session — minutes to hours of data. A compromised KEK (§4.5) allows an attacker to unwrap every data encryption key ever generated under it, potentially exposing months or years of PII across all tenants. A compromised FPE or deterministic AES key (§4.2, §4.3) not only decrypts all ciphertexts but also requires bulk re-encryption of every stored value — a key rotation event that can take days in production systems.
+Each cryptographic pattern ties PII confidentiality to a secret key, but the consequences of key compromise vary dramatically. A compromised session key ([§4.7](#47-session-bound-symmetric-key-distribution)) exposes only the PII exchanged during that browser session — minutes to hours of data. A compromised KEK ([§4.5](#45-envelope-encryption)) allows an attacker to unwrap every data encryption key ever generated under it, potentially exposing months or years of PII across all tenants. A compromised FPE or deterministic AES key ([§4.2](#42-format-preserving-encryption-fpe), [§4.3](#43-deterministic-aes-encryption)) not only decrypts all ciphertexts but also requires bulk re-encryption of every stored value — a key rotation event that can take days in production systems.
 
 The diagram below maps each key type to its compromise scope:
 
@@ -3839,13 +3839,13 @@ flowchart TD
     KEK ---|wraps| DEK
 ```
 
-Three tiers of blast radius emerge from this analysis. **Tier 1 — Catastrophic:** KEK compromise (§4.5) and static private key compromise (§4.1, §4.6) expose all historical data and require coordinated key rotation across all consumers. **Tier 2 — Significant:** FPE and deterministic AES key compromise (§4.2, §4.3) exposes all ciphertexts and additionally requires bulk re-encryption because the same key is used for every operation. **Tier 3 — Contained:** Per-request DEK compromise (§4.5) and session key compromise (§4.7) limit exposure to a single request or session, with no cross-contamination. This tiered model directly informs the key management recommendations in the Decision Matrix below — patterns with catastrophic blast radius demand hardware-backed key storage (KMS/HSM) and aggressive rotation schedules.
+Three tiers of blast radius emerge from this analysis. **Tier 1 — Catastrophic:** KEK compromise ([§4.5](#45-envelope-encryption)) and static private key compromise ([§4.1](#41-jwtjwe-encrypted-parameters), [§4.6](#46-client-side-encryption)) expose all historical data and require coordinated key rotation across all consumers. **Tier 2 — Significant:** FPE and deterministic AES key compromise ([§4.2](#42-format-preserving-encryption-fpe), [§4.3](#43-deterministic-aes-encryption)) exposes all ciphertexts and additionally requires bulk re-encryption because the same key is used for every operation. **Tier 3 — Contained:** Per-request DEK compromise ([§4.5](#45-envelope-encryption)) and session key compromise ([§4.7](#47-session-bound-symmetric-key-distribution)) limit exposure to a single request or session, with no cross-contamination. This tiered model directly informs the key management recommendations in the Decision Matrix below — patterns with catastrophic blast radius demand hardware-backed key storage (KMS/HSM) and aggressive rotation schedules.
 
 #### §4.8.2 Structured Comparison
 
 The seven cryptographic patterns analyzed in this chapter address the same fundamental problem — protecting PII in URL parameters — but with fundamentally different trade-offs. This section provides a structured comparison across the dimensions most relevant to API architects.
 
-| Dimension | JWE (§4.1) | FPE (§4.2) | Deterministic AES (§4.3) | Searchable Encryption (§4.4) | Envelope Encryption (§4.5) | Client-Side Encryption (§4.6) | Session-Bound Symmetric Key (§4.7) |
+| Dimension | JWE ([§4.1](#41-jwtjwe-encrypted-parameters)) | FPE ([§4.2](#42-format-preserving-encryption-fpe)) | Deterministic AES ([§4.3](#43-deterministic-aes-encryption)) | Searchable Encryption ([§4.4](#44-searchable-encryption)) | Envelope Encryption ([§4.5](#45-envelope-encryption)) | Client-Side Encryption ([§4.6](#46-client-side-encryption)) | Session-Bound Symmetric Key ([§4.7](#47-session-bound-symmetric-key-distribution)) |
 |:----------|:----------:|:----------:|:-------------------------:|:-----------------------------:|:--------------------------:|:----------------------------:|:--------------------------------:|
 | **Security strength** | High (AES-256, RSA/EC) | Medium (bounded by domain size) | High (AES-256-GCM-SIV) | Low–Medium (leaks properties) | High (AES-256 + KEK isolation) | Highest (server never sees PII) | High (AES-256 + session isolation) |
 | **Confidentiality** | ✅ Payload encrypted | ✅ Format-preserving ciphertext | ✅ Ciphertext opaque | ⚠️ Partial (property leakage) | ✅ Per-request encryption | ✅✅ End-to-end encryption | ✅ Client-side + TLS defense in depth |
@@ -3959,7 +3959,7 @@ flowchart LR
     P --> E1
 ```
 
-FPE is the only pattern where the output preserves the email format — a direct consequence of its Feistel-network design (§4.2). Envelope encryption has the most intermediate steps (KMS call → DEK generation → encryption → wrapping), which explains its higher latency but also its superior key isolation. JWE produces the longest URL parameter due to its 5-segment compact serialization (header, encrypted key, IV, ciphertext, tag).
+FPE is the only pattern where the output preserves the email format — a direct consequence of its Feistel-network design ([§4.2](#42-format-preserving-encryption-fpe)). Envelope encryption has the most intermediate steps (KMS call → DEK generation → encryption → wrapping), which explains its higher latency but also its superior key isolation. JWE produces the longest URL parameter due to its 5-segment compact serialization (header, encrypted key, IV, ciphertext, tag).
 
 #### §4.8.3 Decision Matrix
 
@@ -4020,10 +4020,10 @@ After selecting a cryptographic pattern, the next question is the operating mode
 
 | If you chose... | Read next | Why |
 |:----------------|:----------|:----|
-| **Envelope encryption, centralized unwrap, or managed keys** | §13, §14 | Audit cryptographic operations and design the key authority model |
-| **Stable or reversible ciphertext in live APIs** | §9, §15 | Plan migration and verify that erasure remains feasible |
-| **Any design that may expose plaintext during processing or debugging** | §16 | Prevent observability systems from becoming the real leak surface |
-| **A managed service or platform implementation** | §10, §11, §12 | Evaluate vendor fit, platform limits, and build-vs-buy boundaries |
+| **Envelope encryption, centralized unwrap, or managed keys** | [§13](#13-audit-trails-for-cryptographic-operations), [§14](#14-key-management-and-governance) | Audit cryptographic operations and design the key authority model |
+| **Stable or reversible ciphertext in live APIs** | [§9](#9-migration-playbook-for-existing-apis), [§15](#15-right-to-erasure-in-encrypted-contexts) | Plan migration and verify that erasure remains feasible |
+| **Any design that may expose plaintext during processing or debugging** | [§16](#16-call-chain-traceability) | Prevent observability systems from becoming the real leak surface |
+| **A managed service or platform implementation** | [§10](#10-tokenization-and-encryption-platforms), [§11](#11-cloud-native-and-api-gateway-solutions), [§12](#12-build-vs-buy-decision-framework) | Evaluate vendor fit, platform limits, and build-vs-buy boundaries |
 
 ---
 
@@ -4103,7 +4103,7 @@ flowchart TB
     AL -.->|records all ops| TS
 ```
 
-The **Tokenization Vault** (blue) houses the token store (mapping database), access control layer, immutable audit log, and key management subsystem. The **API Layer** (green) represents the standard request path — API gateway, API server, and backend database. The **Client App** (orange) initiates tokenization requests, and the **External KMS / HSM** (purple) provides hardware-backed key storage. Sections §5.3 through §5.6 explore how these components are arranged differently in vault-based, vaultless, client-side, and generalization architectures.
+The **Tokenization Vault** (blue) houses the token store (mapping database), access control layer, immutable audit log, and key management subsystem. The **API Layer** (green) represents the standard request path — API gateway, API server, and backend database. The **Client App** (orange) initiates tokenization requests, and the **External KMS / HSM** (purple) provides hardware-backed key storage. Sections [§5.3](#53-vault-based-tokenization) through [§5.6](#56-k-anonymity-and-generalization) explore how these components are arranged differently in vault-based, vaultless, client-side, and generalization architectures.
 
 ---
 
@@ -4344,7 +4344,7 @@ The server writes the access log entry using **only the token**, never the plain
 
 **Thales CipherTrust.** CipherTrust Tokenization (formerly Vormetric Tokenization) provides centralized tokenization with support for format-preserving tokens, ensuring that tokenized values conform to the same length and character set as the original data — critical for legacy systems that enforce field-level validation. CipherTrust integrates with Thales' broader data security platform, including Transparent Data Encryption and key management, providing a unified control plane for data protection policies across databases, files, and API endpoints.
 
-**Protegrity Data Security Platform.** Protegrity offers both vault-based and vaultless tokenization (§5.4). Its vault-based approach centralizes token management with fine-grained access controls and audit logging. Protegrity's platform emphasizes *field-level* tokenization — different PII fields within the same API request can be tokenized with different policies (e.g., email gets a short-lived token, SSN gets a token that requires manager approval to decode).
+**Protegrity Data Security Platform.** Protegrity offers both vault-based and vaultless tokenization ([§5.4](#54-vaultless-tokenization)). Its vault-based approach centralizes token management with fine-grained access controls and audit logging. Protegrity's platform emphasizes *field-level* tokenization — different PII fields within the same API request can be tokenized with different policies (e.g., email gets a short-lived token, SSN gets a token that requires manager approval to decode).
 
 #### §5.3.6 Latency Implications
 
@@ -4635,26 +4635,26 @@ The tokenization and pseudonymization techniques analysed in §5.1–§5.6 are i
 
 | Product | Vendor | Techniques | FPE | Tokenization | Key Management | Licensing | Covered In |
 |:--------|:-------|:-----------|:---:|:------------:|:--------------:|:---------:|:----------:|
-| **Vault Enterprise (Transform)** | HashiCorp | FPE, tokenization, masking | ✅ | ✅ | Integrated (Vault KMS) | Enterprise (per-node) | §10.1 |
-| **CipherTrust Tokenization** | Thales | FPE, tokenization, data masking | ✅ | ✅ | HSM-backed (Luna / CipherTrust Manager) | Enterprise | §10.2 |
-| **Protegrity Data Security** | Protegrity | FPE, tokenization, encryption, masking | ✅ | ✅ | HSM / software | Enterprise | §10.3 |
-| **Skyflow Data Privacy Vault** | Skyflow | Tokenization, encryption, data masking | ❌ | ✅ | Managed (isolated vault) | SaaS | §10.4 |
-| **Pangea Vault** | Pangea | Tokenization, redaction | ❌ | ✅ | Managed | SaaS (API) | §10.5 |
-| **Google Cloud DLP** | Google | FPE, deterministic encryption, masking, de-identification | ✅ | ❌ | Cloud KMS | Cloud (per-operation) | §11.1 |
-| **Azure APIM** | Microsoft | Policy-based transformation, encryption | ❌ | Partial | Azure Key Vault | Cloud (per-API call) | §11.2 |
-| **AWS KMS + Macie** | Amazon | Envelope encryption, PII discovery | ❌ | ❌ | Cloud KMS (HSM-backed) | Cloud (per-key operation) | §11.3 |
-| **Cequence UAP** | Cequence | ML-based PII detection, inline FPE masking | ✅ | Partial | Integrates with external KMS | Enterprise / SaaS | §11.5 |
-| **Fortanix DSM** | Fortanix | Encryption, key management, tokenization | ❌ | Partial | HSM-backed (SDKMS) | SaaS / on-premises | §11.6 |
+| **Vault Enterprise (Transform)** | HashiCorp | FPE, tokenization, masking | ✅ | ✅ | Integrated (Vault KMS) | Enterprise (per-node) | [§10.1](#101-hashicorp-vault-enterprise-transform-secrets-engine) |
+| **CipherTrust Tokenization** | Thales | FPE, tokenization, data masking | ✅ | ✅ | HSM-backed (Luna / CipherTrust Manager) | Enterprise | [§10.2](#102-thales-ciphertrust-tokenization) |
+| **Protegrity Data Security** | Protegrity | FPE, tokenization, encryption, masking | ✅ | ✅ | HSM / software | Enterprise | [§10.3](#103-protegrity-data-security-platform) |
+| **Skyflow Data Privacy Vault** | Skyflow | Tokenization, encryption, data masking | ❌ | ✅ | Managed (isolated vault) | SaaS | [§10.4](#104-skyflow-data-privacy-vault) |
+| **Pangea Vault** | Pangea | Tokenization, redaction | ❌ | ✅ | Managed | SaaS (API) | [§10.5](#105-pangea-vault-service) |
+| **Google Cloud DLP** | Google | FPE, deterministic encryption, masking, de-identification | ✅ | ❌ | Cloud KMS | Cloud (per-operation) | [§11.1](#111-google-cloud-sensitive-data-protection) |
+| **Azure APIM** | Microsoft | Policy-based transformation, encryption | ❌ | Partial | Azure Key Vault | Cloud (per-API call) | [§11.2](#112-microsoft-azure-api-management-apim) |
+| **AWS KMS + Macie** | Amazon | Envelope encryption, PII discovery | ❌ | ❌ | Cloud KMS (HSM-backed) | Cloud (per-key operation) | [§11.3](#113-amazon-web-services-composite-pii-protection) |
+| **Cequence UAP** | Cequence | ML-based PII detection, inline FPE masking | ✅ | Partial | Integrates with external KMS | Enterprise / SaaS | [§11.5](#115-cequence-api-security-inline-security-proxy) |
+| **Fortanix DSM** | Fortanix | Encryption, key management, tokenization | ❌ | Partial | HSM-backed (SDKMS) | SaaS / on-premises | [§11.6](#116-fortanix-data-security-manager-dsm-multi-cloud-cryptographic-platform) |
 
 **Selection criteria.** The choice between these platforms depends on several factors that interact with the architectural decisions in §5.1–§5.6:
 
-- **PII recovery requirement.** If the original PII must be recoverable (§5.3 vault-based tokenization), platforms with lookup-table tokenization (HashiCorp Vault, Thales CipherTrust, Protegrity, Skyflow) are appropriate. If irreversibility is acceptable (§5.5 client-side pseudonymization), HMAC-based or one-way transformation suffices.
-- **Format preservation.** FPE (§5.4) is available from HashiCorp Vault (FF1), Thales CipherTrust, Protegrity, Google Cloud DLP, and Cequence. If the downstream system requires the token to match the original format (e.g., a 16-digit credit card number), FPE support is mandatory.
+- **PII recovery requirement.** If the original PII must be recoverable ([§5.3](#53-vault-based-tokenization) vault-based tokenization), platforms with lookup-table tokenization (HashiCorp Vault, Thales CipherTrust, Protegrity, Skyflow) are appropriate. If irreversibility is acceptable ([§5.5](#55-client-side-pseudonymization) client-side pseudonymization), HMAC-based or one-way transformation suffices.
+- **Format preservation.** FPE ([§5.4](#54-vaultless-tokenization)) is available from HashiCorp Vault (FF1), Thales CipherTrust, Protegrity, Google Cloud DLP, and Cequence. If the downstream system requires the token to match the original format (e.g., a 16-digit credit card number), FPE support is mandatory.
 - **Deployment model.** On-premises or hybrid deployment (common for financial services and healthcare) favours HashiCorp Vault, Thales CipherTrust, or Protegrity. Cloud-native deployments may prefer Google Cloud DLP, Azure APIM, or AWS KMS. SaaS platforms (Skyflow, Pangea) offer the fastest time-to-production but introduce vendor dependency.
 - **Regulatory alignment.** Platforms with FIPS 140-2/3 validated HSMs (Thales, Fortanix, cloud KMS services) are required for PCI DSS Level 1 compliance and recommended for GDPR Article 32 risk assessments involving high-sensitivity PII.
-- **Scale and latency.** Vault-based tokenization adds a round-trip latency (typically 2–10 ms) for every PII-bearing API call. Client-side pseudonymization (§5.5) eliminates this latency but shifts cryptographic responsibility to the frontend.
+- **Scale and latency.** Vault-based tokenization adds a round-trip latency (typically 2–10 ms) for every PII-bearing API call. Client-side pseudonymization ([§5.5](#55-client-side-pseudonymization)) eliminates this latency but shifts cryptographic responsibility to the frontend.
 
-If tokenization or pseudonymization becomes the primary design, the most useful follow-on reading is **§12** for build-vs-buy, **§13–§14** for auditability and decryption authority, **§15** for mapping-table and erasure lifecycle, and **§16** for trace-safe detokenization and observability design.
+If tokenization or pseudonymization becomes the primary design, the most useful follow-on reading is **[§12](#12-build-vs-buy-decision-framework)** for build-vs-buy, **§13–§14** for auditability and decryption authority, **[§15](#15-right-to-erasure-in-encrypted-contexts)** for mapping-table and erasure lifecycle, and **[§16](#16-call-chain-traceability)** for trace-safe detokenization and observability design.
 
 ---
 
@@ -4760,13 +4760,13 @@ For most REST API use cases, this standard is not achievable without such aggres
 
 ## 6. Infrastructure and Operational Patterns
 
-This chapter examines the infrastructure-level controls that organisations deploy to mitigate PII exposure in REST API interactions. Unlike the architectural patterns in §3 (which restructure the request) or the cryptographic approaches in Chapters 4–5 (which transform the data), the patterns in this chapter operate at the network perimeter — API gateways, reverse proxies, and HTTP headers — to mask, redact, or prevent the persistence of PII after it has entered the HTTP request pipeline.
+This chapter examines the infrastructure-level controls that organisations deploy to mitigate PII exposure in REST API interactions. Unlike the architectural patterns in [§3](#3-architectural-patterns) (which restructure the request) or the cryptographic approaches in Chapters 4–5 (which transform the data), the patterns in this chapter operate at the network perimeter — API gateways, reverse proxies, and HTTP headers — to mask, redact, or prevent the persistence of PII after it has entered the HTTP request pipeline.
 
 Infrastructure patterns are inherently *defence-in-depth* measures. They do not eliminate PII from the URL during transit — that requires the architectural or cryptographic patterns covered earlier. Instead, they reduce the *blast radius* of PII exposure by controlling what gets logged, cached, forwarded, or leaked through referrer chains. In a mature PII protection strategy, these patterns complement (not replace) request-level and data-level controls.
 
-That distinction matters in the OWASP / CWE framing as well: these controls help contain the damage from a bad request shape, but they are not substitutes for the primary contract correction summarized in §17.1. If an endpoint still carries direct identifiers in the request target, infrastructure controls are compensating measures, not closure of the core weakness.
+That distinction matters in the OWASP / CWE framing as well: these controls help contain the damage from a bad request shape, but they are not substitutes for the primary contract correction summarized in [§17.1](#171-primary-vulnerability-class-sensitive-data-in-url-channels). If an endpoint still carries direct identifiers in the request target, infrastructure controls are compensating measures, not closure of the core weakness.
 
-The four sections in this chapter progress from passive measures (log redaction §6.1, cache headers §6.2) to active measures (inline scanning §6.3, proxy-level masking §6.4), reflecting increasing operational complexity and protection depth.
+The four sections in this chapter progress from passive measures (log redaction [§6.1](#61-api-gateway-log-redaction), cache headers [§6.2](#62-cache-control-and-browser-directed-protections)) to active measures (inline scanning [§6.3](#63-real-time-pii-scanning-and-masking), proxy-level masking [§6.4](#64-proxy-level-data-masking)), reflecting increasing operational complexity and protection depth.
 
 ```mermaid
 flowchart TD
@@ -5033,7 +5033,7 @@ log_format redacted escape=json
 
 - **`mod_substitute`** (or the `sub_filter` directive) for response body rewriting — less commonly used for log redaction but available for transforming logged response content.
 
-NGINX's approach is mature and performant but requires manual configuration for each PII field or pattern. Unlike cloud-native solutions (CloudWatch Data Protection, Azure Monitor), there is no built-in PII detection — all redaction rules must be explicitly defined and maintained. Note that NGINX can also perform *request-level* PII masking at the proxy layer; see §6.4 for the full NGINX proxy masking configuration using `rewrite_by_lua_block`.
+NGINX's approach is mature and performant but requires manual configuration for each PII field or pattern. Unlike cloud-native solutions (CloudWatch Data Protection, Azure Monitor), there is no built-in PII detection — all redaction rules must be explicitly defined and maintained. Note that NGINX can also perform *request-level* PII masking at the proxy layer; see [§6.4](#64-proxy-level-data-masking) for the full NGINX proxy masking configuration using `rewrite_by_lua_block`.
 
 #### §6.1.11 Limitations of Log Redaction
 
@@ -5136,7 +5136,7 @@ One subtlety: Chrome's back-forward cache (bfcache) historically did not cache p
 
 However, these headers are *not sufficient* as a standalone PII protection mechanism. Their limitations are:
 
-- **Server-side logs are unaffected.** `Cache-Control` prevents browser and proxy caching but does not affect the server's own access logs. If the API gateway logs the full request URI (which it typically does by default), the PII is captured regardless of cache headers. Log redaction (§6.1) is required for this.
+- **Server-side logs are unaffected.** `Cache-Control` prevents browser and proxy caching but does not affect the server's own access logs. If the API gateway logs the full request URI (which it typically does by default), the PII is captured regardless of cache headers. Log redaction ([§6.1](#61-api-gateway-log-redaction)) is required for this.
 
 - **TLS termination logs are unaffected.** Load balancers, WAFs, and CDN edge servers that terminate TLS and log the decrypted request are not governed by `Cache-Control` headers. They log what they receive.
 
@@ -5146,7 +5146,7 @@ However, these headers are *not sufficient* as a standalone PII protection mecha
 
 - **The referrer policy is advisory.** `Referrer-Policy: strict-origin` prevents the browser from sending the full URL as a referrer, but it does not prevent a malicious destination page from using other techniques (e.g., `window.open()` with the full URL) to capture navigation context. The policy is enforced by well-behaved browsers; a compromised browser extension or malware can bypass it entirely.
 
-These headers should be considered the *minimum viable protection* for PII-bearing endpoints — easy to implement, low overhead, wide browser support — but not the primary or sole control. They are most effective as part of a layered strategy that combines cache headers (this section), log redaction (§6.1), proxy-level masking (§6.4), and request-level architectural patterns (Chapter 3).
+These headers should be considered the *minimum viable protection* for PII-bearing endpoints — easy to implement, low overhead, wide browser support — but not the primary or sole control. They are most effective as part of a layered strategy that combines cache headers (this section), log redaction ([§6.1](#61-api-gateway-log-redaction)), proxy-level masking ([§6.4](#64-proxy-level-data-masking)), and request-level architectural patterns (Chapter 3).
 
 ---
 
@@ -5154,7 +5154,7 @@ These headers should be considered the *minimum viable protection* for PII-beari
 
 #### §6.3.1 From Passive Redaction to Active Inspection
 
-§6.1 addressed a *passive* control: cleaning up log entries after the request has already been processed. Real-time PII scanning takes a fundamentally different approach — it *inspects* the request as it passes through the API gateway, detects PII in the URL, headers, or body, and takes action *before* the request reaches the backend service. This shifts the control point from post-processing to inline enforcement, preventing PII from ever entering backend systems in cleartext.
+[§6.1](#61-api-gateway-log-redaction) addressed a *passive* control: cleaning up log entries after the request has already been processed. Real-time PII scanning takes a fundamentally different approach — it *inspects* the request as it passes through the API gateway, detects PII in the URL, headers, or body, and takes action *before* the request reaches the backend service. This shifts the control point from post-processing to inline enforcement, preventing PII from ever entering backend systems in cleartext.
 
 Real-time scanning operates in three enforcement modes:
 
@@ -5190,7 +5190,7 @@ flowchart LR
 
 #### §6.3.2 Regex-Based Detection
 
-Regex-based detection mirrors the approach described in §6.1 but applies it to the *live request* rather than to log entries. The gateway inspects the request URI, headers, and (optionally) the request body against a library of PII patterns and flags matches.
+Regex-based detection mirrors the approach described in [§6.1](#61-api-gateway-log-redaction) but applies it to the *live request* rather than to log entries. The gateway inspects the request URI, headers, and (optionally) the request body against a library of PII patterns and flags matches.
 
 The advantages and limitations are identical to regex log redaction, with one critical addition: false positives in live request scanning have a direct operational cost. A regex that incorrectly identifies a non-PII value as PII will cause the gateway to mask or block a legitimate request, disrupting the end user. In logging, a false positive merely generates a misleading redacted entry — the request itself is unaffected.
 
@@ -5284,7 +5284,7 @@ Real-time PII scanning has several inherent limitations:
 
 - **Scanning is a point-in-time control.** Even if the gateway blocks PII at the edge, the backend service may generate PII in its response (e.g., returning a user profile that includes email and address). Response scanning doubles the overhead and introduces additional latency on the response path.
 
-Real-time PII scanning is most effective as a targeted control on specific high-sensitivity endpoints, complemented by log redaction (§6.1) for broad coverage across all traffic.
+Real-time PII scanning is most effective as a targeted control on specific high-sensitivity endpoints, complemented by log redaction ([§6.1](#61-api-gateway-log-redaction)) for broad coverage across all traffic.
 
 ---
 
@@ -5292,7 +5292,7 @@ Real-time PII scanning is most effective as a targeted control on specific high-
 
 #### §6.4.1 Masking at the Network Perimeter
 
-Proxy-level data masking goes a step further than log redaction (§6.1, which cleans the record) and cache headers (§6.2, which control storage). It *actively transforms the request* at the reverse proxy layer before forwarding it to the backend service. The backend never sees the original PII — only the masked version. This is the most comprehensive infrastructure-level control, because it protects not only logs but also every downstream component that receives the forwarded request.
+Proxy-level data masking goes a step further than log redaction ([§6.1](#61-api-gateway-log-redaction), which cleans the record) and cache headers ([§6.2](#62-cache-control-and-browser-directed-protections), which control storage). It *actively transforms the request* at the reverse proxy layer before forwarding it to the backend service. The backend never sees the original PII — only the masked version. This is the most comprehensive infrastructure-level control, because it protects not only logs but also every downstream component that receives the forwarded request.
 
 The proxy becomes the enforcement boundary: all PII removal happens at a single point in the request path, and every backend service benefits without requiring individual PII-handling logic. The trade-off is that the proxy itself becomes security-critical — if it fails or is misconfigured, PII flows through to the backend unmasked.
 
@@ -5316,7 +5316,7 @@ flowchart LR
     HashVal --> Backend
 ```
 
-The three masking strategies mirror the log redaction approaches described in §6.1: stripping parameters corresponds to full redaction, placeholder replacement parallels structured field masking, and hash forwarding is the same technique as hash-based log replacement. The diagram below shows these correspondences:
+The three masking strategies mirror the log redaction approaches described in [§6.1](#61-api-gateway-log-redaction): stripping parameters corresponds to full redaction, placeholder replacement parallels structured field masking, and hash forwarding is the same technique as hash-based log replacement. The diagram below shows these correspondences:
 
 ```mermaid
 flowchart TD
@@ -5380,11 +5380,11 @@ rewrite_by_lua_block {
 }
 ```
 
-For this to be effective, the backend must be designed to work with hashed identifiers rather than raw PII — the same requirement as the tokenization approach in §5, but enforced at the proxy layer rather than the application layer.
+For this to be effective, the backend must be designed to work with hashed identifiers rather than raw PII — the same requirement as the tokenization approach in [§5](#5-pseudonymization-and-tokenization-patterns), but enforced at the proxy layer rather than the application layer.
 
 #### §6.4.5 NGINX Implementation
 
-NGINX (via OpenResty and `lua-nginx-module`) provides the most mature and flexible platform for proxy-level PII masking. The `rewrite_by_lua_block` directive executes Lua code during the rewrite phase of request processing, before the request is forwarded upstream. This phase has full access to request headers, query parameters, and the request body, allowing comprehensive masking. (For NGINX *log redaction* using `log_by_lua_block` and `map` directives, see §6.1.)
+NGINX (via OpenResty and `lua-nginx-module`) provides the most mature and flexible platform for proxy-level PII masking. The `rewrite_by_lua_block` directive executes Lua code during the rewrite phase of request processing, before the request is forwarded upstream. This phase has full access to request headers, query parameters, and the request body, allowing comprehensive masking. (For NGINX *log redaction* using `log_by_lua_block` and `map` directives, see [§6.1](#61-api-gateway-log-redaction).)
 
 A production NGINX configuration for PII masking might include:
 
@@ -5498,7 +5498,7 @@ For more complex masking (regex on values, conditional logic), HAProxy's Lua eng
 
 - **Independent of application code.** Proxy-level masking works regardless of the backend technology stack — Java, Python, Go, Node.js, or any other runtime. It provides a uniform protection layer that does not require code changes to the applications behind the proxy.
 
-- **Composable with other controls.** Proxy-level masking can be combined with log redaction (§6.1) for defence in depth — the proxy masks the request *and* the gateway redacts the log entry. Even if one control fails, the other provides residual protection.
+- **Composable with other controls.** Proxy-level masking can be combined with log redaction ([§6.1](#61-api-gateway-log-redaction)) for defence in depth — the proxy masks the request *and* the gateway redacts the log entry. Even if one control fails, the other provides residual protection.
 
 #### §6.4.9 Limitations
 
@@ -5529,7 +5529,7 @@ Proxy-level masking is least appropriate when:
 - End-to-end encryption prevents the proxy from inspecting request contents
 - The backend services need the original PII values for processing (not just hashes or placeholders)
 
-In such cases, the request-level patterns from §3 (moving PII out of URLs) or the cryptographic approaches from Chapters 4–5 (encrypting or tokenizing PII) may be more appropriate.
+In such cases, the request-level patterns from [§3](#3-architectural-patterns) (moving PII out of URLs) or the cryptographic approaches from Chapters 4–5 (encrypting or tokenizing PII) may be more appropriate.
 
 ---
 
@@ -5865,7 +5865,7 @@ Real User Monitoring (RUM) tools — New Relic Browser, Datadog RUM, Elastic RUM
 - New Relic Browser supports `BrowserMonitoring` configuration to exclude specific URL patterns from capture.
 - Elastic RUM supports `contextManager` configuration to redact URL segments before transmission.
 
-**General rule:** Never allow RUM tools to capture raw query strings. If a URL parameter is sensitive enough to remove from server logs (per §3), it is sensitive enough to remove from RUM payloads.
+**General rule:** Never allow RUM tools to capture raw query strings. If a URL parameter is sensitive enough to remove from server logs (per [§3](#3-architectural-patterns)), it is sensitive enough to remove from RUM payloads.
 
 #### §6.6.3 Crash Reporting SDKs
 
@@ -5940,7 +5940,7 @@ Browser developer tools display the current URL prominently in the address bar. 
 
 **Mitigations:**
 
-- **Defense in depth:** If URLs do not contain PII in the first place (per §3 patterns), screenshots are safe by default. This is the strongest argument for keeping PII out of URLs — it eliminates an entire class of human-driven leakage.
+- **Defense in depth:** If URLs do not contain PII in the first place (per [§3](#3-architectural-patterns) patterns), screenshots are safe by default. This is the strongest argument for keeping PII out of URLs — it eliminates an entire class of human-driven leakage.
 - Use **browser extensions** that auto-redact query parameters from the URL bar for development/staging environments.
 - Include **PII-safe URL practices** in developer onboarding and security training.
 
@@ -6004,7 +6004,7 @@ API development workflows often use mock servers (Postman Mock Server, Prism, Wi
 | Communication channels (Slack, Jira, GitHub) | Medium | Convention: example URLs use `example.com` + opaque IDs | Slack DLP; code review checklist for PII in URLs |
 | Mock servers and generated SDKs | Low | PII-free OpenAPI specs and synthetic mock data | Pre-publish review of generated example code |
 
-**Key principle:** The most effective mitigation for client-side PII leakage is to **never put PII in URLs in the first place**. Every mitigation in this section is a defense-in-depth layer — the primary defense is the request-side patterns from §3. If URLs are PII-free at the source, every downstream tool — replay, RUM, crash reporter, mock server — inherits that safety by default.
+**Key principle:** The most effective mitigation for client-side PII leakage is to **never put PII in URLs in the first place**. Every mitigation in this section is a defense-in-depth layer — the primary defense is the request-side patterns from [§3](#3-architectural-patterns). If URLs are PII-free at the source, every downstream tool — replay, RUM, crash reporter, mock server — inherits that safety by default.
 
 ---
 
@@ -6289,7 +6289,7 @@ This inventory serves as the foundation for:
 
 #### §7.4.2 Deprecation and Sunset Discipline
 
-When migrating away from PII-bearing endpoints (see §9 for the full migration playbook), the design-time governance layer must:
+When migrating away from PII-bearing endpoints (see [§9](#9-migration-playbook-for-existing-apis) for the full migration playbook), the design-time governance layer must:
 
 1. **Mark the endpoint as deprecated** in the OpenAPI spec:
    ```yaml
@@ -6614,7 +6614,7 @@ At this point, the verifier has confirmed three properties:
 2. **Authenticity:** The signature was produced by the holder of the private key identified by `client-key-42`.
 3. **Freshness:** The signature was created recently (within the allowed time window), making replay attacks impractical.
 
-Note that the verifier has **not** confirmed confidentiality — the `tax_id` value `SK1234567890` is still visible in the URL and will be logged by any intermediary that records the request line. The signature proves the value is authentic and untampered, but does nothing to hide it. For PII protection, this signing step must be paired with patterns that provide confidentiality: moving PII to the POST body (§3), replacing it with opaque tokens (§4), or encrypting it at the field level (§5).
+Note that the verifier has **not** confirmed confidentiality — the `tax_id` value `SK1234567890` is still visible in the URL and will be logged by any intermediary that records the request line. The signature proves the value is authentic and untampered, but does nothing to hide it. For PII protection, this signing step must be paired with patterns that provide confidentiality: moving PII to the POST body ([§3](#3-architectural-patterns)), replacing it with opaque tokens ([§4](#4-cryptographic-patterns)), or encrypting it at the field level ([§5](#5-pseudonymization-and-tokenization-patterns)).
 
 </details>
 
@@ -6758,11 +6758,11 @@ Signing and encryption solve fundamentally different problems:
 
 For PII protection specifically, signing is most valuable when combined with other patterns:
 
-1. **Signing + POST body migration:** Move PII from the URL to the POST body (§4.1), then sign the body (via `Content-Digest`) and the method/path. This provides both confidentiality (PII is no longer in the URL) and integrity (the body cannot be tampered with).
+1. **Signing + POST body migration:** Move PII from the URL to the POST body ([§4.1](#41-jwtjwe-encrypted-parameters)), then sign the body (via `Content-Digest`) and the method/path. This provides both confidentiality (PII is no longer in the URL) and integrity (the body cannot be tampered with).
 
-2. **Signing + opaque identifiers:** Replace PII in the URL with opaque tokens (§4.3), then sign the token parameter. This prevents token substitution attacks.
+2. **Signing + opaque identifiers:** Replace PII in the URL with opaque tokens ([§4.3](#43-deterministic-aes-encryption)), then sign the token parameter. This prevents token substitution attacks.
 
-3. **Signing + tokenization:** Use tokenized values in URLs (§6), then sign the tokenized parameters. The signature proves the token was issued by a trusted party and has not been altered.
+3. **Signing + tokenization:** Use tokenized values in URLs ([§6](#6-infrastructure-and-operational-patterns)), then sign the tokenized parameters. The signature proves the token was issued by a trusted party and has not been altered.
 
 #### §8.1.9 Implementations and Libraries
 
@@ -7128,7 +7128,7 @@ The authorization server processes the authorization request and returns a login
 
 The client (a confidential backend service, not the user's browser) initiates the OAuth authorization flow by POSTing all authorization parameters directly to the authorization server's PAR endpoint. This is a server-to-server call — the parameters travel over a TLS-protected backend channel and never enter the browser's URL bar, history, or referrer headers. The client authenticates itself to the authorization server using its configured credential method (private_key_jwt, client_secret_basic, tls_client_auth, or another supported mechanism).
 
-The POST body carries the full set of OAuth 2.0 authorization parameters in `application/x-www-form-urlencoded` format, exactly as they would appear in a traditional authorization URL — but now in the request body where they are not logged by default and are not visible to the user or any browser extensions (RFC 9126, §2):
+The POST body carries the full set of OAuth 2.0 authorization parameters in `application/x-www-form-urlencoded` format, exactly as they would appear in a traditional authorization URL — but now in the request body where they are not logged by default and are not visible to the user or any browser extensions (RFC 9126, [§2](#2-regulatory-landscape)):
 
 ```http
 POST /as/par HTTP/1.1
@@ -7151,7 +7151,7 @@ The `login_hint` parameter here contains the user's email address — PII that w
 
 <details><summary><strong>5. Authorization Server validates and stores the pushed parameters</strong></summary>
 
-The authorization server receives the PAR request and performs a full validation pass before committing anything to storage. This is a key security advantage of PAR over the traditional flow: the AS validates parameters server-side, rejecting invalid requests before the browser is ever involved. The validation includes client authentication verification, `redirect_uri` matching against the client's pre-registered URIs, scope validation, and any policy-specific checks (RFC 9126, §2.2).
+The authorization server receives the PAR request and performs a full validation pass before committing anything to storage. This is a key security advantage of PAR over the traditional flow: the AS validates parameters server-side, rejecting invalid requests before the browser is ever involved. The validation includes client authentication verification, `redirect_uri` matching against the client's pre-registered URIs, scope validation, and any policy-specific checks (RFC 9126, [§2.2](#22-article-25-data-protection-by-design-and-default)).
 
 If the request passes validation, the AS generates a unique, opaque `request_uri` in the `urn:ietf:params:oauth:request_uri:` namespace and stores the authorization parameters under this key. The `request_uri` is not a navigable URL — it is a server-internal reference that only the issuing AS can resolve.
 
@@ -7172,7 +7172,7 @@ Cache-Control: no-store
 }
 ```
 
-The `expires_in` value (default 600 seconds per RFC 9126, §2.2.1) defines how long the AS will honor the stored request. The AS must enforce this TTL and reject any subsequent authorization request that references an expired `request_uri`. The stored parameters include the client identifier, so the AS can also enforce client-to-`request_uri` binding — preventing an attacker from using a `request_uri` created by one client to authorize a different client (the "request URI swapping" attack described in RFC 9126, §7.4).
+The `expires_in` value (default 600 seconds per RFC 9126, [§2.2.1](#221-article-251-data-protection-by-design)) defines how long the AS will honor the stored request. The AS must enforce this TTL and reject any subsequent authorization request that references an expired `request_uri`. The stored parameters include the client identifier, so the AS can also enforce client-to-`request_uri` binding — preventing an attacker from using a `request_uri` created by one client to authorize a different client (the "request URI swapping" attack described in RFC 9126, [§7.4](#74-api-inventory-and-deprecation-discipline)).
 
 </details>
 
@@ -7212,7 +7212,7 @@ This is the only browser-visible step in the PAR flow. The URL is short, contain
 
 <details><summary><strong>9. Authorization Server resolves the stored parameters</strong></summary>
 
-When the authorization server receives the GET request with a `request_uri` parameter, it resolves the URN against its internal store to retrieve the full set of authorization parameters that were pushed in Step 4. The AS verifies that the `request_uri` has not expired, has not been used before (single-use enforcement is recommended by RFC 9126, §4), and is bound to the `client_id` specified in the redirect URL:
+When the authorization server receives the GET request with a `request_uri` parameter, it resolves the URN against its internal store to retrieve the full set of authorization parameters that were pushed in Step 4. The AS verifies that the `request_uri` has not expired, has not been used before (single-use enforcement is recommended by RFC 9126, [§4](#4-cryptographic-patterns)), and is bound to the `client_id` specified in the redirect URL:
 
 ```
 → AS resolves urn:ietf:params:oauth:request_uri:bwc4JK-ESC0w8acc191e-Y1LTC2
@@ -7227,7 +7227,7 @@ The single-use property of `request_uri` (enforced by deleting the stored parame
 
 After the user authenticates and (if required) consents to the requested scopes, the authorization server redirects the browser back to the client's pre-registered `redirect_uri` with an authorization code and the `state` parameter. This redirect is standard OAuth 2.0 behavior — PAR does not change the authorization response flow. Note that the authorization code itself carries no PII — it is an opaque value that only the authorization server can decode. The `state` parameter is echoed back unchanged, allowing the client to verify that the response corresponds to its original request and to detect CSRF attacks.
 
-From this point forward, the flow is identical to a standard OAuth 2.0 authorization code grant: the client exchanges the code for access and ID tokens at the token endpoint (RFC 6749, §4.1.3). PAR's contribution is complete — it ensured that PII (login hints, claims, scopes) never appeared in any browser-visible URL throughout the entire authorization lifecycle.
+From this point forward, the flow is identical to a standard OAuth 2.0 authorization code grant: the client exchanges the code for access and ID tokens at the token endpoint (RFC 6749, [§4.1.3](#413-when-to-use-jwe-vs-jws)). PAR's contribution is complete — it ensured that PII (login hints, claims, scopes) never appeared in any browser-visible URL throughout the entire authorization lifecycle.
 
 </details>
 
@@ -7253,7 +7253,7 @@ PAR interacts with two related OAuth specifications:
 
 #### §8.3.6 FAPI 2.0: PAR as a Mandatory Requirement
 
-The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation as a Final specification (February 2025), mandates PAR as a required mechanism for all authorization requests (FAPI 2.0 Security Profile, §5.3.2). FAPI 2.0 builds on OAuth 2.1 and adds sender-constrained access tokens via DPoP (RFC 9449), HTTP Message Signatures for resource server validation (RFC 9421), and PAR for authorization request protection. The companion FAPI 2.0 Message Signing specification was also approved as a Final OpenID specification (September 2025). The security baseline for all of these specifications is established by RFC 9700 (OAuth 2.0 Security BCP, January 2025).
+The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation as a Final specification (February 2025), mandates PAR as a required mechanism for all authorization requests (FAPI 2.0 Security Profile, [§5.3.2](#532-how-it-works-in-a-rest-api-context)). FAPI 2.0 builds on OAuth 2.1 and adds sender-constrained access tokens via DPoP (RFC 9449), HTTP Message Signatures for resource server validation (RFC 9421), and PAR for authorization request protection. The companion FAPI 2.0 Message Signing specification was also approved as a Final OpenID specification (September 2025). The security baseline for all of these specifications is established by RFC 9700 (OAuth 2.0 Security BCP, January 2025).
 
 FAPI 2.0's security rationale for mandating PAR (FAPI 2.0 Security Profile, §6.4 — "Authorization request leaks lead to CSRF") is that parameter leakage in URLs creates a cross-site request forgery vector. An attacker who can observe or inject authorization URLs can replay or modify authorization requests. PAR eliminates this class of attack by ensuring the authorization server validates all parameters before the browser redirect occurs.
 
@@ -7386,7 +7386,7 @@ flowchart TD
 
 #### §8.4.4 Comparative Properties
 
-| Property | HTTP Message Signing (§8.1) | mTLS (§8.2) | PAR (§8.3) |
+| Property | HTTP Message Signing ([§8.1](#81-http-message-signing)) | mTLS ([§8.2](#82-mutual-tls-for-identity)) | PAR ([§8.3](#83-oauth-20-pushed-authorization-requests-rfc-9126)) |
 |:---------|:---------------------------|:------------|:-----------|
 | **Primary protection** | Integrity of request components | Caller identity without PII | Confidentiality of auth parameters |
 | **PII vector addressed** | Tampering with URL parameters | PII-as-credential in URL path | PII in browser-visible redirect URLs |
@@ -7420,7 +7420,7 @@ The default design rule is simple: **do not place personal data in URL paths or 
 
 This chapter provides a concrete migration path for that situation. It assumes an API estate where one or more endpoints already accept personal data in URL paths or query parameters and the organization needs to move toward opaque identifiers, POST-body lookup flows, single-use tokens, or other patterns described in Chapters 3, 6, and 7.
 
-From the standards perspective summarized in §17, this chapter is the retirement path for already-deployed CWE-598-style endpoints and equivalent path-based exposure patterns. It turns a recognized weakness from a static finding into an operational program with inventory, replacement contracts, deprecation discipline, and cleanup of historical leak surfaces.
+From the standards perspective summarized in [§17](#17-owasp-asvs-and-cwe-synthesis), this chapter is the retirement path for already-deployed CWE-598-style endpoints and equivalent path-based exposure patterns. It turns a recognized weakness from a static finding into an operational program with inventory, replacement contracts, deprecation discipline, and cleanup of historical leak surfaces.
 
 ---
 
@@ -7672,7 +7672,7 @@ The migration can be considered complete only when the following checks pass:
 | Legacy route removed | Does the old endpoint now fail closed or no longer exist? |
 | New leakage stopped | Do current logs, traces, replay tools, and analytics show PII-free URLs for the migrated flow? |
 | Historical exposure reduced | Were high-risk retained logs, dashboards, docs, and examples cleaned up where feasible? |
-| Guardrails added | Do §7 contract checks now prevent reintroduction of the legacy pattern? |
+| Guardrails added | Do [§7](#7-design-time-api-governance-and-contract-enforcement) contract checks now prevent reintroduction of the legacy pattern? |
 
 The migration playbook is therefore not a side concern. It is the bridge between the document's architectural recommendations and the messy reality of live systems. Without a migration plan, "do not put personal data in URLs" remains correct but incomplete advice.
 
@@ -7685,11 +7685,11 @@ This part is intentionally **downstream of the core design decision**. Chapters 
 
 ## 10. Tokenization and Encryption Platforms
 
-This chapter should be read as **platform depth after pattern selection**, not as the place to decide whether personal data should remain in URLs at all. That decision should already have been made in Chapters 3 through 8. This chapter examines five dedicated tokenization and encryption platforms — products whose primary purpose is replacing sensitive data values with cryptographically protected tokens or format-preserving ciphertext. These platforms differ from the cloud-native services and API gateway solutions covered in §11 in that they are **cloud-agnostic, deployable on-premises or in hybrid configurations**, and focus exclusively on data-level protection rather than infrastructure-level request inspection.
+This chapter should be read as **platform depth after pattern selection**, not as the place to decide whether personal data should remain in URLs at all. That decision should already have been made in Chapters 3 through 8. This chapter examines five dedicated tokenization and encryption platforms — products whose primary purpose is replacing sensitive data values with cryptographically protected tokens or format-preserving ciphertext. These platforms differ from the cloud-native services and API gateway solutions covered in [§11](#11-cloud-native-and-api-gateway-solutions) in that they are **cloud-agnostic, deployable on-premises or in hybrid configurations**, and focus exclusively on data-level protection rather than infrastructure-level request inspection.
 
-Chapter 5 (§5.3–5.4) introduced the architectural patterns — vaulted tokenization, vaultless tokenization, and format-preserving encryption — and briefly mentioned several of these products in an "Example Products" context. This chapter provides the full vendor deep-dive: API design, key management, deployment models, compliance alignment, and practical limitations.
+§5 (§5.3–5.4) introduced the architectural patterns — vaulted tokenization, vaultless tokenization, and format-preserving encryption — and briefly mentioned several of these products in an "Example Products" context. This chapter provides the full vendor deep-dive: API design, key management, deployment models, compliance alignment, and practical limitations.
 
-The five platforms were selected based on market presence, API integration capabilities, and regulatory alignment with GDPR pseudonymisation requirements. They represent the three architectural patterns from §5: **vaulted** (HashiCorp Vault Transform tokenization mode, Thales CipherTrust vaulted variant), **vaultless** (Thales CipherTrust FPE, Protegrity, Pangea), and **privacy-vault-as-a-service** (Skyflow).
+The five platforms were selected based on market presence, API integration capabilities, and regulatory alignment with GDPR pseudonymisation requirements. They represent the three architectural patterns from [§5](#5-pseudonymization-and-tokenization-patterns): **vaulted** (HashiCorp Vault Transform tokenization mode, Thales CipherTrust vaulted variant), **vaultless** (Thales CipherTrust FPE, Protegrity, Pangea), and **privacy-vault-as-a-service** (Skyflow).
 
 ---
 
@@ -8308,7 +8308,7 @@ Pangea Vault is more narrowly scoped than the enterprise platforms (HashiCorp Va
 
 ### Platform Architecture Classification
 
-The five platforms covered in this chapter map to three architectural patterns introduced in §5 — vaulted tokenization (§5.3), vaultless tokenization (§5.4), and the privacy-vault-as-a-service model:
+The five platforms covered in this chapter map to three architectural patterns introduced in §5 — vaulted tokenization ([§5.3](#53-vault-based-tokenization)), vaultless tokenization ([§5.4](#54-vaultless-tokenization)), and the privacy-vault-as-a-service model:
 
 ```mermaid
 flowchart TD
@@ -8383,7 +8383,7 @@ flowchart TD
 
 ## 11. Cloud-Native and API Gateway Solutions
 
-Chapter 9 examined dedicated tokenization and encryption platforms — products whose primary purpose is replacing sensitive data values with cryptographically protected tokens. This chapter remains in the same supporting/reference layer, but shifts focus to **infrastructure-level PII protection**: cloud-native services and API gateway solutions that embed data protection directly into the request/response path, without requiring application-level code changes. These tools are most useful once the team already knows which protection pattern it is trying to enforce and where in the request path the enforcement should occur.
+§9 examined dedicated tokenization and encryption platforms — products whose primary purpose is replacing sensitive data values with cryptographically protected tokens. This chapter remains in the same supporting/reference layer, but shifts focus to **infrastructure-level PII protection**: cloud-native services and API gateway solutions that embed data protection directly into the request/response path, without requiring application-level code changes. These tools are most useful once the team already knows which protection pattern it is trying to enforce and where in the request path the enforcement should occur.
 
 The products covered here fall into three architectural categories:
 
@@ -8393,9 +8393,9 @@ The products covered here fall into three architectural categories:
 
 3. **Inline security proxies** (Cequence API Security) — dedicated security appliances or SaaS platforms deployed in the data path between clients and backends, combining ML-based PII detection with inline format-preserving encryption.
 
-A fourth product, **Fortanix Data Security Manager**, is included in this chapter for completeness, though its capabilities (multi-cloud FPE tokenization, HSM-backed key management) align more closely with the §9 tokenization platforms.
+A fourth product, **Fortanix Data Security Manager**, is included in this chapter for completeness, though its capabilities (multi-cloud FPE tokenization, HSM-backed key management) align more closely with the [§9](#9-migration-playbook-for-existing-apis) tokenization platforms.
 
-The chapter concludes with a cross-cloud provider comparison (§10.4) that consolidates the analysis of Google Cloud, Azure, and AWS into a side-by-side evaluation.
+The chapter concludes with a cross-cloud provider comparison ([§10.4](#104-skyflow-data-privacy-vault)) that consolidates the analysis of Google Cloud, Azure, and AWS into a side-by-side evaluation.
 
 ---
 
@@ -9074,7 +9074,7 @@ Cequence is fundamentally a **security platform with PII masking as one capabili
 
 ### §11.6 Fortanix Data Security Manager (DSM): Multi-Cloud Cryptographic Platform
 
-> **Categorization note.** Fortanix DSM is a multi-cloud cryptographic platform providing FPE-based tokenization and HSM-backed key management. Its capabilities and product category closely align with the tokenization platforms covered in §8 (HashiCorp Vault, Thales CipherTrust, Protegrity, Skyflow, Pangea). It is included here for completeness alongside the cloud-native solutions, but organizations evaluating tokenization platforms should compare Fortanix directly against the §8 products.
+> **Categorization note.** Fortanix DSM is a multi-cloud cryptographic platform providing FPE-based tokenization and HSM-backed key management. Its capabilities and product category closely align with the tokenization platforms covered in [§8](#8-protocol-and-deployment-contexts) (HashiCorp Vault, Thales CipherTrust, Protegrity, Skyflow, Pangea). It is included here for completeness alongside the cloud-native solutions, but organizations evaluating tokenization platforms should compare Fortanix directly against the [§8](#8-protocol-and-deployment-contexts) products.
 
 **Fortanix Data Security Manager (DSM)** is a unified data security platform that provides key management, secrets management, encryption, tokenization, and cryptographic operations across hybrid and multi-cloud environments. Unlike cloud-provider KMS services that are scoped to a single cloud ecosystem, Fortanix DSM is designed to be a **cloud-agnostic cryptographic platform** — managing keys and performing cryptographic operations across AWS, Azure, GCP, and on-premises infrastructure from a centralized control plane. Its **Data Tokenization** capability (built on NIST FF1 Format-Preserving Encryption) is the feature most relevant to PII protection in API contexts.
 
@@ -9211,14 +9211,14 @@ This chapter sits **after** the pattern and platform material because build-vs-b
 
 | Primary Constraint | Recommended Approach | Rationale |
 |:-------------------|:---------------------|:----------|
-| Air-gapped / data sovereignty mandate | **Build** (§12.2) | Third-party services cannot reach isolated environments |
-| In-house crypto expertise available | **Build** or **Hybrid** (§12.2, §12.4) | Leverage existing team knowledge |
-| Budget < $100K/year | **Build** or **Cloud-native** (§12.2, §12.5.4) | Enterprise licensing exceeds budget |
-| Multi-cloud deployment | **Buy — Enterprise** (§12.3) | Unified key management across providers |
-| Time-to-market < 3 months | **Buy — Cloud-native** (§12.3) | Fastest integration path |
-| Domain-specific PII detection | **Hybrid** (§12.4.3) | Custom detection + vendor enforcement |
-| Regulatory third-party certification required | **Buy** (§12.3) | Vendor certifications satisfy auditor requirements |
-| Tight cost constraints, narrow feature set | **Build** (§12.2) | Minimal scope keeps build effort manageable |
+| Air-gapped / data sovereignty mandate | **Build** ([§12.2](#122-when-to-build)) | Third-party services cannot reach isolated environments |
+| In-house crypto expertise available | **Build** or **Hybrid** ([§12.2](#122-when-to-build), [§12.4](#124-hybrid-approaches)) | Leverage existing team knowledge |
+| Budget < $100K/year | **Build** or **Cloud-native** ([§12.2](#122-when-to-build), [§12.5.4](#1254-cloud-native-services-approach-3)) | Enterprise licensing exceeds budget |
+| Multi-cloud deployment | **Buy — Enterprise** ([§12.3](#123-when-to-buy)) | Unified key management across providers |
+| Time-to-market < 3 months | **Buy — Cloud-native** ([§12.3](#123-when-to-buy)) | Fastest integration path |
+| Domain-specific PII detection | **Hybrid** ([§12.4.3](#1243-build-the-detection-buy-the-enforcement)) | Custom detection + vendor enforcement |
+| Regulatory third-party certification required | **Buy** ([§12.3](#123-when-to-buy)) | Vendor certifications satisfy auditor requirements |
+| Tight cost constraints, narrow feature set | **Build** ([§12.2](#122-when-to-build)) | Minimal scope keeps build effort manageable |
 
 ```mermaid
 ---
@@ -9298,7 +9298,7 @@ Custom implementation of PII protection is the right choice when an organization
 
 
 
-**Tight cost constraints.** Enterprise tokenization platforms carry annual licensing costs ranging from $50,000 to $500,000+ (see §12.5 for detailed cost analysis). For early-stage companies, startups, or internal tools with limited PII exposure, this expenditure may be unjustifiable. A simple encryption middleware that encrypts PII fields in API request bodies using AES-256-GCM with keys stored in a cloud KMS can be implemented in 2–4 developer-weeks. A header-based placeholder pattern — replacing PII in URLs with opaque tokens and resolving them server-side from a session store — can be built in 1–2 developer-weeks. These minimal implementations may not match the feature breadth of commercial products, but they address the core requirement: preventing PII from appearing in logs, URLs, and intermediary systems.
+**Tight cost constraints.** Enterprise tokenization platforms carry annual licensing costs ranging from $50,000 to $500,000+ (see [§12.5](#125-cost-analysis-total-cost-of-ownership) for detailed cost analysis). For early-stage companies, startups, or internal tools with limited PII exposure, this expenditure may be unjustifiable. A simple encryption middleware that encrypts PII fields in API request bodies using AES-256-GCM with keys stored in a cloud KMS can be implemented in 2–4 developer-weeks. A header-based placeholder pattern — replacing PII in URLs with opaque tokens and resolving them server-side from a session store — can be built in 1–2 developer-weeks. These minimal implementations may not match the feature breadth of commercial products, but they address the core requirement: preventing PII from appearing in logs, URLs, and intermediary systems.
 
 
 
@@ -9854,7 +9854,7 @@ The following table compares 5-year TCO across approaches, expressed as a range 
 
 
 
-**No single approach dominates across all dimensions.** Cloud-native services offer the lowest TCO but the narrowest feature set and cloud lock-in. Enterprise platforms offer the broadest capabilities but at the highest cost. Self-built approaches provide maximum control but carry hidden costs in security auditing, compliance documentation, and maintenance. The hybrid approaches described in §3 allow organizations to select the cost-capability point that best fits their specific context — building where differentiation matters, buying where commodity security suffices. The decision framework presented across this chapter's four sections provides the analytical structure for making this choice systematically rather than intuitively.
+**No single approach dominates across all dimensions.** Cloud-native services offer the lowest TCO but the narrowest feature set and cloud lock-in. Enterprise platforms offer the broadest capabilities but at the highest cost. Self-built approaches provide maximum control but carry hidden costs in security auditing, compliance documentation, and maintenance. The hybrid approaches described in [§3](#3-architectural-patterns) allow organizations to select the cost-capability point that best fits their specific context — building where differentiation matters, buying where commodity security suffices. The decision framework presented across this chapter's four sections provides the analytical structure for making this choice systematically rather than intuitively.
 
 ```mermaid
 ---
@@ -9995,7 +9995,7 @@ Auditability is a **supporting control**, not the primary remediation. The syste
 }
 ```
 
-Note that the `token_value` field contains only the token reference, not the underlying IBAN. The `previous_hash` field enables hash-chain verification (discussed in §2). The `log_version` field supports schema evolution — when the audit format changes, consumers can filter or transform events based on version.
+Note that the `token_value` field contains only the token reference, not the underlying IBAN. The `previous_hash` field enables hash-chain verification (discussed in [§2](#2-regulatory-landscape)). The `log_version` field supports schema evolution — when the audit format changes, consumers can filter or transform events based on version.
 
 ---
 
@@ -10056,13 +10056,13 @@ X-Request-ID: req_8f2a3b1c
 Authorization: Bearer eyJhbGci...
 ```
 
-The gateway itself logs the request — but critically, the log entry must not contain plaintext PII. If the original client request included PII (e.g., `GET /api/users/jane.doe@example.com/...`), the gateway should log only the PII-free forwarded URL (with the encrypted token or pseudonymized reference), not the original. This is the observability-privacy tension described in §16.1: the gateway's log entry records that a request was received and forwarded, including the correlation ID, but never the PII value itself.
+The gateway itself logs the request — but critically, the log entry must not contain plaintext PII. If the original client request included PII (e.g., `GET /api/users/jane.doe@example.com/...`), the gateway should log only the PII-free forwarded URL (with the encrypted token or pseudonymized reference), not the original. This is the observability-privacy tension described in [§16.1](#161-the-observability-privacy-tension): the gateway's log entry records that a request was received and forwarded, including the correlation ID, but never the PII value itself.
 
 </details>
 
 <details><summary><strong>3. Application Service sends decrypt request to Crypto Service with traceparent propagated</strong></summary>
 
-The Application Service identifies that the requested operation requires access to plaintext PII — for example, a customer profile lookup where the user identifier in the URL is an encrypted envelope (§3.2), or a payment processing step that needs to detokenize a bank account number (§5.3). The Application Service constructs a decrypt request to the Crypto Service, the dedicated component responsible for all PII decryption in the system (§14.3).
+The Application Service identifies that the requested operation requires access to plaintext PII — for example, a customer profile lookup where the user identifier in the URL is an encrypted envelope ([§3.2](#32-header-based-placeholders)), or a payment processing step that needs to detokenize a bank account number ([§5.3](#53-vault-based-tokenization)). The Application Service constructs a decrypt request to the Crypto Service, the dedicated component responsible for all PII decryption in the system ([§14.3](#143-centralized-decryption-authority)).
 
 The `traceparent` header is propagated from the Application Service to the Crypto Service without modification. This propagation is automatic when using OpenTelemetry-instrumented HTTP clients — the SDK extracts the trace context from the incoming request headers and injects it into the outgoing request. For services not yet instrumented with OpenTelemetry, the application must manually copy the `traceparent` header from the inbound request to the outbound request. Failure to propagate the correlation ID breaks the audit chain at this hop, creating an orphaned decrypt operation that cannot be linked to the originating user request.
 
@@ -10084,7 +10084,7 @@ Authorization: Bearer sa:app-service-prod-token
 
 <details><summary><strong>4. Crypto Service requests DEK unwrapping from Cloud KMS with traceparent propagated</strong></summary>
 
-The Crypto Service receives the decrypt request and determines that the ciphertext was encrypted using envelope encryption (§3.2) — the ciphertext is accompanied by a wrapped Data Encryption Key (DEK). The Crypto Service must first unwrap the DEK by sending it to the Cloud KMS (AWS KMS, Azure Key Vault, Google Cloud KMS, or HashiCorp Vault), which holds the Key Encryption Key (KEK) needed to decrypt the DEK.
+The Crypto Service receives the decrypt request and determines that the ciphertext was encrypted using envelope encryption ([§3.2](#32-header-based-placeholders)) — the ciphertext is accompanied by a wrapped Data Encryption Key (DEK). The Crypto Service must first unwrap the DEK by sending it to the Cloud KMS (AWS KMS, Azure Key Vault, Google Cloud KMS, or HashiCorp Vault), which holds the Key Encryption Key (KEK) needed to decrypt the DEK.
 
 The `traceparent` header is propagated to the KMS API call. While cloud KMS services do not natively understand or propagate OpenTelemetry trace context, the header is included in the API request for audit purposes — the KMS's own audit trail (AWS CloudTrail, Azure Activity Log, GCP Cloud Audit Logs) will record the incoming request headers, preserving the correlation link even though the KMS does not actively participate in the trace.
 
@@ -10156,7 +10156,7 @@ The `trace_id` field (`4bf92f3577b34da6a3ce929d0e0e4736`) is extracted from the 
 
 The Crypto Service returns the decrypted PII to the Application Service over an internal, mTLS-secured channel. The plaintext PII exists only in transit and in the Application Service's memory — it is never persisted to disk, never written to a log, and never exposed in a URL. The Application Service receives the PII, uses it for the business operation (e.g., populating a customer profile response, validating a payment), and then discards it from memory as soon as the operation completes.
 
-The internal channel between the Crypto Service and the Application Service is a critical trust boundary. The Crypto Service's architecture (§14.3) ensures that it is the *only* component in the system that can decrypt PII — the Application Service cannot perform decryption directly. This centralization of decryption authority means that the audit trail captured in step 6 is a complete and authoritative record of every PII decryption event in the system. No decryption can occur without a corresponding audit entry.
+The internal channel between the Crypto Service and the Application Service is a critical trust boundary. The Crypto Service's architecture ([§14.3](#143-centralized-decryption-authority)) ensures that it is the *only* component in the system that can decrypt PII — the Application Service cannot perform decryption directly. This centralization of decryption authority means that the audit trail captured in step 6 is a complete and authoritative record of every PII decryption event in the system. No decryption can occur without a corresponding audit entry.
 
 </details>
 
@@ -10195,7 +10195,7 @@ The dual-entry pattern — one from the Crypto Service, one from the Application
 
 <details><summary><strong>9. Application Service returns response to API Gateway</strong></summary>
 
-The Application Service completes the business operation and returns the response to the API Gateway. The response body may contain the processed data (e.g., a customer profile with the SSN displayed in a masked format), but the critical design constraint is that plaintext PII must never appear in the URL — not in the response path, not in redirect locations, and not in `Location` headers. The URL channel is permanently compromised for PII due to its uncontrolled proliferation across logs, proxies, and browser history (OWASP ASVS v4.0.3, §5.1.2).
+The Application Service completes the business operation and returns the response to the API Gateway. The response body may contain the processed data (e.g., a customer profile with the SSN displayed in a masked format), but the critical design constraint is that plaintext PII must never appear in the URL — not in the response path, not in redirect locations, and not in `Location` headers. The URL channel is permanently compromised for PII due to its uncontrolled proliferation across logs, proxies, and browser history (OWASP ASVS v4.0.3 §5.1.2).
 
 ```
 HTTP/1.1 200 OK
@@ -10219,7 +10219,7 @@ At this point, the full audit trail for this request exists across multiple logs
 | Cloud KMS | CloudTrail / Activity Log | DEK unwrapping, caller identity, encryption context |
 | Application Service | PII access audit | `pii_accessed` operation, purpose `customer_profile_retrieval` |
 
-A SIEM query for `trace_id = 4bf92f3577b34da6a3ce929d0e0e4736` retrieves all four entries, assembling the complete request timeline. If the same user files a data access request (GDPR Article 15) or a complaint about unauthorized processing, the DPO can trace every decryption of that user's PII by querying for all trace IDs associated with the user's pseudonymized reference (§16.3) — without ever accessing the plaintext PII itself.
+A SIEM query for `trace_id = 4bf92f3577b34da6a3ce929d0e0e4736` retrieves all four entries, assembling the complete request timeline. If the same user files a data access request (GDPR Article 15) or a complaint about unauthorized processing, the DPO can trace every decryption of that user's PII by querying for all trace IDs associated with the user's pseudonymized reference ([§16.3](#163-correlation-id-strategies)) — without ever accessing the plaintext PII itself.
 
 </details>
 
@@ -10243,7 +10243,7 @@ An audit trail is valuable only if it can be trusted. If the log entries recordi
 
 
 
-The implementation is straightforward. Each audit event is serialized to a canonical form (deterministic JSON serialization, sorted keys, no whitespace), and a SHA-256 hash is computed over the concatenation of the previous entry's hash and the current entry's content. The resulting hash becomes the `previous_hash` field in the next entry (as shown in the sample audit entry in §1). Verification involves starting from the oldest known-good entry (a trusted anchor, typically the first entry after a key rotation or system deployment) and recomputing the chain forward. Any mismatch indicates tampering at or after the point of divergence.
+The implementation is straightforward. Each audit event is serialized to a canonical form (deterministic JSON serialization, sorted keys, no whitespace), and a SHA-256 hash is computed over the concatenation of the previous entry's hash and the current entry's content. The resulting hash becomes the `previous_hash` field in the next entry (as shown in the sample audit entry in [§1](#1-introduction-and-problem-definition)). Verification involves starting from the oldest known-good entry (a trusted anchor, typically the first entry after a key rotation or system deployment) and recomputing the chain forward. Any mismatch indicates tampering at or after the point of divergence.
 
 
 
@@ -10375,7 +10375,7 @@ Verification should run at least daily, with the sample size proportional to the
 
 #### §13.3.3 Operational Integrity Practices
 
-**Retention: balancing GDPR storage limitation with regulatory requirements.** GDPR Article 5(1)(e) establishes the storage limitation principle: personal data must be kept "no longer than is necessary for the purposes" of processing. However, audit logs containing references to PII operations (but not PII itself, per §1's data minimization rule) serve multiple purposes with different retention needs:
+**Retention: balancing GDPR storage limitation with regulatory requirements.** GDPR Article 5(1)(e) establishes the storage limitation principle: personal data must be kept "no longer than is necessary for the purposes" of processing. However, audit logs containing references to PII operations (but not PII itself, per [§1](#1-introduction-and-problem-definition)'s data minimization rule) serve multiple purposes with different retention needs:
 
 
 
@@ -10503,7 +10503,7 @@ Audit logs are inert data without the analysis and alerting infrastructure that 
 
 
 
-- **Splunk** ingests audit logs via HTTP Event Collector (HEC), Universal Forwarder (agent-based), or syslog. For cryptographic audit logs, HEC is recommended — it supports structured JSON events natively, provides acknowledgment-based delivery confirmation, and allows per-event metadata (source, sourcetype, index) that drives downstream routing. Crypto audit logs should be assigned a dedicated index (e.g., `audit_crypto`) with a retention policy aligned to the tiered model described in §2. Splunk's Common Information Model (CIM) can be extended with a custom data model for cryptographic operations, enabling standardized field names across different log sources.
+- **Splunk** ingests audit logs via HTTP Event Collector (HEC), Universal Forwarder (agent-based), or syslog. For cryptographic audit logs, HEC is recommended — it supports structured JSON events natively, provides acknowledgment-based delivery confirmation, and allows per-event metadata (source, sourcetype, index) that drives downstream routing. Crypto audit logs should be assigned a dedicated index (e.g., `audit_crypto`) with a retention policy aligned to the tiered model described in [§2](#2-regulatory-landscape). Splunk's Common Information Model (CIM) can be extended with a custom data model for cryptographic operations, enabling standardized field names across different log sources.
 
 
 
@@ -10740,7 +10740,7 @@ The audit capabilities of a cryptographic or tokenization platform are a critica
 
 
 
-3. **Cross-vendor audit normalization**: Organizations using multiple vendors (e.g., Vault for tokenization, AWS KMS for envelope encryption, Azure Key Vault for HSM-backed keys) need a unified audit schema that normalizes the divergent log formats into a consistent model. This normalization layer is a prerequisite for cross-vendor correlation and unified alerting. The schema defined in §1 serves as the target format.
+3. **Cross-vendor audit normalization**: Organizations using multiple vendors (e.g., Vault for tokenization, AWS KMS for envelope encryption, Azure Key Vault for HSM-backed keys) need a unified audit schema that normalizes the divergent log formats into a consistent model. This normalization layer is a prerequisite for cross-vendor correlation and unified alerting. The schema defined in [§1](#1-introduction-and-problem-definition) serves as the target format.
 
 
 
@@ -11135,7 +11135,7 @@ flowchart LR
 
 
 
-2. **Decrypt permission** — the ability to reverse the encryption and recover plaintext PII. This is the most sensitive permission in the system, because a service with decrypt access can exfiltrate the PII it processes. Decrypt permission must be restricted to a minimal set of components, each with a documented and justified business need: the customer support interface (which needs to display masked PII for verification), the compliance investigation tool, the data migration pipeline, and the centralized decryption service (covered in §3). The default posture for decrypt access should be **deny-all** — any new decrypt grant must be explicitly requested, justified, approved, and time-bounded.
+2. **Decrypt permission** — the ability to reverse the encryption and recover plaintext PII. This is the most sensitive permission in the system, because a service with decrypt access can exfiltrate the PII it processes. Decrypt permission must be restricted to a minimal set of components, each with a documented and justified business need: the customer support interface (which needs to display masked PII for verification), the compliance investigation tool, the data migration pipeline, and the centralized decryption service (covered in [§3](#3-architectural-patterns)). The default posture for decrypt access should be **deny-all** — any new decrypt grant must be explicitly requested, justified, approved, and time-bounded.
 
 
 
@@ -11239,7 +11239,7 @@ flowchart TD
 
 #### §14.3.2 Decryption as a Privileged, Logged Operation
 
-**Decryption as a privileged, logged operation.** Every call to the decryption service is an event that must be captured, analyzed, and retained. The decryption service enforces this by design: it cannot perform a decryption without creating an audit entry. The audit entry captures the full context defined in §11: who requested the decryption (caller identity and executor service), what PII was decrypted (data classification and record identifier), when the request was made, where it originated (source IP, network zone), and why it was requested (a mandatory justification or purpose code provided by the caller). The audit entry is written to a tamper-evident log store (append-only, integrity-verified) before the plaintext is returned to the caller — if the audit write fails, the decryption is aborted. This ensures that there are no "silent" decryption operations: every instance of PII being exposed from its encrypted state leaves an immutable record.
+**Decryption as a privileged, logged operation.** Every call to the decryption service is an event that must be captured, analyzed, and retained. The decryption service enforces this by design: it cannot perform a decryption without creating an audit entry. The audit entry captures the full context defined in [§11](#11-cloud-native-and-api-gateway-solutions): who requested the decryption (caller identity and executor service), what PII was decrypted (data classification and record identifier), when the request was made, where it originated (source IP, network zone), and why it was requested (a mandatory justification or purpose code provided by the caller). The audit entry is written to a tamper-evident log store (append-only, integrity-verified) before the plaintext is returned to the caller — if the audit write fails, the decryption is aborted. This ensures that there are no "silent" decryption operations: every instance of PII being exposed from its encrypted state leaves an immutable record.
 
 
 
@@ -11308,7 +11308,7 @@ For GDPR-regulated PII, the centralized model is strongly recommended: it provid
 
 #### §14.3.7 Use Cases
 
-**Use cases.** Centralized decryption serves three primary use cases. First, **customer support operations**: a support agent needs to verify a customer's identity by confirming partial PII (last 4 digits of SSN, date of birth). The agent's interface calls the decryption service, which returns only the masked fields the agent is authorized to see — not the full PII. Second, **compliance and legal investigations**: a DPA inquiry or litigation hold requires access to specific customer data. The compliance team submits a request through the break-glass workflow (§4), which grants time-bounded access to the decryption service for the specific data subjects under investigation. Third, **data migration**: migrating PII between systems or regions requires decrypting from the source key and re-encrypting with the destination key. The migration pipeline calls the decryption service, which logs every record migrated and can enforce rate limits and data-type restrictions to prevent scope creep.
+**Use cases.** Centralized decryption serves three primary use cases. First, **customer support operations**: a support agent needs to verify a customer's identity by confirming partial PII (last 4 digits of SSN, date of birth). The agent's interface calls the decryption service, which returns only the masked fields the agent is authorized to see — not the full PII. Second, **compliance and legal investigations**: a DPA inquiry or litigation hold requires access to specific customer data. The compliance team submits a request through the break-glass workflow ([§4](#4-cryptographic-patterns)), which grants time-bounded access to the decryption service for the specific data subjects under investigation. Third, **data migration**: migrating PII between systems or regions requires decrypting from the source key and re-encrypting with the destination key. The migration pipeline calls the decryption service, which logs every record migrated and can enforce rate limits and data-type restrictions to prevent scope creep.
 
 ---
 
@@ -11378,7 +11378,7 @@ flowchart TD
 
 
 
-4. **Execute.** The requester performs the necessary decryption operations under enhanced monitoring. During the break-glass window, the decryption service (§3) applies additional controls: every decrypt operation is tagged with the break-glass incident ID, real-time alerts are sent to the security operations center (SOC) for every operation, rate limits are relaxed to allow bulk operations but rate-limiting anomalies are still monitored, and the decryption service may require step-up authentication (re-authentication with a second factor) for each decrypt call to ensure the session has not been hijacked.
+4. **Execute.** The requester performs the necessary decryption operations under enhanced monitoring. During the break-glass window, the decryption service ([§3](#3-architectural-patterns)) applies additional controls: every decrypt operation is tagged with the break-glass incident ID, real-time alerts are sent to the security operations center (SOC) for every operation, rate limits are relaxed to allow bulk operations but rate-limiting anomalies are still monitored, and the decryption service may require step-up authentication (re-authentication with a second factor) for each decrypt call to ensure the session has not been hijacked.
 
 
 
@@ -11622,7 +11622,7 @@ The application uses `Plaintext` to encrypt PII locally (AES-256-GCM), stores th
 
 #### §14.6.7 Azure Key Vault Access Control
 
-**Azure Key Vault access control.** Azure supports two access control models for Key Vault: **access policies** (the legacy model, configured per-vault) and **Azure RBAC** (the recommended model, configured per-key). Under RBAC, the built-in role `Key Vault Crypto Service Encryption User` grants `Microsoft.KeyVault/vaults/keys/encrypt/action` — which allows encryption but not decryption. The role `Key Vault Crypto Service Encryption User` with the additional `decrypt/action` permission enables both. Custom roles can be defined to grant only encrypt or only decrypt, enabling the four-tier permission model described in §2. Azure RBAC's support for conditions (currently in preview) adds further granularity: conditions can restrict decrypt access to specific managed identities, specific virtual networks, or specific time windows. For break-glass scenarios, an Azure RBAC condition with a time-bound attribute provides the automatic revocation mechanism without requiring a PAM integration.
+**Azure Key Vault access control.** Azure supports two access control models for Key Vault: **access policies** (the legacy model, configured per-vault) and **Azure RBAC** (the recommended model, configured per-key). Under RBAC, the built-in role `Key Vault Crypto Service Encryption User` grants `Microsoft.KeyVault/vaults/keys/encrypt/action` — which allows encryption but not decryption. The role `Key Vault Crypto Service Encryption User` with the additional `decrypt/action` permission enables both. Custom roles can be defined to grant only encrypt or only decrypt, enabling the four-tier permission model described in [§2](#2-regulatory-landscape). Azure RBAC's support for conditions (currently in preview) adds further granularity: conditions can restrict decrypt access to specific managed identities, specific virtual networks, or specific time windows. For break-glass scenarios, an Azure RBAC condition with a time-bound attribute provides the automatic revocation mechanism without requiring a PAM integration.
 
 
 
@@ -11652,7 +11652,7 @@ The application uses `Plaintext` to encrypt PII locally (AES-256-GCM), stores th
 
 #### §14.6.12 Google Cloud KMS Key Access Justification
 
-**Google Cloud KMS key access justification.** A distinctive feature of Google Cloud KMS is the ability to require a **justification** for key access. When enabled, every request to use a CryptoKeyVersion (encrypt or decrypt) must include a `reason` string that describes why the key is being used. This justification is logged in Cloud Audit Logs alongside the operation, providing a built-in mechanism for documenting the purpose of each cryptographic operation. For PII protection, this feature reduces the reliance on application-level justification fields (as described in §3) and provides an infrastructure-enforced accountability mechanism: if the caller does not provide a reason, the KMS rejects the request. The justification requirement is configured through the organization policy constraint `constraints/gcp.resourceLocations` or through KMS-specific IAM conditions.
+**Google Cloud KMS key access justification.** A distinctive feature of Google Cloud KMS is the ability to require a **justification** for key access. When enabled, every request to use a CryptoKeyVersion (encrypt or decrypt) must include a `reason` string that describes why the key is being used. This justification is logged in Cloud Audit Logs alongside the operation, providing a built-in mechanism for documenting the purpose of each cryptographic operation. For PII protection, this feature reduces the reliance on application-level justification fields (as described in [§3](#3-architectural-patterns)) and provides an infrastructure-enforced accountability mechanism: if the caller does not provide a reason, the KMS rejects the request. The justification requirement is configured through the organization policy constraint `constraints/gcp.resourceLocations` or through KMS-specific IAM conditions.
 
 
 
@@ -11995,7 +11995,7 @@ After key destruction, the controller verifies that the subject's encrypted PII 
 }
 ```
 
-The controller also verifies that no derived keys remain cached in application memory or on-disk key caches — a cached key would allow "erased" data to be decrypted retroactively (§15.2).
+The controller also verifies that no derived keys remain cached in application memory or on-disk key caches — a cached key would allow "erased" data to be decrypted retroactively ([§15.2](#152-crypto-shredding)).
 
 </details>
 
@@ -12013,7 +12013,7 @@ The controller extends verification to secondary storage locations — database 
 }
 ```
 
-If any storage location still holds a viable decryption path (e.g., a wrapped DEK backed up with a different KMS key version), the controller must schedule additional key destructions or rotate the wrapping key to close the gap (§14.3). The erasure is only complete when **all** locations are confirmed unrecoverable.
+If any storage location still holds a viable decryption path (e.g., a wrapped DEK backed up with a different KMS key version), the controller must schedule additional key destructions or rotate the wrapping key to close the gap ([§14.3](#143-centralized-decryption-authority)). The erasure is only complete when **all** locations are confirmed unrecoverable.
 
 </details>
 
@@ -12120,9 +12120,9 @@ When the subject requests erasure, the derived key is discarded (it can always b
 
 
 
-- **Deterministic encryption breaks crypto shredding**: If the same key is used for multiple subjects (deterministic AES, §4.3), destroying the key erases all subjects' data — not just the target. Crypto shredding requires per-subject or per-record key isolation.
+- **Deterministic encryption breaks crypto shredding**: If the same key is used for multiple subjects (deterministic AES, [§4.3](#43-deterministic-aes-encryption)), destroying the key erases all subjects' data — not just the target. Crypto shredding requires per-subject or per-record key isolation.
 
-- **Tokenization is incompatible**: Tokenization vaults (§5.3) store a mapping from token to real value. Crypto shredding the vault's encryption key destroys the entire vault, not a single mapping. For selective erasure, the mapping entry must be deleted from the vault — not the key.
+- **Tokenization is incompatible**: Tokenization vaults ([§5.3](#53-vault-based-tokenization)) store a mapping from token to real value. Crypto shredding the vault's encryption key destroys the entire vault, not a single mapping. For selective erasure, the mapping entry must be deleted from the vault — not the key.
 
 - **Key derivation cache**: If the application caches derived keys in memory or on disk, the cached key must be purged when the subject is erased. Otherwise, the cached key can still decrypt the "erased" data.
 
@@ -12148,7 +12148,7 @@ When a data subject requests erasure, the controller deletes their record from t
 
 - **Database backups**: Point-in-time recovery snapshots, logical backups, third-party backup copies
 
-- **Log archives**: API gateway access logs, application logs, audit trails (§11)
+- **Log archives**: API gateway access logs, application logs, audit trails ([§11](#11-cloud-native-and-api-gateway-solutions))
 
 - **Analytics snapshots**: Data warehouse extracts, materialized views, ML training datasets
 
@@ -12230,7 +12230,7 @@ When PII is tokenized (Chapter 5), the tokenization vault maintains the mapping 
 
 
 
-- **HashiCorp Vault (Transform engine)**: Tokenization mappings are stored in Vault's storage backend. Deleting a mapping requires the `delete` capability on the `transform/role/` path. The operation is audited via Vault's audit devices (§13.5).
+- **HashiCorp Vault (Transform engine)**: Tokenization mappings are stored in Vault's storage backend. Deleting a mapping requires the `delete` capability on the `transform/role/` path. The operation is audited via Vault's audit devices ([§13.5](#135-vendor-audit-capabilities)).
 
 - **VGS**: VGS provides a data subject deletion API that removes all aliases (tokens) and their mappings for a specified data subject. The deletion is cascaded to all environments (staging, production).
 
@@ -12298,7 +12298,7 @@ The best strategy for right-to-erasure compliance is not to retrofit erasure cap
 
 
 
-The foundational design decision for erasure-friendly encryption is **per-subject key isolation**: each data subject's PII is encrypted with a key uniquely associated with that subject. The detailed key derivation and envelope encryption strategies (HKDF-SHA256 derivation, per-subject DEKs wrapped by a central KEK) are covered in §15.2 under Key Granularity Strategies, which includes the comparison table and implementation details. This section focuses on the architectural implications for erasure workflows.
+The foundational design decision for erasure-friendly encryption is **per-subject key isolation**: each data subject's PII is encrypted with a key uniquely associated with that subject. The detailed key derivation and envelope encryption strategies (HKDF-SHA256 derivation, per-subject DEKs wrapped by a central KEK) are covered in [§15.2](#152-crypto-shredding) under Key Granularity Strategies, which includes the comparison table and implementation details. This section focuses on the architectural implications for erasure workflows.
 
 
 
@@ -12343,7 +12343,7 @@ After erasure, the controller should be able to demonstrate to a DPA or auditor 
 
 2. **Decryption attempt**: After key destruction, attempt to decrypt a sample of the "erased" ciphertext. The decryption should fail with a definitive error (`KeyNotFoundException` or similar). Log the failed decryption attempt as proof.
 
-3. **Backup verification**: If encrypted backups exist, demonstrate that the key version needed to decrypt the erased subject's data has been destroyed. The KMS audit trail (§13.6) shows the key destruction event.
+3. **Backup verification**: If encrypted backups exist, demonstrate that the key version needed to decrypt the erased subject's data has been destroyed. The KMS audit trail ([§14.6.3](#1463-aws-kms-audit-logging)) shows the key destruction event.
 
 
 
@@ -12361,7 +12361,7 @@ This approach provides stronger evidence of erasure than a simple `DELETE FROM d
 
 Modern distributed systems rely on observability — logging, metrics, and distributed tracing — to diagnose performance issues, debug failures, and understand system behavior. This chapter is part of the supporting operating model: once the main architecture removes personal data from unsafe request surfaces, observability must avoid reintroducing the same data through logs, spans, and support tooling. OpenTelemetry has become the de facto standard for instrumenting services with trace context (trace ID, span ID) that propagates across service boundaries, enabling engineers to reconstruct the full call chain of a request.
 
-In the standards synthesis of §17, this chapter represents the secondary exposure plane. An API can satisfy the primary "no sensitive data in URL channels" rule and still fail operationally if logs, traces, body capture, dashboards, or support tooling preserve the same values elsewhere.
+In the standards synthesis of [§17](#17-owasp-asvs-and-cwe-synthesis), this chapter represents the secondary exposure plane. An API can satisfy the primary "no sensitive data in URL channels" rule and still fail operationally if logs, traces, body capture, dashboards, or support tooling preserve the same values elsewhere.
 
 
 
@@ -12379,7 +12379,7 @@ However, observability and privacy are in fundamental tension. A distributed tra
 
 
 
-This tension is particularly acute for the PII protection patterns discussed in this document. If the system encrypts PII at the API gateway (§3.2), the gateway must NOT log the pre-encryption PII. If the tokenization vault detokenizes a value for a downstream service (§5.3), the trace should capture the fact of detokenization but NOT the plaintext value.
+This tension is particularly acute for the PII protection patterns discussed in this document. If the system encrypts PII at the API gateway ([§3.2](#32-header-based-placeholders)), the gateway must NOT log the pre-encryption PII. If the tokenization vault detokenizes a value for a downstream service ([§5.3](#53-vault-based-tokenization)), the trace should capture the fact of detokenization but NOT the plaintext value.
 
 
 
@@ -12497,7 +12497,7 @@ User-Agent: Mozilla/5.0...
 
 
 
-This is consistent with the infrastructure-level PII scanning described in §6.3, but applied to the observability pipeline rather than the data pipeline. The scanning patterns are identical: regex matching for email, SSN, phone number, national ID, and custom PII patterns defined by the organization.
+This is consistent with the infrastructure-level PII scanning described in [§6.3](#63-real-time-pii-scanning-and-masking), but applied to the observability pipeline rather than the data pipeline. The scanning patterns are identical: regex matching for email, SSN, phone number, national ID, and custom PII patterns defined by the organization.
 
 
 
@@ -12711,7 +12711,7 @@ This approach is more reliable than relying on individual service developers to 
 
 
 
-**Recommendation**: Use **redaction** as the default for all observability pipelines. Use **tokenization** only when there is a demonstrated operational need for trace correlation across data subjects (e.g., fraud investigation) and the tokenization vault's access controls (§14.2) are sufficient to prevent unauthorized detokenization.
+**Recommendation**: Use **redaction** as the default for all observability pipelines. Use **tokenization** only when there is a demonstrated operational need for trace correlation across data subjects (e.g., fraud investigation) and the tokenization vault's access controls ([§14.2](#142-key-access-control)) are sufficient to prevent unauthorized detokenization.
 
 ---
 
@@ -12855,7 +12855,7 @@ flowchart TD
 
 
 
-- **OpenTelemetry SDK with PII-aware processor**: As described in §16.2, the SDK-level span processor sanitizes attributes and events before export.
+- **OpenTelemetry SDK with PII-aware processor**: As described in [§16.2](#162-privacy-preserving-trace-design), the SDK-level span processor sanitizes attributes and events before export.
 
 - **Log framework configuration**: Configure structured logging frameworks (SLF4J, Python `structlog`, Go `zap`) with a PII filter that redacts values matching defined patterns.
 
@@ -12867,7 +12867,7 @@ flowchart TD
 
 
 
-- **PII detection pipeline**: A dedicated pipeline stage that scans all incoming log lines and trace spans for PII patterns. Tools: Google Cloud DLP API (§9.1), Azure Information Protection, or open-source regex-based scanners.
+- **PII detection pipeline**: A dedicated pipeline stage that scans all incoming log lines and trace spans for PII patterns. Tools: Google Cloud DLP API ([§9.1](#91-migration-principles)), Azure Information Protection, or open-source regex-based scanners.
 
 - **Attribute enrichment**: After redaction, enrich spans with metadata that is useful for debugging but not privacy-sensitive: service version, deployment environment, data classification (e.g., `classification: email` without the actual email), and error codes.
 
@@ -12877,9 +12877,9 @@ flowchart TD
 
 
 
-- **Retention policies**: Observability data containing PII (even redacted PII) should have shorter retention periods than infrastructure observability data. A typical policy: 30 days for application logs/traces, 90 days for infrastructure metrics, 1 year for security audit logs (§11.2).
+- **Retention policies**: Observability data containing PII (even redacted PII) should have shorter retention periods than infrastructure observability data. A typical policy: 30 days for application logs/traces, 90 days for infrastructure metrics, 1 year for security audit logs ([§11.2](#112-microsoft-azure-api-management-apim)).
 
-- **Access control**: Observability backends should enforce role-based access. Engineering teams can view aggregated metrics and anonymized traces; only security and compliance teams can access the PII lookup buffer (§16.3) for authorized debugging.
+- **Access control**: Observability backends should enforce role-based access. Engineering teams can view aggregated metrics and anonymized traces; only security and compliance teams can access the PII lookup buffer ([§16.3](#163-correlation-id-strategies)) for authorized debugging.
 
 - **Data residency**: Ensure that observability data is stored within the same jurisdiction as the primary data. If the organization uses a US-based APM tool (Datadog, New Relic) but processes EU data subjects' PII, the observability data may be subject to GDPR cross-border transfer restrictions (Chapter V, Articles 44–49).
 
@@ -12911,11 +12911,11 @@ GDPR Article 15 gives data subjects the right to obtain confirmation of whether 
 
 
 
-1. **Identify the data subject's correlation references**: Query the pseudonymized subject index (§16.3) to obtain all correlation IDs and pseudonymized references associated with the data subject.
+1. **Identify the data subject's correlation references**: Query the pseudonymized subject index ([§16.3](#163-correlation-id-strategies)) to obtain all correlation IDs and pseudonymized references associated with the data subject.
 
 2. **Query observability backends**: For each correlation ID, retrieve the corresponding trace spans and log entries from the observability pipeline. Because PII is redacted at the edge, these traces show the *processing* of the data subject's information without revealing the information itself.
 
-3. **Reconstruct from encrypted stores**: For the data content itself, query the application databases using the pseudonymized reference. Decrypt the retrieved values through the centralized decryption service (§14.3) with an audit-logged DSAR justification.
+3. **Reconstruct from encrypted stores**: For the data content itself, query the application databases using the pseudonymized reference. Decrypt the retrieved values through the centralized decryption service ([§14.3](#143-centralized-decryption-authority)) with an audit-logged DSAR justification.
 
 4. **Compile the DSAR response**: Combine the processing history (from observability) with the data content (from decrypted stores) into a comprehensive response.
 
@@ -13025,21 +13025,21 @@ This approach provides several compliance advantages:
 
 ## 17. OWASP, ASVS, and CWE Synthesis
 
-This document already established the regulatory and standards baseline in §2.5. This chapter does something narrower and more operational: it translates that baseline into a practical control map for the rest of the document. The core point is that personal data in URL paths and query parameters is not only a privacy-design mistake. It is also a recognized application-security weakness with a direct CWE classification, a clear OWASP ASVS expectation, and adjacent connections to broader API-security design problems.
+This document already established the regulatory and standards baseline in [§2.5](#25-nist-and-owasp-standards). This chapter does something narrower and more operational: it translates that baseline into a practical control map for the rest of the document. The core point is that personal data in URL paths and query parameters is not only a privacy-design mistake. It is also a recognized application-security weakness with a direct CWE classification, a clear OWASP ASVS expectation, and adjacent connections to broader API-security design problems.
 
 ---
 
 ### §17.1 Primary Vulnerability Class: Sensitive Data in URL Channels
 
-The most direct standards signal is still the same one introduced earlier: **CWE-598** formally classifies the use of sensitive query strings in GET requests as a vulnerability, and **OWASP ASVS V9.3** requires sensitive data to travel in the message body or headers rather than in URL parameters. Those references do not replace the GDPR analysis in §2, but they do matter because they frame the issue as a recognizable security defect rather than a merely stylistic API preference.
+The most direct standards signal is still the same one introduced earlier: **CWE-598** formally classifies the use of sensitive query strings in GET requests as a vulnerability, and **OWASP ASVS V9.3** requires sensitive data to travel in the message body or headers rather than in URL parameters. Those references do not replace the GDPR analysis in [§2](#2-regulatory-landscape), but they do matter because they frame the issue as a recognizable security defect rather than a merely stylistic API preference.
 
 The exact wording of CWE-598 is query-string specific, but the operational exposure model is broader than query strings alone. Path segments, query parameters, and other request-target elements share the same basic failure mode whenever they are logged, cached, indexed, propagated by intermediaries, or copied into support tooling. In other words, the standards vocabulary is narrow at the edge, while the real engineering problem is the entire **URL channel**.
 
 | Exposure pattern | Standards signal | Practical meaning | Main document response |
 |:-----------------|:-----------------|:------------------|:-----------------------|
-| Sensitive email, phone, or national ID in query parameters | CWE-598; OWASP ASVS V9.3 | Recognized vulnerability, not just poor API taste | §3.1, §3.3, §7.2, §9 |
-| Sensitive identifier embedded in path segments | Same exposure model, even if not named verbatim by CWE-598 | Same logging, caching, and propagation risk as query strings | §1.2, §3, §6, §9 |
-| "HTTPS is enough" reasoning | OWASP guidance rejects that assumption | Transport confidentiality does not prevent server-side persistence and re-exposure | §1.2, §2.5.3, §6, §16 |
+| Sensitive email, phone, or national ID in query parameters | CWE-598; OWASP ASVS V9.3 | Recognized vulnerability, not just poor API taste | [§3.1](#31-post-body-migration), [§3.3](#33-opaque-internal-identifiers), [§7.2](#72-linting-rules-for-pii-in-urls), [§9](#9-migration-playbook-for-existing-apis) |
+| Sensitive identifier embedded in path segments | Same exposure model, even if not named verbatim by CWE-598 | Same logging, caching, and propagation risk as query strings | [§1](#1-introduction-and-problem-definition), [§3](#3-architectural-patterns), [§6](#6-infrastructure-and-operational-patterns), [§9](#9-migration-playbook-for-existing-apis) |
+| "HTTPS is enough" reasoning | OWASP guidance rejects that assumption | Transport confidentiality does not prevent server-side persistence and re-exposure | [§1](#1-introduction-and-problem-definition), [§2](#2-regulatory-landscape), [§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability) |
 
 ---
 
@@ -13049,10 +13049,10 @@ The standards do not tell an organization which exact vendor, cryptographic prim
 
 | Standards concern | What the standard is really demanding | Main answer in this document | Where it is enforced or sustained |
 |:------------------|:--------------------------------------|:-----------------------------|:----------------------------------|
-| ASVS V9.3: keep sensitive data out of URL parameters | Change the contract so sensitive data does not travel in the request target | Architectural patterns such as POST-body lookup, opaque IDs, and single-use tokens | §3, §7, §9 |
-| CWE-598: remove sensitive query-string exposure | Retire endpoints that already instantiate the weakness | Inventory, replacement contract, dual-path rollout, and legacy cleanup | §9 |
-| Secondary exposure through logs, traces, and caches | Prevent the same value from reappearing after the contract is fixed | Redaction, cache discipline, trace-safe identifiers, and observability design | §6, §16 |
-| Reversible protection remains governable personal-data processing | Ensure decryption, detokenization, and key access are policy-bound and auditable | Audit trails, centralized decryption authority, key governance, and erasure design | §13, §14, §15 |
+| ASVS V9.3: keep sensitive data out of URL parameters | Change the contract so sensitive data does not travel in the request target | Architectural patterns such as POST-body lookup, opaque IDs, and single-use tokens | [§3](#3-architectural-patterns), [§7](#7-design-time-api-governance-and-contract-enforcement), [§9](#9-migration-playbook-for-existing-apis) |
+| CWE-598: remove sensitive query-string exposure | Retire endpoints that already instantiate the weakness | Inventory, replacement contract, dual-path rollout, and legacy cleanup | [§9](#9-migration-playbook-for-existing-apis) |
+| Secondary exposure through logs, traces, and caches | Prevent the same value from reappearing after the contract is fixed | Redaction, cache discipline, trace-safe identifiers, and observability design | [§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability) |
+| Reversible protection remains governable personal-data processing | Ensure decryption, detokenization, and key access are policy-bound and auditable | Audit trails, centralized decryption authority, key governance, and erasure design | [§13](#13-audit-trails-for-cryptographic-operations), [§14](#14-key-management-and-governance), [§15](#15-right-to-erasure-in-encrypted-contexts) |
 
 The practical implication is simple: the standards baseline is satisfied primarily by the **front half** of the document, while the **back half** makes the chosen answer governable, migratable, and operable at scale.
 
@@ -13067,13 +13067,13 @@ When an API uses human-readable or predictable resource identifiers, two problem
 1. The identifier may itself be personal data, creating the URL-channel problem discussed throughout this document.
 2. The identifier may also become an insecure authorization anchor, which moves the design toward classic IDOR and the OWASP API Security Top 10's **Broken Object Level Authorization (API1:2023)** pattern.
 
-Opaque internal identifiers (§3.3) therefore do more than remove personal data from the URL. They also reduce the likelihood that routing, authorization, and external contract shape collapse onto the same guessable or human-meaningful value.
+Opaque internal identifiers ([§3.3](#33-opaque-internal-identifiers)) therefore do more than remove personal data from the URL. They also reduce the likelihood that routing, authorization, and external contract shape collapse onto the same guessable or human-meaningful value.
 
 | Adjacent concern | Why it appears next to PII-in-URL problems | Main document response |
 |:-----------------|:-------------------------------------------|:-----------------------|
-| Predictable or meaningful object identifiers | Human-readable identifiers often become both privacy leak surfaces and authorization anchors | §3.3 Opaque IDs; strong object-level authorization |
-| Runtime and support-system exposure | Teams remove PII from the endpoint contract but keep full URLs in logs, traces, dashboards, and tickets | §6, §13, §16 |
-| Legacy endpoint drift | Known-unsafe endpoints remain in production because migration ownership is unclear | §7.4, §9 |
+| Predictable or meaningful object identifiers | Human-readable identifiers often become both privacy leak surfaces and authorization anchors | [§3.3](#33-opaque-internal-identifiers) Opaque IDs; strong object-level authorization |
+| Runtime and support-system exposure | Teams remove PII from the endpoint contract but keep full URLs in logs, traces, dashboards, and tickets | [§6](#6-infrastructure-and-operational-patterns), [§13](#13-audit-trails-for-cryptographic-operations), [§16](#16-call-chain-traceability) |
+| Legacy endpoint drift | Known-unsafe endpoints remain in production because migration ownership is unclear | [§7.4](#74-api-inventory-and-deprecation-discipline), [§9](#9-migration-playbook-for-existing-apis) |
 
 The point is not to over-claim that every PII-in-URL issue is automatically an OWASP API Top 10 issue of some other category. The point is that the same design habits that create URL-borne personal data also tend to create adjacent security weaknesses.
 
@@ -13098,37 +13098,37 @@ Used this way, OWASP ASVS, CWE-598, and adjacent API-security guidance do not si
 
 ### F1. The default answer is architectural removal of PII from URLs, not harder protection of bad URLs
 
-The document's center of gravity remains the same after the restructuring: the strongest answer is to stop placing personal data in path segments and query parameters in the first place. TLS does not solve the persistence and propagation problem because the exposed value still lands in logs, browser history, tracing, analytics, support tooling, and intermediary infrastructure (§1, §6, §16). The combination of the exposure-surface model (§1), the regulatory baseline (§2), and the architectural pattern analysis (§3) supports a simple conclusion: **design out the bad identifier surface before reaching for compensating controls**.
+The document's center of gravity remains the same after the restructuring: the strongest answer is to stop placing personal data in path segments and query parameters in the first place. TLS does not solve the persistence and propagation problem because the exposed value still lands in logs, browser history, tracing, analytics, support tooling, and intermediary infrastructure ([§1](#1-introduction-and-problem-definition), [§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability)). The combination of the exposure-surface model ([§1](#1-introduction-and-problem-definition)), the regulatory baseline ([§2](#2-regulatory-landscape)), and the architectural pattern analysis ([§3](#3-architectural-patterns)) supports a simple conclusion: **design out the bad identifier surface before reaching for compensating controls**.
 
 ---
 
 ### F2. Opaque IDs, POST-body lookup, and single-use tokens cover most primary remediation needs
 
-The core pattern set in §3 is not just one menu among many; it is the main answer for most real API designs. Opaque Internal Identifiers (§3.3) are the clean default for durable resources, POST-body lookup (§3.1) is the main remediation for "lookup by personal data" workflows, and Single-Use Tokens (§3.5) are the right fit for bounded link distribution. The further the design stays inside those three patterns, the less it depends on downstream complexity in cryptography, governance, and vendor tooling.
+The core pattern set in [§3](#3-architectural-patterns) is not just one menu among many; it is the main answer for most real API designs. Opaque Internal Identifiers ([§3.3](#33-opaque-internal-identifiers)) are the clean default for durable resources, POST-body lookup ([§3.1](#31-post-body-migration)) is the main remediation for "lookup by personal data" workflows, and Single-Use Tokens ([§3.5](#35-temporary-single-use-tokens)) are the right fit for bounded link distribution. The further the design stays inside those three patterns, the less it depends on downstream complexity in cryptography, governance, and vendor tooling.
 
 ---
 
 ### F3. Migration is a first-class architecture problem, not a cleanup appendix
 
-The moved migration chapter (§9) makes the operational reality explicit: most organizations discover URL-borne PII in live systems, not greenfield designs. The hard problem is therefore not merely selecting the right target pattern, but inventorying current exposure, measuring consumer dependency, introducing replacement contracts, running dual-path transitions, and cleaning historical observability residue. A document about this topic is incomplete if it explains the target state but treats live remediation as secondary.
+The moved migration chapter ([§9](#9-migration-playbook-for-existing-apis)) makes the operational reality explicit: most organizations discover URL-borne PII in live systems, not greenfield designs. The hard problem is therefore not merely selecting the right target pattern, but inventorying current exposure, measuring consumer dependency, introducing replacement contracts, running dual-path transitions, and cleaning historical observability residue. A document about this topic is incomplete if it explains the target state but treats live remediation as secondary.
 
 ---
 
 ### F4. Protocol and deployment mechanisms are bounded adjacent controls, not the main solution
 
-HTTP Message Signing, mTLS, and PAR matter, but only inside specific threat models (§8). They help with integrity, caller identity, and OAuth redirect confidentiality; they do not replace the need to remove business PII from general-purpose API resource paths and query strings. The document is strongest when these mechanisms are presented as contextual controls that complement the architecture rather than compete with it.
+HTTP Message Signing, mTLS, and PAR matter, but only inside specific threat models ([§8](#8-protocol-and-deployment-contexts)). They help with integrity, caller identity, and OAuth redirect confidentiality; they do not replace the need to remove business PII from general-purpose API resource paths and query strings. The document is strongest when these mechanisms are presented as contextual controls that complement the architecture rather than compete with it.
 
 ---
 
 ### F5. Cryptographic and tokenization patterns are mainly compatibility tools once the architecture is constrained
 
-Chapter 4 and §5 show that JWE, FPE, deterministic encryption, vaulted tokenization, and vaultless tokenization are valuable, but usually because legacy systems, schema stability, external dependencies, or integration contracts make cleaner designs harder. They are not equivalent substitutes for simply not exposing personal data in URLs. In particular, FPE remains architecturally attractive for compatibility but should be treated cautiously and selectively because of its narrower security margin and tighter algorithmic constraints (§4.2.7).
+§4 and [§5](#5-pseudonymization-and-tokenization-patterns) show that JWE, FPE, deterministic encryption, vaulted tokenization, and vaultless tokenization are valuable, but usually because legacy systems, schema stability, external dependencies, or integration contracts make cleaner designs harder. They are not equivalent substitutes for simply not exposing personal data in URLs. In particular, FPE remains architecturally attractive for compatibility but should be treated cautiously and selectively because of its narrower security margin and tighter algorithmic constraints ([§4.2.7](#427-known-weaknesses)).
 
 ---
 
 ### F6. Pseudonymization and encryption remain fully inside the GDPR problem space
 
-The regulatory sections (§2.3–§2.4) and the pseudonymization chapters (§5) establish a non-negotiable point: pseudonymised and encrypted values remain personal data when re-identification remains possible. That means tokenization, vaultless tokenization, deterministic encryption, and related patterns reduce risk but do not eliminate duties around minimisation, retention, erasure, auditability, or data-subject rights. Any architecture that treats tokenization as a scope-exit from GDPR is conceptually wrong.
+The regulatory sections (§2.3–§2.4) and the pseudonymization chapters ([§5](#5-pseudonymization-and-tokenization-patterns)) establish a non-negotiable point: pseudonymised and encrypted values remain personal data when re-identification remains possible. That means tokenization, vaultless tokenization, deterministic encryption, and related patterns reduce risk but do not eliminate duties around minimisation, retention, erasure, auditability, or data-subject rights. Any architecture that treats tokenization as a scope-exit from GDPR is conceptually wrong.
 
 ---
 
@@ -13140,31 +13140,31 @@ The vendor/platform chapters (§10–§11) are useful only after the primary des
 
 ### F8. Build-vs-buy is usually a downstream hybrid decision rather than a binary ideology
 
-Chapter 12 is strongest when read as an implementation decision after the core pattern choice, not as a philosophical argument about vendor purity. For many teams, the practical equilibrium is hybrid: keep the application-layer contract and migration logic under internal control while delegating key storage, transformation backends, or selected control-plane functions to managed systems. This is less about product preference than about locating which parts of the problem are actually differentiating and which parts are expensive undifferentiated security plumbing.
+§12 is strongest when read as an implementation decision after the core pattern choice, not as a philosophical argument about vendor purity. For many teams, the practical equilibrium is hybrid: keep the application-layer contract and migration logic under internal control while delegating key storage, transformation backends, or selected control-plane functions to managed systems. This is less about product preference than about locating which parts of the problem are actually differentiating and which parts are expensive undifferentiated security plumbing.
 
 ---
 
 ### F9. Once decryption exists, centralized authority, auditability, and key lifecycle become the real trust boundary
 
-The most consequential downstream operating-model decision is not which vendor logo appears in the stack, but whether decryption is centralized, policy-bound, and fully auditable (§13–§14). Centralized decryption authority (§14.3), separation of duties (§14.2), complete crypto-operation audit trails (§13.1–§13.5), and a coherent key lifecycle (§14.1, §14.6) determine whether the system behaves like a governable architecture or a scattered set of silent plaintext escape hatches.
+The most consequential downstream operating-model decision is not which vendor logo appears in the stack, but whether decryption is centralized, policy-bound, and fully auditable (§13–§14). Centralized decryption authority ([§14.3](#143-centralized-decryption-authority)), separation of duties ([§14.2](#142-key-access-control)), complete crypto-operation audit trails (§13.1–§13.5), and a coherent key lifecycle ([§14.1](#141-key-lifecycle), [§14.6](#146-cloud-kms-platform-comparison)) determine whether the system behaves like a governable architecture or a scattered set of silent plaintext escape hatches.
 
 ---
 
 ### F10. Observability is a parallel exposure plane that can silently undo the main design
 
-The moved traceability chapter (§16) makes clear that PII protection succeeds or fails twice: once in the data path, and again in the observability path. Teams often fix the request contract but keep leaking the same data through access logs, span attributes, body capture, dashboards, and search indexes. This makes observability redaction, pseudonymized correlation, retention control, and DSAR-aware trace design part of the core answer rather than an afterthought.
+The moved traceability chapter ([§16](#16-call-chain-traceability)) makes clear that PII protection succeeds or fails twice: once in the data path, and again in the observability path. Teams often fix the request contract but keep leaking the same data through access logs, span attributes, body capture, dashboards, and search indexes. This makes observability redaction, pseudonymized correlation, retention control, and DSAR-aware trace design part of the core answer rather than an afterthought.
 
 ---
 
 ### F11. Erasure capability depends on key and token lifecycle design, not on policy statements
 
-The erasure chapter (§15) demonstrates that Article 17 feasibility is an architectural property, not a governance aspiration. Crypto shredding only works when key granularity supports it. Tokenization cleanup only works when mapping deletion is a real operation. Backup and WORM constraints only become manageable when the encryption and retention design anticipated them. The teams that struggle most with erasure are usually the ones that adopted encryption or tokenization without designing the lifecycle consequences.
+The erasure chapter ([§15](#15-right-to-erasure-in-encrypted-contexts)) demonstrates that Article 17 feasibility is an architectural property, not a governance aspiration. Crypto shredding only works when key granularity supports it. Tokenization cleanup only works when mapping deletion is a real operation. Backup and WORM constraints only become manageable when the encryption and retention design anticipated them. The teams that struggle most with erasure are usually the ones that adopted encryption or tokenization without designing the lifecycle consequences.
 
 ---
 
 ### F12. Break-glass and exceptional access paths must be designed as part of the system, not bolted on later
 
-Emergency access is where many otherwise disciplined architectures become incoherent. If break-glass decryption is improvised, the entire governance model collapses into standing exceptions and undocumented plaintext access. If it is designed with explicit approval flow, time bounds, enhanced logging, and post-event review (§14.4), it becomes a controlled exception path that strengthens rather than undermines the trust model.
+Emergency access is where many otherwise disciplined architectures become incoherent. If break-glass decryption is improvised, the entire governance model collapses into standing exceptions and undocumented plaintext access. If it is designed with explicit approval flow, time bounds, enhanced logging, and post-event review ([§14.4](#144-break-glass-procedures)), it becomes a controlled exception path that strengthens rather than undermines the trust model.
 
 ---
 
@@ -13177,15 +13177,15 @@ Emergency access is where many otherwise disciplined architectures become incohe
 
 **R1. Make "no personal data in URLs" the default contract rule for new APIs.**
 
-Use Opaque Internal Identifiers (§3.3) as the baseline for resource addressing, use POST-body lookup (§3.1) when callers must submit personal data to search or verify, and use Single-Use Tokens (§3.5) for bounded shared-link workflows. Treat anything else as an exception that needs explicit justification.
+Use Opaque Internal Identifiers ([§3.3](#33-opaque-internal-identifiers)) as the baseline for resource addressing, use POST-body lookup ([§3.1](#31-post-body-migration)) when callers must submit personal data to search or verify, and use Single-Use Tokens ([§3.5](#35-temporary-single-use-tokens)) for bounded shared-link workflows. Treat anything else as an exception that needs explicit justification.
 
 **R2. Treat migration as a planned product change, not an implementation footnote.**
 
-For existing APIs, follow the migration sequence in §9: inventory the exposure, measure real consumer dependency, introduce a replacement contract, run a dual-path period, publish deprecation and sunset signals, and clean historical telemetry. Do not leave legacy URL forms in place indefinitely because the migration feels inconvenient.
+For existing APIs, follow the migration sequence in [§9](#9-migration-playbook-for-existing-apis): inventory the exposure, measure real consumer dependency, introduce a replacement contract, run a dual-path period, publish deprecation and sunset signals, and clean historical telemetry. Do not leave legacy URL forms in place indefinitely because the migration feels inconvenient.
 
 **R3. Use protocol mechanisms only where the problem is genuinely protocol-specific.**
 
-Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality (§8). Do not use them as rhetorical substitutes for fixing the resource model itself.
+Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality ([§8](#8-protocol-and-deployment-contexts)). Do not use them as rhetorical substitutes for fixing the resource model itself.
 
 **R4. Prefer cleaner contracts over cryptographic cleverness unless compatibility forces otherwise.**
 
@@ -13198,19 +13198,19 @@ Use JWE, tokenization, deterministic encryption, or FPE when schema stability, e
 
 **R5. Make centralized decryption authority the default whenever reversible protection exists.**
 
-Keep decrypt capability inside explicitly designated components (§14.3), enforce separation of duties (§14.2), and design all other services around the assumption that they handle references, ciphertext, or tokens rather than plaintext.
+Keep decrypt capability inside explicitly designated components ([§14.3](#143-centralized-decryption-authority)), enforce separation of duties ([§14.2](#142-key-access-control)), and design all other services around the assumption that they handle references, ciphertext, or tokens rather than plaintext.
 
 **R6. Treat cryptographic audit trails as a required system, not optional logging.**
 
-Log every encrypt, decrypt, tokenize, detokenize, key, and exception event with the minimum fields from §13.1. Feed those events into alerting and review flows (§13.4), and design for integrity and immutability rather than assuming the logging substrate is trustworthy by default.
+Log every encrypt, decrypt, tokenize, detokenize, key, and exception event with the minimum fields from [§13.1](#131-minimum-audit-data). Feed those events into alerting and review flows ([§13.4](#134-siem-integration-and-alerting)), and design for integrity and immutability rather than assuming the logging substrate is trustworthy by default.
 
 **R7. Secure the observability plane with the same rigor as the data plane.**
 
-Redact or pseudonymize at the edge, sanitize span attributes, constrain retention, and preserve traceability without preserving plaintext (§16). If tracing and logs can still expose the subject, the architecture is only partially fixed.
+Redact or pseudonymize at the edge, sanitize span attributes, constrain retention, and preserve traceability without preserving plaintext ([§16](#16-call-chain-traceability)). If tracing and logs can still expose the subject, the architecture is only partially fixed.
 
 **R8. Use managed KMS by default, but design the key lifecycle and break-glass path explicitly.**
 
-Managed KMS is the practical starting point for most workloads (§14.5–§14.6), but the real design work is in rotation, scope separation, approval paths, emergency access, and audit review (§14.1, §14.4).
+Managed KMS is the practical starting point for most workloads (§14.5–§14.6), but the real design work is in rotation, scope separation, approval paths, emergency access, and audit review ([§14.1](#141-key-lifecycle), [§14.4](#144-break-glass-procedures)).
 
 ---
 
@@ -13221,15 +13221,15 @@ Managed KMS is the practical starting point for most workloads (§14.5–§14.6)
 
 > **Important — Protected Values Remain Personal Data**
 >
-> Do not allow tokenization, FPE, or deterministic encryption to be described internally as if they move the data outside the GDPR problem space (§2.4, §5). DPIAs, RoPAs, retention rules, transfer analysis, and processor oversight should all continue to apply.
+> Do not allow tokenization, FPE, or deterministic encryption to be described internally as if they move the data outside the GDPR problem space ([§2.4](#24-edpb-guidelines-012025-on-pseudonymisation), [§5](#5-pseudonymization-and-tokenization-patterns)). DPIAs, RoPAs, retention rules, transfer analysis, and processor oversight should all continue to apply.
 
 **R10. Require credible erasure and DSAR mechanics before approving a design.**
 
-Approval should depend on whether the architecture can actually execute deletion, proof of deletion, and traceable access reconstruction (§15, §16.5), not on whether it claims to "support GDPR" in abstract terms.
+Approval should depend on whether the architecture can actually execute deletion, proof of deletion, and traceable access reconstruction ([§15](#15-right-to-erasure-in-encrypted-contexts), [§16.5](#165-data-subject-access-request-dsar-trace-reconstruction)), not on whether it claims to "support GDPR" in abstract terms.
 
 **R11. Make migration evidence part of the compliance story for legacy APIs.**
 
-For existing endpoints, require an inventory, successor contract, sunset timeline, and evidence that new leakage has stopped (§9). The compliance answer for legacy URL-borne PII cannot simply be "we plan to fix it later."
+For existing endpoints, require an inventory, successor contract, sunset timeline, and evidence that new leakage has stopped ([§9](#9-migration-playbook-for-existing-apis)). The compliance answer for legacy URL-borne PII cannot simply be "we plan to fix it later."
 
 **R12. Ask whether downstream controls reinforce the main architecture or merely compensate for it.**
 
@@ -13242,19 +13242,19 @@ Audit, key management, vendor controls, and governance are valuable only if they
 
 **R13. Fund migration as real program work, not as backlog residue.**
 
-The organization needs explicit ownership, rollout metrics, consumer communication, and deprecation governance for legacy APIs (§9). Without that, the document's architectural conclusions stay academically correct but operationally inert.
+The organization needs explicit ownership, rollout metrics, consumer communication, and deprecation governance for legacy APIs ([§9](#9-migration-playbook-for-existing-apis)). Without that, the document's architectural conclusions stay academically correct but operationally inert.
 
 **R14. Default to hybrid build-vs-buy unless there is a strong reason not to.**
 
-Keep control over the API contract, migration logic, and organization-specific policy surface while buying or delegating the most expensive undifferentiated security plumbing where it makes sense (§12). Pure build and pure buy are both edge positions more often than they are the practical center.
+Keep control over the API contract, migration logic, and organization-specific policy surface while buying or delegating the most expensive undifferentiated security plumbing where it makes sense ([§12](#12-build-vs-buy-decision-framework)). Pure build and pure buy are both edge positions more often than they are the practical center.
 
 **R15. Budget for the full operating model, not just the transformation primitive.**
 
-The real cost includes migration, gateway changes, observability hardening, audit infrastructure, key lifecycle work, exception handling, and developer enablement, not just "the encryption part" or "the tokenization SKU" (§12.5, §13, §14, §16).
+The real cost includes migration, gateway changes, observability hardening, audit infrastructure, key lifecycle work, exception handling, and developer enablement, not just "the encryption part" or "the tokenization SKU" ([§12.5](#125-cost-analysis-total-cost-of-ownership), [§13](#13-audit-trails-for-cryptographic-operations), [§14](#14-key-management-and-governance), [§16](#16-call-chain-traceability)).
 
 **R16. Make the secure pattern easier than the insecure one for delivery teams.**
 
-Provide reference middleware, design-time linting, CI checks, SDK examples, and platform conventions that push teams toward opaque IDs, POST lookup, safe tracing, and approved cryptographic patterns (§6, §7). If the path of least resistance is still the unsafe design, the organization has not operationalized the conclusion.
+Provide reference middleware, design-time linting, CI checks, SDK examples, and platform conventions that push teams toward opaque IDs, POST lookup, safe tracing, and approved cryptographic patterns ([§6](#6-infrastructure-and-operational-patterns), [§7](#7-design-time-api-governance-and-contract-enforcement)). If the path of least resistance is still the unsafe design, the organization has not operationalized the conclusion.
 
 ---
 
@@ -13264,58 +13264,58 @@ Provide reference middleware, design-time linting, CI checks, SDK examples, and 
 
 ### Q1. How will post-quantum cryptography affect PII protection at the API layer?
 
-NIST finalized its first post-quantum cryptographic standards in 2024 (FIPS 203 for ML-KEM, FIPS 204 for ML-DSA, FIPS 205 for SLH-DSA). However, these standards address key encapsulation and digital signatures — not the symmetric encryption algorithms (AES-256, ChaCha20) used for PII encryption at the API layer. AES-256 is believed to be quantum-resistant (Grover's algorithm provides at most a quadratic speedup, effectively reducing AES-256 to AES-128 security). The open question is whether organizations should begin hybrid classical/post-quantum key encapsulation for envelope encryption today, and how this affects the key management architecture described in §14.1.
+NIST finalized its first post-quantum cryptographic standards in 2024 (FIPS 203 for ML-KEM, FIPS 204 for ML-DSA, FIPS 205 for SLH-DSA). However, these standards address key encapsulation and digital signatures — not the symmetric encryption algorithms (AES-256, ChaCha20) used for PII encryption at the API layer. AES-256 is believed to be quantum-resistant (Grover's algorithm provides at most a quadratic speedup, effectively reducing AES-256 to AES-128 security). The open question is whether organizations should begin hybrid classical/post-quantum key encapsulation for envelope encryption today, and how this affects the key management architecture described in [§14.1](#141-key-lifecycle).
 
 ---
 
 ### Q2. What is the DPA enforcement trajectory for PII in URLs?
 
-As of 2026, no European Data Protection Authority has issued an enforcement action specifically targeting PII in REST API URLs. The regulatory analysis in §2 establishes that the practice is difficult to reconcile with Article 32, but enforcement is driven by complaints and audits, not by theoretical non-compliance. The open question is whether a high-profile data breach traced to PII exposure through server logs or Referer headers will trigger DPA enforcement — and whether such enforcement would establish a de facto standard that all API operators must follow.
+As of 2026, no European Data Protection Authority has issued an enforcement action specifically targeting PII in REST API URLs. The regulatory analysis in [§2](#2-regulatory-landscape) establishes that the practice is difficult to reconcile with Article 32, but enforcement is driven by complaints and audits, not by theoretical non-compliance. The open question is whether a high-profile data breach traced to PII exposure through server logs or Referer headers will trigger DPA enforcement — and whether such enforcement would establish a de facto standard that all API operators must follow.
 
 ---
 
 ### Q3. Can FPE achieve broader industry adoption despite its known weaknesses?
 
-Format-Preserving Encryption (§4.2) is architecturally attractive but carries known cryptographic weaknesses (FF1's 10-round Feistel structure) and limited algorithmic diversity (essentially one NIST standard with two variants). The open question is whether the practical benefits of format preservation (zero schema changes, transparent legacy integration) will drive adoption despite the cryptographic caveats — and whether alternative approaches (deterministic AES with base64url encoding, §4.3) will prove more pragmatic in practice.
+Format-Preserving Encryption ([§4.2](#42-format-preserving-encryption-fpe)) is architecturally attractive but carries known cryptographic weaknesses (FF1's 10-round Feistel structure) and limited algorithmic diversity (essentially one NIST standard with two variants). The open question is whether the practical benefits of format preservation (zero schema changes, transparent legacy integration) will drive adoption despite the cryptographic caveats — and whether alternative approaches (deterministic AES with base64url encoding, [§4.3](#43-deterministic-aes-encryption)) will prove more pragmatic in practice.
 
 ---
 
 ### Q4. How should tokenization mapping tables be handled under cross-border data transfers?
 
-GDPR Chapter V (Articles 44–49) restricts transfers of personal data to third countries. Tokenization is often cited as a transfer safeguard: if PII is tokenized in the EU and only tokens are transferred to a US processor, the transfer arguably does not involve "personal data." However, the EDPB Guidelines 01/2025 classify pseudonymised data as personal data (§2.4.1), and the tokenization mapping table (which links tokens to real PII) is personal data regardless of where it is stored. The open question is whether DPA guidance will clarify the transfer implications of tokenization, and whether the Schrems II framework applies to token-to-value mappings.
+GDPR Chapter V (Articles 44–49) restricts transfers of personal data to third countries. Tokenization is often cited as a transfer safeguard: if PII is tokenized in the EU and only tokens are transferred to a US processor, the transfer arguably does not involve "personal data." However, the EDPB Guidelines 01/2025 classify pseudonymised data as personal data ([§2.4.1](#241-key-definition-pseudonymisation-under-article-45)), and the tokenization mapping table (which links tokens to real PII) is personal data regardless of where it is stored. The open question is whether DPA guidance will clarify the transfer implications of tokenization, and whether the Schrems II framework applies to token-to-value mappings.
 
 ---
 
 ### Q5. What is the right granularity for key isolation in support of right-to-erasure?
 
-Crypto shredding (§15.2) requires per-subject or per-record key isolation to enable selective erasure. But per-subject keys create key management overhead that scales linearly with the data subject count: 10 million data subjects means 10 million DEKs. Per-record keys are even more expensive. The open question is whether practical architectures exist that balance erasure granularity with key management scalability — for example, per-tenant keys with application-level filtering, or per-time-window keys with selective re-encryption during erasure windows.
+Crypto shredding ([§15.2](#152-crypto-shredding)) requires per-subject or per-record key isolation to enable selective erasure. But per-subject keys create key management overhead that scales linearly with the data subject count: 10 million data subjects means 10 million DEKs. Per-record keys are even more expensive. The open question is whether practical architectures exist that balance erasure granularity with key management scalability — for example, per-tenant keys with application-level filtering, or per-time-window keys with selective re-encryption during erasure windows.
 
 ---
 
 ### Q6. How will AI-assisted PII detection change the infrastructure landscape?
 
-The PII scanning and masking tools analyzed in §6.3 rely primarily on regex pattern matching and predefined infoType detectors. Machine learning models for PII detection (Google Cloud DLP's INFO_TYPE_DETECTION_LOGGING, custom ML models in Azure Information Protection) are improving but remain supplementary to rule-based approaches. The open question is whether large language models or other AI techniques will enable context-aware PII detection — distinguishing between a person's name in a business context (PII) and a company name in a product catalog (not PII) — and how this will affect the accuracy and performance of real-time PII scanning at the API gateway.
+The PII scanning and masking tools analyzed in [§6.3](#63-real-time-pii-scanning-and-masking) rely primarily on regex pattern matching and predefined infoType detectors. Machine learning models for PII detection (Google Cloud DLP's INFO_TYPE_DETECTION_LOGGING, custom ML models in Azure Information Protection) are improving but remain supplementary to rule-based approaches. The open question is whether large language models or other AI techniques will enable context-aware PII detection — distinguishing between a person's name in a business context (PII) and a company name in a product catalog (not PII) — and how this will affect the accuracy and performance of real-time PII scanning at the API gateway.
 
 ---
 
 ### Q7. Is there a viable standard for cross-cloud key management?
 
-The multi-cloud key management analysis (§14.6) identifies a fundamental architectural gap: no standard exists for federating encryption keys across cloud providers. Proprietary solutions (Fortanix, Akeyless, Thales) address this with abstraction layers, but they introduce additional dependencies and cost. The open question is whether a cloud-agnostic key management standard — analogous to how OpenTelemetry standardized distributed tracing — will emerge, and whether cloud providers will participate in such a standard given the commercial incentive for lock-in.
+The multi-cloud key management analysis ([§14.6](#146-cloud-kms-platform-comparison)) identifies a fundamental architectural gap: no standard exists for federating encryption keys across cloud providers. Proprietary solutions (Fortanix, Akeyless, Thales) address this with abstraction layers, but they introduce additional dependencies and cost. The open question is whether a cloud-agnostic key management standard — analogous to how OpenTelemetry standardized distributed tracing — will emerge, and whether cloud providers will participate in such a standard given the commercial incentive for lock-in.
 
 ---
 
 ### Q8. What audit log retention period satisfies both GDPR and sector-specific regulations?
 
-GDPR Article 5(1)(e) requires that personal data be kept "no longer than is necessary for the purposes for which the personal data are processed." For audit logs containing cryptographic operation metadata (§13.1), the retention period must balance: the GDPR storage limitation principle (favoring short retention), sector-specific requirements (PCI DSS Requirement 10.7 mandates 1-year retention with 3 months immediately available; financial regulations mandate 5–7 years), and the organization's own incident response needs (forensic investigation may require logs older than 1 year). The open question is whether a tiered retention model — short retention for routine audit logs, extended retention for flagged or break-glass events — can satisfy all requirements simultaneously.
+GDPR Article 5(1)(e) requires that personal data be kept "no longer than is necessary for the purposes for which the personal data are processed." For audit logs containing cryptographic operation metadata ([§13.1](#131-minimum-audit-data)), the retention period must balance: the GDPR storage limitation principle (favoring short retention), sector-specific requirements (PCI DSS Requirement 10.7 mandates 1-year retention with 3 months immediately available; financial regulations mandate 5–7 years), and the organization's own incident response needs (forensic investigation may require logs older than 1 year). The open question is whether a tiered retention model — short retention for routine audit logs, extended retention for flagged or break-glass events — can satisfy all requirements simultaneously.
 
 ---
 
 ### Q9. How should data subject access requests be fulfilled for encrypted data at scale?
 
-GDPR Article 15 requires the controller to provide the data subject with a copy of their personal data. When all PII is encrypted or tokenized, fulfilling a DSAR requires: identifying all systems holding the data subject's encrypted data, decrypting it through the centralized decryption service (§14.3), compiling it into a response, and verifying completeness. For a large organization with millions of data subjects and dozens of downstream systems, this process can take weeks without automation. The OpenTelemetry-based DSAR reconstruction approach (§16.5) is promising but requires that every service was instrumented with pseudonymized subject references from the outset. The open question is whether industry-standard DSAR automation patterns will emerge for encrypted data architectures.
+GDPR Article 15 requires the controller to provide the data subject with a copy of their personal data. When all PII is encrypted or tokenized, fulfilling a DSAR requires: identifying all systems holding the data subject's encrypted data, decrypting it through the centralized decryption service ([§14.3](#143-centralized-decryption-authority)), compiling it into a response, and verifying completeness. For a large organization with millions of data subjects and dozens of downstream systems, this process can take weeks without automation. The OpenTelemetry-based DSAR reconstruction approach ([§16.5](#165-data-subject-access-request-dsar-trace-reconstruction)) is promising but requires that every service was instrumented with pseudonymized subject references from the outset. The open question is whether industry-standard DSAR automation patterns will emerge for encrypted data architectures.
 
 ---
 
 ### Q10. Will HTTP message signing (RFC 9421) complement or replace encryption for API parameter integrity?
 
-HTTP Message Signing (§8.1) provides cryptographic integrity for HTTP request components, ensuring that parameters have not been tampered with in transit. It does not provide confidentiality — signed parameters are still readable by intermediaries. The open question is whether message signing will see adoption as a complement to encryption (ensuring integrity of encrypted parameters) or as a partial replacement (organizations sign sensitive parameters instead of encrypting them, accepting the confidentiality trade-off in exchange for lower complexity). The IETF's ongoing work on HTTP Message Signatures and the adoption patterns in financial services (where signing is mandated by Open Banking and PSD2) will shape this trajectory.
+HTTP Message Signing ([§8.1](#81-http-message-signing)) provides cryptographic integrity for HTTP request components, ensuring that parameters have not been tampered with in transit. It does not provide confidentiality — signed parameters are still readable by intermediaries. The open question is whether message signing will see adoption as a complement to encryption (ensuring integrity of encrypted parameters) or as a partial replacement (organizations sign sensitive parameters instead of encrypting them, accepting the confidentiality trade-off in exchange for lower complexity). The IETF's ongoing work on HTTP Message Signatures and the adoption patterns in financial services (where signing is mandated by Open Banking and PSD2) will shape this trajectory.

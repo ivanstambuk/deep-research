@@ -15,6 +15,12 @@ import rehypeKatex from 'rehype-katex';
 import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
 import MiniSearch from 'minisearch';
+import {
+  buildSectionTargetIndex,
+  normalizeWhitespace,
+  rewriteHastCrossReferences,
+  slugifyHeadingText,
+} from './cross-reference-links.js';
 import { remarkDirectiveHandler } from './directives.js';
 import { rehypeDecodeCodeEntities } from './rehype-code-entities.js';
 import { SEARCH_INDEX_OPTIONS } from '../src/searchConfig.js';
@@ -53,21 +59,6 @@ function humanizeFilename(filename) {
     .join(' ');
 }
 
-function slugifyHeading(value, slugger) {
-  const plain = value
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/<[^>]+>/g, '')
-    .trim();
-
-  return {
-    text: plain,
-    id: slugger.slug(plain),
-  };
-}
-
 function removeLeadingToc(body) {
   return body.replace(/^## Table of Contents[\s\S]*?(?=^##\s)/m, '').trimStart();
 }
@@ -85,7 +76,7 @@ function extractOutline(body) {
       continue;
     }
 
-    const { text, id } = slugifyHeading(match[2], slugger);
+    const { text, id } = slugifyHeadingText(match[2], slugger);
     if (!text) {
       continue;
     }
@@ -133,10 +124,6 @@ function extractNodeText(node) {
   return node.children.map(extractNodeText).join('');
 }
 
-function normalizeText(value) {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
 function isElementTag(node, tagName) {
   return node?.type === 'element' && node.tagName === tagName;
 }
@@ -175,7 +162,7 @@ function rehypeTagSearchTargets() {
       }
 
       if (node.type === 'element' && SEARCHABLE_TAGS.has(node.tagName)) {
-        const text = normalizeText(extractNodeText(node));
+        const text = normalizeWhitespace(extractNodeText(node));
         if (text.length >= 28) {
           const id = `search-target-${(index += 1)}`;
           node.properties = {
@@ -270,7 +257,7 @@ function extractHeadingInfo(node) {
     return null;
   }
 
-  const text = normalizeText(extractNodeText(node));
+  const text = normalizeWhitespace(extractNodeText(node));
   const id = typeof node.properties?.id === 'string' ? node.properties.id : null;
   return text && id ? { id, text, tagName: node.tagName } : null;
 }
@@ -349,7 +336,7 @@ function collectSectionStats(tree) {
     }
 
     if (SEARCHABLE_TAGS.has(node.tagName) && node.properties?.['data-search-target-id']) {
-      const text = normalizeText(extractNodeText(node));
+      const text = normalizeWhitespace(extractNodeText(node));
       if (text) {
         stats.passages.push({
           id: node.properties['data-search-target-id'],
@@ -371,15 +358,27 @@ function collectSectionStats(tree) {
 
 function createSectionRecord(children, fallbackId, primaryHeadingId = null) {
   const tree = createRoot(cloneNode(children));
-  const html = stringifyHtml(tree);
-  const htmlBytes = Buffer.byteLength(html, 'utf8');
-  const stats = collectSectionStats(tree);
-  const headings = stats.headings;
+  const headings = collectSectionStats(tree).headings;
   const resolvedPrimaryHeadingId = primaryHeadingId ?? headings[0]?.id ?? null;
   const sectionId = resolvedPrimaryHeadingId ?? fallbackId;
 
-  return {
+  return finalizeSectionRecord({
+    tree,
     sectionId,
+    primaryHeadingId: resolvedPrimaryHeadingId,
+  });
+}
+
+function finalizeSectionRecord(section) {
+  const html = stringifyHtml(section.tree);
+  const htmlBytes = Buffer.byteLength(html, 'utf8');
+  const stats = collectSectionStats(section.tree);
+  const headings = stats.headings;
+  const resolvedPrimaryHeadingId = section.primaryHeadingId ?? headings[0]?.id ?? null;
+
+  return {
+    ...section,
+    sectionId: resolvedPrimaryHeadingId ?? section.sectionId,
     primaryHeadingId: resolvedPrimaryHeadingId,
     headingIds: headings.map((item) => item.id),
     html,
@@ -420,6 +419,31 @@ function createSectionsFromTree(tree, options = {}) {
   return sections;
 }
 
+function buildSectionHeadingMap(sections) {
+  const sectionByHeadingId = new Map();
+
+  sections.forEach((section) => {
+    section.headingIds.forEach((headingId) => {
+      sectionByHeadingId.set(headingId, section);
+    });
+  });
+
+  return sectionByHeadingId;
+}
+
+function buildReaderCrossReferenceIndex({ sections, slug }) {
+  return buildSectionTargetIndex({
+    headings: sections.flatMap((section) => (
+      section.stats.headings.map((heading) => ({
+        chapterId: section.sectionId,
+        headingId: heading.id,
+        slug,
+        text: heading.text,
+      }))
+    )),
+  });
+}
+
 function createChapterPayloads({ slug, drId, documentTitle, sections, outline, docVersion }) {
   const headingPathMap = buildHeadingPathMap(outline);
 
@@ -453,13 +477,7 @@ function createChapterPayloads({ slug, drId, documentTitle, sections, outline, d
 
 function createSearchRecords({ slug, drId, documentTitle, outline, sections }) {
   const headingPathMap = buildHeadingPathMap(outline);
-  const sectionByHeadingId = new Map();
-
-  sections.forEach((section) => {
-    section.headingIds.forEach((headingId) => {
-      sectionByHeadingId.set(headingId, section);
-    });
-  });
+  const sectionByHeadingId = buildSectionHeadingMap(sections);
 
   const records = outline.map((entry) => ({
     id: `${slug}::heading::${entry.id}`,
@@ -581,6 +599,7 @@ async function build() {
   const files = await listFiles(srcDir);
   const processedDocuments = [];
   const globalSearchRecords = [];
+  const crossReferenceDiagnostics = [];
 
   for (const file of files) {
     const filename = path.basename(file, '.mdx');
@@ -593,9 +612,25 @@ async function build() {
     const raw = await fs.readFile(file, 'utf8');
     const cleaned = cleanDocument(raw, descriptor);
     const tree = await processor.run(processor.parse(cleaned.body));
-    const sections = createSectionsFromTree(tree, {
+    let sections = createSectionsFromTree(tree, {
       allowSecondarySplit: cleaned.frontmatter.reader_allow_h3_chapter_split !== false,
     });
+    const crossReferenceIndex = buildReaderCrossReferenceIndex({
+      sections,
+      slug: filename,
+    });
+
+    sections = sections.map((section) => {
+      crossReferenceDiagnostics.push(...rewriteHastCrossReferences(section.tree, {
+        diagnosticBase: {
+          documentSlug: filename,
+        },
+        slug: filename,
+        targetIndex: crossReferenceIndex,
+      }));
+      return finalizeSectionRecord(section);
+    });
+
     const docVersion = buildDocVersion(`${filename}:${raw}`);
     const chapterDir = path.join(chaptersRootDir, filename, docVersion);
 
@@ -713,10 +748,15 @@ async function build() {
     manifestPath,
     `${JSON.stringify({
       buildId: globalBuildId,
+      crossReferenceDiagnosticsCount: crossReferenceDiagnostics.length,
       globalSearchModulePath: `./generated/search/global-${globalBuildId}.json`,
       documents: processedDocuments,
     }, null, 2)}\n`,
   );
+
+  if (crossReferenceDiagnostics.length > 0) {
+    console.log(`[reader xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
+  }
 
   console.log(`Built chapter reader assets for ${processedDocuments.length} documents.`);
 }

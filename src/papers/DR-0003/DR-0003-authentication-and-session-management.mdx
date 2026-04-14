@@ -1409,7 +1409,7 @@ The rationale: secret comparison is vulnerable to prompt-bombing attacks where t
 
 ##### 1.7.7 Subscriber-Controlled Wallets
 
-Rev 4 introduces new guidance on **subscriber-controlled wallets** (SP 800-63B-4 §6.2.10) — digital identity wallets such as the EUDI Wallet, Apple Wallet credentials, and Google Wallet credentials. These wallets store one or more authenticators and may provide authentication on behalf of the subscriber. The key architectural principle is that wallet authenticators are subject to the same AAL restrictions as non-wallet authenticators — the wallet itself is not an authenticator, individual credentials within the wallet are. A wallet may contain both AAL2-eligible and AAL3-eligible credentials, and the relying party must evaluate the *specific credential* used from the wallet, not the wallet platform itself.
+Rev 4 introduces new guidance on **subscriber-controlled wallets** (SP 800-63B-4 section 6.2.10) — digital identity wallets such as the EUDI Wallet, Apple Wallet credentials, and Google Wallet credentials. These wallets store one or more authenticators and may provide authentication on behalf of the subscriber. The key architectural principle is that wallet authenticators are subject to the same AAL restrictions as non-wallet authenticators — the wallet itself is not an authenticator, individual credentials within the wallet are. A wallet may contain both AAL2-eligible and AAL3-eligible credentials, and the relying party must evaluate the *specific credential* used from the wallet, not the wallet platform itself.
 
 
 #### 1.8 NIST SP 800-63B AAL Practical Mapping
@@ -1434,7 +1434,7 @@ NIST SP 800-63B defines three Authenticator Assurance Levels, each specifying a 
 
 **Replay resistance** ensures that an intercepted authentication message cannot be reused by an attacker. Time-based OTP codes (TOTP) provide replay resistance because each code is valid for a limited window; challenge-response mechanisms (FIDO2/WebAuthn) provide it because each challenge is unique and single-use.
 
-**Verifier impersonation resistance** (NIST SP 800-63B, §6.2.6) is exclusive to AAL3. It ensures that even if the verifying party's infrastructure is fully compromised, the attacker cannot impersonate the authenticator to other relying parties. This is achieved through public-key cryptography — the authenticator holds a private key that never leaves the device, and the verifier stores only a public key.
+**Verifier impersonation resistance** (NIST SP 800-63B section 6.2.6) is exclusive to AAL3. It ensures that even if the verifying party's infrastructure is fully compromised, the attacker cannot impersonate the authenticator to other relying parties. This is achieved through public-key cryptography — the authenticator holds a private key that never leaves the device, and the verifier stores only a public key.
 
 **Multi-device verification** requires that the subscriber verify their identity across at least two separate hardware authenticators during enrollment. This prevents a single compromised device from being sufficient to re-enroll or recover an account.
 
@@ -1455,9 +1455,9 @@ AAL1 is deliberately permissive. Any single authenticator from NIST's approved l
 - Password + TOTP (knowledge + possession, time-based replay resistance)
 - Password + WebAuthn platform authenticator (knowledge + inherence/possession, cryptographic challenge-response)
 - Password + push notification with transaction signing (knowledge + possession, replay-resistant confirmation)
-- SMS OTP + password (knowledge + possession — technically AAL2 compliant under NIST SP 800-63B-3, though NIST discourages SMS OTP; see §6.1.3.2)
+- SMS OTP + password (knowledge + possession — technically AAL2 compliant under NIST SP 800-63B-3, though NIST discourages SMS OTP; see NIST SP 800-63B-3 section 6.1.3.2)
 - Device certificate + password (possession + knowledge, with client-authenticated TLS)
-- WebAuthn roaming authenticator with user verification (single hardware device, but satisfies AAL2 as a multi-factor authenticator per NIST §6.2.4)
+- WebAuthn roaming authenticator with user verification (single hardware device, but satisfies AAL2 as a multi-factor authenticator per NIST SP 800-63B section 6.2.4)
 
 Note that a **WebAuthn roaming authenticator** (e.g., a YubiKey or Titan key) used with user verification (PIN or biometric) is classified by NIST as a **single multi-factor authenticator** — it internally combines possession of the hardware token with knowledge (PIN) or inherence (fingerprint). This means a single WebAuthn device with user verification satisfies AAL2 by itself, without requiring a separate password factor.
 
@@ -1477,7 +1477,7 @@ In AAL3 deployments, the hardware authenticator must use **on-device attestation
 | Configuration | AAL1 | AAL2 | AAL3 | Notes |
 |:--------------|:----:|:----:|:----:|:------|
 | Password only | ✅ | ❌ | ❌ | Single-factor, no replay resistance |
-| SMS OTP + password | ✅ | ✅¹ | ❌ | ¹ Technically AAL2, but NIST (SP 800-63B, §6.1.3.2) **strongly discourages** SMS OTP due to SIM-swapping and SS7 vulnerabilities |
+| SMS OTP + password | ✅ | ✅¹ | ❌ | ¹ Technically AAL2, but NIST SP 800-63B section 6.1.3.2 **strongly discourages** SMS OTP due to SIM-swapping and SS7 vulnerabilities |
 | TOTP app + password | ✅ | ✅ | ❌ | Software TOTP is not hardware-bound |
 | Push notification + password | ✅ | ✅ | ❌ | App-based push is not hardware-bound |
 | WebAuthn platform (Touch ID, Windows Hello) | ✅ | ✅ | ❌ | Platform authenticator not hardware-bound to a removable device; satisfies AAL2 as multi-factor authenticator with user verification |
@@ -1893,7 +1893,7 @@ Receiving the transmission, the IdP runs the localized TOTP HMAC computation alg
 <details>
 <summary><strong>10. Identity Provider cryptographically mints assertion payload</strong></summary>
 
-Clearing all layered requirements, the IdP synthesizes a standard XML SAML Assertion. Uniquely, it formally injects the `TimeSyncToken` specification natively into the `AuthnContextClassRef` property (OASIS SAML V2.0 Core, §2.7.2.2), proving TOTP was executed.
+Clearing all layered requirements, the IdP synthesizes a standard XML SAML Assertion. Uniquely, it formally injects the `TimeSyncToken` specification natively into the `AuthnContextClassRef` property (OASIS SAML V2.0 Core section 2.7.2.2), proving TOTP was executed.
 
 ```xml
 &lt;saml:AuthnContext>
@@ -1978,7 +1978,7 @@ Concluding all architectural verification securely, the Service Provider execute
 - Multi-valued attributes are represented by multiple `&lt;AttributeValue>` child elements within the same `&lt;Attribute>`
 - The SP **must** validate that attribute names match what was agreed in federation metadata or bilateral configuration — arbitrary attributes from the IdP should be ignored
 
-**AuthzDecisionStatement** — conveys an authorisation decision for a specific resource (SAMLCore §2.7.4):
+**AuthzDecisionStatement** — conveys an authorisation decision for a specific resource (SAMLCore section 2.7.4):
 
 ```xml
 &lt;saml:AuthzDecisionStatement
@@ -2632,7 +2632,7 @@ The POST body delivers the base64-encoded Response XML (`SAMLResponse`) alongsid
 
 Response validation is the most security-critical step. The SP must perform the following checks, all of which are mandatory — failure to implement any single check creates an exploitable vulnerability:
 
-1. **XML signature verification** — validate the `&lt;ds:Signature>` element using the IdP's signing certificate retrieved from federation metadata. The signature must cover the `&lt;saml:Assertion>` element (assertion-level signature) or the `&lt;samlp:Response>` element (response-level signature), or both. The SP must verify that the `Reference` URI in the signature points to the exact assertion being processed — this prevents XML Signature Wrapping attacks (§2.7.1)
+1. **XML signature verification** — validate the `&lt;ds:Signature>` element using the IdP's signing certificate retrieved from federation metadata. The signature must cover the `&lt;saml:Assertion>` element (assertion-level signature) or the `&lt;samlp:Response>` element (response-level signature), or both. The SP must verify that the `Reference` URI in the signature points to the exact assertion being processed — this prevents XML Signature Wrapping attacks (§2.7)
 2. **Issuer verification** — the `Issuer` in both the Response and the Assertion must match the expected IdP entityID
 3. **Status code check** — `&lt;samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>` must be present
 4. **Conditions validation** — `NotBefore ≤ current_time ≤ NotOnOrAfter` (with configurable clock skew tolerance, typically 30–120 seconds)
@@ -2672,7 +2672,7 @@ The user is now authenticated and their browser accesses the protected resource 
 
 <br/>
 
-**IdP-Initiated SSO** — the user starts at the IdP (e.g., an enterprise portal) and clicks a link to an SP application. The IdP generates an unsolicited `Response` (no corresponding `AuthnRequest`) and POSTs it directly to the SP's ACS URL. The SP processes the response identically to SP-initiated SSO, with one critical difference: the `InResponseTo` attribute is absent (there was no request to respond to), so the SP cannot perform `InResponseTo` validation. This makes IdP-initiated SSO **inherently less secure** — it is vulnerable to assertion injection attacks where an attacker replays a captured assertion (§2.7.2). SP-initiated SSO is always preferred when both parties support it.
+**IdP-Initiated SSO** — the user starts at the IdP (e.g., an enterprise portal) and clicks a link to an SP application. The IdP generates an unsolicited `Response` (no corresponding `AuthnRequest`) and POSTs it directly to the SP's ACS URL. The SP processes the response identically to SP-initiated SSO, with one critical difference: the `InResponseTo` attribute is absent (there was no request to respond to), so the SP cannot perform `InResponseTo` validation. This makes IdP-initiated SSO **inherently less secure** — it is vulnerable to assertion injection attacks where an attacker replays a captured assertion (§2.7). SP-initiated SSO is always preferred when both parties support it.
 
 **Security property comparison — SP-initiated vs IdP-initiated SSO:**
 
@@ -2687,7 +2687,7 @@ The user is now authenticated and their browser accesses the protected resource 
 
 The key weakness of IdP-initiated SSO is the absence of `InResponseTo` binding. An attacker who captures a legitimate SAML Response can replay it to the SP — the SP cannot distinguish the replay from a genuine IdP-initiated response because there is no request ID to validate against. The only defence is the assertion ID replay cache and short assertion validity windows. Organisations with high security requirements should disable IdP-initiated SSO entirely.
 
-**2.3.2 Single Logout Profile:** The Single Logout (SLO) Profile (SAMLProf §4.4) enables near-simultaneous termination of all sessions associated with a principal across multiple SPs. When a user logs out at one SP (or at the IdP), the IdP propagates `LogoutRequest` messages to all SPs where the user has active sessions.
+**2.3.2 Single Logout Profile:** The Single Logout (SLO) Profile (SAMLProf section 4.4) enables near-simultaneous termination of all sessions associated with a principal across multiple SPs. When a user logs out at one SP (or at the IdP), the IdP propagates `LogoutRequest` messages to all SPs where the user has active sessions.
 
 SLO operates in two modes:
 
@@ -2965,7 +2965,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Agent initiates logout at Identity Provider</strong></summary>
 
-The user clicks a "Log out" button within a Service Provider application or navigates directly to the Identity Provider's central logout portal. The browser issues an HTTP GET or POST request to the Identity Provider's Single Logout (SLO) endpoint, requesting the termination of the global session (SAMLProf §4.4.3).
+The user clicks a "Log out" button within a Service Provider application or navigates directly to the Identity Provider's central logout portal. The browser issues an HTTP GET or POST request to the Identity Provider's Single Logout (SLO) endpoint, requesting the termination of the global session (SAMLProf section 4.4.3).
 
 ```http
 GET /saml2/idp/logout HTTP/1.1
@@ -3084,7 +3084,7 @@ The Identity Provider responds to the user's initial front-channel logout reques
 | **User closes browser** | Chain breaks immediately; remaining SPs retain sessions | No impact — back-channel is independent of browser | Back-channel SLO is the primary defence against this |
 | **SP slow response** | User perceives delay; may navigate away | IdP waits (configurable timeout) | Set aggressive timeouts; skip non-responsive SPs |
 | **IdP crashes mid-chain** | Inconsistent state — some SPs logged out, others not | Same — partial logout | IdP should persist logout state and resume on recovery |
-| **Duplicate LogoutRequest** | SP may redirect to IdP which has no pending session | SP returns Success (idempotent per spec) | Idempotent handling is mandatory per (SAMLCore, §4.1.2) |
+| **Duplicate LogoutRequest** | SP may redirect to IdP which has no pending session | SP returns Success (idempotent per spec) | Idempotent handling is mandatory per (SAMLCore section 4.1.2) |
 
 **Practical recommendation:** Deploy back-channel SLO wherever possible. Use front-channel SLO only as a fallback for SPs that cannot establish back-channel connectivity to the IdP. In large federations, treat SLO as best-effort and rely on short session timeouts (15–30 minutes for high-security applications) as the definitive session termination mechanism.
 
@@ -3181,7 +3181,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. ECP Client sends HTTP request with PAOS header</strong></summary>
 
-The ECP Client (a native application, CLI tool, or programmatic API consumer) sends a standard HTTP request to the Service Provider's protected resource. To differentiate itself from a standard browser, the client injects a PAOS header (SAMLProf §4.2.3.1) signaling its ECP profile support and capability to process SOAP responses.
+The ECP Client (a native application, CLI tool, or programmatic API consumer) sends a standard HTTP request to the Service Provider's protected resource. To differentiate itself from a standard browser, the client injects a PAOS header (SAMLProf section 4.2.3.1) signaling its ECP profile support and capability to process SOAP responses.
 
 ```http
 GET /api/secure-resource HTTP/1.1
@@ -3200,7 +3200,7 @@ The Service Provider detects the PAOS header, determines that the client lacks a
 <details>
 <summary><strong>3. Service Provider returns AuthnRequest in SOAP envelope</strong></summary>
 
-The Service Provider responds with an HTTP 200 payload—rather than a 302 redirect—delivering the `AuthnRequest` wrapped securely in a SOAP envelope (SAMLProf §4.2.3.2). This envelope includes an `ECP:Request` header element dictating the ultimate Assertion Consumer Service (ACS) endpoint where the client must eventually drop off the resolved token.
+The Service Provider responds with an HTTP 200 payload—rather than a 302 redirect—delivering the `AuthnRequest` wrapped securely in a SOAP envelope (SAMLProf section 4.2.3.2). This envelope includes an `ECP:Request` header element dictating the ultimate Assertion Consumer Service (ACS) endpoint where the client must eventually drop off the resolved token.
 
 ```xml
 &lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -3453,7 +3453,7 @@ The `enveloped-signature` transform removes the `ds:Signature` element itself fr
 - **Attribute sensitivity** — when assertions carry sensitive attributes (national ID numbers, healthcare identifiers, financial data), encryption provides defence-in-depth beyond transport security
 - **Regulatory compliance** — regulations like HIPAA, PSD2, and GDPR-derived standards may mandate application-layer encryption for sensitive PII in transit, regardless of transport encryption
 
-The IdP encrypts using the SP's **public encryption certificate** published in the SP's metadata (`&lt;KeyDescriptor use="encryption">`). The SP decrypts using its corresponding private key. Separate signing and encryption certificates are recommended (§2.6.2).
+The IdP encrypts using the SP's **public encryption certificate** published in the SP's metadata (`&lt;KeyDescriptor use="encryption">`). The SP decrypts using its corresponding private key. Separate signing and encryption certificates are recommended (§2.6).
 
 **2.4.3 Certificate Rollover Patterns:** SAML certificate rollover is a critical operational concern in production federations. Certificates expire periodically (typically 1–3 years), and the rollover must occur without service disruption.
 
@@ -3481,7 +3481,7 @@ The `NameID` element identifies the subject of an assertion — the authenticate
 | `urn:oasis:names:tc:SAML:2.0:nameid-format:kerberos` | Kerberos | Kerberos principal name (`user@REALM`) | ❌ Low | Windows/AD-integrated environments |
 | `urn:oasis:names:tc:SAML:1.1:nameid-format:X509SubjectName` | X.509 | Distinguished name from X.509 certificate | ❌ Low | Certificate-based authentication environments |
 
-**Privacy implications of persistent NameIDs** — the persistent format was specifically designed to enable privacy-preserving federation. The IdP generates a unique opaque identifier for each SP-user pair — the same user receives different persistent NameIDs at different SPs, preventing cross-SP correlation. The SAML Core specification (§11.3.7) mandates that persistent NameIDs "MUST NOT be shared in clear text with providers other than the providers that have established the shared identifier." However, persistent NameIDs are still linkable across sessions at the same SP — if unlinkability across sessions is required, the transient format must be used.
+**Privacy implications of persistent NameIDs** — the persistent format was specifically designed to enable privacy-preserving federation. The IdP generates a unique opaque identifier for each SP-user pair — the same user receives different persistent NameIDs at different SPs, preventing cross-SP correlation. The SAML Core specification (section 11.3.7) mandates that persistent NameIDs "MUST NOT be shared in clear text with providers other than the providers that have established the shared identifier." However, persistent NameIDs are still linkable across sessions at the same SP — if unlinkability across sessions is required, the transient format must be used.
 
 **The Subject Identifier Attributes Profile** (OASIS, 2019) addresses deficiencies in the NameID mechanism by defining subject identifier SAML attributes (`subject-id` and `pairwise-id`) as alternatives to NameID. These attributes provide a cleaner separation between transport-level identifiers and application-level identifiers, and are the recommended approach for new deployments in the U.S. federal (InCommon) and European (eduGAIN) academic federation ecosystems.
 
@@ -3831,7 +3831,7 @@ The Attacker provides legitimate enterprise credentials. Since they are a genuin
 <details>
 <summary><strong>5. Identity Provider mints SAML assertion scoped to Service Provider A</strong></summary>
 
-The IdP constructs a signed `SAMLResponse` containing a properly scoped `AudienceRestriction` element (OASIS SAML V2.0 Core, §2.5.1.4) that explicitly designates `SPA` as the sole permitted consumer of this assertion.
+The IdP constructs a signed `SAMLResponse` containing a properly scoped `AudienceRestriction` element (OASIS SAML V2.0 Core section 2.5.1.4) that explicitly designates `SPA` as the sole permitted consumer of this assertion.
 
 ```xml
 &lt;saml:Conditions NotBefore="2026-03-30T06:00:00Z" NotOnOrAfter="2026-03-30T06:05:00Z">
@@ -3879,7 +3879,7 @@ Continuing its validation pipeline, `SPB` evaluates the `NotBefore` and `NotOnOr
 <details>
 <summary><strong>10. Service Provider B fails to enforce AudienceRestriction</strong></summary>
 
-Due to a misconfigured or incomplete SAML library, `SPB` **skips validation of the `AudienceRestriction` element** (OASIS SAML V2.0 Core, §2.5.1.4). A compliant implementation would compare `&lt;saml:Audience>` against its own entityID and reject the assertion with a `403 Forbidden`. Instead, `SPB` accepts the assertion silently. A properly instrumented SP would emit an `Audience_Mismatch_Rejection` event to the SIEM; the absence of this check means the attack produces **no telemetry at all** — a critical monitoring blind spot.
+Due to a misconfigured or incomplete SAML library, `SPB` **skips validation of the `AudienceRestriction` element** (OASIS SAML V2.0 Core section 2.5.1.4). A compliant implementation would compare `&lt;saml:Audience>` against its own entityID and reject the assertion with a `403 Forbidden`. Instead, `SPB` accepts the assertion silently. A properly instrumented SP would emit an `Audience_Mismatch_Rejection` event to the SIEM; the absence of this check means the attack produces **no telemetry at all** — a critical monitoring blind spot.
 
 </details>
 <details>
@@ -4407,7 +4407,7 @@ The Resource Server streams the requested endpoint JSON payload back to the orig
 
 <br/>
 
-**Native app security: embedded WebViews are prohibited.** The Authorization Code Grant with PKCE is the recommended flow for native mobile and desktop applications. However, the choice of user agent for the authorization redirect is critical. OAuth 2.0 for Native Apps (RFC 8252, §11.12) and OAuth 2.0 Security Best Current Practice (RFC 9700) **explicitly prohibit** embedded WebViews (e.g., `WKWebView` on iOS, `WebView` on Android) for OAuth flows. The risks include credential leakage (the native app can inspect and capture user credentials entered in the WebView), session cookie theft, no shared session state with the system browser, no password manager integration, and custom URI scheme interception. The native application hosting the WebView is both the relying party (which needs the authentication result) and the user agent (which handles the credential) — a confused-deputy scenario that violates the principle of least privilege.
+**Native app security: embedded WebViews are prohibited.** The Authorization Code Grant with PKCE is the recommended flow for native mobile and desktop applications. However, the choice of user agent for the authorization redirect is critical. OAuth 2.0 for Native Apps (RFC 8252 section 11.12) and OAuth 2.0 Security Best Current Practice (RFC 9700) **explicitly prohibit** embedded WebViews (e.g., `WKWebView` on iOS, `WebView` on Android) for OAuth flows. The risks include credential leakage (the native app can inspect and capture user credentials entered in the WebView), session cookie theft, no shared session state with the system browser, no password manager integration, and custom URI scheme interception. The native application hosting the WebView is both the relying party (which needs the authentication result) and the user agent (which handles the credential) — a confused-deputy scenario that violates the principle of least privilege.
 
 **Recommended native app redirect mechanisms:**
 - **iOS:** `ASWebAuthenticationSession` — system-provided browser session with process isolation, shares cookies with Safari
@@ -6883,27 +6883,27 @@ RFC 9700 ("OAuth 2.0 Security Best Current Practice", BCP 240, January 2025) con
 
 | Category | Recommendation | RFC 9700 Section |
 |:---------|:--------------|:-----------------|
-| **Grant type** | Use Authorization Code + PKCE for all interactive flows | §2.1.1 |
-| **Grant type** | Use Client Credentials for M2M | §2.1.2 |
-| **Implicit grant** | Do not use; use Authorization Code + PKCE | §2.1.1 |
-| **ROPC grant** | Do not use | §2.1.3 |
-| **PKCE** | Use `S256` method exclusively; reject `plain` | §2.1.1 |
-| **Redirect URI** | Use exact string matching | §4.1.1 |
-| **State parameter** | Use for CSRF protection in all front-channel flows | §4.3.1 |
-| **Code injection** | Validate issuer in authorization response | §4.1.3 |
-| **Code reuse** | Revoke all tokens if authorization code is reused | §4.1.2 |
-| **Refresh tokens** | Use rotation with reuse detection | §2.2.1 |
-| **Sender-constrained tokens** | Use DPoP or mTLS for all token types | §4.11 |
-| **Bearer tokens in URL** | Never send bearer tokens in query parameters | §4.2.2 |
-| **Token leakage** | Prevent token exposure via Referer, browser history, logs | §4.2 |
-| **Client authentication** | Use `private_key_jwt` or `tls_client_auth` for confidential clients | §4.10 |
-| **Browser apps** | Use BFF pattern; do not store tokens in browser | §6 |
-| **Native apps** | Use system browser; do not use embedded webviews | §9 |
-| **Single-page apps** | Use Authorization Code + PKCE; consider BFF | §10 |
-| **Token introspection** | Use HTTPS; authenticate the caller; return minimal info for inactive tokens | §4.7.2 |
-| **Token revocation** | Always return 200 OK; revoke associated access tokens when revoking refresh tokens | §4.7.1 |
-| **Authorization server metadata** | Publish and validate AS metadata (RFC 8414) | §4.1.4 |
-| **Protected resource metadata** | Publish PRM (RFC 9728) for resource servers | §4.1.4 |
+| **Grant type** | Use Authorization Code + PKCE for all interactive flows | RFC 9700 §2.1.1 |
+| **Grant type** | Use Client Credentials for M2M | RFC 9700 §2.1.2 |
+| **Implicit grant** | Do not use; use Authorization Code + PKCE | RFC 9700 §2.1.1 |
+| **ROPC grant** | Do not use | RFC 9700 §2.1.3 |
+| **PKCE** | Use `S256` method exclusively; reject `plain` | RFC 9700 §2.1.1 |
+| **Redirect URI** | Use exact string matching | RFC 9700 §4.1.1 |
+| **State parameter** | Use for CSRF protection in all front-channel flows | RFC 9700 §4.3.1 |
+| **Code injection** | Validate issuer in authorization response | RFC 9700 §4.1.3 |
+| **Code reuse** | Revoke all tokens if authorization code is reused | RFC 9700 §4.1.2 |
+| **Refresh tokens** | Use rotation with reuse detection | RFC 9700 §2.2.1 |
+| **Sender-constrained tokens** | Use DPoP or mTLS for all token types | RFC 9700 §4.11 |
+| **Bearer tokens in URL** | Never send bearer tokens in query parameters | RFC 9700 §4.2.2 |
+| **Token leakage** | Prevent token exposure via Referer, browser history, logs | RFC 9700 §4.2 |
+| **Client authentication** | Use `private_key_jwt` or `tls_client_auth` for confidential clients | RFC 9700 §4.10 |
+| **Browser apps** | Use BFF pattern; do not store tokens in browser | RFC 9700 §6 |
+| **Native apps** | Use system browser; do not use embedded webviews | RFC 9700 §9 |
+| **Single-page apps** | Use Authorization Code + PKCE; consider BFF | RFC 9700 §10 |
+| **Token introspection** | Use HTTPS; authenticate the caller; return minimal info for inactive tokens | RFC 9700 §4.7.2 |
+| **Token revocation** | Always return 200 OK; revoke associated access tokens when revoking refresh tokens | RFC 9700 §4.7.1 |
+| **Authorization server metadata** | Publish and validate AS metadata (RFC 8414) | RFC 9700 §4.1.4 |
+| **Protected resource metadata** | Publish PRM (RFC 9728) for resource servers | RFC 9700 §4.1.4 |
 
 ---
 
@@ -9255,7 +9255,7 @@ Key attributes:
 
 Groups are used to manage role-based access control. An IdP can push group membership changes (e.g., adding a user to the "Admins" group) via SCIM PATCH operations, and the SP translates those groups into application-specific roles.
 
-**Enterprise User Extension (RFC 7643, §4.3):**
+**Enterprise User Extension (RFC 7643 section 4.3):**
 
 The `urn:ietf:params:scim:schemas:extension:enterprise:2.0:User` extension adds attributes common in enterprise deployments:
 
@@ -9404,7 +9404,7 @@ Because SCIM Bearer tokens grant the ability to create, modify, and deactivate u
 SCIM 2.0 (RFC 7643/7644) was published in 2015 and has remained remarkably stable. However, several limitations have driven work on SCIM 2.1 (as of 2026, still in draft within the IETF SCIM working group):
 
 - **Filter performance.** The SCIM filter language is expressive but computationally expensive on large directories. SCIM 2.1 may introduce indexed filter attributes and query optimization hints.
-- **Bulk operations.** Large enterprises need to provision or deprovision thousands of users at once. SCIM 2.0 defines a `/Bulk` endpoint (RFC 7644, §3.17), but implementations vary widely. SCIM 2.1 aims to standardize bulk operation semantics and error handling.
+- **Bulk operations.** Large enterprises need to provision or deprovision thousands of users at once. SCIM 2.0 defines a `/Bulk` endpoint (RFC 7644 section 3.17), but implementations vary widely. SCIM 2.1 aims to standardize bulk operation semantics and error handling.
 - **Schema versioning.** SCIM 2.0 has no mechanism for schema evolution. Adding a new attribute requires a new extension URI, which breaks backward compatibility. SCIM 2.1 may introduce schema version negotiation.
 - **Event subscription.** SPs currently have no way to notify the IdP of changes initiated within the SP (e.g., a user changes their password in the SP, and the IdP needs to know). A bidirectional event model would close this gap.
 
@@ -14172,11 +14172,11 @@ The following table provides a comprehensive overview of attack vectors against 
 | 1 | **Online brute-force** | Code guessing | Low (with rate limiting) | High | Medium | Rate limiting (max 10 attempts/step) (§12.4.4) | SP 800-63B §9.2.2 |
 | 2 | **AiTM phishing proxy** | Real-time relay | High (dominant attack 2025) | Critical | Critical | Phishing-resistant MFA (FIDO2) | SP 800-63B §9.2.5 |
 | 3 | **Replay attack** | Code reuse | Low (with replay cache) | Medium | Low | Per-device last-used step cache (§12.4.2) | SP 800-63B §9.2.3 |
-| 4 | **Server-side secret theft** | Credential database breach | Medium | Critical | High | HSM-backed encryption at rest (§12.6.2) | SP 800-63B §9.1.1.2 |
-| 5 | **Client-side secret extraction** | Device compromise | Medium | High | Medium | Hardware tokens; MDM; E2EE backup | SP 800-63B §9.1.1.1 |
+| 4 | **Server-side secret theft** | Credential database breach | Medium | Critical | High | HSM-backed encryption at rest (§12.6.2) | NIST SP 800-63B section 9.1.1.2 |
+| 5 | **Client-side secret extraction** | Device compromise | Medium | High | Medium | Hardware tokens; MDM; E2EE backup | NIST SP 800-63B section 9.1.1.1 |
 | 6 | **Clock manipulation** | Time skew attack | Low | Medium | Low | NTP synchronisation; drift compensation (§12.3) | RFC 6238 §9.2 |
-| 7 | **Social engineering to re-provision** | Human manipulation | Medium | High | Medium | User education; provisioning verification | SP 800-63B §9.1.1.2 |
-| 8 | **Backup code theft** | Recovery mechanism abuse | Medium | High | Medium | Single-use codes; limited validity (§12.5.4) | SP 800-63B §9.1.1.2 |
+| 7 | **Social engineering to re-provision** | Human manipulation | Medium | High | Medium | User education; provisioning verification | NIST SP 800-63B section 9.1.1.2 |
+| 8 | **Backup code theft** | Recovery mechanism abuse | Medium | High | Medium | Single-use codes; limited validity (§12.5.4) | NIST SP 800-63B section 9.1.1.2 |
 | 9 | **Keylogger / clipboard theft** | Credential interception | Medium | Low | Low | Password managers with built-in TOTP auto-fill | General practice |
 | 10 | **Side-channel timing attack** | Verification endpoint timing | Very Low | Medium | Very Low | Constant-time comparison; rate limiting masks timing | General cryptographic practice |
 
@@ -15665,7 +15665,7 @@ The authenticator is identified by its **AAGUID** (Authenticator Attestation Glo
 
 Platform authenticators are non-syncable by default (keys reside in hardware). When the platform vendor enables cloud sync (e.g., Apple iCloud Keychain, Google Password Manager), the credential becomes a **syncable platform authenticator**, which affects AAL3 eligibility per (NIST SP 800-63B Rev. 4). Roaming authenticators are always non-syncable — the private key is stored in the authenticator's secure element and never exported.
 
-**User Verification Levels:** WebAuthn defines four UV policy levels that control whether the authenticator must verify the user's identity before performing the cryptographic operation (W3C WebAuthn Level 2, §9.4.3):
+**User Verification Levels:** WebAuthn defines four UV policy levels that control whether the authenticator must verify the user's identity before performing the cryptographic operation (W3C WebAuthn Level 2 section 9.4.3):
 
 | UV Level | W3C enum | Description | NIST AAL Implication |
 |:---------|:---------|:------------|:---------------------|
@@ -17918,7 +17918,7 @@ versus the theoretical maximum of 13.3 bits. This makes the binding to a device 
 | **Argon2id** | RFC 9106 | Yes (configurable) | 3–8× | 10–30× |
 | **HKDF** | RFC 5869 | No | 100–200× | 1000–5000× |
 
-HKDF does not include an iteration count — it is designed for deriving keys from high-entropy input material (e.g., Diffie-Hellman shared secrets), not for stretching low-entropy PINs. For PIN derivation specifically, PBKDF2 or Argon2id must be used. See §15.4.1 and §15.4.2 for detailed algorithm descriptions.
+HKDF does not include an iteration count — it is designed for deriving keys from high-entropy input material (e.g., Diffie-Hellman shared secrets), not for stretching low-entropy PINs. For PIN derivation specifically, PBKDF2 or Argon2id must be used. See §16.4.1 and §9.2.5 for detailed algorithm descriptions.
 
 <details>
 <summary><strong>PBKDF2 brute-force timing calculation</strong></summary>
@@ -17946,7 +17946,7 @@ The EBA Guidelines on the security of internet and mobile payments (EBA/GL/2017/
 | Android | StrongBox Secure Element or TEE | `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` → keys generated inside the dedicated SE; fallback to TEE via `setUserAuthenticationRequired(true)` |
 | Windows | TPM 2.0 | `NCryptCreatePersistedKey` with `NCRYPT_MACHINE_KEY_FLAG` and TPM provider → key generated inside the TPM |
 
-The banking app's transaction signing key — unlocked by the PIN-derived key (§15.1.4) — must reside within one of these hardware-isolated environments. The PSD2 compliance chain is: user enters PIN → PIN combined with hardware-bound secret → derived key unlocks signing key inside SEE → signing operation executes inside SEE → signed transaction payload exits SEE. At no point does the signing private key exist in main memory.
+The banking app's transaction signing key — unlocked by the PIN-derived key (§16.1.4) — must reside within one of these hardware-isolated environments. The PSD2 compliance chain is: user enters PIN → PIN combined with hardware-bound secret → derived key unlocks signing key inside SEE → signing operation executes inside SEE → signed transaction payload exits SEE. At no point does the signing private key exist in main memory.
 
 **PIN-to-key derivation and hardware-backed storage flow.** The following diagram illustrates the complete provisioning-to-authentication pipeline for a banking application:
 
@@ -18886,7 +18886,7 @@ Key protection profiles for authentication hardware:
 
 ##### 16.3.3 GlobalPlatform TEE and SE Protection Profiles
 
-GlobalPlatform — the industry consortium that defines SE lifecycle management standards (§15.2.4) — also publishes **protection profiles** for evaluating TEE and SE security under the Common Criteria framework.
+GlobalPlatform — the industry consortium that defines SE lifecycle management standards (§20.3.6) — also publishes **protection profiles** for evaluating TEE and SE security under the Common Criteria framework.
 
 **TEE Protection Profile (GPD_SPE_024):**
 
@@ -18995,11 +18995,11 @@ The wrapped output is 8 bytes longer than the input (for the integrity check val
 
 - **Key export between security boundaries:** When a key must be transported from one HSM to another (e.g., during key ceremony or disaster recovery), it is wrapped under a transport KEK that both HSMs share
 - **Key backup and escrow:** Enterprise key management systems wrap user keys under a master KEK for escrow purposes — the wrapped key can be stored in a database without exposing the plaintext key material
-- **TPM key hierarchy:** TPM key hierarchy (§15.2.3) uses conceptually similar wrapping — child keys are encrypted under their parent key in the hierarchy
+- **TPM key hierarchy:** TPM key hierarchy (§16.2.3) uses conceptually similar wrapping — child keys are encrypted under their parent key in the hierarchy
 
 ##### 16.4.4 Key Sealing to Platform State (TPM)
 
-TPM key sealing (§15.2.3) binds a key to the platform's measured boot state — the key can only be unsealed when the platform's PCR values match the values recorded at sealing time. The key hierarchy (§15.2.3, Figure: Key hierarchies) defines the wrapping chain: the Storage Root Key (SRK) wraps storage keys, which in turn wrap signing, encryption, and sealed data objects.
+TPM key sealing (§16.2.3) binds a key to the platform's measured boot state — the key can only be unsealed when the platform's PCR values match the values recorded at sealing time. The key hierarchy (§16.2.3, Figure: Key hierarchies) defines the wrapping chain: the Storage Root Key (SRK) wraps storage keys, which in turn wrap signing, encryption, and sealed data objects.
 
 **Sealing operation:**
 
@@ -19291,7 +19291,7 @@ Apple's Face ID — introduced with iPhone X (2017) and present on all Face ID-e
 - **Attention awareness:** Face ID requires the user's eyes to be **open and looking at the device** — the system detects gaze direction using the NIR image. This prevents unlock while the user is sleeping, unconscious, or looking away, and defeats attacks where an attacker holds the phone up to an unaware victim's face. Attention awareness can be disabled in Accessibility settings for users who cannot make eye contact (certain physical disabilities)
 - **Adaptive learning:** The Neural Engine continuously updates the enrolled face template to accommodate gradual changes — growing a beard, changing hairstyles, wearing glasses, ageing. The system maintains a running collection of recent successful match representations and uses them to supplement the original enrollment template
 
-**Template storage:** The mathematical representation of the face — not an image — is stored in the **Secure Enclave** (§15.2.1). The template cannot be extracted from the SE by any mechanism. Face ID samples are processed in the SE's encrypted memory and are never exposed to the application processor or transmitted to Apple's servers.
+**Template storage:** The mathematical representation of the face — not an image — is stored in the **Secure Enclave** (§16.2.1). The template cannot be extracted from the SE by any mechanism. Face ID samples are processed in the SE's encrypted memory and are never exposed to the application processor or transmitted to Apple's servers.
 
 **Anti-spoofing testing:** Apple has tested Face ID against custom-manufactured 3D masks created by professional special-effects studios and mask-making companies. The system resists these attacks because the depth map matching is sensitive to sub-millimetre surface geometry differences, material reflectance properties under NIR illumination, and the presence of living tissue characteristics (skin reflectance spectrum in NIR).
 
@@ -19306,7 +19306,7 @@ Windows Hello facial recognition uses a **near-infrared (NIR) camera** paired wi
 
 **Security classification:** Windows Hello facial recognition is classified as a **strong biometric** on devices with **Windows Hello Enhanced Sign-in Security (ESS)** — these devices have specialised cameras with hardware-isolated image processing paths where biometric data flows directly to the VBS (Virtualisation Based Security) enclave without passing through the main OS kernel. On non-ESS devices, the security classification depends on the camera hardware and driver implementation. Windows Hello achieves a FAR of approximately **1 in 100,000**, qualifying it as a strong biometric authenticator under NIST guidelines. ESS-capable devices require an Intel RealSense or equivalent camera with a dedicated depth sensor (structured light or Time-of-Flight) for 3D face reconstruction, in addition to the NIR camera and IR illuminator.
 
-**Key storage:** Windows Hello facial recognition unlocks keys stored in the **TPM** (§15.2.3). The TPM-resident key is used for authentication with Microsoft Entra ID, on-premises Active Directory, or FIDO2-based services.
+**Key storage:** Windows Hello facial recognition unlocks keys stored in the **TPM** (§16.2.3). The TPM-resident key is used for authentication with Microsoft Entra ID, on-premises Active Directory, or FIDO2-based services.
 
 #### 17.3 Iris Scanning
 Iris recognition exploits the complex, random texture of the iris — the coloured muscular ring surrounding the pupil. The iris stroma contains a unique pattern of crypts, furrows, freckles, and collarette features that forms during foetal development and remains stable throughout life (barring injury or disease). Iris patterns are statistically independent even between the two eyes of the same individual, and between identical twins.
@@ -19981,7 +19981,7 @@ The United States lacks a federal biometric privacy law, but several states have
 | **Illinois** | BIPA (740 ILCS 14/) | Written consent required before biometric collection; retention schedule mandatory; data destruction within 3 years of last use | ✅ Yes — statutory damages $1,000/violation ($5,000 for intentional); no injury requirement |
 | **California** | CCPA/CPRA | Biometric data classified as sensitive personal information; right to know, delete, and opt-out | Limited — statutory damages under CPPA only after cure period |
 | **Washington** | My Health My Data Act | Health-related biometric data (facial recognition, gait, fingerprint) subject to consent requirements | ✅ Yes — statutory damages $100–$750/violation |
-| **Texas** | CUBI §522.002 | Informed consent required; data destruction within 30 days of purpose fulfilment | ✅ Yes — statutory damages $200/violation |
+| **Texas** | CUBI section 522.002 | Informed consent required; data destruction within 30 days of purpose fulfilment | ✅ Yes — statutory damages $200/violation |
 
 BIPA is the most consequential due to its broad private right of action and the absence of an injury-in-fact requirement. Since the Illinois Supreme Court's *Rosenbach v. Six Flags* (2019) decision, plaintiffs need not demonstrate actual harm — a technical violation of the consent or retention provisions is sufficient. BIPA litigation has generated billions of dollars in settlements, making compliance a critical consideration for any organisation deploying biometric authentication in Illinois.
 
@@ -20276,7 +20276,7 @@ CertificateSigningRequest:
 <details>
 <summary><strong>2. Google RKP Server relays validated CSR to Google Device CA</strong></summary>
 
-The Google RKP Server validates the incoming CSR by verifying the Device Root Key signature against a manufacturer-managed whitelist of known root public keys (Android KeyMint HAL spec, §4.4). This gate prevents unauthorized or compromised devices from obtaining genuine attestation certificates. Once authenticity is confirmed, the RKP Server constructs a relay request containing the validated CSR payload and forwards it to the isolated Google Device CA, which operates in a restricted issuance environment separate from the public-facing provisioning endpoint.
+The Google RKP Server validates the incoming CSR by verifying the Device Root Key signature against a manufacturer-managed whitelist of known root public keys (Android KeyMint HAL spec section 4.4). This gate prevents unauthorized or compromised devices from obtaining genuine attestation certificates. Once authenticity is confirmed, the RKP Server constructs a relay request containing the validated CSR payload and forwards it to the isolated Google Device CA, which operates in a restricted issuance environment separate from the public-facing provisioning endpoint.
 
 ```
 // Relay request body (RKP Server → Google Device CA)
@@ -20300,7 +20300,7 @@ The Google RKP Server validates the incoming CSR by verifying the Device Root Ke
 <details>
 <summary><strong>3. Google Device CA issues short-lived attestation batch</strong></summary>
 
-The Google Device CA signs a batch of short-lived ECDSA attestation certificates, each binding the device's root public key to an attestation-specific authorization list (Android KeyMint HAL spec, §4.3). Certificates are issued with a validity period of days to weeks rather than years, limiting the window for any single certificate to be abused for cross-device tracking. This batch model allows the CA to rate-limit issuance per device and rotate certificate metadata without requiring the device to re-provision its root key.
+The Google Device CA signs a batch of short-lived ECDSA attestation certificates, each binding the device's root public key to an attestation-specific authorization list (Android KeyMint HAL spec section 4.3). Certificates are issued with a validity period of days to weeks rather than years, limiting the window for any single certificate to be abused for cross-device tracking. This batch model allows the CA to rate-limit issuance per device and rotate certificate metadata without requiring the device to re-provision its root key.
 
 ```
 # Leaf Attestation Certificate (simplified)
@@ -20330,7 +20330,7 @@ Certificate:
 <details>
 <summary><strong>4. Android Device stores attestation certificates in local RKP cache</strong></summary>
 
-The Google RKP Server returns the signed certificate batch to the Android Device, which stores them in a local hardware-backed RKP cache managed by the KeyMint TA (Android KeyMint HAL spec, §4.4). This cache acts as a pre-provisioned pool: certificates remain available for on-demand binding when applications request attested keypairs, eliminating the latency of contacting the CA at runtime. The cache is protected by TEE access controls so that only the KeyMint TA can read or consume certificates, preventing OS-level tampering.
+The Google RKP Server returns the signed certificate batch to the Android Device, which stores them in a local hardware-backed RKP cache managed by the KeyMint TA (Android KeyMint HAL spec section 4.4). This cache acts as a pre-provisioned pool: certificates remain available for on-demand binding when applications request attested keypairs, eliminating the latency of contacting the CA at runtime. The cache is protected by TEE access controls so that only the KeyMint TA can read or consume certificates, preventing OS-level tampering.
 
 </details>
 
@@ -20392,14 +20392,14 @@ KeyGenerationParameters:
 <details>
 <summary><strong>7. Android Device binds pre-provisioned certificate to new public key</strong></summary>
 
-Instead of contacting the Device CA at runtime, the KeyMint TA claims one of the short-lived attestation certificates from the local RKP cache and binds it to the newly generated public key (Android KeyMint HAL spec, §4.3). The binding is implemented by creating a KeyMint certificate chain where the leaf certificate contains the app-specific public key in its SubjectPublicKeyInfo field, signed by the claimed pre-provisioned certificate. This deferred-binding design decouples certificate issuance (which requires network access to the CA) from key generation (which is a local TEE operation), enabling attestation to work in offline or restricted-network scenarios.
+Instead of contacting the Device CA at runtime, the KeyMint TA claims one of the short-lived attestation certificates from the local RKP cache and binds it to the newly generated public key (Android KeyMint HAL spec section 4.3). The binding is implemented by creating a KeyMint certificate chain where the leaf certificate contains the app-specific public key in its SubjectPublicKeyInfo field, signed by the claimed pre-provisioned certificate. This deferred-binding design decouples certificate issuance (which requires network access to the CA) from key generation (which is a local TEE operation), enabling attestation to work in offline or restricted-network scenarios.
 
 </details>
 
 <details>
 <summary><strong>8. Android Device returns full X.509 attestation chain to application</strong></summary>
 
-The KeyMint TA returns the app-scoped public key embedded in a full X.509 attestation certificate chain to the requesting application (Android KeyMint HAL spec, §4.5). The chain follows the structure: app-specific leaf certificate → pre-provisioned attestation certificate (intermediate) → Google Device CA root. The application forwards this chain to its backend server, which validates the signatures, checks certificate validity periods, and inspects the Android Attestation Extension (OID 1.3.6.1.4.1.11129.2.1.17) to confirm the key was generated inside a TEE on a verified-boot device.
+The KeyMint TA returns the app-scoped public key embedded in a full X.509 attestation certificate chain to the requesting application (Android KeyMint HAL spec section 4.5). The chain follows the structure: app-specific leaf certificate → pre-provisioned attestation certificate (intermediate) → Google Device CA root. The application forwards this chain to its backend server, which validates the signatures, checks certificate validity periods, and inspects the Android Attestation Extension (OID 1.3.6.1.4.1.11129.2.1.17) to confirm the key was generated inside a TEE on a verified-boot device.
 
 ```
 # X.509 Attestation Chain Structure
@@ -21032,7 +21032,7 @@ X-Attestation: &lt;CBOR Assertion Object>
 <details>
 <summary><strong>8. RP Server recomputes client data hash</strong></summary>
 
-Upon ingestion, the RP Server computes its own independent `SHA256` hash over the cleartext JSON payload (WebAuthn Level 2, §9.4.2), verifying it matches the `clientDataHash` embedded inside the signed CBOR Assertion. Any mismatch — whether caused by transmission corruption or a man-in-the-middle attack — causes the server to reject the request immediately. This step is the first of four independent validation checks the server performs before trusting the assertion.
+Upon ingestion, the RP Server computes its own independent `SHA256` hash over the cleartext JSON payload (WebAuthn Level 2 section 9.4.2), verifying it matches the `clientDataHash` embedded inside the signed CBOR Assertion. Any mismatch — whether caused by transmission corruption or a man-in-the-middle attack — causes the server to reject the request immediately. This step is the first of four independent validation checks the server performs before trusting the assertion.
 
 **Artifact Produced:** Server-side `clientDataHash` (for comparison against the signed value)
 
@@ -21183,7 +21183,7 @@ DeviceCheck bits persist across app reinstallation and device reset (they are ti
 | **Primary use** | API abuse prevention, request signing, app integrity verification | Device fraud tracking, one-time offer enforcement |
 
 #### 18.3 TPM 2.0 Attestation
-The Trusted Platform Module (TPM) 2.0 — introduced architecturally in §15.2.3 — provides two forms of attestation: **platform attestation** (proving the device's boot state and software integrity) and **key attestation** (proving that a specific cryptographic key was generated inside the TPM). These mechanisms are standardised by the Trusted Computing Group (TCG) in ISO/IEC 11889 and are the foundation of enterprise remote attestation, measured boot, and conditional access.
+The Trusted Platform Module (TPM) 2.0 — introduced architecturally in §16.2.3 — provides two forms of attestation: **platform attestation** (proving the device's boot state and software integrity) and **key attestation** (proving that a specific cryptographic key was generated inside the TPM). These mechanisms are standardised by the Trusted Computing Group (TCG) in ISO/IEC 11889 and are the foundation of enterprise remote attestation, measured boot, and conditional access.
 
 ```mermaid
 flowchart LR
@@ -21214,7 +21214,7 @@ flowchart LR
 
 ##### 18.3.1 Platform Attestation: Remote Attestation via TPM2_Quote
 
-Platform attestation — also called **remote attestation** — allows a verifier to obtain cryptographic proof of the device's current software state. The TPM produces a signed statement of its Platform Configuration Register (PCR) values, which encode the measurements of every component loaded during the device's boot process (§15.2.3 for PCR definitions).
+Platform attestation — also called **remote attestation** — allows a verifier to obtain cryptographic proof of the device's current software state. The TPM produces a signed statement of its Platform Configuration Register (PCR) values, which encode the measurements of every component loaded during the device's boot process (§16.2.3 for PCR definitions).
 
 **Quote generation:**
 
@@ -22127,7 +22127,7 @@ Certificate Transparency (CT) logs provide a public, append-only record of issue
 When an attestation key or device is compromised, RPs should follow a structured response:
 
 1. **Detection** — identify the compromise source (key extraction, CA compromise, firmware bypass). Sources include vulnerability disclosure, anomaly detection in attestation patterns, and vendor advisories
-2. **Scope assessment** — determine the blast radius (§19.2.4). Classify whether a single device, a device batch, or a platform-wide compromise has occurred
+2. **Scope assessment** — determine the blast radius (§19.1.4). Classify whether a single device, a device batch, or a platform-wide compromise has occurred
 3. **Revocation request** — submit a revocation request to the appropriate CA (Google, Apple, TPM vendor, FIDO Alliance)
 4. **Policy update** — update verifier logic to reject attestation from the compromised device or device batch. Add the affected serial numbers or AAGUIDs to a blocklist
 5. **Credential rotation** — if the compromised key is used for device-bound credentials (WebAuthn passkeys), initiate credential recovery flows for affected users
@@ -22539,14 +22539,14 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Browser submits primary credentials to Identity Provider</strong></summary>
 
-The user initiates the login sequence on the primary device, submitting their standard username and password (or first-factor equivalent) to the Identity Provider over a TLS-protected connection. This first-factor submission establishes the initial authentication context and triggers the IdP to evaluate whether the account is enrolled in push-based MFA (OWASP ASVS v4.0.3, §2.1.1). Upon successful credential validation, the IdP proceeds to generate a cryptographic challenge for the second factor, transitioning the session from single-factor to multi-factor authentication.
+The user initiates the login sequence on the primary device, submitting their standard username and password (or first-factor equivalent) to the Identity Provider over a TLS-protected connection. This first-factor submission establishes the initial authentication context and triggers the IdP to evaluate whether the account is enrolled in push-based MFA (OWASP ASVS v4.0.3 section 2.1.1). Upon successful credential validation, the IdP proceeds to generate a cryptographic challenge for the second factor, transitioning the session from single-factor to multi-factor authentication.
 
 </details>
 
 <details>
 <summary><strong>2. Identity Provider generates cryptographic challenge and matching number</strong></summary>
 
-Upon valid first-factor verification, the Identity Provider generates a robust cryptographic server challenge (nonce) alongside a randomly selected two-digit numeric code. The nonce provides cryptographic freshness, binding this specific authentication transaction to a unique value that cannot be replayed or predicted (NIST SP 800-63B, §10.1.2). The random matching number serves as the human-in-the-loop verification binding for mitigating MFA fatigue attacks, where adversaries barrage users with push approval requests hoping one slips through. Both values are persisted server-side with a short TTL (typically 180–300 seconds) to enforce temporal validity before being dispatched to the user's devices.
+Upon valid first-factor verification, the Identity Provider generates a robust cryptographic server challenge (nonce) alongside a randomly selected two-digit numeric code. The nonce provides cryptographic freshness, binding this specific authentication transaction to a unique value that cannot be replayed or predicted (NIST SP 800-63B section 10.1.2). The random matching number serves as the human-in-the-loop verification binding for mitigating MFA fatigue attacks, where adversaries barrage users with push approval requests hoping one slips through. Both values are persisted server-side with a short TTL (typically 180–300 seconds) to enforce temporal validity before being dispatched to the user's devices.
 
 ```json
 \{
@@ -22617,7 +22617,7 @@ Upon receiving the push notification, the Mobile Authenticator app wakes up and 
 <details>
 <summary><strong>6. User selects correlating number on Mobile Authenticator</strong></summary>
 
-The user physically compares the matching number displayed on the User Browser's screen to the number selection grid on the Mobile Authenticator and taps the correct correlating number [47]. This cross-channel comparison provides undeniable proof of physical presence at both devices and cognitive intent — the user must actively read and match values across two independent communication channels (NIST SP 800-63B, §10.1.2 — reauthentication and verification). Once the correct number is selected, the authenticator enables the signing operation, binding the user's explicit approval to the cryptographic assertion that will be generated in the next step.
+The user physically compares the matching number displayed on the User Browser's screen to the number selection grid on the Mobile Authenticator and taps the correct correlating number [47]. This cross-channel comparison provides undeniable proof of physical presence at both devices and cognitive intent — the user must actively read and match values across two independent communication channels (NIST SP 800-63B section 10.1.2 — reauthentication and verification). Once the correct number is selected, the authenticator enables the signing operation, binding the user's explicit approval to the cryptographic assertion that will be generated in the next step.
 
 </details>
 
@@ -22691,7 +22691,7 @@ def verify_push_assertion(jws_token, stored_challenge, registered_pub_key):
 <details>
 <summary><strong>10. Identity Provider grants session access to User Browser</strong></summary>
 
-With the out-of-band challenge verified, the Identity Provider formally transitions the User Browser's wait-state into an active authenticated session (NIST SP 800-63B, §10.1.2 — session establishment). The IdP signals completion through the held WebSocket connection or responds to the browser's polling request with a positive authentication result, injecting session cookies and authorization tokens. The session is established with appropriate security attributes including AAL2 designation (reflecting both knowledge and possession factors), a bounded session lifetime, and secure cookie flags (HttpOnly, Secure, SameSite=Strict) to protect against session hijacking (OWASP ASVS v4.0.3, §3.5.3 — session management).
+With the out-of-band challenge verified, the Identity Provider formally transitions the User Browser's wait-state into an active authenticated session (NIST SP 800-63B section 10.1.2 — session establishment). The IdP signals completion through the held WebSocket connection or responds to the browser's polling request with a positive authentication result, injecting session cookies and authorization tokens. The session is established with appropriate security attributes including AAL2 designation (reflecting both knowledge and possession factors), a bounded session lifetime, and secure cookie flags (HttpOnly, Secure, SameSite=Strict) to protect against session hijacking (OWASP ASVS v4.0.3 section 3.5.3 — session management).
 
 ```http
 HTTP/1.1 302 Found
@@ -22747,7 +22747,7 @@ Software passkey providers store FIDO2/WebAuthn credentials (§14.7) in software
 
 **Major implementations:**
 
-- **iCloud Keychain** (Apple) — the default passkey provider on iOS, iPadOS, and macOS. Passkeys are synced across all Apple devices signed into the same Apple ID via iCloud Keychain's end-to-end encrypted sync. Keys are protected by the device's Secure Enclave (§15.2.1) at rest on each device, but the sync mechanism means the key exists on multiple devices — making it a **synced passkey** (§14.12)
+- **iCloud Keychain** (Apple) — the default passkey provider on iOS, iPadOS, and macOS. Passkeys are synced across all Apple devices signed into the same Apple ID via iCloud Keychain's end-to-end encrypted sync. Keys are protected by the device's Secure Enclave (§16.2.1) at rest on each device, but the sync mechanism means the key exists on multiple devices — making it a **synced passkey** (§14.12)
 - **Google Password Manager** — the default passkey provider on Android and Chrome. Passkeys sync across all Android devices and Chrome browsers signed into the same Google Account. Protected by the device's TEE/StrongBox at rest
 - **1Password** — third-party passkey provider supporting iOS, Android, macOS, Windows, Linux, and browser extensions. Passkeys sync via 1Password's encrypted vault infrastructure. Available as a credential provider on iOS 17+ and Android 14+
 - **Bitwarden** — open-source password manager with passkey support. Syncs via Bitwarden's encrypted vault. Available as a credential provider on iOS 17+ and Android 14+
@@ -23043,7 +23043,7 @@ As organisations adopt FIDO2/WebAuthn passkeys for phishing-resistant authentica
 HOTP and FIDO2/WebAuthn operate at different protocol layers and cannot share credentials. A user enrolling both a HOTP token and a FIDO2 security key has two independent second-factor credentials registered with the authentication server. The server's authentication logic must support both verification paths and enforce appropriate policies (e.g., "accept any registered MFA method" vs. "require FIDO2 for admin accounts").
 
 #### 20.3 Smart Cards and PIV (NIST SP 800-73)
-Smart cards are credit card-sized devices containing an embedded secure element (§15.2.4) that performs cryptographic operations — key generation, digital signing, decryption, and certificate storage. Unlike security keys (which are optimised for FIDO2 web authentication), smart cards provide **full PKI (Public Key Infrastructure)** capabilities: they store X.509 certificates, support certificate-based authentication (§10.4), and enable qualified electronic signatures.
+Smart cards are credit card-sized devices containing an embedded secure element (§16.2.4) that performs cryptographic operations — key generation, digital signing, decryption, and certificate storage. Unlike security keys (which are optimised for FIDO2 web authentication), smart cards provide **full PKI (Public Key Infrastructure)** capabilities: they store X.509 certificates, support certificate-based authentication (§10.4), and enable qualified electronic signatures.
 
 **Physical and communication interfaces:** Smart cards communicate with readers through two primary interface standards:
 
@@ -23117,7 +23117,7 @@ Over 3.5 million active CAC cards are issued to DoD military personnel, civilian
 
 ##### 20.3.4 eIDAS Qualified Electronic Signature Creation Devices (QSCD)
 
-Under the EU's eIDAS Regulation (Regulation (EU) No 910/2014), smart cards certified under Common Criteria (§15.3.2) can serve as **Qualified Signature Creation Devices (QSCDs)** — the hardware required to create **qualified electronic signatures (QES)** that carry the same legal effect as handwritten signatures across all EU member states.
+Under the EU's eIDAS Regulation (Regulation (EU) No 910/2014), smart cards certified under Common Criteria (§16.3.2) can serve as **Qualified Signature Creation Devices (QSCDs)** — the hardware required to create **qualified electronic signatures (QES)** that carry the same legal effect as handwritten signatures across all EU member states.
 
 **QSCD requirements:**
 
@@ -23143,7 +23143,7 @@ Smart card operating systems provide the runtime environment for cryptographic a
 
 | OS | Description | Market Position |
 |:---|:-----------|:---------------|
-| **JavaCard** | Stripped-down JVM providing sandboxed applet execution (§15.2.4). Dominant runtime — supports applet isolation, firewall, atomic transactions, and comprehensive cryptographic API | ~70%+ of global smart card SE deployments |
+| **JavaCard** | Stripped-down JVM providing sandboxed applet execution (§16.2.4). Dominant runtime — supports applet isolation, firewall, atomic transactions, and comprehensive cryptographic API | ~70%+ of global smart card SE deployments |
 | **MULTOS** | Multi-application OS with formal security verification. Applications run in isolated virtual machines. Used in high-assurance government and banking deployments | Niche — primarily UK government and select banking |
 | **NXP JCOP** | NXP's implementation of JavaCard OS for their secure element chips. Widely used in government ID cards, PIV cards, and payment cards | Major — NXP SEs are the most widely deployed SE hardware |
 | **Infineon SECORA** | Infineon's JavaCard-based secure element platform. Optimised for IoT, payment, and government identity applications | Growing — strong in European government ID |
@@ -23712,8 +23712,8 @@ flowchart TD
 
 During enrollment, the SDK generates a device-specific **asymmetric key pair** in the platform's hardware-backed storage:
 
-- **iOS:** `SecKeyCreateRandomKey` with `kSecAttrTokenIDSecureEnclave` — the private key is generated inside the Secure Enclave and is non-exportable (§15.2.1)
-- **Android:** `KeyPairGenerator` with `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` — the private key resides in StrongBox (if available) or TEE (§15.2.2)
+- **iOS:** `SecKeyCreateRandomKey` with `kSecAttrTokenIDSecureEnclave` — the private key is generated inside the Secure Enclave and is non-exportable (§16.2.1)
+- **Android:** `KeyPairGenerator` with `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` — the private key resides in StrongBox (if available) or TEE (§16.2.2)
 
 The private key **never leaves the hardware security boundary**. The SDK extracts the public key and transmits it to the bank's CMS during the enrollment ceremony. The CMS binds the public key to the user's account, establishing a cryptographic link between the physical device and the user identity.
 
@@ -23734,7 +23734,7 @@ ECDSA P-256 is the dominant choice across all vendors, offering 128-bit security
 
 ##### 21.2.2 Layer 2: PIN Activation (Knowledge Factor)
 
-The user sets a numeric PIN during enrollment. The SDK uses this PIN to derive a **key encryption key (KEK)** via PBKDF2-HMAC-SHA-256 (§15.4.1) with a device-specific salt and a minimum of 210,000 iterations (NIST SP 800-63B Rev 4 guidance):
+The user sets a numeric PIN during enrollment. The SDK uses this PIN to derive a **key encryption key (KEK)** via PBKDF2-HMAC-SHA-256 (§16.4.1) with a device-specific salt and a minimum of 210,000 iterations (NIST SP 800-63B Rev 4 guidance):
 
 ```
 KEK = PBKDF2(HMAC-SHA-256, PIN, device_salt, iterations=210000, dkLen=32)
@@ -24533,7 +24533,7 @@ PSD2 requires payment service providers to maintain comprehensive audit trails o
 | Aspect | Details |
 |:-------|:--------|
 | **Distribution format** | XCFramework — universal binary supporting arm64 device + x86_64 simulator in a single distributable. Delivered via private CocoaPods repo, Swift Package Manager, or direct binary inclusion |
-| **Key storage** | Secure Enclave via `Security.framework` — `SecKeyCreateRandomKey` with `kSecAttrTokenIDSecureEnclave` (§15.2.1) |
+| **Key storage** | Secure Enclave via `Security.framework` — `SecKeyCreateRandomKey` with `kSecAttrTokenIDSecureEnclave` (§16.2.1) |
 | **Biometric binding** | `LocalAuthentication.framework` — `LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` + key-bound auth via `kSecAccessControlBiometryCurrentSet` (§17.7) |
 | **Device attestation** | `DeviceCheck.framework` — `DCAppAttestService` for App Attest (§18.2). `DCDevice.generateToken` for DeviceCheck bits |
 | **Runtime protection** | SDK includes jailbreak detection (checks for Cydia, `/private/var/lib/apt/`, fork() behaviour), debugger detection (`sysctl` P_TRACED check, `ptrace(PT_DENY_ATTACH)`), integrity verification (SDK binary hash comparison) |
@@ -24586,7 +24586,7 @@ if device.isSupported \{
 | Aspect | Details |
 |:-------|:--------|
 | **Distribution format** | AAR (Android Archive) — includes compiled code, resources, and native libraries (.so). Delivered via private Maven repository or direct AAR inclusion |
-| **Key storage** | Android Keystore with `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` — StrongBox Keymaster if available, TEE fallback (§15.2.2). Keys are non-exportable and hardware-bound |
+| **Key storage** | Android Keystore with `KeyGenParameterSpec.Builder.setIsStrongBoxBacked(true)` — StrongBox Keymaster if available, TEE fallback (§16.2.2). Keys are non-exportable and hardware-bound |
 | **Biometric binding** | `BiometricPrompt` with `CryptoObject` (§17.7) — `setUserAuthenticationRequired(true)` + `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)` for per-use biometric |
 | **Device attestation** | Play Integrity API (§18.5) — standard and classic request modes. Some SDKs additionally verify SafetyNet (deprecated but still supported) for backward compatibility |
 | **Runtime protection** | Root detection (su binary, Magisk, SELinux permissive), debugger detection (android.os.Debug.isDebuggerConnected(), TracerPid check in /proc/self/status), anti-hooking (Frida, Xposed detection), code obfuscation (ProGuard/R8 for Java/Kotlin, LLVM obfuscation for native code) |
@@ -25313,11 +25313,11 @@ The following matrix enumerates the principal attack vectors against TOTP-based 
 | 1 | **Online brute-force** | Code guessing | Low (with rate limiting) | High | Medium | Rate limiting (max 10 attempts/step) | SP 800-63B §9.2.2 |
 | 2 | **AiTM phishing proxy** | Real-time relay | High (dominant 2025) | Critical | Critical | Phishing-resistant MFA (FIDO2) | SP 800-63B §9.2.5 |
 | 3 | **Replay attack** | Code reuse | Low (with replay cache) | Medium | Low | Per-device last-used step cache | SP 800-63B §9.2.3 |
-| 4 | **Server-side secret theft** | Credential database breach | Medium | Critical | High | HSM-backed encryption at rest | SP 800-63B §9.1.1.2 |
-| 5 | **Client-side secret extraction** | Device compromise | Medium | High | Medium | Hardware tokens; MDM; E2EE backup | SP 800-63B §9.1.1.1 |
+| 4 | **Server-side secret theft** | Credential database breach | Medium | Critical | High | HSM-backed encryption at rest | NIST SP 800-63B section 9.1.1.2 |
+| 5 | **Client-side secret extraction** | Device compromise | Medium | High | Medium | Hardware tokens; MDM; E2EE backup | NIST SP 800-63B section 9.1.1.1 |
 | 6 | **Clock manipulation** | Time skew attack | Low | Medium | Low | NTP synchronisation; drift compensation | RFC 6238 §9.2 |
-| 7 | **Social engineering to re-provision** | Human manipulation | Medium | High | Medium | User education; provisioning verification | SP 800-63B §9.1.1.2 |
-| 8 | **Backup code theft** | Recovery mechanism abuse | Medium | High | Medium | Single-use codes; limited validity | SP 800-63B §9.1.1.2 |
+| 7 | **Social engineering to re-provision** | Human manipulation | Medium | High | Medium | User education; provisioning verification | NIST SP 800-63B section 9.1.1.2 |
+| 8 | **Backup code theft** | Recovery mechanism abuse | Medium | High | Medium | Single-use codes; limited validity | NIST SP 800-63B section 9.1.1.2 |
 | 9 | **Side-channel timing attack** | Verification endpoint timing | Very Low | Medium | Very Low | Constant-time comparison; rate limiting masks timing | General cryptographic practice |
 | 10 | **Token emulation** | Secret cloning | Low–Medium | High | Medium | Hardware tokens; anomaly detection | — |
 
@@ -25426,7 +25426,7 @@ grant_type=password&username=victim@example.com&password=P@ssw0rd!&scope=openid%
 <details>
 <summary><strong>2. Identity Provider dispatches initial system push MFA to Victim Target</strong></summary>
 
-Complying with the organization's authentication policy, the Identity Provider issues a push-based MFA challenge to the Victim Target's registered mobile device via a push notification service such as FCM (Firebase Cloud Messaging) or APNs (Apple Push Notification Service). This out-of-band verification step requires the legitimate user to explicitly approve or deny the sign-in attempt, satisfying the possession factor requirement defined in (NIST SP 800-63B, §10.1.2 — Reauthentication). The notification is delivered silently and awaits the user's interactive response on their authenticator app.
+Complying with the organization's authentication policy, the Identity Provider issues a push-based MFA challenge to the Victim Target's registered mobile device via a push notification service such as FCM (Firebase Cloud Messaging) or APNs (Apple Push Notification Service). This out-of-band verification step requires the legitimate user to explicitly approve or deny the sign-in attempt, satisfying the possession factor requirement defined in (NIST SP 800-63B section 10.1.2 — Reauthentication). The notification is delivered silently and awaits the user's interactive response on their authenticator app.
 
 ```json
 \{
@@ -25460,7 +25460,7 @@ The Threat Actor (Phone) deliberately abuses the "Resend Notification" functiona
 <details>
 <summary><strong>4. Identity Provider creates barrage of push notifications for Victim Target</strong></summary>
 
-The Identity Provider blindly processes the resend requests, inundating the Victim Target's mobile device with dozens of consecutive, identical push notification alerts (NIST SP 800-63B, §10.1.2 — Reauthentication and MFA). This "prompt bombing" intentionally causes annoyance and cognitive overload, pressuring the user into taking impulsive action. Each notification carries the same challenge identifier, making it impossible for the victim to distinguish legitimate from fraudulent prompts in the barrage.
+The Identity Provider blindly processes the resend requests, inundating the Victim Target's mobile device with dozens of consecutive, identical push notification alerts (NIST SP 800-63B section 10.1.2 — Reauthentication and MFA). This "prompt bombing" intentionally causes annoyance and cognitive overload, pressuring the user into taking impulsive action. Each notification carries the same challenge identifier, making it impossible for the victim to distinguish legitimate from fraudulent prompts in the barrage.
 
 ```json
 [
@@ -25523,7 +25523,7 @@ Convinced by the vishing pretext or simply trying to stop the continuous notific
 <details>
 <summary><strong>8. Identity Provider grants full session access to Threat Actor (Phone)</strong></summary>
 
-The Identity Provider receives the mathematically valid signed assertion originating from the Victim Target's legitimate device. Blind to the social engineering context and unable to detect the location disconnect between the login session and the device (a number-matching mitigation absent in legacy push MFA implementations), the Identity Provider completes the authentication flow (NIST SP 800-63B, §10.1.2). The IdP issues a full session grant to the Threat Actor (Phone), including access tokens and an ID token, effectively rendering the MFA control useless despite the possession factor being legitimately satisfied.
+The Identity Provider receives the mathematically valid signed assertion originating from the Victim Target's legitimate device. Blind to the social engineering context and unable to detect the location disconnect between the login session and the device (a number-matching mitigation absent in legacy push MFA implementations), the Identity Provider completes the authentication flow (NIST SP 800-63B section 10.1.2). The IdP issues a full session grant to the Threat Actor (Phone), including access tokens and an ID token, effectively rendering the MFA control useless despite the possession factor being legitimately satisfied.
 
 ```json
 \{
@@ -25664,7 +25664,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Victim browser accesses malicious origin</strong></summary>
 
-The user is lured via an SMS or email phishing campaign into clicking a malicious link that visually mimics their banking portal. The targeted browser navigates to the attacker-controlled server at `evil.com`. This initial connection is the critical entry point of the AiTM attack chain — everything that follows depends on the victim believing they are interacting with the legitimate service (OWASP ASVS v4.0.3, §14.1.1). Because the browser has genuinely loaded `evil.com` as its top-level origin, all subsequent security checks operate against this attacker-controlled domain rather than the intended `bank.com`.
+The user is lured via an SMS or email phishing campaign into clicking a malicious link that visually mimics their banking portal. The targeted browser navigates to the attacker-controlled server at `evil.com`. This initial connection is the critical entry point of the AiTM attack chain — everything that follows depends on the victim believing they are interacting with the legitimate service (OWASP ASVS v4.0.3 section 14.1.1). Because the browser has genuinely loaded `evil.com` as its top-level origin, all subsequent security checks operate against this attacker-controlled domain rather than the intended `bank.com`.
 
 </details>
 
@@ -25688,7 +25688,7 @@ The `Host` and `Origin` headers are rewritten by the proxy to match `bank.com`, 
 <details>
 <summary><strong>3. Legitimate identity provider returns login page with WebAuthn challenge</strong></summary>
 
-The real IdP responds to the proxy request with its standard login HTML shell and a dynamically generated WebAuthn challenge (WebAuthn Level 2, §6.5.2). This challenge is a server-side random byte string that the client must sign with the correct private key to prove possession of a registered credential. Because Evilginx relayed the request with `Host: bank.com`, the IdP has no indication of the proxy's presence.
+The real IdP responds to the proxy request with its standard login HTML shell and a dynamically generated WebAuthn challenge (WebAuthn Level 2 section 6.5.2). This challenge is a server-side random byte string that the client must sign with the correct private key to prove possession of a registered credential. Because Evilginx relayed the request with `Host: bank.com`, the IdP has no indication of the proxy's presence.
 
 ```json
 \{
@@ -26693,13 +26693,13 @@ M2M authentication introduces a distinct threat landscape separate from human-fa
 | **Credential theft** | Attacker extracts static secret from source code, config files, or CI/CD pipeline | Indefinite impersonation of the compromised service | Zero-secret architecture (§23.6, §23.7), secret scanning, SPIFFE (§23.3) |
 | **Replay attack** | Attacker captures and retransmits a valid authentication message | Session hijacking, unauthorised API access | Nonce/jti claims, short-lived tokens, TLS session binding |
 | **Man-in-the-middle** | Attacker intercepts and modifies service-to-service communication | Data exfiltration, request tampering | mTLS with certificate pinning (§23.2), encrypted transport |
-| **Token forwarding** | Legitimate recipient forwards an access token to an unauthorised party | Privilege escalation, lateral movement | Sender-constrained tokens (RFC 8705, §23.2.1), narrow scoping |
+| **Token forwarding** | Legitimate recipient forwards an access token to an unauthorised party | Privilege escalation, lateral movement | Sender-constrained tokens (RFC 8705 section 23.2.1), narrow scoping |
 | **Supply chain compromise** | Malicious package or build step injects backdoor credentials | Persistent unauthorised access across deployments | SBOM analysis, build pipeline hardening, OIDC federation (§23.7) |
 | **Insider threat** | Developer or operator with access to secrets misuses credentials | Data breach, service disruption | Least privilege, audit logging, credential rotation |
 | **Clock skew exploitation** | Attacker manipulates system clocks to extend credential validity | Token acceptance beyond intended lifetime | Clock synchronisation (NTP), short lifetimes, skew-tolerant validation |
 | **Credential stuffing** | Attacker uses leaked secrets across multiple services | Cross-service compromise, lateral movement | Unique credentials per service, proof-of-possession (not shared secrets) |
 
-Static secrets (API keys, long-lived client secrets) provide minimal protection — they are equally vulnerable to theft, replay, forwarding, and stuffing. Dynamic identity mechanisms with short-lived, scoped, proof-of-possession credentials (SPIFFE SVIDs, managed identity tokens, OIDC federation tokens) provide substantially better protection across the entire threat spectrum. For the full M2M authentication mechanism comparison, see §23.10.
+Static secrets (API keys, long-lived client secrets) provide minimal protection — they are equally vulnerable to theft, replay, forwarding, and stuffing. Dynamic identity mechanisms with short-lived, scoped, proof-of-possession credentials (SPIFFE SVIDs, managed identity tokens, OIDC federation tokens) provide substantially better protection across the entire threat spectrum. For the full M2M authentication mechanism comparison, see §24.
 
 The following diagram maps the primary M2M threat vectors and their corresponding defenses:
 
@@ -27508,7 +27508,7 @@ eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FwcC5leGFtcGxlLmNvbSI
 <details>
 <summary><strong>3. M2M Client App posts assertion to Token Endpoint</strong></summary>
 
-The M2M Client App dispatches an HTTP POST to the Authorization Server's `/token` endpoint (RFC 6749, §4.4) using `grant_type=client_credentials`. The signed JWS is sent in the `client_assertion` form parameter with the `urn:ietf:params:oauth:client-assertion-type:jwt-bearer` assertion type (RFC 7523 §2.1).
+The M2M Client App dispatches an HTTP POST to the Authorization Server's `/token` endpoint (RFC 6749 section 4.4) using `grant_type=client_credentials`. The signed JWS is sent in the `client_assertion` form parameter with the `urn:ietf:params:oauth:client-assertion-type:jwt-bearer` assertion type (RFC 7523 §2.1).
 
 ```http
 POST /token HTTP/1.1
@@ -27551,7 +27551,7 @@ Upon receiving the token request, the Authz Server extracts the `iss` claim from
 <details>
 <summary><strong>5. Authz Server verifies JWT cryptographic signature</strong></summary>
 
-The Authz Server uses the `kid` value from the JWT header to select the matching public key from the fetched JWKS (RFC 7517, §4.5). It then verifies the JWS signature over the header and payload bytes (RFC 7515, §6.2). A valid signature confirms that the assertion was produced by a holder of the private key corresponding to the registered public key.
+The Authz Server uses the `kid` value from the JWT header to select the matching public key from the fetched JWKS (RFC 7517 section 4.5). It then verifies the JWS signature over the header and payload bytes (RFC 7515, §6.2). A valid signature confirms that the assertion was produced by a holder of the private key corresponding to the registered public key.
 
 </details>
 
@@ -28924,7 +28924,7 @@ The GitHub OIDC Issuer synthesizes a JWT, populating the `sub` (subject) claim w
 <details>
 <summary><strong>3. GitHub OIDC Issuer returns signed JWT to CI/CD Runner (GitHub)</strong></summary>
 
-The GitHub OIDC Issuer signs the token using its RSA private key and injects the resulting assertion into the ephemeral runner's isolated workspace environment as an environment variable (e.g., `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) (OpenID Connect Core, §3.1.3). The signature algorithm is RS256 by default, and the corresponding public key is published at the well-known JWKS endpoint (`/.well-known/jwks.json`) so that downstream consumers can verify the token's integrity without any prior key exchange.
+The GitHub OIDC Issuer signs the token using its RSA private key and injects the resulting assertion into the ephemeral runner's isolated workspace environment as an environment variable (e.g., `ACTIONS_ID_TOKEN_REQUEST_TOKEN`) (OpenID Connect Core section 3.1.3). The signature algorithm is RS256 by default, and the corresponding public key is published at the well-known JWKS endpoint (`/.well-known/jwks.json`) so that downstream consumers can verify the token's integrity without any prior key exchange.
 
 > **Artifact:** Signed JWT (`ACTIONS_ID_TOKEN_REQUEST_TOKEN`) — deposited in runner environment
 
@@ -30394,7 +30394,7 @@ Bots — chatbots, RPA (Robotic Process Automation) bots, workflow automation bo
 #### 25.5 Regulatory Compliance for Non-Human Identities
 While most regulatory frameworks were written with human identity controls in mind, their requirements implicitly — and sometimes explicitly — apply to non-human identities. This section maps NHI-specific requirements across six major regulatory and standards frameworks.
 
-**SOX (Sarbanes-Oxley Act)** — SOX §407 requires management to assess the effectiveness of internal controls over financial reporting. NHIs with access to financial systems are within scope: all service accounts must be inventoried and subject to least-privilege access controls, segregation of duties must be enforced (no single NHI should create and approve financial transactions), and all NHI activity in financial systems must produce immutable audit logs retained for a minimum of 7 years (SEC Rule 17a-4).
+**SOX (Sarbanes-Oxley Act)** — SOX section 407 requires management to assess the effectiveness of internal controls over financial reporting. NHIs with access to financial systems are within scope: all service accounts must be inventoried and subject to least-privilege access controls, segregation of duties must be enforced (no single NHI should create and approve financial transactions), and all NHI activity in financial systems must produce immutable audit logs retained for a minimum of 7 years (SEC Rule 17a-4).
 
 **PCI DSS v4.0** — Requirement 8 (Identity and Access Management) includes provisions that directly address machine identity security:
 
@@ -30807,7 +30807,7 @@ WIAM operates under regulatory frameworks that mandate specific security control
 
 | Regulation / Framework | Requirement | Impact on WIAM |
 |:-----------------------|:-----------|:---------------|
-| **SOX §407** (Sarbanes-Oxley) | Internal controls over financial reporting; regular access reviews | Quarterly access certification campaigns — managers must review and approve every employee's access to financial systems |
+| **SOX section 407** (Sarbanes-Oxley) | Internal controls over financial reporting; regular access reviews | Quarterly access certification campaigns — managers must review and approve every employee's access to financial systems |
 | **HIPAA** (Health Insurance Portability) | Access controls for protected health information (PHI) | Minimum necessary access principle; audit logging of every PHI access event; automatic session timeout |
 | **PCI DSS Requirement 7** | Restrict access to cardholder data by business need-to-know | Role-based access control; access reviews at least annually; unique user IDs for all personnel |
 | **PCI DSS Requirement 8** | Identify and authenticate access to system components | MFA for all non-console administrative access; password complexity requirements; session lockout after inactive period |
@@ -31227,7 +31227,7 @@ The CIAM platform provides the infrastructure for all self-service operations. T
 | **Credential management** | User (limited) | User changes own password via self-service portal; IT can force password reset; user manages MFA devices within IT-defined constraints |
 | **Account recovery** | IT helpdesk | IT helpdesk verifies identity (video call, in-person visit, manager approval via ServiceNow workflow) before issuing a password reset or TAP |
 | **Role changes** | HR/IT | SCIM propagates role changes from HR system → IdP group membership updates → downstream application access adjusts |
-| **Access reviews** | Manager + GRC | Periodic (quarterly/annually) review of employee access by managers — required by SOX §407, PCI DSS Requirement 7. Managers certify or revoke access for each direct report |
+| **Access reviews** | Manager + GRC | Periodic (quarterly/annually) review of employee access by managers — required by SOX section 407, PCI DSS Requirement 7. Managers certify or revoke access for each direct report |
 | **Account deprovisioning** | HR/IT | Automated via SCIM when HR status changes to "terminated". Immediate actions: revoke all sessions, invalidate tokens, disable account, remove from all groups. NIST and CIS benchmarks recommend deprovisioning within 24 hours of termination |
 | **Off-boarding compliance** | IT + Legal | Retain audit logs per regulatory requirements; archive mailbox if required; transfer ownership of shared resources |
 
@@ -33233,7 +33233,7 @@ The `acr` claim in the OIDC ID token indicates the **authentication assurance le
 
 The `acr` claim is set by the IdP based on the authentication methods used during the session. The Relying Party (application) inspects the claim to determine whether the current session's assurance level is sufficient for the requested operation. If the `acr` is lower than required, the application initiates step-up authentication (§28.5.3).
 
-**Processing Rules.** Per (OIDC Core, §3.1.2.1), the `acr_values` parameter is a space-separated list of strings. The OP processes it as follows: if the OP supports any of the requested values, it authenticates the user at that level and returns the corresponding `acr` claim; if the OP does not support any requested value, it returns an error (`invalid_request`). When multiple values are provided, the OP should select the highest assurance level it can satisfy from the list — though the specification does not mandate preference ordering, this is the conventional interpretation.
+**Processing Rules.** Per (OIDC Core section 3.1.2.1), the `acr_values` parameter is a space-separated list of strings. The OP processes it as follows: if the OP supports any of the requested values, it authenticates the user at that level and returns the corresponding `acr` claim; if the OP does not support any requested value, it returns an error (`invalid_request`). When multiple values are provided, the OP should select the highest assurance level it can satisfy from the list — though the specification does not mandate preference ordering, this is the conventional interpretation.
 
 ##### 28.7.2 amr: Authentication Methods References
 
@@ -35902,7 +35902,7 @@ The **Server** deterministically applies its long-term secret OPRF key $k_s$ to 
 <details>
 <summary><strong>3. Client securely transmits Envelope for Server storage</strong></summary>
 
-The **Client** securely packages and transmits its public key alongside the strongly encrypted Envelope directly to the **Server** for persistent database storage (RFC 9807, §4.3). If the server infrastructure is subsequently breached, the attacker merely extracts the Envelope—which remains mathematically impossible to decrypt without the plaintext password, ensuring unconditional soundness against offline dictionary attacks.
+The **Client** securely packages and transmits its public key alongside the strongly encrypted Envelope directly to the **Server** for persistent database storage (RFC 9807 section 4.3). If the server infrastructure is subsequently breached, the attacker merely extracts the Envelope—which remains mathematically impossible to decrypt without the plaintext password, ensuring unconditional soundness against offline dictionary attacks.
 
 ```json
 \{
@@ -39761,7 +39761,7 @@ Cookie: bff_pre_auth=req-991
 <details>
 <summary><strong>9. BFF exchanges the authorization code for tokens at the authorization server</strong></summary>
 
-The **BFF** strongly authenticates and transmits a server-to-server POST strictly to the **Authorization Server**'s token endpoint (RFC 6749, §4.1.3). This explicit request mathematically includes the authorization code, the original PKCE `code_verifier`, and the **BFF**'s distinct client authentication (`private_key_jwt` — a signed JWT assertion using the backend's private key). This transport exchange executes entirely server-side — the **Browser** literally never touches the tokens.
+The **BFF** strongly authenticates and transmits a server-to-server POST strictly to the **Authorization Server**'s token endpoint (RFC 6749 section 4.1.3). This explicit request mathematically includes the authorization code, the original PKCE `code_verifier`, and the **BFF**'s distinct client authentication (`private_key_jwt` — a signed JWT assertion using the backend's private key). This transport exchange executes entirely server-side — the **Browser** literally never touches the tokens.
 
 ```http
 POST /token HTTP/1.1
@@ -41023,7 +41023,7 @@ username=alice&password=***
 <details>
 <summary><strong>5. Server verifies Victim's credentials</strong></summary>
 
-The Server extracts the username and password from the `POST` body and validates them against the stored credential record. Password verification typically uses a constant-time comparison against a salted hash (e.g., Argon2id or bcrypt per OWASP ASVS v4.0.3, §2.4.5). On successful verification, the Server proceeds to session rotation rather than adopting the pre-existing session.
+The Server extracts the username and password from the `POST` body and validates them against the stored credential record. Password verification typically uses a constant-time comparison against a salted hash (e.g., Argon2id or bcrypt per OWASP ASVS v4.0.3 section 2.4.5). On successful verification, the Server proceeds to session rotation rather than adopting the pre-existing session.
 
 </details>
 
@@ -41046,7 +41046,7 @@ The Server invokes its CSPRNG to mint a fresh, cryptographically random session 
 <details>
 <summary><strong>8. Server issues hardened Set-Cookie with SID=X9Y8 to Victim</strong></summary>
 
-The Server returns the new session identifier to the Victim's browser via a `Set-Cookie` header with all recommended security attributes (RFC 6265, §4.1.2): `Secure` (transmit only over HTTPS), `HttpOnly` (inaccessible to JavaScript), and `SameSite=Strict` (prevent cross-site request attachment). This completes the login flow.
+The Server returns the new session identifier to the Victim's browser via a `Set-Cookie` header with all recommended security attributes (RFC 6265 section 4.1.2): `Secure` (transmit only over HTTPS), `HttpOnly` (inaccessible to JavaScript), and `SameSite=Strict` (prevent cross-site request attachment). This completes the login flow.
 
 ```http
 HTTP/1.1 200 OK
@@ -41067,7 +41067,7 @@ The Attacker sends a `GET` request to the Server using the original `SID=A1B2` c
 <details>
 <summary><strong>10. Server rejects SID=A1B2 with HTTP 401 Unauthorized</strong></summary>
 
-The Server looks up `SID=A1B2` in its session store and finds no entry — the session was destroyed in step 6. The Server returns `HTTP 401 Unauthorized`, confirming that session rotation successfully neutralized the fixation attack (OWASP ASVS v4.0.3, §3.5.1; RFC 9110, §19.5.2).
+The Server looks up `SID=A1B2` in its session store and finds no entry — the session was destroyed in step 6. The Server returns `HTTP 401 Unauthorized`, confirming that session rotation successfully neutralized the fixation attack (OWASP ASVS v4.0.3 section 3.5.1; RFC 9110 section 19.5.2).
 
 ```http
 HTTP/1.1 401 Unauthorized
@@ -42015,7 +42015,7 @@ grant_type=refresh_token
 <details>
 <summary><strong>2. Attacker steals and redeems the active token</strong></summary>
 
-An **Attacker** successfully manages to exfiltrate `RT_2` natively from the client device (RFC 6819, §4.6.4). Since the backend cannot actively distinguish the attacker from the legitimate client purely via bearer tokens, the **Authorization Server** inevitably accepts `RT_2`, formally generates `RT_3` logically for the attacker, and decisively marks `RT_2` as definitively consumed. The **Attacker** now actively holds a structurally valid session payload.
+An **Attacker** successfully manages to exfiltrate `RT_2` natively from the client device (RFC 6819 section 4.6.4). Since the backend cannot actively distinguish the attacker from the legitimate client purely via bearer tokens, the **Authorization Server** inevitably accepts `RT_2`, formally generates `RT_3` logically for the attacker, and decisively marks `RT_2` as definitively consumed. The **Attacker** now actively holds a structurally valid session payload.
 
 ```http
 POST /token HTTP/1.1
@@ -42062,7 +42062,7 @@ grant_type=refresh_token
 <details>
 <summary><strong>4. Authorization Server triggers Token Family Invalidation</strong></summary>
 
-The **Authorization Server** actively detects `RT_2` structurally arriving again. Since `RT_2` was officially marked consumed seamlessly in Step 2, the server mathematically proves that the exact token was duplicated (RFC 6819, §6.2.2.3). The **Authorization Server** immediately triggers **Token Family Invalidation**: decisively revoking the entire cryptographic lineage securely. When the **Attacker** eventually tries to use `RT_3`, they will be permanently blocked. 
+The **Authorization Server** actively detects `RT_2` structurally arriving again. Since `RT_2` was officially marked consumed seamlessly in Step 2, the server mathematically proves that the exact token was duplicated (RFC 6819 section 6.2.2.3). The **Authorization Server** immediately triggers **Token Family Invalidation**: decisively revoking the entire cryptographic lineage securely. When the **Attacker** eventually tries to use `RT_3`, they will be permanently blocked. 
 
 **Rejection Scenario:** When the backend decisively detects refresh token replay, the **Authorization Server** instantly revokes the entire exact token family mapping, forcibly terminates the active session, and rigidly logs a `TOKEN_FAMILY_COMPROMISED` SIEM event indicating active session hijacking. Both the client and attacker are cleanly locked out, dynamically forcing the user to securely re-authenticate.
 
@@ -42664,7 +42664,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Client sends AS-REQ to the KDC's Authentication Service</strong></summary>
 
-The **Client** actively initiates authentication by dynamically sending an Authentication Service Request (AS-REQ) directly to the **Key Distribution Center (KDC)** (RFC 4120, §3.1.1). The request mathematically contains the client's principal name (`cname`), the requested service (`sname` — generally `krbtgt/REALM`), a secure nonce for replay prevention, the supported encryption types, and the required pre-authentication data. The pre-authentication explicitly contains a timestamp encrypted precisely with the client's password-derived long-term key.
+The **Client** actively initiates authentication by dynamically sending an Authentication Service Request (AS-REQ) directly to the **Key Distribution Center (KDC)** (RFC 4120 section 3.1.1). The request mathematically contains the client's principal name (`cname`), the requested service (`sname` — generally `krbtgt/REALM`), a secure nonce for replay prevention, the supported encryption types, and the required pre-authentication data. The pre-authentication explicitly contains a timestamp encrypted precisely with the client's password-derived long-term key.
 
 ```json
 \{
@@ -42703,7 +42703,7 @@ The **Key Distribution Center (KDC)** securely retrieves the client's structured
 <details>
 <summary><strong>3. KDC returns the AS-REP with a TGT and session key</strong></summary>
 
-The **Key Distribution Center (KDC)** dynamically generates the Authentication Service Reply (AS-REP) exactly containing two items (RFC 4120, §3.1.3): securely, the opaque Ticket Granting Ticket (TGT) strongly encrypted with the `krbtgt` master key, and the distinct `Session Key_TGS` encrypted exclusively with the client's long-term key. The **Client** structurally possesses the TGT but mathematically cannot read its contents.
+The **Key Distribution Center (KDC)** dynamically generates the Authentication Service Reply (AS-REP) exactly containing two items (RFC 4120 section 3.1.3): securely, the opaque Ticket Granting Ticket (TGT) strongly encrypted with the `krbtgt` master key, and the distinct `Session Key_TGS` encrypted exclusively with the client's long-term key. The **Client** structurally possesses the TGT but mathematically cannot read its contents.
 
 ```json
 \{
@@ -43787,7 +43787,7 @@ Inside the TPM's secure boundary, a new ECDSA P-256 keypair is generated (ISO 11
 <details>
 <summary><strong>5. Browser submits registration to Relying Party</strong></summary>
 
-The browser packages the TPM-generated public key with a Proof of Possession JWT signed with the private key, demonstrating that the client controls the corresponding private key (W3C DBSC, §4.3; RFC 9449, §4.2). The RP verifies the PoP signature and stores the public key in its session database.
+The browser packages the TPM-generated public key with a Proof of Possession JWT signed with the private key, demonstrating that the client controls the corresponding private key (W3C DBSC section 4.3; RFC 9449 section 4.2). The RP verifies the PoP signature and stores the public key in its session database.
 
 ```json
 \{
@@ -43825,7 +43825,7 @@ When the short-lived session cookie expires, the browser attempts a protected re
 <details>
 <summary><strong>7. Hardware TPM signs nonce with device-bound private key</strong></summary>
 
-The browser delegates nonce signing to the TPM via the DBSC signing API (W3C DBSC, §4.4). The TPM retrieves the sealed private key and signs the nonce using ECDSA P-256 (ISO 11889, Part 3, §18.4). The private key material never exits the chip — only the signature is returned.
+The browser delegates nonce signing to the TPM via the DBSC signing API (W3C DBSC section 4.4). The TPM retrieves the sealed private key and signs the nonce using ECDSA P-256 (ISO 11889, Part 3, §18.4). The private key material never exits the chip — only the signature is returned.
 
 </details>
 
@@ -46075,7 +46075,7 @@ The WebSocket Gateway receives the `auth_refresh` control frame, extracts the JW
 <details>
 <summary><strong>9. WebSocket Gateway acknowledges token refresh with auth_ack response</strong></summary>
 
-Upon successful token validation, the WebSocket Gateway sends an `auth_ack` control message back to the Browser SPA, confirming that the session's authentication context has been updated. This acknowledgment serves a dual purpose: it signals to the client that it should schedule the next token refresh before the new token's `exp` claim elapses, and it provides a heartbeat-like confirmation that the connection remains healthy (RFC 6455, §6.5.2). If the client does not receive an `auth_ack` within a reasonable timeout — or receives a negative acknowledgment — it should assume the session is no longer valid and initiate a full re-authentication flow from step 1.
+Upon successful token validation, the WebSocket Gateway sends an `auth_ack` control message back to the Browser SPA, confirming that the session's authentication context has been updated. This acknowledgment serves a dual purpose: it signals to the client that it should schedule the next token refresh before the new token's `exp` claim elapses, and it provides a heartbeat-like confirmation that the connection remains healthy (RFC 6455 section 6.5.2). If the client does not receive an `auth_ack` within a reasonable timeout — or receives a negative acknowledgment — it should assume the session is no longer valid and initiate a full re-authentication flow from step 1.
 
 ```json
 \{
@@ -46218,7 +46218,7 @@ The industry has progressively moved toward faster revocation through several ev
 
 CAEP represents the culmination of this evolution: it combines the low latency of push-based notifications with the specificity of event-driven actions, all without imposing per-request overhead on the relying party.
 
-Continuous Access Evaluation (CAE) fundamentally eliminates this gap. It represents a paradigm shift from static, time-bound trust to dynamic, event-driven policy enforcement. Instead of waiting patiently for a token to expire or a user to interactively re-authenticate, Identity Providers and security tooling continuously monitor the user's risk posture and immediately push revocation signals to resource providers the exact moment a material change is detected. For the related but harder problem of propagating revocation across independent, non-federated domains — where no shared IdP or federation relationship exists — see §39.14. This chapter comprehensively dissects the open standards enabling this real-time architecture — the Shared Signals Framework (SSF), the Continuous Access Evaluation Protocol (CAEP), and Risk Incident Sharing and Coordination (RISC) — alongside their concrete integration into Zero Trust architectures.
+Continuous Access Evaluation (CAE) fundamentally eliminates this gap. It represents a paradigm shift from static, time-bound trust to dynamic, event-driven policy enforcement. Instead of waiting patiently for a token to expire or a user to interactively re-authenticate, Identity Providers and security tooling continuously monitor the user's risk posture and immediately push revocation signals to resource providers the exact moment a material change is detected. For the related but harder problem of propagating revocation across independent, non-federated domains — where no shared IdP or federation relationship exists — see §40.14. This chapter comprehensively dissects the open standards enabling this real-time architecture — the Shared Signals Framework (SSF), the Continuous Access Evaluation Protocol (CAEP), and Risk Incident Sharing and Coordination (RISC) — alongside their concrete integration into Zero Trust architectures.
 
 #### 41.1 CAEP Event Types and Real-Time Session Revocation
 The **Continuous Access Evaluation Protocol (CAEP)** is an OpenID Foundation finalized specification (2025) that defines a standardized set of security event types and payloads for communicating access-relevant contextual changes in near real-time. Where traditional OAuth/OIDC implementations explicitly accept the revocation gap as an unavoidable architectural trade-off for scalable, stateless token validation (§37.3.4), CAEP provides the standard vocabulary for independent platforms to terminate trust dynamically.
@@ -47371,7 +47371,7 @@ As analyzed in §40.4, §40.6, the Continuous Access Evaluation Protocol (CAEP) 
 standards-based path forward for near real-time federated state synchronization and forced
 revocation.
 
-In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§40.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, §41.1). A harder variant — cross-domain session revocation across independent, non-federated services (§39.14) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
+In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§40.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, §41.1). A harder variant — cross-domain session revocation across independent, non-federated services (§40.14) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
 
 #### F10: Continuous Access Evaluation (CAE) is the Future of Session Security
 The legacy authorization model of "authenticate once, issue token, and blindly trust for the
@@ -47588,7 +47588,7 @@ The compliance lag manifests across multiple frameworks:
 | Compliance Framework | Cryptographic Mandate | Current Reality | Gap |
 |:---------------------|:---------------------|:----------------|:----|
 | **PCI DSS 4.0.1** | TLS 1.2 minimum; recommends 1.3 | TLS 1.3 is standard; TLS 1.2 allows CBC ciphers | ~7 years |
-| **NIST SP 800-63B** | SMS OTP acceptable for AAL1 | SMS OTP is deprecated by NIST SP 800-63B itself (§9.2.10) | Self-contradictory |
+| **NIST SP 800-63B** | SMS OTP acceptable for AAL1 | SMS OTP is deprecated by NIST SP 800-63B itself (section 9.2.10) | Self-contradictory |
 | **HIPAA** | Encryption "addressable" not "required" | Unencrypted PHI breaches are the most common | ~15 years |
 | **SOX IT controls** | No MFA requirement for financial systems | MFA bypass attacks are the primary attack vector | ~10 years |
 | **eIDAS 1.0** | Requires QWAC certificates for trust services | QWAC certificates do not prevent phishing or impersonation | ~8 years |
