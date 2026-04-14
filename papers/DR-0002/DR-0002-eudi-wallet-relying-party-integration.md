@@ -963,7 +963,7 @@ The LPID also includes mandatory metadata attributes:
 
 #### 3.4 EUID: The Anchor Identifier for Legal Persons
 
-The **European Unique Identifier (EUID)** is the primary cross-border identifier for legal persons, regulated by Commission Implementing Regulation (EU) 2021/1042, [§10](#10-cross-device-remote-presentation). It replaces LEI, VAT number, and national registration numbers as the canonical identifier in the LPID credential.
+The **European Unique Identifier (EUID)** is the primary cross-border identifier for legal persons, regulated by Commission Implementing Regulation (EU) 2021/1042, §10. It replaces LEI, VAT number, and national registration numbers as the canonical identifier in the LPID credential.
 
 **Structure:**
 

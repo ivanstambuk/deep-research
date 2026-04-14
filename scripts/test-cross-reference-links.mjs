@@ -60,10 +60,20 @@ function testExternalCitationIsSkipped() {
     },
     targetIndex: buildIndex([]),
   });
+  const euResult = linkifyTextValue('Commission Implementing Regulation (EU) 2021/1042, §10 defines the EUID.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
 
   assert.equal(result.changed, false);
   assert.equal(result.diagnostics.length, 1);
   assert.equal(result.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(euResult.changed, false);
+  assert.equal(euResult.diagnostics.length, 1);
+  assert.equal(euResult.diagnostics[0].category, 'skipped_external_citation');
 }
 
 function testUnsupportedShapesStayPlain() {

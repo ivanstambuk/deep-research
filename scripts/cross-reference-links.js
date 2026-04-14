@@ -33,6 +33,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\b(?:Article|Art\.)\s+\d[\w.-]*(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bAnnex\s+[A-Z0-9IVXLC]+(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\b(?:Directive|Regulation)(?:\s+\(?EU\)?)?(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
+  /\b\(?EU\)?\s+\d{4}\/\d+\s*,?\s*$/i,
   /\bHIPAA\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bPCI\s+DSS\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bOWASP\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
