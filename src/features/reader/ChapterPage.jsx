@@ -200,6 +200,55 @@ export default function ChapterPage({ readerDocumentMeta }) {
   }, [chapter, shouldRenderArticle]);
 
   useEffect(() => {
+    if (!shouldRenderArticle || !articleRef.current) {
+      return undefined;
+    }
+
+    const articleNode = articleRef.current;
+
+    const handleArticleClick = (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const anchor = event.target instanceof Element
+        ? event.target.closest('a[data-doc-xref="true"]')
+        : null;
+
+      if (!anchor) {
+        return;
+      }
+
+      const targetSlug = anchor.getAttribute('data-doc-slug') || readerDocumentMeta.slug;
+      const targetChapterId = anchor.getAttribute('data-doc-chapter-id');
+      const targetHeadingId = anchor.getAttribute('data-doc-heading-id');
+
+      if (!targetChapterId) {
+        return;
+      }
+
+      event.preventDefault();
+
+      navigate({
+        pathname: `/${targetSlug}/${targetChapterId}`,
+        hash: targetHeadingId ? `#${targetHeadingId}` : '',
+      });
+
+      if (targetChapterId === chapterId && targetHeadingId) {
+        const target = document.getElementById(targetHeadingId);
+        if (target) {
+          scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
+        }
+      }
+    };
+
+    articleNode.addEventListener('click', handleArticleClick);
+    return () => {
+      articleNode.removeEventListener('click', handleArticleClick);
+    };
+  }, [chapterId, navigate, readerDocumentMeta.slug, shouldRenderArticle]);
+
+  useEffect(() => {
     window.localStorage.setItem(NAV_WIDTH_STORAGE_KEY, String(navWidth));
   }, [navWidth]);
 

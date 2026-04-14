@@ -16,6 +16,10 @@ const FIRST_CHAPTER_ID = '1-mcp-authorization-spec-evolution';
 const SECOND_CHAPTER_ID = '2-mcp-over-streamable-http-transport-layer-auth-implications';
 const THIRD_CHAPTER_ID = '3-mcp-scope-lifecycle-discovery-selection-and-challenge';
 const SECOND_HEADING_ID = '21-transport-evolution';
+const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
+const DR2_SOURCE_CHAPTER_ID = '10-cross-device-remote-presentation';
+const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
+const DR2_TARGET_HEADING_ID = '91-flow-description';
 
 async function assertSlugRedirect(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}`;
@@ -209,6 +213,32 @@ async function assertBottomPager(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertGeneratedCrossReferenceNavigation(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_SOURCE_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking generated cross-reference navigation: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  const xref = page.locator(`a[data-doc-xref="true"][data-doc-chapter-id="${DR2_TARGET_CHAPTER_ID}"][data-doc-heading-id="${DR2_TARGET_HEADING_ID}"]`).first();
+  await xref.waitFor({ state: 'visible', timeout: 20_000 });
+  await xref.click();
+
+  await page.waitForFunction(({ slug, chapterId, headingId }) => {
+    const target = document.getElementById(headingId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    return (
+      window.location.pathname === `/${slug}/${chapterId}` &&
+      window.location.hash === `#${headingId}` &&
+      top != null &&
+      top >= 0 &&
+      top <= 180
+    );
+  }, {
+    slug: DR2_SLUG,
+    chapterId: DR2_TARGET_CHAPTER_ID,
+    headingId: DR2_TARGET_HEADING_ID,
+  }, { timeout: 20_000 });
+}
+
 async function main() {
   await runCommand('node', ['scripts/build-reader-assets.js']);
 
@@ -231,6 +261,7 @@ async function main() {
     await assertChapterNavControls(page);
     await assertOutlineHashNavigation(page);
     await assertBottomPager(page);
+    await assertGeneratedCrossReferenceNavigation(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {
