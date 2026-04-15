@@ -516,6 +516,7 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
    - *Red phase*: `rect rgba(231, 76, 60, 0.14)`
    - *Blue phase*: `rect rgba(52, 152, 219, 0.14)`
    - Never use `rect rgb()` — the opaque backgrounds are unreadable on dark theme.
+   - For long or multi-stage sequences, especially OAuth, authorization, wallet, or signing flows, prefer explicit phase grouping when it materially improves readability. Do not force phases on short or already-clear sequences, but long diagrams should normally be segmented into their major conceptual stages.
 6. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
 7. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
