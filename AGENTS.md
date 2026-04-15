@@ -1,6 +1,8 @@
 # Agent Instructions — deep-research
 
-## Web Search Failure — Immediate Stop and Escalate
+## Web Search Failure — Immediate Stop and Escalate (GitHub Copilot / Cline Only)
+
+> **Scope**: This section applies only to harnesses that rely on the local SearXNG-based search workflow — primarily **GitHub Copilot**, **Cline**, and similar orchestrators/subagents using that stack. It does **not** apply to harnesses with their own native web-search tool, such as this Codex environment using the built-in `web` tool. Those harnesses should follow their own system/developer browsing rules instead of the SearXNG-specific stop rule below.
 
 **If web search returns zero results, times out, or produces errors, you MUST stop all work immediately — whether you are the orchestrator or a subagent — and escalate to the user.** Under no circumstances may you continue research, content generation, or subagent dispatch with a broken search tool.
 
@@ -457,6 +459,8 @@ This rule applies to any file that is not intended to be committed. If you are u
 **Spec / tracker refinement rule.** When the user asks to "refine", "improve", "make another pass", or otherwise iterate on an existing `.scratch/` specification, plan, tracker, or analysis document, you must update the existing file in place. Do **not** create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. The default behavior is one evolving canonical document.
 
 **Canonical spec rule.** When iterating on a user-facing `.scratch/` specification, proposal, plan, tracker, or analysis document, the file itself is the deliverable and must read as a clean source of truth. Do **not** accumulate process-history sections such as "first pass", "second pass", "third pass", "changes from previous pass", or similar meta narration inside the document unless the user explicitly asks for review history. On each refinement round, rewrite the document as needed so the current file stands alone as the canonical target artifact. Preserve the substance; remove the editorial archaeology.
+
+**Another-pass integration rule.** When the user says "do another pass", "one more pass", "another in-depth pass", or similar on an existing `.scratch/` plan, audit, tracker, or impact-analysis document, you must treat that as an instruction to **rewrite the current document into a better canonical form**, not to append a new pass log. New findings must be merged into the relevant existing sections, tables, decisions, or recommendations so the document still reads as one seamless artifact. Do **not** add headings such as `First-Pass Findings`, `Sixth-Pass Adjustment`, `Third-Pass Conclusion`, or any equivalent revision-history structure unless the user explicitly asks for pass-by-pass review notes.
 
 **Lightweight retro workflow.** Retrospectives are **not** automatic for every session. Use them only rarely, after costly debugging or architectural sessions — for example: multi-hour bug hunts, repeated regressions in the same subsystem, reader/runtime architecture changes, or when the user explicitly asks for a retro. In those cases:
 - **Proactively propose** a short retro to the user; do not silently create one every session.
