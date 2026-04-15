@@ -8684,16 +8684,18 @@ python scripts/run-test-plan.py \
 
 ##### 11.8.4 Obtaining Test Credentials
 
-RPs preparing their verifier implementations need test credentials in SD-JWT VC and/or mdoc format. The following sources are available:
+RPs preparing their verifier implementations need test credentials in SD-JWT VC and/or mdoc format. The following sources are available. The two EU reference issuer backends are useful but not interchangeable, so RPs should choose the issuer according to the flow and credential family under test:
 
 | Source | Credential Types | Format | Requirements |
 |:-------|:----------------|:-------|:-------------|
-| **EU Reference PID Issuer** (Kotlin) | PID, mDL | SD-JWT VC, mdoc | Clone [eudi-srv-pid-issuer](https://github.com/eu-digital-identity-wallet/eudi-srv-pid-issuer) and deploy locally (Kotlin/Docker) |
-| **EU Reference Web Issuer** (Python) | PID, mDL, EAA | SD-JWT VC | Clone [eudi-srv-web-issuing-eudiw-py](https://github.com/eu-digital-identity-wallet/eudi-srv-web-issuing-eudiw-py) and deploy locally (Python) |
+| **EU Reference PID Issuer** (Kotlin) | PID, mDL, EHIC, Learning Credential | SD-JWT VC, mdoc | Clone [eudi-srv-pid-issuer](https://github.com/eu-digital-identity-wallet/eudi-srv-pid-issuer) and deploy locally (Kotlin/Docker); auth-code-oriented reference issuer; signed metadata default; no `pre-authorized_code` flow |
+| **EU Reference Web Issuer** (Python) | PID, mDL, EAA, and broader test credential catalog | SD-JWT VC, mdoc | Clone [eudi-srv-web-issuing-eudiw-py](https://github.com/eu-digital-identity-wallet/eudi-srv-web-issuing-eudiw-py) and deploy locally (Python); broader reference/demo issuer; supports `authorization_code` + `pre-authorized_code`, deferred issuance, richer credential metadata/configuration, and a wider issuer feature surface |
 | **German SPRIND Reference Issuer** | PID | SD-JWT VC | Access via SPRIND sandbox (invitation-only; see §28.3) |
 | **French Playground** | PID | TBD | Access via France Identité test environment (§28.3) |
 | **OIDF Conformance Suite** | Simulated credentials | SD-JWT VC, mdoc | Suite acts as simulated Wallet; no real credentials needed |
 | **Mock Web Wallet** | PID (simulated) | SD-JWT VC | Clone [grnet/eudi-web-wallet-mock](https://github.com/grnet/eudi-web-wallet-mock); simulates Wallet interactions without mobile apps |
+
+> **Reference-stack caveat**: The Kotlin `eudi-srv-pid-issuer` and Python `eudi-srv-web-issuing-eudiw-py` backends are **not feature-parity components**. The Kotlin backend is the narrower, auth-code-oriented issuer; the Python backend is the broader demo/reference issuer platform. When documenting interoperability results, record which issuer/backend was used rather than writing only "tested with the EU Reference Wallet."
 
 **Self-Signed Test Credentials:**
 
@@ -8710,7 +8712,7 @@ The reference PID issuer generates its own certificate hierarchy for testing. RP
 
 **Test Status List Endpoints:**
 
-The reference issuer provides test Status List endpoints for revocation testing. RPs can issue a credential, revoke it via the issuer's admin API, and verify that their Status List consumption logic correctly detects the revocation — testing both cached and per-presentation Status List fetching modes.
+Reference issuer stacks in the EU reference ecosystem provide test Status List endpoints for revocation testing. RPs can issue a credential, revoke it via the issuer's admin API, and verify that their Status List consumption logic correctly detects the revocation — testing both cached and per-presentation Status List fetching modes.
 
 ##### 11.8.5 RP Pre-Production Testing Checklist
 
@@ -8739,6 +8741,8 @@ The following checklist maps each RP verification aspect to a specific test tool
 | 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration (§4) |
 | 20 | **Accessibility verification** | WCAG 2.2 audit tools | Verify consent UX, error messages, verification results meet WCAG 2.1 AA (§21.5) |
 
+> **Reference issuer selection**: For tests that depend on issuance behavior rather than pure presentation behavior, choose the issuer/backend based on the flow under test. The Kotlin PID issuer and Python web issuer are not interchangeable; for example, `pre-authorized_code` issuance requires the Python backend, while core auth-code wallet testing can use either backend if the required credential family is available.
+>
 > **Recommended testing progression:**
 > 1. Start with the **OIDF Conformance Suite** — automated, fast feedback, CI/CD-compatible
 > 2. Graduate to the **EU Reference Wallet** — end-to-end testing with realistic credential presentations
@@ -20492,6 +20496,8 @@ RPs should not assume that all Wallet implementations behave identically. Testin
 | **Response timing** | Biometric-first Wallets may respond faster than PIN-first Wallets | Use generous timeouts and avoid assuming a fixed response time |
 
 > **Recommendation**: Maintain a continuous integration test pipeline that runs DCQL query suites against the EU Reference Wallet. Periodically test against Member State Wallet pilots when access is available during Launchpad events.
+>
+> **Reference-stack caveat**: "Tested with the EU Reference Wallet" is not a complete interoperability statement unless the issuer/backend combination is also recorded. The public reference stack includes multiple server-side components with different capability surfaces, so RPs should capture whether a result was obtained with the Kotlin PID issuer or the Python web issuer, alongside the wallet build and flow profile.
 
 **EUDI Wallets Launchpad — Format and Participation:**
 
