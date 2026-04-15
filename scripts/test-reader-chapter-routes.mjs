@@ -20,6 +20,8 @@ const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '10-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
 const DR2_TARGET_HEADING_ID = '91-flow-description';
+const DR2_MERMAID_CHAPTER_ID = '24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub';
+const DR2_MERMAID_HEADING_ID = '245-psp-specific-threat-profile';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
 const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
@@ -394,6 +396,30 @@ async function assertGeneratedLabelCrossReferenceNavigation(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertInitialHashRouteSurvivesMermaidRender(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MERMAID_CHAPTER_ID}#${DR2_MERMAID_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking initial hash route after mermaid render: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(({ slug, chapterId, headingId }) => {
+    const target = document.getElementById(headingId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    const renderedMermaids = document.querySelectorAll('.doc-article svg[id^="mermaid-"]').length;
+    return (
+      window.location.pathname === `/${slug}/${chapterId}` &&
+      window.location.hash === `#${headingId}` &&
+      renderedMermaids >= 1 &&
+      top != null &&
+      top >= 0 &&
+      top <= 180
+    );
+  }, {
+    slug: DR2_SLUG,
+    chapterId: DR2_MERMAID_CHAPTER_ID,
+    headingId: DR2_MERMAID_HEADING_ID,
+  }, { timeout: 20_000 });
+}
+
 async function main() {
   await runCommand('node', ['scripts/build-reader-assets.js']);
 
@@ -420,6 +446,7 @@ async function main() {
     await assertBottomPager(page);
     await assertGeneratedCrossReferenceNavigation(page);
     await assertGeneratedLabelCrossReferenceNavigation(page);
+    await assertInitialHashRouteSurvivesMermaidRender(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {

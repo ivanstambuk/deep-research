@@ -70,6 +70,25 @@ function buildChapterNavEntries(shellDocument) {
   });
 }
 
+function getHashTarget(hash) {
+  const hashId = decodeURIComponent(String(hash ?? '').replace(/^#/, ''));
+  if (!hashId) {
+    return null;
+  }
+
+  return document.getElementById(hashId);
+}
+
+function alignHashTarget(hash, behavior = 'auto') {
+  const target = getHashTarget(hash);
+  if (!target) {
+    return false;
+  }
+
+  scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, behavior);
+  return true;
+}
+
 export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'standard' }) {
   const { chapterId = '' } = useParams();
   const location = useLocation();
@@ -172,19 +191,17 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
       return;
     }
 
-    const hashId = decodeURIComponent(String(location.hash ?? '').replace(/^#/, ''));
-    if (!hashId) {
+    if (!location.hash) {
       window.scrollTo({ top: 0, behavior: 'auto' });
       return;
     }
 
-    const target = document.getElementById(hashId);
-    if (!target) {
+    if (!getHashTarget(location.hash)) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
+      alignHashTarget(location.hash, 'auto');
     });
     return () => window.cancelAnimationFrame(frame);
   }, [location.hash, shouldRenderArticle]);
@@ -195,17 +212,44 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
     }
 
     let cancelled = false;
+    let postRenderFrame = null;
+    let postRenderFrame2 = null;
 
     renderMermaid(articleRef.current, {
       sectionId: chapter.chapterId,
-    }).catch((error) => {
-      if (!cancelled) {
-        console.error('Mermaid render failed', error);
-      }
-    });
+    })
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+
+        const currentHash = window.location.hash;
+        if (!currentHash || !getHashTarget(currentHash)) {
+          return;
+        }
+
+        // Mermaid can expand content above the hash target after the initial
+        // browser/reader jump. Realign once rendering has settled.
+        postRenderFrame = window.requestAnimationFrame(() => {
+          postRenderFrame2 = window.requestAnimationFrame(() => {
+            alignHashTarget(currentHash, 'auto');
+          });
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('Mermaid render failed', error);
+        }
+      });
 
     return () => {
       cancelled = true;
+      if (postRenderFrame != null) {
+        window.cancelAnimationFrame(postRenderFrame);
+      }
+      if (postRenderFrame2 != null) {
+        window.cancelAnimationFrame(postRenderFrame2);
+      }
     };
   }, [chapter, shouldRenderArticle]);
 
