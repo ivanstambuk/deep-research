@@ -33,23 +33,6 @@
             }
           }
 
-          if (!window.location.hash) {
-            return;
-          }
-
-          sessionStorage.setItem(
-            '__reader_initial_hash__',
-            JSON.stringify({
-              pathname: window.location.pathname,
-              search: window.location.search,
-              hash: window.location.hash,
-            }),
-          );
-          window.history.replaceState(
-            window.history.state,
-            '',
-            `${window.location.pathname}${window.location.search}`,
-          );
         } catch {
           // Ignore storage/history failures and let the app fall back to normal hash behavior.
         }

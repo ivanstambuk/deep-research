@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import manifest from './generated/reader-manifest.json';
 import ChapterPage from './features/reader/ChapterPage.jsx';
 import 'katex/dist/katex.min.css';
@@ -149,6 +149,21 @@ function OverviewPage() {
         ))}
       </div>
     </section>
+  );
+}
+
+function DocumentRedirect({ document }) {
+  const location = useLocation();
+
+  return (
+    <Navigate
+      to={{
+        pathname: `/${document.slug}/${document.firstChapterId}`,
+        search: location.search,
+        hash: location.hash,
+      }}
+      replace
+    />
   );
 }
 
@@ -315,7 +330,7 @@ function AppShell() {
             <React.Fragment key={document.slug}>
               <Route
                 path={`/${document.slug}`}
-                element={<Navigate to={`/${document.slug}/${document.firstChapterId}`} replace />}
+                element={<DocumentRedirect document={document} />}
               />
               <Route
                 path={`/${document.slug}/:chapterId`}
