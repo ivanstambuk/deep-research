@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-14
+date_updated: 2026-04-15
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 ---
@@ -14,12 +14,12 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-14 · ~33,000 lines
+**DR-0002** · Published · Last updated 2026-04-14 · ~33,100 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -528,7 +528,7 @@ flowchart TD
 
 ### Executive Decision Summary
 
-This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, 11 CIRs, 11 Technical Specifications, and 3 external protocol standards (OpenID4VP 1.0, HAIP 1.0, ISO/IEC 18013-5), this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
+This research formalizes every RP-facing integration flow in the EUDI Wallet ecosystem — from registration through remote, proximity, W2W, and SCA payment presentation to post-presentation obligations — at protocol depth. By analysing the eIDAS 2.0 Regulation, the CIR stack, the EUDI Technical Specifications, and the companion OpenID / ISO / ETSI standards that shape RP runtime behavior, this document provides a prescriptive blueprint for RPs that must accept EUDI Wallet credentials by **December 2027**.
 
 > **Important — EUDI Wallet acceptance is a regulated integration program, not a narrow feature add-on**
 >
@@ -545,7 +545,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 
 **Protocol & Verification**
 
-5. **Implement HAIP 1.0 compliant OpenID4VP** — this means JAR-based authorization requests, `x509_hash` Client ID mode, `direct_post.jwt` response mode, DCQL queries, and ephemeral key management for response encryption ([§8](#8-openid4vp-and-haip-protocol-foundations), [§9](#9-same-device-remote-presentation), [§10](#10-cross-device-remote-presentation)).
+5. **Implement HAIP 1.0 compliant OpenID4VP, then tighten it with the `ETSI TS 119 472-2` presentation profile** — this means JAR-based authorization requests, `x509_hash` Client ID mode, `direct_post.jwt` response mode, DCQL queries, registrar-backed `verifier_info` / `requestInfo`, and ephemeral key management for response encryption ([§8](#8-openid4vp-and-haip-protocol-foundations), [§9](#9-same-device-remote-presentation), [§10](#10-cross-device-remote-presentation), [§17](#17-dcql-query-language-and-request-construction)).
 6. **Build a dedicated Status List verification pipeline** — despite conceptual simplicity, this requires HTTP caching, DEFLATE decompression, JWT/CWT signature verification, and bit-index mapping. Do not underestimate this ([Finding 14](#finding-14), Appendix B).
 7. **Implement pseudonym support with progressive assurance** — register pseudonyms at low assurance via WebAuthn, upgrade via PID step-up verification when needed. Never refuse pseudonyms where identification is not legally required ([§16](#16-pseudonym-based-authentication-and-webauthn), Art. 5b(9), [Finding 24](#finding-24)).
 8. **Implement anti-linkability controls from the start** — never persist unique attestation elements (salts, hash arrays, signatures) beyond the verification session. Credential churn is a designed privacy feature, not a bug ([§11.10](#1110-linkability-resistant-verification-practices), [Finding 20](#finding-20)).
@@ -619,7 +619,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 ### Why Now?
 
 1. **Regulatory deadline pressure** — The December 2027 mandate for private-sector acceptance is 21 months away. Banks and financial institutions must begin integration planning now to meet the timeline.
-2. **Specification maturity** — The RP-critical Technical Specifications are now concrete enough to implement against, but they no longer sit at a single 2025 v1.0 snapshot: TS2 is at v1.0.1, TS5 at v1.3, TS6 at v1.0.1, TS7 and TS8 at v0.11, TS9 at v1.0, TS12 at v1.0, and ETSI TS 119 475 is now published. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
+2. **Specification maturity** — The RP-critical Technical Specifications are now concrete enough to implement against, but they no longer sit at a single 2025 v1.0 snapshot: TS2 is at v1.0.1, TS5 at v1.3, TS6 at v1.0.1, TS7 and TS8 at v0.11, TS9 at v1.0, TS12 at v1.0, ETSI TS 119 475 is published, and ETSI TS 119 472-1 / -2 now provide the missing ETSI semantic and presentation-profile layer for RP request construction. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
 3. **Pilot programme insights** — The EU Large-Scale Pilots (POTENTIAL, EWC, DC4EU, NOBID) have generated real-world implementation experience that informs the flows documented here.
 4. **SCA integration** — TS12 (SCA Implementation with Wallet, v1.0 December 2025) defines the complete payment authentication flow using EUDI Wallet, creating an urgent integration requirement for banks under PSD2.
 5. **Trust infrastructure deployment** — Member States are establishing Registrars, Access Certificate Authorities, and national registries per CIR 2025/848, creating the operational infrastructure that RPs must integrate with.
@@ -634,7 +634,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - Complete RP registration flow with Member State Registrar (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 mappings)
 - Trust infrastructure: Access Certificates (WRPAC), Registration Certificates (WRPRC), Trusted Lists, WUA verification
 - Credential format internals: SD-JWT VC (selective disclosure, Key Binding JWT) and mdoc (MSO, namespaces, device binding)
-- Remote presentation: same-device and cross-device flows via OpenID4VP (HAIP 1.0, DCQL)
+- Remote presentation: same-device and cross-device flows via OpenID4VP (HAIP 1.0, DCQL, ETSI TS 119 472-2 presentation profile)
 - Proximity presentation: supervised and unsupervised flows via ISO/IEC 18013-5
 - Wallet-to-wallet interactions (TS9) — where the RP is another Wallet User acting as Verifier
 - SCA for electronic payments: issuer-requested and third-party-requested flows (TS12, PSD2)
@@ -811,6 +811,9 @@ External standards mandated by the ARF and CIRs:
 | **[SD-JWT VC](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/)** (IETF) | Credential format with selective disclosure |
 | **[DCQL](https://datatracker.ietf.org/doc/draft-ietf-oauth-dcql/)** | Digital Credentials Query Language for presentation requests |
 | **[ETSI TS 119 475 V1.2.1 (2026-03)](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/)** | WRPAC/WRPRC roles and mappings, WRPRC JWT/CWT profile, and RP attribute model alignment |
+| **[ETSI TS 119 472-1 V1.2.1 (2026-02)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947201/01.02.01_60/ts_11947201v010201p.pdf)** | Supporting semantic baseline for EAA/PID request and response semantics: audience, subject identifiers, one-time-use, and status / short-lived behavior |
+| **[ETSI TS 119 472-2 V1.2.1 (2026-03)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf)** | Primary ETSI presentation profile for RP-facing OpenID4VC-HAIP and ISO/IEC-mdoc request / response construction, including `verifier_info`, `requestInfo`, and API-mediated vs non-API-mediated transport rules |
+| **[ETSI TS 119 472-3 V1.1.1 (2026-03)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947203/01.01.01_60/ts_11947203v010101p.pdf)** | Issuance-side disclosure-policy companion to the 472 series; relevant context for RP understanding, but not a primary RP execution target in this document |
 | **[ETSI TS 119 411-8 V1.1.1 (2025-10)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/)** | Policy and security requirements for providers of WRPACs, including revocation and status obligations visible to RPs |
 | **[ETSI TS 119 602 V1.1.1](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/)** (2025-11) | Lists of Trusted Entities (LoTE) data model — profiles for Wallet Providers, PID Providers, Access CA, PuB-EAA Providers |
 | **[W3C Digital Credentials API](https://wicg.github.io/digital-credentials/)** | Browser-based wallet invocation (under development) |
@@ -5864,10 +5867,11 @@ This group dissects the OpenID4VP protocol suite used when the Wallet User and R
 
 The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key differences:
 
-1. The **Authorization Request** contains a `dcql_query` (DCQL) specifying which credentials/attributes the RP needs
-2. The **Authorization Response** contains a `vp_token` with the Verifiable Presentation(s)
+1. The **Signed Authorization Request** contains a `dcql_query` (DCQL) specifying which credentials/attributes the RP needs
+2. In the EUDI presentation profile defined by `ETSI TS 119 472-2`, that same signed Request Object also carries `verifier_info` so the Wallet can evaluate registrar-backed RP identity and intended-use data at presentation time
 3. Client identification uses `x509_hash` (WRPAC hash) rather than traditional OAuth client credentials
-4. The request is a **Signed Authorization Request** (JAR — JWT-Secured Authorization Request)
+4. Response-encryption key material is surfaced via `client_metadata.jwks`, not inferred from a generic OAuth client registration
+5. The **Authorization Response** contains a `vp_token` with the Verifiable Presentation(s)
 
 #### 8.2 OpenID4VP Key Protocol Parameters
 
@@ -5877,9 +5881,11 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 | `response_type` | Request | `vp_token` |
 | `response_mode` | Request | `direct_post.jwt` (HAIP mandatory — encrypted response) |
 | `dcql_query` | Request | DCQL-format query specifying required credentials and claims |
+| `verifier_info` | Request | Registrar-backed RP identity, intended-use, and policy data carried at presentation time under `ETSI TS 119 472-2` |
 | `nonce` | Request | Random value for replay prevention |
 | `state` | Request | Session binding for the RP |
 | `response_uri` | Request | URL where Wallet posts the encrypted response |
+| `client_metadata.jwks` | Request | Ephemeral/public RP keys used for encrypted response return and request validation |
 | `transaction_data` | Request | Transaction-specific data for SCA (TS12) |
 | `vp_token` | Response | Contains the Verifiable Presentation(s) |
 
@@ -5897,6 +5903,7 @@ The core flow follows the OAuth 2.0 Authorization Code flow pattern, with key di
 | **DCQL mandatory** | Must use DCQL (not legacy `presentation_definition`) | RP must implement DCQL query generation |
 | **Response encryption** | Response encrypted to RP's ephemeral public key | RP generates ephemeral key pair per session |
 | **Nonce binding** | Each request includes a unique nonce | RP must generate and validate nonces |
+| **`ETSI TS 119 472-2` presentation profile** | Signed Request Object carries `verifier_info` and, when available, a `registration_cert` projection of the RP registration model | RP must surface Registrar-backed identity and intended-use data at presentation time instead of relying on locally invented verifier labels |
 
 ##### 8.3.2 Computing `x509_hash` Client ID
 
@@ -5948,7 +5955,7 @@ print(client_id)
 
 The EUDI Wallet ecosystem strictly enforces **per-session forward secrecy** for all remote presentation responses by mandating the `direct_post.jwt` response mode. The core of this mechanism relies on the RP generating ephemeral keys for every single request, meaning that a compromise of the RP's long-term WRPAC private key will not compromise past presentation payloads.
 
-The precise lifecycle of these ephemeral keys is as follows:
+The precise lifecycle of these ephemeral keys is as follows. `ETSI TS 119 472-2` sharpens the request-side shape here: the Wallet-facing Request Object must not only carry DCQL and response-encryption parameters, but also the registrar-backed `verifier_info` dataset and, where available, the RP registration certificate.
 
 ```mermaid
 ---
@@ -6068,14 +6075,14 @@ The Relying Party Backend safely "parks" the ephemeral private key while the Use
 <details>
 <summary><strong>4. Relying Party Backend injects ephemeral public key into JAR</strong></summary>
 
-The Relying Party builds the OpenID4VP JSON-secured Authorization Request (JAR) and surgically injects the *public* half of the ephemeral key pair directly into the JWT header payload. 
+The Relying Party builds the OpenID4VP JSON-secured Authorization Request (JAR) and injects the *public* half of the ephemeral key pair into the Request Object body.
 
-Following HAIP specifications, the key is structured as a JSON Web Key (JWK) and embedded under the `client_metadata.jwks.keys` array. Additionally, the Relying Party explicitly advertises its encryption algorithm expectations (e.g., `ECDH-ES` and `A256GCM`) within the `response_encryption_alg` and `response_encryption_enc` fields.
+Following HAIP specifications, the key is structured as a JSON Web Key (JWK) and embedded under the `client_metadata.jwks.keys` array. Additionally, the Relying Party explicitly advertises its encryption algorithm expectations (e.g., `ECDH-ES` and `A256GCM`) within the `response_encryption_alg` and `response_encryption_enc` fields. Under `ETSI TS 119 472-2`, the same signed Request Object also carries `verifier_info`, allowing the Wallet to see registrar-backed RP identity and intended-use metadata before disclosure.
 
 ```json
 {
   "response_type": "vp_token",
-  "client_id": "urn:eudi:wrp:de:bank-example:12345",
+  "client_id": "x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA",
   "response_encryption_alg": "ECDH-ES",
   "response_encryption_enc": "A256GCM",
   "client_metadata": {
@@ -6089,7 +6096,26 @@ Following HAIP specifications, the key is structured as a JSON Web Key (JWK) and
         "kid": "ephemeral-key-01"
       }]
     }
-  }
+  },
+  "verifier_info": [
+    {
+      "format": "registrar_dataset",
+      "data": {
+        "identifier": [
+          { "type": "organization_id", "identifier": "DE-BANK-0001" }
+        ],
+        "srvDescription": [
+          { "lang": "en", "content": "Retail banking onboarding and account access" }
+        ],
+        "registryURI": "https://registrar.example-ms.de/api/rp",
+        "intendedUseIdentifier": "banking-onboarding",
+        "purpose": [
+          { "lang": "en", "content": "Customer identification and account access control" }
+        ],
+        "policyURI": "https://example-bank.de/privacy"
+      }
+    }
+  ]
 }
 ```
 
@@ -6101,14 +6127,14 @@ Following HAIP specifications, the key is structured as a JSON Web Key (JWK) and
 
 With the ephemeral public key injected, the Relying Party Backend mathematically seals the JAR by signing it with its long-term Access Certificate (WRPAC) private key. 
 
-To prevent URL bloat and QR code density issues, the backend typically stores the bulky JAR payload locally and returns only a lightweight HTTP reference (`request_uri`) back to the frontend, alongside the transaction `client_id`.
+To prevent URL bloat and QR code density issues, the backend typically stores the bulky signed Request Object locally and returns only a lightweight HTTP reference (`request_uri`) back to the frontend, alongside the transaction `client_id`.
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "client_id": "urn:eudi:wrp:de:bank-example:12345",
+  "client_id": "x509_hash://sha-256/fUMUMhki0LFWse8o3LKJrVx2p_Ynz3gMRNeH9-jWrQA",
   "request_uri": "https://eudi.example-bank.de/api/auth/requests/b78f42a9",
   "expires_in": 300
 }
@@ -6547,7 +6573,7 @@ The Relying Party Backend generates three cryptographic parameters for the OpenI
 
 1. **`nonce`** — a cryptographically random string (≥ 128 bits of entropy) used for replay protection. This nonce will appear in the Wallet Unit's KB-JWT (step 16), binding the presentation to this specific session. Each session must have a unique nonce.
 2. **`state`** — a session correlation token that the Relying Party uses to match the Wallet Unit's response (step 18) back to the original HTTP session. Typically a UUID or opaque token stored server-side alongside the User's browser session.
-3. **Ephemeral ECDH key pair** (P-256 curve) — used for forward-secret response encryption. The public key is embedded in the JAR as `response_encryption_jwk` (step 5); the private key is stored server-side and destroyed immediately after JWE decryption (step 19). Using ephemeral keys ensures that even if the Relying Party's long-term WRPAC key is later compromised, past presentation responses cannot be decrypted.
+3. **Ephemeral ECDH key pair** (P-256 curve) — used for forward-secret response encryption. The public key is embedded in the JAR via `client_metadata.jwks` (step 5); the private key is stored server-side and destroyed immediately after JWE decryption (step 19). Using ephemeral keys ensures that even if the Relying Party's long-term WRPAC key is later compromised, past presentation responses cannot be decrypted.
 
 **Audit Telemetry:** The Relying Party logs an `OPENID4VP_SESSION_CREATED` event.
 
@@ -6573,7 +6599,7 @@ The Relying Party should request **only the minimum attributes** needed for its 
 <details>
 <summary><strong>5. Relying Party Backend creates JAR signed with WRPAC key</strong></summary>
 
-The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and embeds the `x509_hash` client identification alongside the ephemeral public key (`response_encryption_jwk`).
+The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and shapes it according to `ETSI TS 119 472-2` clause `6.3.2.2`: `x509_hash` client identification, registrar-backed `verifier_info`, and response-encryption key material exposed through `client_metadata.jwks`.
 
 ```json
 {
@@ -6591,12 +6617,41 @@ The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC 
   "state": "af0ifjsldkj",
   "response_encryption_alg": "ECDH-ES",
   "response_encryption_enc": "A256GCM",
-  "response_encryption_jwk": {
-    "kty": "EC",
-    "crv": "P-256",
-    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
-    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+  "client_metadata": {
+    "jwks": {
+      "keys": [{
+        "kty": "EC",
+        "crv": "P-256",
+        "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+        "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ",
+        "use": "enc",
+        "kid": "session-enc-key-01"
+      }]
+    }
   },
+  "verifier_info": [
+    {
+      "format": "registrar_dataset",
+      "data": {
+        "identifier": [
+          { "type": "organization_id", "identifier": "DE-BANK-0001" }
+        ],
+        "srvDescription": [
+          { "lang": "en", "content": "Retail banking onboarding and account access" }
+        ],
+        "registryURI": "https://registrar.example-ms.de/api/rp",
+        "intendedUseIdentifier": "banking-onboarding",
+        "purpose": [
+          { "lang": "en", "content": "Customer identification and account access control" }
+        ],
+        "policyURI": "https://example-bank.de/privacy"
+      }
+    },
+    {
+      "format": "registration_cert",
+      "data": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  ],
   "dcql_query": {
     "credentials": [
       {
@@ -6617,7 +6672,7 @@ The Relying Party builds the `vp_token` Request Object, signs it with its WRPAC 
 }
 ```
 
-> **Same-device vs. cross-device**: In OpenID4VP 1.0, when using the `x509_hash` scheme, it is encoded directly into the `client_id` URI prefix (`x509_hash://sha-256/...`); there is no separate `client_id_scheme` parameter. Alternatively, the ecosystem ARF explicitly mandates support for the `x509_san_dns` scheme as well. The key difference between flows is the **invocation mechanism**: same-device flows pass the JAR inline via the W3C DC API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet Unit fetches directly (with `wallet_nonce` for freshness). Both `x509_hash` and `x509_san_dns` client identification methods are valid and actively tested in the EUDI Wallet ecosystem. The choice of Client Identifier Prefix also has implications for `response_uri` domain binding — see [§26.6.1](#2661-integration-models-and-callback-layers) for the full analysis of which domains are permitted to host `response_uri` under each scheme.
+> **Same-device vs. cross-device**: In OpenID4VP 1.0, when using the `x509_hash` scheme, it is encoded directly into the `client_id` URI prefix (`x509_hash://sha-256/...`); there is no separate `client_id_scheme` parameter. Alternatively, the ecosystem ARF explicitly mandates support for the `x509_san_dns` scheme as well. The key difference between flows is the **invocation mechanism**: same-device flows pass the ETSI-shaped Request Object to the Wallet through the W3C Digital Credentials API (with browser origin verification against the WRPAC's `dNSName`), while cross-device flows use a QR code containing a `request_uri` URL that the Wallet Unit fetches directly (with `wallet_nonce` for freshness). In the same-device API-mediated model described by `ETSI TS 119 472-2`, the mediating API can observe the request category and invoked credential family, but not the eventually disclosed attribute values by default. Both `x509_hash` and `x509_san_dns` client identification methods are valid and actively tested in the EUDI Wallet ecosystem. The choice of Client Identifier Prefix also has implications for `response_uri` domain binding — see [§26.6.1](#2661-integration-models-and-callback-layers) for the full analysis of which domains are permitted to host `response_uri` under each scheme.
 
 **Artifact Produced:** OpenID4VP Authorization Request (Signed JAR payload).
 
@@ -6645,7 +6700,7 @@ const credential = await navigator.credentials.get({
 ```
 
 **Option B: `request_uri` Fetch (Recommended for production)**
-This pattern prevents embedding a large, potentially verbose JAR directly into the webpage HTML/JS:
+This pattern prevents embedding a large, potentially verbose signed Request Object directly into the webpage HTML/JS and aligns better with the `ETSI TS 119 472-2` API-mediated privacy boundary:
 ```javascript
 const credential = await navigator.credentials.get({
   digital: {
@@ -6661,7 +6716,7 @@ const credential = await navigator.credentials.get({
 });
 // credential.data contains the encrypted JWE response
 ```
-*Note for Option B: The browser/Wallet invokes a POST request to the `request_uri` to fetch the JAR payload before prompting the user.*
+*Note for Option B: The browser/Wallet invokes a POST request to the `request_uri` to fetch the signed Request Object before prompting the user. In the API-mediated path, the browser-mediated layer sees the presence of the request and credential family but not the finally disclosed attribute values by default.*
 
 The browser enforces **origin binding**: it verifies that the calling origin matches the `dNSName` SAN in the WRPAC's X.509 certificate (via the `x5c` header in the JAR). This prevents a malicious website from using another RP's WRPAC.
 
@@ -6832,7 +6887,7 @@ Key Binding JWT payload:
 <details>
 <summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
 
-The Wallet Unit encrypts the presentation response (containing the `vp_token`, `presentation_submission`, and `state`) into a JWE using the Relying Party's ephemeral ECDH-ES public key from step 5's `response_encryption_jwk`. The encryption parameters (mandated by HAIP 1.0 [§6.4](#64-sd-jwt-vc-key-binding-jwt)):
+The Wallet Unit encrypts the presentation response (containing the `vp_token`, `presentation_submission`, and `state`) into a JWE using the Relying Party's ephemeral ECDH-ES public key from step 5's `client_metadata.jwks`. The encryption parameters (mandated by HAIP 1.0 [§6.4](#64-sd-jwt-vc-key-binding-jwt)):
 
 - **Key Agreement**: `ECDH-ES` (Elliptic Curve Diffie-Hellman Ephemeral Static) — the Wallet Unit generates its own ephemeral key pair and derives a shared secret with the Relying Party's public key
 - **Content Encryption**: `A256GCM` (AES-256 in GCM mode) — provides authenticated encryption with integrity protection
@@ -7183,7 +7238,7 @@ Content-Type: application/oauth-authz-req+jwt
 eyJhbGciOiJFUzI1NiIsIng1YyI6WyJNSUlC...[Signed_JAR_Payload]
 ```
 
-At this stage, the Wallet possesses all cryptographic parameters necessary to authenticate the RP (via the `x5c` embedded WRPAC) and to encrypt the eventual response (via the `response_encryption_jwk`).
+At this stage, the Wallet possesses all cryptographic parameters necessary to authenticate the RP (via the `x5c` embedded WRPAC) and to encrypt the eventual response (via the RP encryption key surfaced in `client_metadata.jwks`).
 
 **Artifact Produced:** Downloaded OpenID4VP JAR (in Wallet memory).
 
@@ -7630,7 +7685,7 @@ ephemeral_private_key = ec.generate_private_key(ec.SECP256R1())
 <details>
 <summary><strong>4. Relying Party Backend creates JAR with DCQL query</strong></summary>
 
-The Relying Party Backend builds a `vp_token` Request Object specifying the required claims via DCQL, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and embeds the `x509_hash` client identification alongside the ephemeral public key.
+The Relying Party Backend builds a `vp_token` Request Object specifying the required claims via DCQL, signs it with its WRPAC private key to create a JWT-Secured Authorization Request (JAR), and shapes it according to `ETSI TS 119 472-2`: `x509_hash` client identification, registrar-backed `verifier_info`, and response-encryption key material under `client_metadata.jwks`.
 
 ```json
 {
@@ -7648,11 +7703,36 @@ The Relying Party Backend builds a `vp_token` Request Object specifying the requ
   "state": "xd-session-9f2a",
   "response_encryption_alg": "ECDH-ES",
   "response_encryption_enc": "A256GCM",
-  "response_encryption_jwk": {
-    "kty": "EC",
-    "crv": "P-256",
-    "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
-    "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ"
+  "client_metadata": {
+    "jwks": {
+      "keys": [{
+        "kty": "EC",
+        "crv": "P-256",
+        "x": "TCAER19Zvu3OHF4j4W4vfSVoHIP1ILilDls7vCeGemc",
+        "y": "ZxjiWWbZMQGHVWKVQ4hbSIirsVfuecCE6t4jT9F2HZQ",
+        "use": "enc",
+        "kid": "session-enc-key-01"
+      }]
+    }
+  },
+  "verifier_info": [
+    {
+      "format": "registrar_dataset",
+      "data": {
+        "identifier": [
+          { "type": "organization_id", "identifier": "DE-BANK-0001" }
+        ],
+        "srvDescription": [
+          { "lang": "en", "content": "Retail banking onboarding and account access" }
+        ],
+        "registryURI": "https://registrar.example-ms.de/api/rp",
+        "intendedUseIdentifier": "banking-onboarding",
+        "purpose": [
+          { "lang": "en", "content": "Customer identification and account access control" }
+        ],
+        "policyURI": "https://example-bank.de/privacy"
+      }
+    }
   },
   "dcql_query": {
     "credentials": [
@@ -7692,9 +7772,9 @@ The JAR is signed as a JWS with the Relying Party's WRPAC private key. The JWS h
 <details>
 <summary><strong>5. Relying Party Backend stores JAR at request_uri endpoint</strong></summary>
 
-The Relying Party Backend caches the signed JAR in its backend (database, Redis, or in-memory store) and exposes it at a unique, short-lived endpoint: `https://verifier.example-bank.de/oid4vp/request/f47ac10b`. This `request_uri` is included in the QR code (step 6). The endpoint is single-use — after the Wallet Unit fetches the JAR (step 8), the Relying Party Backend MUST invalidate the endpoint to prevent replay. The JAR should have a short TTL (e.g., 5 minutes) to limit the window for QR code reuse.
+The Relying Party Backend caches the signed JAR in its backend (database, Redis, or in-memory store) and exposes it at a unique, short-lived endpoint: `https://verifier.example-bank.de/oid4vp/request/f47ac10b`. This `request_uri` is included in the QR code (step 6). The endpoint is single-use — after the Wallet Unit fetches the JAR (step 8), the Relying Party Backend MUST invalidate the endpoint to prevent replay. The JAR should have a short TTL (e.g., 5 minutes) to limit the window for QR code reuse. In the non-API-mediated by-reference pattern profiled by `ETSI TS 119 472-2`, the referenced Request Object's protected header also carries `x5c` and `iat`, so the Wallet can validate certificate continuity and freshness on the fetched object itself.
 
-**Artifact Produced:** Published `request_uri` endpoint (Single-Use HTTP GET route).
+**Artifact Produced:** Published `request_uri` endpoint (single-use Request Object retrieval route).
 
 </details>
 <details>
@@ -7726,7 +7806,7 @@ This physical act is the **cross-device bridge**. When the W3C Digital Credentia
 <details>
 <summary><strong>8. Wallet Unit POSTs to request_uri to fetch JAR</strong></summary>
 
-The Wallet Unit on the smartphone initiates a direct HTTP POST connection to the Relying Party Backend using the parsed `request_uri`. For freshness and replay prevention, HAIP mandates this is executed as a POST request.
+The Wallet Unit on the smartphone initiates a direct HTTP POST connection to the Relying Party Backend using the parsed `request_uri`. For freshness and replay prevention, HAIP mandates this is executed as a POST request. `ETSI TS 119 472-2` treats this as the non-API-mediated cross-device branch; the API-mediated / CTAP-hybrid path remains the preferred center of gravity when the browser and Wallet can cooperate.
 
 **Failure Path:** The Wallet Unit enforces strict TLS validation during this fetch. If the Relying Party Backend's TLS certificate does not match the expected domain (or fails public PKI validation), the Wallet Unit MUST terminate the connection immediately without displaying a consent screen to prevent downgrade attacks.
 
@@ -7746,7 +7826,7 @@ wallet_nonce=xyz789abc_dynamic_wallet_generated_value
 <details>
 <summary><strong>9. Relying Party Backend returns signed JAR to Wallet Unit</strong></summary>
 
-The Relying Party Backend dynamically binds the `wallet_nonce` to the JAR if required, and responds with the signed JWS compact serialisation (`application/oauth-authz-req+jwt`). 
+The Relying Party Backend dynamically binds the `wallet_nonce` to the JAR if required, and responds with the signed JWS compact serialisation (`application/oauth-authz-req+jwt`). In the `ETSI TS 119 472-2` by-reference profile, the referenced Request Object's protected header carries both the RP access-certificate chain (`x5c`) and the request freshness timestamp (`iat`).
 
 The Wallet Unit receives the complete presentation request containing the DCQL query, Relying Party identity (`x5c` chain), and response encryption keys. 
 
@@ -7874,7 +7954,7 @@ The KB-JWT structure strongly enforces the cross-device constraints to prevent i
 <details>
 <summary><strong>17. Wallet Unit encrypts Verifiable Presentation into JWE</strong></summary>
 
-The Wallet Unit fully encrypts the `vp_token` and state payload into a secure JSON Web Encryption (JWE) document using the Relying Party's ephemeral ECDH-ES public key (extracted from `response_encryption_jwk`).
+The Wallet Unit fully encrypts the `vp_token` and state payload into a secure JSON Web Encryption (JWE) document using the Relying Party's ephemeral ECDH-ES public key (extracted from `client_metadata.jwks` in the signed Request Object).
 
 ```json
 {
@@ -8292,7 +8372,7 @@ flowchart TD
 
 #### 11.1 Authentication Steps (Wallet Side)
 
-When the Wallet Unit receives a presentation request, it performs RP authentication in the following order:
+When the Wallet Unit receives a presentation request, it performs RP authentication in the following order. Under `ETSI TS 119 472-2`, this means authenticating not just the RP access certificate chain, but also the presentation-time registration payload: `verifier_info` in the OpenID4VC-HAIP branch and `requestInfo` / `euWrpRegistrarInfo` in the ISO/IEC-mdoc branch.
 
 ```mermaid
 flowchart TD
@@ -8307,10 +8387,12 @@ flowchart TD
     Check&nbsp;CRL/OCSP&nbsp;status`"]
     S4["`**4.&nbsp;Origin&nbsp;Check**
     Verify&nbsp;WRPAC&nbsp;dNSName&nbsp;vs.&nbsp;request&nbsp;origin`"]
-    S5["`**5.&nbsp;Registration**
-    Check&nbsp;WRPRC&nbsp;or&nbsp;Registrar&nbsp;API&nbsp;(Optional)`"]
+    S5["`**5.&nbsp;Registration&nbsp;/&nbsp;Intended&nbsp;Use**
+    Check&nbsp;verifier_info&nbsp;or&nbsp;requestInfo
+    plus&nbsp;WRPRC/Registrar&nbsp;API`"]
     S6["`**6.&nbsp;Disclosure&nbsp;Policy**
-    Evaluate&nbsp;attributes&nbsp;against&nbsp;WRPAC`"]
+    Evaluate&nbsp;attributes&nbsp;against&nbsp;registered&nbsp;scope
+    and&nbsp;disclosure&nbsp;rules`"]
     
     Accept["`**✅&nbsp;Proceed&nbsp;to&nbsp;Consent**`"]
     Reject["`**❌&nbsp;Reject&nbsp;Request**`"]
@@ -8344,15 +8426,15 @@ flowchart TD
 2. **Certificate chain validation** — Validate the WRPAC and intermediate certificates up to the LoTE trust anchor
 3. **Revocation check** — Verify no certificate in the chain is revoked (CRL or OCSP)
 4. **Origin verification** — In same-device flows, verify the `dNSName` in the WRPAC matches the origin of the request (enforced by browser/DC API)
-5. **Registration verification** (optional, user-initiated) — If user has enabled it, check the WRPRC or query the Registrar API to verify the RP is registered for the requested attributes
-6. **Disclosure policy evaluation** — If the requested attestation has an embedded disclosure policy, evaluate it against the WRPAC data
+5. **Registration / intended-use verification** (optional, user-initiated) — Evaluate the registrar-backed payload carried in `verifier_info` (OpenID4VC-HAIP) or `requestInfo.euWrpRegistrarInfo` (ISO/IEC-mdoc), and, when available, the portable registration-certificate artifact (`registration_cert` / `euWrprc`). If the Wallet performs an online fallback, it queries the Registrar API to confirm the RP is registered for the requested credential family and intended use.
+6. **Disclosure-policy evaluation** — If the requested attestation has an embedded disclosure policy, evaluate it against the RP access-certificate identity plus the registered scope and intended-use data surfaced at presentation time
 
 #### 11.2 Intermediary Authentication
 
 When an intermediary acts on behalf of an intermediated RP:
 
 - The **WRPAC** belongs to the intermediary → the Wallet authenticates the intermediary
-- The **presentation request extension** contains the intermediated RP's identity (name, identifier, registrar URL, intended use ID)
+- The **presentation-time RP metadata** contains the intermediated RP's identity and intended-use data — `verifier_info` in the OpenID4VC-HAIP branch or `requestInfo.euWrpRegistrarInfo` in the ISO/IEC-mdoc branch
 - The **WRPRC** (if available) belongs to the intermediated RP → the Wallet verifies the intermediated RP's registration
 - The Wallet displays **both identities** to the User: intermediary name AND intermediated RP name
 
@@ -9133,7 +9215,7 @@ flowchart TD
 
 The unwrapping process follows a strict sequence:
 
-1. **Transport Decryption (JWE)**: The HTTP POST payload is a form-urlencoded string: `response=&lt;JWE>`. The RP decrypts this JWE using the private key corresponding to the ephemeral public key (`response_encryption_jwk`) it generated and sent in the presentation request JAR.
+1. **Transport Decryption (JWE)**: The HTTP POST payload is a form-urlencoded string: `response=&lt;JWE>`. The RP decrypts this JWE using the private key corresponding to the ephemeral public key it generated and surfaced in the presentation request under `client_metadata.jwks`.
    - **Algorithm**: Typically `ECDH-ES` with `A256GCM` (or `X25519`).
    - **Output**: A decrypted JWS.
 2. **Authorisation Response Verification (JWS)**: The decrypted payload is a JWS. The RP must verify this signature to ensure the response originated from the target Wallet Unit and hasn't been tampered with.
@@ -13415,6 +13497,89 @@ For mdoc (`mso_mdoc`) DCQL queries, each claim object supports an `intent_to_ret
 > **RP best practice**: Set `intent_to_retain: false` for all claims unless there is a specific, documented lawful basis for retention (e.g., AML record-keeping per [§22](#22-amlkyc-onboarding-via-eudi-wallet), DORA incident logging per [§31](#31-monitoring-observability-and-operational-readiness)). This aligns with the GDPR data minimisation obligations described in [§21.3](#213-gdpr-obligations-for-rps) and with the ARF's emphasis on purpose limitation (ARF §7.6.3.5.5).
 >
 > **Note**: `intent_to_retain` applies only to `mso_mdoc` format queries. For `dc+sd-jwt` format, there is no equivalent claim-level retention signal in the DCQL specification — data minimisation for SD-JWT VC is enforced through selective disclosure (requesting only necessary claims) rather than retention signalling.
+
+##### 17.2.2 ETSI TS 119 472-2 OpenID4VC-HAIP Request Profile
+
+`ETSI TS 119 472-2` does not replace DCQL or OpenID4VP. It adds an RP-facing **presentation profile** on top of them. In the OpenID4VC-HAIP branch, clause `6.3.2.2` says the signed Request Object is not just a DCQL carrier: it must also surface the RP's registration and trust material in a presentation-time form the Wallet can verify and, if needed, cross-check against the Registrar API.
+
+This is where the earlier `ETSI TS 119 475` work re-enters the runtime path. The RP registration dataset and optional registration certificate are not new concepts invented at presentation time; they are the presentation-time projection of the same RP identity and intended-use material already registered upstream.
+
+| Concern | `ETSI TS 119 472-2` requirement | RP implementation consequence |
+|:--------|:--------------------------------|:------------------------------|
+| Client identifier | The Authorization Request uses the Client Identifier Prefix `x509_hash` | Treat `x509_hash` as the default RP identifier for this profile, not just a generic HAIP example |
+| Signed Request Object | The Request Object is signed with the private key whose public key is enclosed in the RP access certificate | The Request Object signature must be tied to the same RP access-certificate identity story as the rest of the EUDI verifier trust model |
+| `verifier_info` registrar dataset | The RO JWT body contains `verifier_info`; one element uses `format: "registrar_dataset"` and carries Registrar-provided RP data | The RP must surface registrar-provided identity and intended-use metadata, not rely on free-form, locally invented verifier labels |
+| Registrar dataset fields | The `registrar_dataset` `data` object carries `identifier`, `srvDescription`, `registryURI`, `intendedUseIdentifier`, `purpose`, `policyURI`, and optionally `credential` | Wallet-facing verifier identity and intended-use semantics should be treated as Registrar-backed data with the same identifiers already used in the RP registration model |
+| Optional registration certificate | If available, one `verifier_info` element uses `format: "registration_cert"` and carries the base64url-encoded serialized RP registration certificate | Reuse the existing registration-certificate story from `ETSI TS 119 475` rather than inventing a second presentation-only certificate concept |
+| Client metadata | The RO JWT body contains `client_metadata.jwks`; keys include `kid` and `use` | The RP's request profile must still expose the response-encryption / client key material explicitly |
+| Audience | The RO JWT body contains `aud` | Treat audience binding as part of the signed request profile, not as an implementation footnote |
+| Non-API-mediated by-reference mode | The Authorization Request uses `request_uri`, while the JWS Protected Header on the referenced Request Object includes `x5c` and `iat` | The QR / redirect path must carry certificate-chain material and explicit freshness on the referenced Request Object, not just a bare pointer to opaque RP state |
+
+Representative `verifier_info` shape:
+
+```json
+{
+  "verifier_info": [
+    {
+      "format": "registrar_dataset",
+      "data": {
+        "identifier": [
+          { "type": "organization_id", "identifier": "DE-BANK-0001" }
+        ],
+        "srvDescription": [
+          { "lang": "en", "content": "Retail banking onboarding and account access" }
+        ],
+        "registryURI": "https://registrar.example-ms.de/api/rp",
+        "intendedUseIdentifier": "banking-onboarding",
+        "purpose": [
+          { "lang": "en", "content": "Customer identification and account access control" }
+        ],
+        "policyURI": "https://example-bank.de/privacy"
+      }
+    },
+    {
+      "format": "registration_cert",
+      "data": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  ]
+}
+```
+
+##### 17.2.3 ETSI TS 119 472-2 ISO/IEC-mdoc Request Profile
+
+The ISO/IEC-mdoc branch carries the same trust semantics through a different container. In clause `5.3.2`, `ETSI TS 119 472-2` requires every `docRequests` item to include `readerAuth`, requires the `x5chain` unprotected header parameter to carry the RP access certificate chain, and requires every `ItemsRequest` to include a non-empty `requestInfo` structure containing the RP Registrar data and, when available, the RP registration certificate.
+
+| Semantic payload | OpenID4VC-HAIP container | ISO/IEC-mdoc container |
+|:-----------------|:-------------------------|:-----------------------|
+| RP access certificate identity | Request Object signed by the RP; non-API by-reference mode carries `x5c` in the JWS Protected Header | `readerAuth` `COSE_Sign1` with `x5chain` in the unprotected header |
+| Registrar-backed verifier dataset | `verifier_info` element with `format: "registrar_dataset"` | `requestInfo.euWrpRegistrarInfo` |
+| Optional RP registration certificate | `verifier_info` element with `format: "registration_cert"` | `requestInfo.euWrprc` byte string |
+| Requested claims | `dcql_query` in the Request Object | `ItemsRequest` namespaced element selection |
+| Audience / request binding | `aud` in the signed Request Object | Bound through `readerAuth`, RP certificate chain, and the `ItemsRequest` / `requestInfo` payload presented to the Wallet |
+
+Representative `requestInfo` shape:
+
+```cbor
+RequestInfo = {
+  "euWrprc": h'<serialized RP registration certificate>',
+  "euWrpRegistrarInfo": {
+    "identifier": [
+      { "type": "organization_id", "identifier": "DE-BANK-0001" }
+    ],
+    "srvDescription": [
+      { "lang": "en", "content": "Retail banking onboarding and account access" }
+    ],
+    "registryURI": "https://registrar.example-ms.de/api/rp",
+    "intendedUseIdentifier": "banking-onboarding",
+    "purpose": [
+      { "lang": "en", "content": "Customer identification and account access control" }
+    ],
+    "policyURI": "https://example-bank.de/privacy"
+  }
+}
+```
+
+The practical rule is simple: the OpenID and mdoc branches should now be read as two transport/container realizations of the same RP presentation-time identity story. `verifier_info` and `requestInfo` are where the earlier RP registration model becomes visible to the Wallet at runtime.
 
 #### 17.3 Credential Alternatives via `credential_sets`
 
@@ -28890,7 +29055,7 @@ The regulatory foundation for document signing is established across multiple in
 
 The RP participates in signing flows in three distinct configurations (QES_06), each with different protocol stacks, responsibilities, and integration complexity. This chapter walks through each flow, the CSC API v2.0 baseline that the CIR still pins, the richer ETSI TS 119 432 runtime/client-security profile layered around it, the Document Retrieval bridging mechanism, and the RP's specific obligations.
 
-`ETSI TS 119 432` is the primary normative runtime source for this chapter. It defines the service-authorization layer, signatures-creation authorization, remote-signing architecture families, EUDIW/OAuth client registration and authentication requirements, and the `info`, `credentials/list`, `credentials/info`, `signatures/signHash`, `signatures/signDoc`, and polling APIs. `ETSI TR 119 462` remains useful as complementary architecture taxonomy, but the runtime role and API details in `§32–§33` should now be read primarily through `ETSI TS 119 432`.
+`ETSI TS 119 432` is the primary normative runtime source for this chapter. It defines the service-authorization layer, signatures-creation authorization, remote-signing architecture families, EUDIW/OAuth client registration and authentication requirements, and the `info`, `credentials/list`, `credentials/info`, `signatures/signHash`, `signatures/signDoc`, and polling APIs. It also explicitly contemplates Wallet invocation through either `openid4vp://` or the **W3C Digital Credentials API**, so the same-device browser patterns discussed elsewhere in `DR-0002` are not just ecosystem convenience layers; they are part of the standards-backed signing runtime surface as well. `ETSI TR 119 462` remains useful as complementary architecture taxonomy, but the runtime role and API details in `§32–§33` should now be read primarily through `ETSI TS 119 432`.
 
 > **Disambiguation — SCA**: In this chapter, "SCA" refers to **Signature Creation Application** (ETSI TS 119 432), not Strong Customer Authentication (PSD2). These are entirely different concepts despite sharing the same acronym. Where ambiguity exists, this chapter uses "SCA (Signature)" or "SCA (Payment)".
 
@@ -28930,7 +29095,7 @@ From the RP perspective, this model is valuable because it explains why the same
 | `Signature Creation Device` | Local QSCD or remote QSCD that actually creates the signature | Determines whether the chosen model is local or remote and how much of the key lifecycle sits outside RP control |
 | `Certification Authority` / identity-data path | Certificate issuance and onboarding layer feeding certificate and identity data into the signing stack | Explains why certificate model selection and QTSP/issuer relationships matter even when the RP only sees the runtime signing flow |
 
-`ETSI TS 119 432` Figure 22 is a useful complement to that taxonomy because it shows the end-to-end interaction surface between the Wallet, the driving application, the authorization server, and the signature creation service in a single sequence.
+`ETSI TS 119 432` Figure 22 is a useful complement to that taxonomy because it shows the end-to-end interaction surface between the Wallet, the driving application, the authorization server, and the signature creation service in a single sequence. For browser-based same-device flows, the `User agent -> EUDIW` handoff in this model should be read together with the W3C Digital Credentials API mediation layer discussed in `§9`: `ETSI TS 119 432` explicitly allows the Wallet-facing invocation to happen through Digital Credentials API methods or `openid4vp://`, rather than leaving that browser/OS bridge as an unstated implementation detail.
 
 ```mermaid
 ---
@@ -31032,7 +31197,7 @@ Key integration points in the reference wallets:
 
 ##### 33.1.6 ETSI TS 119 432 OAuth/FAPI Reference Sequence
 
-`ETSI TS 119 432` Figure 19 is the clearest protocol-sequence view for the OAuth2 Authorization Code + `PAR` / `RAR` model that underpins the higher-assurance remote-signing client flow.
+`ETSI TS 119 432` Figure 19 is the clearest protocol-sequence view for the OAuth2 Authorization Code + `PAR` / `RAR` model that underpins the higher-assurance remote-signing client flow. One important RP-facing implication is that the Wallet-facing leg is not limited to an abstract redirect: `ETSI TS 119 432` explicitly contemplates the EUDIW being invoked either through `openid4vp://` or through the **W3C Digital Credentials API**. In browser-based same-device deployments, that means the `User agent -> EUDIW` transition below maps naturally onto the same `navigator.credentials.get()` mediation layer already covered in `§9`, now with a direct signing-specific standards basis.
 
 ```mermaid
 ---
@@ -31271,7 +31436,7 @@ Location: https://auth.walletcentric.signer.eudiw.dev/authorize?client_id=rp-sig
 </details>
 <details><summary><strong>12. User agent lets the EUDIW read the authorization request URI</strong></summary>
 
-The user agent hands the authorization request to the EUDIW, which becomes the user-controlled approval surface. This is the point where the browser session yields to the wallet interaction component.
+The user agent hands the authorization request to the EUDIW, which becomes the user-controlled approval surface. In a same-device browser deployment, this is the moment where the RP-side page crosses into the W3C Digital Credentials API / browser mediation layer instead of a plain application redirect. `ETSI TS 119 432` is explicit that this wallet-facing invocation may use Digital Credentials API methods or `openid4vp://`, so the browser-to-wallet bridge here is part of the standards-backed signing flow rather than an article-local convenience assumption.
 
 **Artifact Produced:** Wallet-visible authorization-request handle.
 
@@ -32952,6 +33117,9 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [IETF Token Status List (draft-ietf-oauth-status-list-19)](https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-19.html) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification ([§10](#10-cross-device-remote-presentation), Appendix B)
 - [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol ([§8](#8-openid4vp-and-haip-protocol-foundations), Appendix A)
 - [ETSI TS 119 475 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Relying party attributes supporting EUDI Wallet user's authorization decisions](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/01.02.01_60/ts_119475v010201p.pdf) — Technical specification for RP attributes, WRPAC identity mapping, and WRPRC JWT/CWT structures (§4–§5)
+- [ETSI TS 119 472-1 V1.2.1 (2026-02) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA credentials and claims](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947201/01.02.01_60/ts_11947201v010201p.pdf) — Supporting semantic baseline for PID/EAA categories, audience, subject identifiers, one-time-use, and status / short-lived semantics used by the RP-facing presentation profile (§8–§18)
+- [ETSI TS 119 472-2 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA presentations to a Relying Party](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf) — Primary ETSI presentation profile for RP-facing OpenID4VC-HAIP and ISO/IEC-mdoc request / response construction, including `verifier_info`, `requestInfo`, and API-mediated vs non-API-mediated transport rules (§8–§18)
+- [ETSI TS 119 472-3 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA issuance and disclosure policies](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947203/01.01.01_60/ts_11947203v010101p.pdf) — Issuance-side disclosure-policy companion to the 472 series; included as context for RP understanding but not as a primary RP integration target in this document ([§1.4](#14-technical-specifications-and-standards-sts))
 - [ETSI TS 119 411-8 V1.1.1 (2025-10) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for Trust Service Providers issuing certificates; Part 8: Access Certificate Policy for EUDI Wallet Relying Parties](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/01.01.01_60/ts_11941108v010101p.pdf) — Policy and profile requirements for providers issuing WRPACs, including RP-visible status and transparency obligations ([§5.2](#52-access-certificates-wrpac))
 - [ETSI TS 119 461 V2.1.1 (2025-02) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for trust service components providing identity proofing of trust service subjects](https://www.etsi.org/deliver/etsi_ts/119400_119499/119461/02.01.01_60/ts_119461v020101p.pdf) — Identity-proofing and PAD reference standard cited for QEAA issuance and higher-assurance onboarding checks ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub))
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
