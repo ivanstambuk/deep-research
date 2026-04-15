@@ -14,12 +14,12 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-14 · ~33,100 lines
+**DR-0002** · Published · Last updated 2026-04-14 · ~33,200 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -541,7 +541,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 1. **Register with your national Registrar immediately** — registration is the prerequisite for obtaining WRPACs, WRPRCs, and appearing in the national register. Delays here compress the entire integration timeline ([§4](#4-rp-registration-data-model-and-registrar-api), CIR 2025/848).
 2. **Support both SD-JWT VC and mdoc from day one** — both credential format stacks are mandatory. Two complete verification pipelines are required, including different selective disclosure models, device binding verification, and trust anchor formats ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [Finding 2](#finding-2)).
 3. **Choose Direct RP or Intermediary model early** — the Direct RP model requires your own WRPAC(s) and infrastructure; the Intermediary model delegates Wallet interaction to a third party but introduces data-forwarding constraints and DORA third-party risk ([§25](#25-intermediary-architecture-and-trust-flows), [§21.4](#214-dora-considerations-for-financial-rps)).
-4. **Treat the EUDI integration infrastructure as a critical-path external dependency** — LoTE endpoints, Status List endpoints, the Registrar API, and WRPAC validity create a chain of hard dependencies. Failure in any causes a hard stop. Financial RPs must include these in DORA resilience testing ([Finding 4](#finding-4)).
+4. **Treat the EUDI integration infrastructure as a critical-path external dependency** — LoTE endpoints, authenticated `LOTL` / national trusted-list endpoints where qualified outputs matter, Status List endpoints, the Registrar API, and WRPAC validity create a chain of hard dependencies. Failure in any causes a hard stop. Financial RPs must include these in DORA resilience testing ([Finding 4](#finding-4)).
 
 **Protocol & Verification**
 
@@ -619,7 +619,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 ### Why Now?
 
 1. **Regulatory deadline pressure** — The December 2027 mandate for private-sector acceptance is 21 months away. Banks and financial institutions must begin integration planning now to meet the timeline.
-2. **Specification maturity** — The RP-critical Technical Specifications are now concrete enough to implement against, but they no longer sit at a single 2025 v1.0 snapshot: TS2 is at v1.0.1, TS5 at v1.3, TS6 at v1.0.1, TS7 and TS8 at v0.11, TS9 at v1.0, TS12 at v1.0, ETSI TS 119 475 is published, and ETSI TS 119 472-1 / -2 now provide the missing ETSI semantic and presentation-profile layer for RP request construction. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
+2. **Specification maturity** — The RP-critical Technical Specifications are now concrete enough to implement against, but they no longer sit at a single 2025 v1.0 snapshot: TS2 is at v1.0.1, TS5 at v1.3, TS6 at v1.0.1, TS7 and TS8 at v0.11, TS9 at v1.0, TS12 at v1.0, ETSI TS 119 475 is published, ETSI TS 119 472-1 / -2 now provide the missing ETSI semantic and presentation-profile layer for RP request construction, and ETSI TS 119 615 now provides the formal trusted-list interpretation and qualified-status procedure layer for certificate-, QSCD-, and QEAA-related conclusions. OpenID4VP 1.0 achieved Final status in July 2025. HAIP 1.0 was approved in December 2025. The ARF has been updated through v2.8 (the latest published version as of March 2026), with 27+ CIRs now adopted.
 3. **Pilot programme insights** — The EU Large-Scale Pilots (POTENTIAL, EWC, DC4EU, NOBID) have generated real-world implementation experience that informs the flows documented here.
 4. **SCA integration** — TS12 (SCA Implementation with Wallet, v1.0 December 2025) defines the complete payment authentication flow using EUDI Wallet, creating an urgent integration requirement for banks under PSD2.
 5. **Trust infrastructure deployment** — Member States are establishing Registrars, Access Certificate Authorities, and national registries per CIR 2025/848, creating the operational infrastructure that RPs must integrate with.
@@ -632,7 +632,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 
 - Identifier and trust model analysis: X.509 vs. DIDs, platform wallet landscape, and RP DID requirements
 - Complete RP registration flow with Member State Registrar (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 mappings)
-- Trust infrastructure: Access Certificates (WRPAC), Registration Certificates (WRPRC), Trusted Lists, WUA verification
+- Trust infrastructure: Access Certificates (WRPAC), Registration Certificates (WRPRC), Trusted Lists, WUA verification, and ETSI TS 119 615-based trusted-list interpretation for qualified-status conclusions
 - Credential format internals: SD-JWT VC (selective disclosure, Key Binding JWT) and mdoc (MSO, namespaces, device binding)
 - Remote presentation: same-device and cross-device flows via OpenID4VP (HAIP 1.0, DCQL, ETSI TS 119 472-2 presentation profile)
 - Proximity presentation: supervised and unsupervised flows via ISO/IEC 18013-5
@@ -657,7 +657,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 
 ## Regulatory and Trust Foundations
 
-This group establishes the legal and infrastructural prerequisites for Relying Party participation in the EUDI ecosystem. It details the eIDAS 2.0 regulatory framework, the mandatory registration process with Member State Registrars, the credential formats (SD-JWT VC, mdoc), and the trust infrastructure (WRPACs, Trusted Lists) required to perform cryptographic verification.
+This group establishes the legal and infrastructural prerequisites for Relying Party participation in the EUDI ecosystem. It details the eIDAS 2.0 regulatory framework, the mandatory registration process with Member State Registrars, the credential formats (SD-JWT VC, mdoc), and the trust infrastructure (WRPACs, Trusted Lists, and the trusted-list interpretation layer for qualified-status determination) required to perform cryptographic verification.
 
 ---
 
@@ -816,6 +816,7 @@ External standards mandated by the ARF and CIRs:
 | **[ETSI TS 119 472-3 V1.1.1 (2026-03)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947203/01.01.01_60/ts_11947203v010101p.pdf)** | Issuance-side disclosure-policy companion to the 472 series; relevant context for RP understanding, but not a primary RP execution target in this document |
 | **[ETSI TS 119 411-8 V1.1.1 (2025-10)](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/)** | Policy and security requirements for providers of WRPACs, including revocation and status obligations visible to RPs |
 | **[ETSI TS 119 602 V1.1.1](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/)** (2025-11) | Lists of Trusted Entities (LoTE) data model — profiles for Wallet Providers, PID Providers, Access CA, PuB-EAA Providers |
+| **[ETSI TS 119 615 V1.3.1 (2026-01)](https://www.etsi.org/deliver/etsi_ts/119600_119699/119615/01.03.01_60/ts_119615v010301p.pdf)** | Trusted-list interpretation procedures — LOTL / national TL authentication, service matching, and qualified / indeterminate conclusions for certificates, QWACs, QSCDs, qualified validation services, and QEAAs |
 | **[W3C Digital Credentials API](https://wicg.github.io/digital-credentials/)** | Browser-based wallet invocation (under development) |
 | **[OAuth 2.0 / OIDC](https://oauth.net/2/)** | Foundation protocols for remote flows |
 
@@ -3715,25 +3716,33 @@ RPs should not attempt to apply the same verification pipeline to all three cate
 
 ##### 5.5.1 Architecture
 
-The trust anchor discovery mechanism in the EUDI Wallet ecosystem uses a two-tier architecture:
+The trust anchor discovery mechanism in the EUDI Wallet ecosystem is easiest to reason about as three distinct layers rather than one flat "trusted-list" bucket:
 
-1. **Common Trust Infrastructure** — Maintained by the European Commission. Contains the URLs of all Trusted Lists and LoTEs across all Member States. Any entity in the ecosystem can discover all trust anchors by starting from this common infrastructure.
+1. **Official Journal anchored EC List of Trusted Lists (`LOTL`)** — the European Commission publishes the machine-processable `LOTL`, while the Official Journal publication authenticates the `LOTL` location and the `LOTLSO` signing certificates. `ETSI TS 119 615` clause `4.1` is the procedure layer that tells an RP or verifier how to authenticate the current `LOTL`, including pivot-`LOTL` rollover handling.
 
-2. **Trusted Lists and LoTEs** — Published by Member State Trusted List/LoTE Providers. Each LoTE contains the trust anchors (public key + entity identifier) for the entities notified by that Member State.
+2. **National EUMS Trusted Lists** — each Member State publishes its own trusted list under the `ETSI TS 119 612` / CID `2015/1505` format. `ETSI TS 119 615` clause `4.2` then defines how the RP authenticates a national trusted list from the already-authenticated `LOTL`, and later clauses define how listed services are matched and interpreted for qualified-status conclusions.
 
-> **Operational portal**: The European Commission publishes these LoTEs through the **EFDA (eIDAS Dashboard)** at [`eidas.ec.europa.eu/efda/wallet`](https://eidas.ec.europa.eu/efda/wallet). The portal provides separate list views for Wallet Providers, PID Providers, Access Certificate Providers, and Registration Certificate Providers. The LoTE data model is defined by **ETSI TS 119 602 V1.1.1 (2025-11)** — *Lists of Trusted Entities; Data Model* — which generalises the Trusted List format of ETSI TS 119 612 with entity-type–specific profiles (Annex H provides the JSON serialisation). RPs implementing LoTE consumption for trust anchor discovery ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)) should reference both the EFDA portal as the authoritative source of list URLs and ETSI TS 119 602 for the data model specification.
+3. **Adjacent Lists of Trusted Entities (LoTEs)** — LoTEs are the EUDI-specific list surfaces used for entities such as PID Providers, Wallet Providers, Access CAs, and Registration Certificate Providers. Their data model is defined by **ETSI TS 119 602 V1.1.1 (2025-11)**. They are operationally adjacent to the national trusted-list layer, but they are not the same thing as the `ETSI TS 119 615` procedure stack for authenticating and interpreting EUMS trusted lists.
+
+> **Operational portal**: The European Commission publishes the EUDI-specific LoTE views through the **EFDA (eIDAS Dashboard)** at [`eidas.ec.europa.eu/efda/wallet`](https://eidas.ec.europa.eu/efda/wallet). The portal provides separate list views for Wallet Providers, PID Providers, Access Certificate Providers, and Registration Certificate Providers. RPs implementing LoTE consumption for trust anchor discovery ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)) should treat the portal and the underlying `ETSI TS 119 602` data model as the authoritative source for those entity lists, while treating `ETSI TS 119 615` as the interpretation procedure for the Member State trusted-list layer.
 
 ##### 5.5.2 LoTE Types Relevant to RPs
 
-| LoTE Type | Contains Trust Anchors Of | RP Uses It To |
-|:----------|:--------------------------|:--------------|
-| **Access CA LoTE** | Access Certificate Authorities | N/A (Wallet Units use this to verify WRPAC) |
-| **PID Provider LoTE** | PID Providers (notified) | Verify PID issuer signatures |
-| **QEAA Trusted List** | QEAA Providers (qualified status) | Verify QEAA issuer signatures |
-| **PuB-EAA Trusted List** | PuB-EAA Providers (notified) | Discover PuB-EAA Provider identity; actual verification uses QTSP certificate |
-| **QTSP Trusted List** | Qualified Trust Service Providers (Art. 22) | Verify PuB-EAA Provider certificates |
-| **Registration Cert LoTE** | Providers of Registration Certificates | N/A (Wallet Units use this to verify WRPRCs) |
-| **Wallet Provider LoTE** | Wallet Providers | N/A (Providers use this to verify WUA/WIA) |
+| Source type | Contains trust information for | RP uses it to | `ETSI TS 119 615` role |
+|:------------|:------------------------------|:--------------|:------------------------|
+| **Access CA LoTE** | Access Certificate Authorities | Normally N/A for RP-side credential verification; Wallet Units use it to verify WRPACs | Not primary |
+| **PID Provider LoTE** | PID Providers (notified) | Verify PID issuer signatures and resolve PID Provider trust anchors | Not primary |
+| **QEAA Trusted List** | Qualified EAA Providers / qualified attestation services | Verify QEAA issuer trust and qualified service status | Primary interpretation procedure |
+| **PuB-EAA Trusted List** | Public-body EAA trust-service entries where applicable | Determine whether the relevant trust-service status and history can be confirmed from the applicable trusted list | Primary interpretation procedure when trusted-list qualification matters |
+| **QTSP Trusted List** | Qualified Trust Service Providers (Art. 22) | Verify qualified certificate / `QWAC` / time-stamp / validation-service / signing-service trust conclusions | Primary interpretation procedure |
+| **Registration Cert LoTE** | Providers of Registration Certificates | Normally N/A for RP-side presentation verification; Wallet Units use it to verify WRPRCs | Not primary |
+| **Wallet Provider LoTE** | Wallet Providers | Normally N/A for RP-side verification; providers or ecosystem services use it to verify WUA/WIA-related trust anchors | Not primary |
+
+For RP engineering, the practical split is:
+
+- **LoTEs (`ETSI TS 119 602`)** publish EUDI-specific entity trust anchors such as PID Providers and Access CAs.
+- **National Trusted Lists (`ETSI TS 119 612`)** publish qualified trust-service information and service history.
+- **`ETSI TS 119 615`** tells the RP how to authenticate the `LOTL`, authenticate a national trusted list from it, match a service to a certificate, and derive time-specific outcomes such as `QC_For_eSig`, `QWAC`, `QSCD_YES`, or `Indeterminate`.
 
 ##### RP Trust Infrastructure Decision Guide
 
@@ -3757,6 +3766,11 @@ The table above lists all trust infrastructure types, but conflates two distinct
 
 ##### 5.5.3 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)
 
+For RP engineering, the flow below is the **LoTE-based trust-anchor retrieval path** used to validate notified EUDI entities such as PID Providers. It sits **beside**, not instead of, the `ETSI TS 119 615` path for authenticating the `LOTL`, authenticating a national trusted list from it, matching services to certificates, and deriving time-specific qualified or `Indeterminate` conclusions. In other words:
+
+- use the **LoTE path** to obtain EUDI entity trust anchors such as PID Provider keys;
+- use the **`LOTL` / national trusted-list path** when the RP needs a formal trusted-list-based conclusion about qualified certificates, `QWAC`s, `QSCD`s, qualified validation services, or `QEAAs`.
+
 ```mermaid
 ---
 config:
@@ -3771,19 +3785,19 @@ config:
 sequenceDiagram
     autonumber
     participant RPI as 🏦 RP Instance
-    participant CTI as 🇪🇺 Common Trust<br/>Infrastructure
+    participant PUB as 🇪🇺 EC / MS<br/>Publication Surfaces
     participant LOTE as 📜 LoTE Provider<br/>(MS of PID Provider)
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RPI: Phase 1: Bootstrapping (one-time, cached)
-    RPI->>CTI: Discover LoTE URLs
-    Note right of RPI: GET /.well-known/<br/>eudi-trust-infrastructure
-    CTI-->>RPI: List of all LoTE/<br/>Trusted List URLs
+    RPI->>PUB: Resolve authoritative list locations
+    Note right of RPI: EFDA / MS publication metadata / OJEU
+    PUB-->>RPI: LoTE endpoints +<br/>LOTL / TL bootstrap data
     RPI->>LOTE: Fetch PID Provider LoTE
     Note right of RPI: Accept: application/<br/>entity-statement+jwt
     LOTE-->>RPI: Signed LoTE:<br/>PID Provider trust anchors<br/>(public keys + identifiers)
     RPI->>RPI: Verify LoTE signature
-    RPI->>RPI: Cache trust anchors<br/>(refresh weekly)
+    RPI->>RPI: Cache LoTE anchors +<br/>separate TL state
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -3799,45 +3813,25 @@ sequenceDiagram
 <details>
 <summary><strong>1. Relying Party Backend discovers LoTE URLs via Member State registry</strong></summary>
 
-As a one-time bootstrapping step, the Relying Party queries the centralised European **Common Trust Infrastructure** — maintained by the European Commission — to discover the authoritative URLs for all Member State Trusted Lists and Lists of Trusted Entities (LoTEs). The Common Trust Infrastructure acts as the DNS root equivalent for the EUDI trust ecosystem: every trust anchor in the system can be traced back through this single entry point.
+As a bootstrapping step, the Relying Party gathers the authoritative list locations it needs for the jurisdictions it serves. For the **LoTE leg**, that typically means using the European Commission's EFDA / publication surfaces and Member State publication metadata to learn where the relevant PID Provider LoTE is published. For the **qualified-status leg**, `ETSI TS 119 615` starts from the Official Journal publication that authenticates the `LOTL` location and the `LOTLSO` certificates, then uses the authenticated `LOTL` to locate and authenticate the national trusted list.
 
-```http
-GET /.well-known/eudi-trust-infrastructure HTTP/1.1
-Host: trust.eudiw.eu
-Accept: application/json
-```
-
-The Relying Party should call this endpoint during initial deployment and periodically thereafter (e.g., weekly) to detect newly participating Member States or URL changes. The response is signed by the European Commission's own key, which the Relying Party must pre-configure as a root trust anchor — this is the one trust decision the Relying Party makes without external validation.
+The important architectural point is not a single fictional "registry document," but the requirement to treat list-location discovery as a **bootstrapping and cache-management problem**, not as an on-demand hot-path operation during live presentation verification.
 
 **Audit Telemetry:** The Relying Party logs a `CTI_DISCOVERY_INITIATED` event to track trust bootstrapping.
 
 </details>
 <details>
-<summary><strong>2. Common Trust Infrastructure returns List of all LoTE/Trusted List URLs</strong></summary>
+<summary><strong>2. Publication surfaces yield the authoritative LoTE and trusted-list bootstrap locations</strong></summary>
 
-The Common Trust Infrastructure responds with the official directory mapping each Member State to its respective LoTE publication endpoints. The response includes separate URLs for each LoTE type ([§5.5.2](#552-lote-types-relevant-to-rps)):
+The output of the discovery/bootstrap stage is therefore a locally tracked set of authoritative endpoints:
 
-```json
-{
-  "member_states": {
-    "DE": {
-      "pid_provider_lote": "https://eudcc.de/lote/pid-providers",
-      "qeaa_trusted_list": "https://eudcc.de/tl/qeaa-providers",
-      "qtsp_trusted_list": "https://eudcc.de/tl/qtsp",
-      "access_ca_lote": "https://eudcc.de/lote/access-ca",
-      "registration_cert_lote": "https://eudcc.de/lote/registration-cert"
-    },
-    "NL": {
-      "pid_provider_lote": "https://eudi.rvig.nl/lote/pid-providers",
-      "qeaa_trusted_list": "https://eudi.rvig.nl/tl/qeaa-providers"
-    }
-  }
-}
-```
+- the PID Provider LoTE endpoints the RP needs for plain issuer-anchor verification;
+- the `LOTL` location and `LOTLSO` certificates needed to authenticate national trusted lists under `ETSI TS 119 615`;
+- the specific national trusted-list endpoints later needed when the RP wants to confirm qualified certificate / `QWAC` / `QSCD` / qualified validation-service / `QEAA` status.
 
-The Relying Party typically needs only the **PID Provider LoTE** and the **QEAA/QTSP Trusted Lists** — the Access CA LoTE and Wallet Provider LoTE are used by Wallet Units and Providers respectively, not by Relying Parties (see [§5.5.2](#552-lote-types-relevant-to-rps) table). For cross-border scenarios, the Relying Party should fetch LoTEs from **all** Member States whose citizens it expects to serve.
+For cross-border scenarios, the RP should prepare this data for every jurisdiction it expects to serve instead of discovering foreign endpoints only after a live presentation arrives.
 
-**Artifact Produced:** Common Trust Infrastructure Discovery Document (JSON).
+**Artifact Produced:** Local list-location inventory plus `LOTL` / national-trusted-list bootstrap metadata for the RP trust pipeline.
 
 **Audit Telemetry:** The Relying Party logs a `CTI_DISCOVERY_SUCCESS` event containing the enumeration of available Member State lists.
 
@@ -3930,14 +3924,15 @@ The verification routine must strictly evaluate:
 <details>
 <summary><strong>6. Relying Party Backend caches trust anchors locally</strong></summary>
 
-Once the LoTE signature is verified, the Relying Party unpacks the `jwks` array from the Entity Statement and securely ingests the trust anchors into its highly-available local cache (e.g., Redis, DynamoDB, or a secure hardware enclave). 
+Once the LoTE signature is verified, the Relying Party unpacks the `jwks` array from the Entity Statement and securely ingests the trust anchors into its highly-available local cache (e.g., Redis, DynamoDB, or a secure hardware enclave).
 
 Caching is an absolute architectural necessity. Relying Parties MUST NOT attempt to fetch the LoTE synchronously during a live User presentation, as this introduces unacceptable latency, points of failure, and privacy-leaking metadata to the Member State.
 
 The cache architecture must fulfill highly specific technical constraints:
 - **Indexed Lookups**: Keys must be instantly retrievable via an O(1) lookup using a composite identifier `(provider_issuer_uri, key_id)`.
 - **TTL Enforcement**: Cached keys must inherit the `exp` timestamp of the parent LoTE Entity Statement. If the cache entry expires, the Relying Party must suspend verifications for that provider until a fresh LoTE is fetched.
-- **Differential Updates**: The Relying Party's cron job (fetching the LoTE hourly or daily) must perform a diff against the cache to detect newly added keys, rotated keys, or **revoked/removed providers**. 
+- **Differential Updates**: The Relying Party's cron job (fetching the LoTE hourly or daily) must perform a diff against the cache to detect newly added keys, rotated keys, or **revoked/removed providers**.
+- **Separate trusted-list cache state**: where the RP also evaluates qualified outputs, it should separately cache the authenticated `LOTL`, national trusted-list material, and the intermediate service-matching / qualification-determination inputs required by `ETSI TS 119 615`, instead of treating those as the same cache object as a PID Provider LoTE.
 
 ```json
 // Internal RP Cache Structure Example
@@ -4010,7 +4005,7 @@ A mathematically successful verification unequivocally proves three systemic tru
 2. **Data Integrity**: The core attributes (Name, DOB) have not suffered a single bit of tampering since issuance.
 3. **Chain of Trust**: The unbroken cryptographic link connects the User's credential perfectly back through the PID Provider, the MS LoTE, and ultimately to the European Commission's Common Trust Infrastructure. 
 
-Upon success, the Relying Party safely proceeds to revocation checking and device-binding (PoP) verification.
+Upon success, the Relying Party safely proceeds to revocation checking and device-binding (PoP) verification. If the RP later needs to state a **qualified-status** conclusion rather than only "issuer chain verified," that is a second-stage determination: the RP has to move from plain anchor resolution into the `ETSI TS 119 615` procedure set for service matching and trusted-list interpretation.
 
 **Audit Telemetry:** The Relying Party logs a `PID_SIGNATURE_VERIFIED_SUCCESS` event, linking the presentation identifier to the trusted issuer.
 
@@ -4018,15 +4013,29 @@ Upon success, the Relying Party safely proceeds to revocation checking and devic
 
 ##### 5.5.4 Trust Anchor Lifecycle Events That Affect RPs
 
-| Event | Impact on RP |
-|:------|:-------------|
-| **PID Provider suspended** | LoTE status changed to Invalid → RP should reject PIDs from this Provider |
-| **QEAA Provider loses qualified status** | Trusted List updated → RP should reject new QEAAs from this Provider |
-| **Access CA compromised** | LoTE updated → Wallet Units stop trusting WRPACs from this CA → RP must obtain new WRPAC from different CA |
-| **Wallet Provider suspended** | Wallet Provider LoTE updated → PID/Attestation Providers stop issuing → existing PIDs remain valid until revoked |
-| **RP registration suspended** | WRPAC revoked → RP Instance can no longer authenticate to Wallet Units |
+| Event | Primary evidence surface | RP consequence | `ETSI TS 119 615` role |
+|:------|:-------------------------|:---------------|:-----------------------|
+| **PID Provider suspended or removed** | PID Provider LoTE / EFDA publication surfaces | Treat new issuer-anchor discovery for that Provider as failed after refresh; historical credential handling still depends on expiry/revocation/policy evaluation, not only on a one-time list snapshot | Not the primary procedure; this stays a LoTE-driven entity-trust outcome |
+| **QEAA / QWAC / qualified certificate service status changes** | Authenticated national Trusted List + service history | Re-run trusted-list service matching for the certificate and the time of interest before stating a qualified conclusion; the outcome can be `Qualified`, `Not_Qualified`, or `Indeterminate` depending on the service history and evidence available | Primary procedure for service matching and qualification determination |
+| **QSCD indication changes for a qualified certificate** | Authenticated national Trusted List + `QSCD` indication evaluation | Do not assume a permanent `QSCD` answer from a bare certificate; re-run the `QSCD` determination for the relevant certificate/service/time tuple and record `QSCD_YES`, `QSCD_NO`, or `QSCD_INDETERMINATE` | Primary procedure for `QSCD` determination |
+| **Qualified validation-service status changes** | Authenticated national Trusted List + validation-service entry | Re-run the qualified-validation-service determination before claiming that a remote validation result or service is itself qualified | Primary procedure for qualified validation-service determination |
+| **Access CA compromised** | Access-CA LoTE / WRPAC trust surfaces | Wallet Units stop trusting `WRPAC`s chained to that CA; the RP must move to a different valid `WRPAC` path | Not the primary procedure in this pass; this remains `WRPAC` / Access-CA trust material |
+| **Wallet Provider suspended** | Wallet Provider LoTE | PID / Attestation Providers may stop issuing through that Wallet Provider path; already-issued credentials still require their own validity/revocation analysis | Not the primary procedure in this pass; this remains LoTE-driven entity-trust material |
+| **RP registration suspended** | Registrar / `WRPAC` status and related trust surfaces | The RP Instance can no longer authenticate to Wallet Units with the suspended registration material | Not the primary procedure in this pass; this remains registration / `WRPAC` trust material |
 
-> **RP operational requirement**: RPs must implement periodic LoTE/Trusted List refresh (at minimum daily, recommended more frequently) to ensure they are using current trust anchors for verifying presented credentials. Stale trust anchors could lead to accepting credentials from suspended Providers.
+The main operational distinction is that **LoTE events** change whether a notified EUDI entity remains a trusted anchor source, while **national trusted-list events** change whether a certificate-, service-, `QSCD`-, or `QEAA`-related conclusion can be stated for a specific point in time. `ETSI TS 119 615` therefore should not be treated as a generic "list changed, reject everything" rule set; it is a procedure set for recomputing time-specific outcomes from authenticated trusted-list evidence.
+
+**Decision-support matrix for RP trust conclusions:**
+
+| RP question | Primary evidence set | Typical result vocabulary |
+|:------------|:---------------------|:--------------------------|
+| Is this PID issuer still a trusted notified source? | PID Provider LoTE + local anchor cache | Trusted / Not trusted / Unknown until refreshed |
+| Is this certificate qualified for eSignature or eSeal use at time `T`? | Authenticated `LOTL` + national Trusted List + service matching for the relevant certificate and time | `QC_For_eSig`, `QC_For_eSeal`, `Not_Qualified`, `Indeterminate` |
+| Does this qualified certificate carry a valid `QSCD` conclusion at time `T`? | Authenticated national Trusted List + `QSCD` determination for the relevant service | `QSCD_YES`, `QSCD_NO`, `QSCD_INDETERMINATE` |
+| Is this validation service or token-issuer service qualified? | Authenticated national Trusted List + the corresponding service-determination procedure | `Qualified`, `Not_Qualified`, `Indeterminate` |
+| Can I state that the relevant `QEAA` service is qualified? | Authenticated national Trusted List + QEAA-service determination | `Qualified`, `Not_Qualified`, `Indeterminate` |
+
+> **RP operational requirement**: RPs must implement periodic LoTE refresh and, where qualified outputs matter, a separate authenticated trusted-list refresh (at minimum daily, recommended more frequently). They should cache more than just raw XML or LoTE blobs. For trusted-list-backed conclusions they should also preserve the authenticated `LOTL`, the authenticated national list, the matched service entry, and the evaluation time used to derive the result. Otherwise the RP cannot later explain whether a conclusion was technically valid, qualified, or merely `Indeterminate` at the relevant time.
 
 ##### 5.5.5 OpenID Federation: The Protocol Behind LoTE Entity Statements
 
@@ -8457,6 +8466,8 @@ After receiving and decrypting the response, the RP performs:
 | 9 | **Validate combined presentation binding** (if multi-attestation) — verify same `cnf` key | Reject — credentials from different Wallet Units |
 | 10 | **Extract attribute values** from verified Disclosures | Process — attributes trusted |
 
+> **Qualified-status boundary**: The checklist above establishes ordinary RP trust for a presented credential: issuer authenticity, disclosure integrity, device binding, and revocation state. If the RP later needs to claim that an embedded certificate, `QWAC`, `QSCD`, or related service is **qualified**, that is a separate second-stage evaluation. The RP must authenticate the `LOTL`, authenticate the relevant national trusted list, perform service matching, and only then derive a time-specific `ETSI TS 119 615` conclusion such as `QC_For_eSig`, `QWAC`, or `Indeterminate`.
+
 #### 11.4 Verification Checklist for mdoc (via ISO 18013-7/OpenID4VP)
 
 | Step | Verification | Failure Action |
@@ -8470,6 +8481,8 @@ After receiving and decrypting the response, the RP performs:
 | 7 | **Validate SessionTranscript** binding | Reject — replay |
 | 8 | **Check credential revocation** | Reject |
 | 9 | **Extract data elements** from verified IssuerSignedItems | Process |
+
+> **Qualified-status boundary**: The mdoc checklist above proves that the CBOR payload is authentic, untampered, device-bound, and not revoked under the issuer's normal lifecycle. It does **not** by itself establish a qualified certificate / `QSCD` / qualified validation / `QEAA` conclusion. Where those conclusions matter, the RP must run the separate `ETSI TS 119 615` trusted-list procedure layer after the technical checks succeed.
 
 #### 11.5 Edge Cases and Error Handling
 
@@ -9274,6 +9287,8 @@ flowchart TD
 1. Decode the Issuer JWT header and verify the signature using the PID/Attestation Provider's public key (retrieved via the designated Trust Anchor in the LoTE).
 2. Extract the `_sd_alg` claim (which defaults to `sha-256`) and the `_sd` array from the payload.
 
+This phase establishes **technical issuer authenticity**, not an automatic qualified-status conclusion. If the RP later needs to state that the underlying certificate or service is qualified, it has to follow the separate `ETSI TS 119 615` path: authenticate the `LOTL`, authenticate the relevant national trusted list, match the service to the certificate and time of interest, and only then derive `Qualified` / `Not_Qualified` / `Indeterminate`-style outputs.
+
 **Phase 3: Disclosure Array Hashing (Bit-Level)**
 For every disclosure string in the input sequence, the RP must independently verify its cryptographic integrity to guarantee the Wallet hasn't fabricated attributes:
 
@@ -9350,6 +9365,8 @@ The decrypted `vp_token` is a `DeviceResponse` CBOR structure containing an arra
 - **Structure**: The `issuerAuth` element is a `COSE_Sign1` object.
 - **Validation**: The RP extracts the `MobileSecurityObject` (MSO) from the `issuerAuth` payload, locates the PID Provider's signing certificate within the `x5chain`, validates the certificate against the LoTE, and verifies the `COSE_Sign1` signature over the MSO.
 - **Data Integrity**: For every returned attribute in `nameSpaces`, the RP CBOR-encodes the element as an `IssuerSignedItem`, computes its SHA-256 hash, and verifies that this precise digest exists in the MSO's `valueDigests` map.
+
+This proves issuer authenticity and payload integrity for the mdoc itself. It does not, by itself, answer whether an associated certificate or service should be treated as **qualified**. Where such a conclusion matters, the RP still needs the separate authenticated-trusted-list and service-matching path defined by `ETSI TS 119 615`.
 
 **DeviceAuth (MAC vs. Asymmetric Signature)**
 - **Purpose**: Proves the presenting Wallet Unit holds the precise private key bound to the credential by the PID Provider (Device Binding).
@@ -16916,7 +16933,7 @@ The EUDI Wallet is designed for cross-border interoperability — a PID issued b
 
 #### 23.2 LoTE Discovery Across Member States
 
-When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. The discovery process:
+When an RP receives a PID from a foreign Member State, it must validate the issuer's certificate chain against a trust anchor it may not yet have cached. For the PID path, that means resolving and fetching the relevant **foreign PID Provider LoTE**. If the RP later needs a **qualified-status** conclusion about a foreign certificate, `QWAC`, `QSCD`, or `QEAA`, it must separately prepare the `LOTL` / national trusted-list path described in `§5.5` rather than treating that as the same cache object as the PID-provider LoTE.
 
 ```mermaid
 ---
@@ -16932,21 +16949,24 @@ config:
 sequenceDiagram
     autonumber
     participant RP as 🏦 RP Server
-    participant SL as 📋 Trust List
-    
+    participant PUB as 🇪🇺 EC / MS<br/>Publication Surfaces
+    participant LOTE as 📜 Foreign PID<br/>Provider LoTE
+
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Identification & Fetch
     RP->>RP: Extract Issuer & Country Code from PID
-    RP->>SL: Request LoTE for specific Member State
-    SL-->>RP: Return LoTE<br/>containing Trust Anchor
-    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    RP->>PUB: Resolve foreign LoTE endpoint
+    PUB-->>RP: Foreign LoTE endpoint +<br/>TL bootstrap metadata
+    RP->>LOTE: Fetch foreign PID Provider LoTE
+    LOTE-->>RP: Signed LoTE with<br/>foreign issuer anchors
+    Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(46, 204, 113, 0.14)
     Note right of RP: Phase 2: Validation & Cache
     RP->>RP: Validate PID signature vs. Trust Anchor
-    RP->>RP: Cache foreign MS Trust Anchor based on TTL
-    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    RP->>RP: Cache foreign LoTE anchors +<br/>separate TL bootstrap state
+    Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -16957,25 +16977,43 @@ Upon receiving the payload, the Relying Party parses the `iss` claim (for SD-JWT
 
 </details>
 <details>
-<summary><strong>2. RP Server determines MS and fetches LoTE</strong></summary>
+<summary><strong>2. RP Server resolves the foreign LoTE publication endpoint</strong></summary>
 
-The RP infers the issuing Member State from the attribute payload and queries the EU Trusted List Browser (or its own caching layer) for that specific country's LoTE.
+The RP infers the issuing Member State from the credential payload and queries the European Commission / Member State publication surfaces it already uses for trust bootstrapping to resolve the authoritative foreign PID Provider LoTE location. It should treat that resolution as a cache-preparation problem, not as an ad hoc live lookup invented per presentation.
 
-**Failure Path:** If the member state cannot be resolved or LoTE endpoint is unavailable, the RP defaults to denying the transaction.
+**Failure Path:** If the member state cannot be resolved or the publication surface is unavailable, the RP defaults to denying the transaction.
+
+**Audit Telemetry:** The RP Server logs a `LOTE_DISCOVERY_RESOLUTION_FAILED` warning.
+
+</details>
+<details>
+<summary><strong>3. Publication surfaces return the foreign LoTE endpoint and trusted-list bootstrap metadata</strong></summary>
+
+The publication surfaces return the concrete foreign PID Provider LoTE endpoint plus the related bootstrap inputs the RP may need later for the separate trusted-list leg. Where the RP also expects to consume foreign **qualified** outputs, this is the point where it should additionally prepare the `LOTL` location, the `LOTLSO` certificates, and the foreign national trusted-list endpoint needed for the later `ETSI TS 119 615` path. That is a separate evidence pipeline from the LoTE fetch itself.
+
+**Artifact Produced:** Foreign LoTE endpoint metadata plus optional `LOTL` / foreign national trusted-list bootstrap inputs.
+
+</details>
+<details>
+<summary><strong>4. RP Server fetches the foreign PID Provider LoTE</strong></summary>
+
+Using the resolved endpoint, the RP fetches the foreign PID Provider LoTE. This is the concrete retrieval step for the cross-border issuer-anchor set and should be handled as a cache-fill operation with ordinary retry, timeout, and integrity controls.
+
+**Failure Path:** If the foreign LoTE endpoint is unavailable or returns a transport error, the RP defaults to denying the transaction.
 
 **Audit Telemetry:** The RP Server logs a `LOTE_DISCOVERY_FETCH_FAILED` warning.
 
 </details>
 <details>
-<summary><strong>3. Trust List returns Trust Anchor</strong></summary>
+<summary><strong>5. Foreign PID Provider LoTE returns signed issuer-anchor material</strong></summary>
 
-The Trust List returns the specific MS trust anchor.
+The foreign PID Provider LoTE returns the signed issuer-anchor material for the foreign Member State's notified PID Providers. In practice the RP should cache the full signed LoTE payload plus the extracted issuer-anchor keys, not just a bare trust-anchor certificate, so later rotations or removals can be evaluated coherently.
 
-**Artifact Produced:** Fetched Member State LoTE X.509 Trust Anchor data structure.
+**Artifact Produced:** Fetched foreign PID Provider LoTE plus extracted issuer-anchor material.
 
 </details>
 <details>
-<summary><strong>4. RP Server validates PID signature against foreign Trust Anchor</strong></summary>
+<summary><strong>6. RP Server validates the PID signature against the foreign Trust Anchor</strong></summary>
 
 The Relying Party verifies the PID Provider's signing certificate directly against the newly acquired foreign Trust Anchor.
 
@@ -16985,16 +17023,16 @@ The Relying Party verifies the PID Provider's signing certificate directly again
 
 </details>
 <details>
-<summary><strong>5. RP Server caches Trust Anchor</strong></summary>
+<summary><strong>7. RP Server caches foreign anchors and separate trusted-list bootstrap state</strong></summary>
 
-The RP stores the verified foreign MS trust anchor in its local, memory-resident cache, enforcing a TTL aligned to that MS's LoTE update frequency to prevent stale cryptographic material.
+The RP stores the verified foreign Member State LoTE anchors in its local cache with a TTL aligned to the LoTE's lifecycle. If it also expects later foreign qualified-output determinations, it should keep the `LOTL` / national trusted-list bootstrap data in a **separate** cache state rather than conflating the two.
 
-**Artifact Produced:** Memory-resident Trust Anchor cache entry governed by strict TTL compliance mechanisms.
+**Artifact Produced:** Memory-resident foreign LoTE-anchor cache entry plus optional trusted-list bootstrap metadata.
 
 </details>
 <br/>
 
-> **RP implementation note**: RPs expecting cross-border traffic should pre-cache LoTE data for all 27 Member States plus EEA countries. The EU provides a centralised Trust List Browser API, but RPs should not depend on real-time API calls during presentation verification — pre-caching is strongly recommended for latency and availability.
+> **RP implementation note**: RPs expecting cross-border traffic should pre-cache foreign PID Provider LoTE data for all Member States they serve, and where qualified outputs matter they should pre-stage the related `LOTL` / national trusted-list bootstrap inputs as well. They should not depend on real-time remote discovery during presentation verification — pre-caching is strongly recommended for latency, availability, and privacy.
 
 #### 23.3 Language Handling in Consent Screens
 
@@ -23944,9 +23982,9 @@ The RP activates pre-configured fallback authentication paths for users whose pr
 - **Secondary**: Maintain multi-wallet verification capability — do not assume a single wallet solution; ensure fallback authentication paths exist for users whose wallet solution is suspended (other wallet solutions, national eID, manual identification).
 - **Detective**: Monitor wallet solution certification status against the certified wallet list (CIR 2025/849) as part of periodic trust configuration refresh; flag any solution whose status changes from "certified" to "suspended". See [§31.4](#314-breach-notification-monitoring-cir-2025847) for breach notification monitoring integration.
 
-##### 29.2.22 LoTE/Trusted List Cache Poisoning
+##### 29.2.22 LoTE Cache Poisoning
 
-**Threat Summary**: An attacker targets the RP’s cached List of Trusted Entities via DNS hijacking, BGP route manipulation, or cache refresh compromise. By injecting a rogue Access CA or PID Provider into the trusted set, the attacker enables mass-production of forged PIDs that pass full cryptographic verification. A single successful poisoning event compromises all credential verifications until the next legitimate LoTE refresh.
+**Threat Summary**: An attacker targets the RP’s cached List of Trusted Entities via DNS hijacking, BGP route manipulation, or cache refresh compromise. By injecting a rogue Access CA or PID Provider into the trusted set, the attacker enables mass-production of forged PIDs that pass full cryptographic verification. A single successful poisoning event compromises all credential verifications until the next legitimate LoTE refresh. Where the RP also maintains authenticated `LOTL` / national trusted-list state for qualified outputs, that second-stage cache must be managed separately rather than folded into the LoTE refresh object.
 
 **Classification**:
 
@@ -25309,7 +25347,7 @@ The target accepts the rogue entity as trusted. If the rogue entity is a PID Pro
 
 **Mitigation**:
 
-- **Primary**: The Trust Anchor Entity Statement MUST be obtained out-of-band and pinned — identical to the LoTE Trust Anchor pinning in [§29.2.22](#29222-lotetrusted-list-cache-poisoning). The Wallet and RP must not dynamically resolve the Trust Anchor; it must be a bootstrap configuration parameter.
+- **Primary**: The Trust Anchor Entity Statement MUST be obtained out-of-band and pinned — identical to the LoTE Trust Anchor pinning in [§29.2.22](#29222-lote-cache-poisoning). The Wallet and RP must not dynamically resolve the Trust Anchor; it must be a bootstrap configuration parameter.
 - **Secondary**: Implement maximum Trust Chain depth limits. Longer chains increase the attack surface. For the EUDI ecosystem, a maximum depth of 3 (Trust Anchor → MS Authority → Entity) is recommended.
 - **Tertiary**: Cross-reference OID-FED–resolved entities against the LoTE/EFDA. Any entity that appears in OID-FED but not in the LoTE should be flagged for manual review.
 - **Detective**: Log all Trust Chain resolution events. Alert on chains that include Intermediate Authorities not previously seen, or chains whose depth exceeds the configured maximum.
@@ -25391,7 +25429,7 @@ ReaderAuth = [
 <details>
 <summary><strong>2. Wallet validates Reader Certificate chain against IACA root</strong></summary>
 
-The Wallet extracts the Reader Certificate from the `ReaderAuth` and validates the full certificate chain: leaf → intermediate(s) → IACA root. The Wallet checks that the IACA root is in its trusted set, that the chain is complete, and that no certificate in the chain has been revoked (via CRL or OCSP). This is the Wallet-side analogue of the RP's LoTE/Trust Anchor validation ([§29.2.22](#29222-lotetrusted-list-cache-poisoning)).
+The Wallet extracts the Reader Certificate from the `ReaderAuth` and validates the full certificate chain: leaf → intermediate(s) → IACA root. The Wallet checks that the IACA root is in its trusted set, that the chain is complete, and that no certificate in the chain has been revoked (via CRL or OCSP). This is the Wallet-side analogue of the RP's LoTE/Trust Anchor validation ([§29.2.22](#29222-lote-cache-poisoning)).
 
 **Artifact Produced:** Certificate chain validation result: valid chain up to trusted IACA root.
 
@@ -25701,7 +25739,7 @@ Because `DeviceSignature` was not verified, the RP has no proof that the present
 
 ##### 29.2.30 mdoc IACA Chain Validation Bypass
 
-**Threat Summary**: An attacker presents a Reader Certificate with a valid-looking but unrooted chain — self-signed with a plausible issuer DN, terminating at an expired IACA root, or including a revoked intermediate. If the Wallet fails to validate the full chain and revocation status, the attacker bootstraps a trusted reader identity without IACA registration, enabling unconstrained attribute harvesting. This is the mdoc equivalent of [§29.2.22](#29222-lotetrusted-list-cache-poisoning) applied at the certificate layer.
+**Threat Summary**: An attacker presents a Reader Certificate with a valid-looking but unrooted chain — self-signed with a plausible issuer DN, terminating at an expired IACA root, or including a revoked intermediate. If the Wallet fails to validate the full chain and revocation status, the attacker bootstraps a trusted reader identity without IACA registration, enabling unconstrained attribute harvesting. This is the mdoc equivalent of [§29.2.22](#29222-lote-cache-poisoning) applied at the certificate layer.
 
 **Classification**:
 
@@ -25853,7 +25891,7 @@ The Wallet displays the rogue reader's identity (from the forged certificate's f
 </details>
 <br/>
 
-**Attack Vector**: The attacker presents a Reader Certificate with a valid-looking but unrooted chain — either a self-signed chain with a plausible issuer DN, a chain terminating at an expired IACA root, or a chain with a revoked intermediate certificate. If the Wallet fails to validate the full chain (including revocation status), the attacker bootstraps a trusted reader identity without IACA registration. This is the mdoc equivalent of [§29.2.22](#29222-lotetrusted-list-cache-poisoning) (LoTE cache poisoning) applied at the certificate layer.
+**Attack Vector**: The attacker presents a Reader Certificate with a valid-looking but unrooted chain — either a self-signed chain with a plausible issuer DN, a chain terminating at an expired IACA root, or a chain with a revoked intermediate certificate. If the Wallet fails to validate the full chain (including revocation status), the attacker bootstraps a trusted reader identity without IACA registration. This is the mdoc equivalent of [§29.2.22](#29222-lote-cache-poisoning) (LoTE cache poisoning) applied at the certificate layer.
 
 **Impact**: High — the rogue reader is accepted as trusted by the Wallet, enabling unconstrained attribute harvesting. The attacker does not need to compromise any legitimate key — they generate their own chain and exploit the Wallet's validation gaps. The attack is particularly dangerous in offline NFC scenarios where revocation checking may be skipped for performance reasons.
 
@@ -27994,7 +28032,7 @@ The following matrix consolidates the risk ratings for all 41 threat scenarios d
 
 | Scenario | Threat | Likelihood | Impact | Residual Risk |
 |:---------|:-------|:-----------|:-------|:--------------|
-| [§29.2.22](#29222-lotetrusted-list-cache-poisoning) | LoTE / Trusted List Cache Poisoning | Low | Critical | 🔴 High — if the RP accepts unsigned LoTE updates or discovers the TA key dynamically; 🟡 Medium if LoTE responses are cryptographically signed by the Trust Anchor and the RP verifies against a pinned bootstrap key |
+| [§29.2.22](#29222-lote-cache-poisoning) | LoTE Cache Poisoning | Low | Critical | 🔴 High — if the RP accepts unsigned LoTE updates or discovers the TA key dynamically; 🟡 Medium if LoTE responses are cryptographically signed by the Trust Anchor and the RP verifies against a pinned bootstrap key |
 | [§29.2.23](#29223-jwt-algorithm-confusiontype-confusion) | JWT Algorithm Confusion / Type Confusion | Medium | Critical | 🔴 Critical — if the verification library accepts `alg` from the token itself (CVE-2015-9235 class); 🟢 Low if the RP enforces an explicit algorithm allowlist (e.g., only `ES256`) and never derives the verification algorithm from the JWT header |
 | [§29.2.3](#2923-wrpac-private-key-compromise) | WRPAC Private Key Compromise | Low | Critical | 🟡 Medium — depends entirely on whether the RP stores the WRPAC private key in an HSM (not mandated by ARF for RPs); without HSM, a single server breach exposes the key. CT monitoring ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)) provides detection but not prevention |
 | [§29.2.9](#2929-insider-threat-privileged-access-to-pid-data) | Insider Threat: Privileged Access to PID Data | Medium | Critical | 🟡 Medium — RBAC, encryption at rest, and audit logging mitigate but cannot eliminate the risk from privileged insiders. The silent, long-lasting nature of insider exfiltration means detection may lag months. DORA Art. 9(4)(c) imposes HR-level controls for financial RPs |
@@ -28240,15 +28278,17 @@ These signals arise from the response encryption and authentication layer — th
 
 ##### 30.4.4 Trust Infrastructure Signals
 
-These signals arise from failures in the trust infrastructure that underpins credential verification — the LoTE/Trusted List cache and Wallet Unit Attestation validation.
+These signals arise from failures in the trust infrastructure that underpins credential verification — the LoTE cache, the authenticated `LOTL` / national trusted-list state used for qualified-status conclusions where relevant, and Wallet Unit Attestation validation.
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `LOTE_FETCH_FAILED` | Cannot retrieve the LoTE/Trusted List from the Member State or EU-level endpoint | DoS | **S2** | **Trust infrastructure outage.** The RP cannot refresh its trust anchor cache. If the cached LoTE is still within TTL, continue with degraded confidence. If cache is expired, the RP cannot verify any issuer signatures — apply fail-open/fail-closed policy. Possible DNS hijacking or BGP manipulation ([§29.2.22](#29222-lotetrusted-list-cache-poisoning)). | [§29.2.22](#29222-lotetrusted-list-cache-poisoning) |
-| `LOTE_SIG_INVALID` | LoTE signature verification fails against the expected signing key | Tampering | **S0** | **LoTE cache poisoning attack.** The RP received a LoTE response that is not authentically signed by the expected authority. **Critical** — if the RP accepts this poisoned LoTE, all subsequent issuer signature verifications operate against attacker-controlled trust anchors. Block the LoTE update; retain the previously verified cache; alert SOC immediately. | [§29.2.22](#29222-lotetrusted-list-cache-poisoning) |
-| `LOTE_EXPIRED` | LoTE cache is beyond its TTL and a fresh fetch is unavailable (combining stale cache with `LOTE_FETCH_FAILED`) | — | **S2** | **Degraded trust confidence.** The RP is operating with stale trust anchors. New PID Providers or revoked issuers may not be reflected. Accept presentations with an elevated risk flag; prioritise LoTE refresh. | — |
+| `LOTE_FETCH_FAILED` | Cannot retrieve the LoTE from the Member State or EU-level publication endpoint | DoS | **S2** | **Trust infrastructure outage.** The RP cannot refresh its notified-entity trust-anchor cache. If the cached LoTE is still within TTL, continue with degraded confidence for LoTE-backed issuer checks. If cache is expired, the RP cannot verify issuer signatures for those entities — apply fail-open/fail-closed policy. Possible DNS hijacking or BGP manipulation ([§29.2.22](#29222-lote-cache-poisoning)). | [§29.2.22](#29222-lote-cache-poisoning) |
+| `LOTE_SIG_INVALID` | LoTE signature verification fails against the expected signing key | Tampering | **S0** | **LoTE cache poisoning attack.** The RP received a LoTE response that is not authentically signed by the expected authority. **Critical** — if the RP accepts this poisoned LoTE, all subsequent issuer signature verifications operate against attacker-controlled trust anchors. Block the LoTE update; retain the previously verified cache; alert SOC immediately. | [§29.2.22](#29222-lote-cache-poisoning) |
+| `LOTE_EXPIRED` | LoTE cache is beyond its TTL and a fresh fetch is unavailable (combining stale cache with `LOTE_FETCH_FAILED`) | — | **S2** | **Degraded trust confidence.** The RP is operating with stale notified-entity trust anchors. New PID Providers or revoked issuers may not be reflected. Accept presentations with an elevated risk flag; prioritise LoTE refresh. | — |
 | `WUA_INVALID` | Wallet Unit Attestation (WUA) fails verification — signature invalid, format malformed, or attestation expired | Spoofing | **S1** | **Compromised, rooted, or emulated device.** The WUA is the wallet's proof that it runs on a certified, uncompromised device with a valid WSCD. WUA failure suggests the wallet is running on a rooted device, emulator, or has been tampered with. | [§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure) |
 | `WUA_WALLET_SUSPENDED` | WUA references a Wallet Solution that appears on the Commission's suspended wallet list | — | **S1** | **Wallet solution under security investigation.** The Commission or a CAB has suspended the wallet solution's certification — all Wallet Units from this solution are suspect. Reject or flag with high-severity risk. Cross-reference with CIR 2024/2977 Art. 5.4(b) cascade revocation. | [§29.2.21](#29221-wallet-solution-suspension-or-withdrawal) |
+
+> **Qualified-status boundary**: The signals above are primarily about LoTE-backed issuer trust and wallet-environment integrity. Where the RP later needs to state a trusted-list-backed qualified conclusion, it should maintain a **separate** authenticated `LOTL` / national trusted-list state and treat outages in that path as loss of qualified-status evidence — not as something silently substituted by LoTE success. Under `ETSI TS 119 615`, the qualified-status leg may therefore degrade to unavailable or `Indeterminate` even when ordinary LoTE-backed issuer trust remains usable.
 
 #### 30.5 Signal Inventory: Layer 3: Contextual and Behavioural
 
@@ -28764,7 +28804,7 @@ The following table closes the traceability loop, connecting each representative
 | `MDOC_IACA_CHAIN_INVALID` | IACA certificate chain bypass | [§29.2.30](#29230-mdoc-iaca-chain-validation-bypass) IACA Chain Bypass | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
 | `MDOC_SESSION_TRANSCRIPT_MISMATCH` | Relay attack via session transcript manipulation | [§29.2.4](#2924-relay-attack-cross-device) VP Token Relay | [§31.2.3](#3123-threat-detection-and-verification-engine) Session mismatch | eIDAS Art. 5b (RP integrity) | BLOCK |
 | `JWE_DECRYPT_FAILED` | Response encryption key mismatch | [§29.2.7](#2927-ephemeral-key-interception-response-encryption) Ephemeral Key Interception | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | GDPR Art. 33 (data breach) | BLOCK |
-| `LOTE_SIG_INVALID` | LoTE cache poisoning — trust anchor compromise | [§29.2.22](#29222-lotetrusted-list-cache-poisoning) LoTE Cache Poisoning | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor key rotation | NIS2 Art. 23 (24h early warning) | BLOCK |
+| `LOTE_SIG_INVALID` | LoTE cache poisoning — trust anchor compromise | [§29.2.22](#29222-lote-cache-poisoning) LoTE Cache Poisoning | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor key rotation | NIS2 Art. 23 (24h early warning) | BLOCK |
 | `WUA_INVALID` | Wallet attestation failure — compromised device | [§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure) Compromised Wallet Environment | [§31.2.3](#3123-threat-detection-and-verification-engine) Device attestation failure | eIDAS CIR 2024/2977 Art. 5 | BLOCK |
 | `CTX_VELOCITY_EXCEED` | High-velocity credential reuse | [§29.2.13](#29213-cross-rp-collusion) Cross-RP Collusion | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Velocity anomaly | AML/6AMLD (SAR if patterned) | STEP-UP |
 | `SDJWT_ISSUER_CHAIN_INVALID` | Issuer X.509 chain doesn't validate to LoTE root | [§29.2.27](#29227-oid-fed-trust-chain-spoofing) Trust Chain Manipulation | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
@@ -28833,6 +28873,7 @@ Financial RPs integrating with the EUDI Wallet should monitor the following metr
 | **Status List cache hit rate** | Percentage of revocation checks served from cache | &lt; 80% → increase cache TTL |
 | **WRPAC expiry countdown** | Days until WRPAC certificate expires | &lt; 30 days → trigger renewal |
 | **LoTE freshness** | Time since last LoTE update was fetched | > 24h → force refresh |
+| **Authenticated `LOTL` / national TL freshness** | Time since the last successfully authenticated trusted-list refresh used for qualified-status conclusions | > 24h → review qualified-output path and refresh |
 | **Error rate by type** | Breakdown: `access_denied`, `invalid_request`, `expired_credential`, etc. | Spike in any category → investigate |
 | **Cross-border presentation ratio** | Percentage of presentations from foreign MS PIDs | Unexpected spike → possible attack vector |
 
@@ -28863,10 +28904,11 @@ Monitors the foundational anchors tying the RP to the European federation. Failu
 | WRPAC expiry countdown | 🟡 Warning / 🔴 Critical | &lt; 30 days (Warning); &lt; 7 days (Critical) | Initiate automated certificate renewal pipeline with the National Access CA. Edge case: the replacement WRPAC may be issued before the applicable CT / transparency evidence is available — verify your Access CA profile before deployment ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)) |
 | Unauthorised WRPAC detected in CT log | 🔴 Critical | > 0 unauthorised issuances observed | A rogue or mistaken CA issued a certificate for the RP's domain. Trigger immediate revocation of the rogue certificate via the Trusted List operator ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)) |
 | HSM / KMS latency spikes | 🔴 Critical | > 500ms for signing operations | Evaluate hardware security module health; scale signing capacity. If offline, the RP cannot execute `client_assertion` authentication or sign JARs |
-| LoTE staleness or fetch failure | 🟡 Warning | > 24 hours since last successful fetch | Force manual cache refresh; investigate outbound network rules preventing national Trusted List synchronisation. Edge case: network partition isolating the RP from the EU Trust Framework infrastructure |
+| LoTE staleness or fetch failure | 🟡 Warning | > 24 hours since last successful fetch | Force manual cache refresh; investigate outbound network rules preventing LoTE synchronisation. Edge case: network partition isolating the RP from the EU Trust Framework infrastructure |
+| Authenticated `LOTL` / national Trusted List stale or unavailable | 🟠 High | > 24 hours since last successful authenticated refresh for a path where the RP consumes qualified outputs | Do not silently substitute LoTE success for trusted-list-backed qualification. Keep ordinary issuer checks running where appropriate, but treat the qualified-output leg as unavailable or `Indeterminate` until the authenticated trusted-list path is healthy again |
 | Issuer metadata fetch failure | 🟡 Warning | > 3 consecutive failures from the same Issuer `iss` | Activate temporary cache fallback; raise network-level alert if a specific Member State's `.well-known/openid-credential-issuer` endpoint is persistently down |
 | Status List / revocation endpoint outage | 🟠 High | > 5 minutes HTTP 5xx or timeout | Switch to cached Status List immediately to prevent fail-closed denial of service. Notify on-call engineer. Edge case: an Issuer may rotate the Status List URI without publishing updated metadata — purge local cache and re-fetch Issuer metadata |
-| Trust Anchor key rotation failure | 🔴 Critical | LoTE signature unverifiable against cached root keys | The EU or a Member State rotated their root signing keys, but the RP's local trust store failed to synchronise. Halt all verification until the trust store is updated — accepting credentials against an unverified LoTE is a critical security gap |
+| Trust Anchor key rotation failure | 🔴 Critical | LoTE signature or authenticated `LOTL` / national TL signature unverifiable against cached bootstrap keys / `LOTLSO` material | The EU or a Member State rotated their signing keys, but the RP's local trust store failed to synchronise. Halt the affected trust path until the trust store is updated — accepting credentials or qualified outputs against an unverified list is a critical security gap |
 
 ##### 31.2.3 Threat Detection and Verification Engine
 
@@ -28987,7 +29029,7 @@ Production verification systems should produce a **structured verification resul
         },
         {
           "policy": "issuer_trust",
-          "description": "Issuer certificate chain validates to a Trusted List anchor",
+          "description": "Issuer trust resolves through the applicable LoTE or authenticated trusted-list path",
           "result": "pass"
         }
       ]
@@ -31939,6 +31981,8 @@ The conformance-level choice is therefore separate from the result-shape choice:
 - `documentWithSignature` vs `signatureObject` determines what the RP receives
 - `ADES_B_B` / `T` / `LT` / `LTA` determines how much validation evidence is embedded into that result
 
+Those dimensions are also separate from the **qualified-status** decision. A PAdES document at `ADES_B_LT` or `ADES_B_LTA` may carry rich embedded evidence, but the RP still reaches a legally meaningful `QES` / `QSeal` conclusion only after combining technical AdES validation with the trusted-list-based certificate, service, and `QSCD` procedures described by `ETSI TS 119 615`.
+
 ##### 33.3.4 Timestamping
 
 Qualified timestamps (per Regulation (EU) No 910/2014, Art. 41–42) provide legally binding proof of the time a signature was created. The EUDI reference implementation uses a qualified TSA (Timestamp Authority):
@@ -31999,8 +32043,11 @@ QES_15 requires that in remote signing scenarios, the Wallet verifies that the Q
 
 1. The Wallet obtains the RSSP's X.509 certificate from the `/info` or `/credentials/info` endpoint
 2. The Wallet traces the certificate chain to a root CA
-3. The Wallet checks whether the CA or the QTSP is listed in the relevant Member State's Trusted List as a **qualified** trust service provider for signature/seal creation
-4. If the QTSP is not found in any Trusted List, the Wallet MUST reject the signing operation
+3. The Wallet authenticates the `LOTL`, authenticates the relevant national Trusted List, and runs trusted-list **service matching** for the certificate and time of interest rather than stopping at a bare CA lookup
+4. The Wallet derives the time-specific outcome for the relevant certificate/service tuple — for example whether the certificate maps to a qualified signature or seal service, and whether later `QSCD`-specific checks are needed — before accepting the signing context
+5. If the resulting trusted-list outcome is `Not_Qualified` or `Indeterminate`, the signing operation cannot be treated as a qualified-signing path
+
+The important implementation boundary is that **certificate-path success is not enough**. Technical validation proves that the RSSP certificate chains correctly and that the AdES object is structurally sound. `ETSI TS 119 615` is the additional layer that turns that technical result into a trusted-list-backed conclusion about qualified trust-service status, `QSCD` status, and related service roles.
 
 ##### 33.5.2 CIR 2025/1567: SSASP Conformance
 
@@ -32110,9 +32157,9 @@ This final group synthesises the technical investigation into actionable guidanc
 
 2. <a id="finding-2"></a> **Two parallel credential format stacks create implementation complexity.** Supporting both SD-JWT VC (JSON/JWT-based) and mdoc (CBOR-based) requires two complete verification pipelines, including different selective disclosure models, different device binding verification, and different trust anchor formats.
 
-3. <a id="finding-3"></a> **The trust model has no single point of failure but many points of coordination.** The LoTE/Trusted List hierarchy, certificate chain validation, revocation checking, and optionally registration certificate verification create a robust but operationally complex trust model.
+3. <a id="finding-3"></a> **The trust model has no single point of failure but many points of coordination.** The LoTE hierarchy, the authenticated `LOTL` / national trusted-list path where qualified outputs matter, certificate chain validation, revocation checking, and optionally registration certificate verification create a robust but operationally complex trust model.
 
-4. <a id="finding-4"></a> **The RP's wallet integration infrastructure is a critical-path dependency that requires its own operational resilience planning.** The EUDI Wallet integration relies on continuous availability of multiple external services: LoTE/Trusted List endpoints (for trust anchor refresh), Status List endpoints (for revocation checking), the Registrar API (for Wallet-side RP verification), and — for the RP's own authentication — valid, non-expired WRPACs plus any CT/transparency evidence required by the applicable ecosystem profile. Failure in any of these creates a hard stop: stale trust anchors may cause signature verification failures; expired or revoked WRPACs prevent all Wallet interactions; unreachable Status Lists block revocation checks. RPs should implement: (a) aggressive trust anchor caching with configurable refresh intervals and graceful degradation when endpoints are unreachable; (b) WRPAC renewal automation with expiry alerting well before the certificate validity window closes; (c) Status List response caching per the `max-age` Cache-Control header to reduce external dependency during verification; (d) fallback verification flows for scenarios where the primary EUDI Wallet channel is unavailable (e.g., alternative identity verification methods during outages). Financial-sector RPs subject to DORA ([§21.4](#214-dora-considerations-for-financial-rps)) must include these dependencies in their ICT risk management framework (DORA Art. 28) and digital resilience testing programme (DORA Art. 24).
+4. <a id="finding-4"></a> **The RP's wallet integration infrastructure is a critical-path dependency that requires its own operational resilience planning.** The EUDI Wallet integration relies on continuous availability of multiple external services: LoTE endpoints (for notified-entity trust-anchor refresh), authenticated `LOTL` / national trusted-list endpoints where qualified outputs matter, Status List endpoints (for revocation checking), the Registrar API (for Wallet-side RP verification), and — for the RP's own authentication — valid, non-expired WRPACs plus any CT/transparency evidence required by the applicable ecosystem profile. Failure in any of these creates a hard stop: stale trust anchors may cause signature verification failures; a stale trusted-list path may force qualified-status outcomes to remain unavailable or `Indeterminate`; expired or revoked WRPACs prevent all Wallet interactions; unreachable Status Lists block revocation checks. RPs should implement: (a) aggressive trust anchor caching with configurable refresh intervals and graceful degradation when endpoints are unreachable; (b) separate authenticated trusted-list state where qualified outputs matter; (c) WRPAC renewal automation with expiry alerting well before the certificate validity window closes; (d) Status List response caching per the `max-age` Cache-Control header to reduce external dependency during verification; (e) fallback verification flows for scenarios where the primary EUDI Wallet channel is unavailable (e.g., alternative identity verification methods during outages). Financial-sector RPs subject to DORA ([§21.4](#214-dora-considerations-for-financial-rps)) must include these dependencies in their ICT risk management framework (DORA Art. 28) and digital resilience testing programme (DORA Art. 24).
 
 5. <a id="finding-5"></a> **SCA via EUDI Wallet is a paradigm shift for banks.** Moving SCA from proprietary banking apps to an interoperable Wallet-based model requires re-architecting payment authentication flows, adapting to OpenID4VP-based SCA requests, and bridging Dynamic Linking into existing authorisation infrastructure.
 
@@ -32298,7 +32345,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🔴 **Critical** | Implement HAIP 1.0 compliant OpenID4VP (JAR, x509_hash, direct_post.jwt, DCQL). |
 | 🔴 **Critical** | **Ruthlessly optimize OpenID4VP JAR and DCQL payload sizes.** Because OS Credential Managers evaluate requests synchronously via sandboxed Wasm matchers on mobile hardware before rendering the UI, bloated presentation requests risk causing OS-level timeouts, UI lag, or silent dropping of the Wallet selector frame. |
 | 🔴 **Critical** | Implement anti-linkability controls: do not persist unique attestation elements (salts, hash arrays, signature values) beyond the verification session. Use application-level session tokens instead. ([§11.10](#1110-linkability-resistant-verification-practices)) |
-| 🟡 **High** | Implement periodic LoTE/Trusted List refresh (minimum daily). |
+| 🟡 **High** | Implement periodic LoTE refresh and, where qualified outputs matter, a separate authenticated `LOTL` / national Trusted List refresh (minimum daily). |
 | 🟡 **High** | Implement WRPAC revocation monitoring and renewal automation. |
 | 🟡 **High** | Register stable `supportURI` channels and operate TS7 data deletion handling behind them. |
 | 🟡 **High** | Build a dedicated Status List verification pipeline (HTTP caching, DEFLATE decompression, JWT/CWT signature verification, bit-index lookup). Do not treat this as trivial. |
@@ -32382,8 +32429,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 2 | **Registration** | Obtain WRPAC(s) from an Access Certificate Authority | [§5.2](#52-access-certificates-wrpac) |
 | 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | [§5.3](#53-registration-certificates-wrprc) |
 | 4 | **Registration** | Register stable `supportURI` channels for TS7 data deletion requests | [§20.1](#201-data-deletion-requests-ts7) |
-| 5 | **Trust setup** | Pre-cache LoTE/Trusted Lists for all 27 MS + EEA countries | [§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§23.2](#232-lote-discovery-across-member-states) |
-| 6 | **Trust setup** | Implement LoTE refresh mechanism (minimum daily) | [§5.5.4](#554-trust-anchor-lifecycle-events-that-affect-rps) |
+| 5 | **Trust setup** | Pre-cache LoTEs for all 27 MS + EEA countries, and pre-stage `LOTL` / national trusted-list bootstrap inputs where qualified outputs matter | [§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§23.2](#232-lote-discovery-across-member-states) |
+| 6 | **Trust setup** | Implement separate LoTE refresh and authenticated trusted-list refresh / evidence-preservation logic (minimum daily, more often where qualified outputs matter) | [§5.5.4](#554-trust-anchor-lifecycle-events-that-affect-rps), [§31.2](#312-alert-triggers) |
 | 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | [§31.2](#312-alert-triggers) |
 | 8 | **Protocol** | Implement JAR construction with `x509_hash`, `direct_post.jwt`, DCQL | [§8](#8-openid4vp-and-haip-protocol-foundations), [§9.3](#93-native-app-rp-integration-iosandroid) |
 | 9 | **Protocol** | Implement ephemeral key management for response encryption | [§8.4](#84-ephemeral-key-lifecycle-and-forward-secrecy) |
@@ -33122,7 +33169,8 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ETSI TS 119 472-3 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA issuance and disclosure policies](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947203/01.01.01_60/ts_11947203v010101p.pdf) — Issuance-side disclosure-policy companion to the 472 series; included as context for RP understanding but not as a primary RP integration target in this document ([§1.4](#14-technical-specifications-and-standards-sts))
 - [ETSI TS 119 411-8 V1.1.1 (2025-10) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for Trust Service Providers issuing certificates; Part 8: Access Certificate Policy for EUDI Wallet Relying Parties](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/01.01.01_60/ts_11941108v010101p.pdf) — Policy and profile requirements for providers issuing WRPACs, including RP-visible status and transparency obligations ([§5.2](#52-access-certificates-wrpac))
 - [ETSI TS 119 461 V2.1.1 (2025-02) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for trust service components providing identity proofing of trust service subjects](https://www.etsi.org/deliver/etsi_ts/119400_119499/119461/02.01.01_60/ts_119461v020101p.pdf) — Identity-proofing and PAD reference standard cited for QEAA issuance and higher-assurance onboarding checks ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub))
-- [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; used by RPs to validate certificate chains ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
+- [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; source format authenticated and interpreted via `ETSI TS 119 615` when RPs need trusted-list-backed qualified-status conclusions ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
+- [ETSI TS 119 615 V1.3.1 (2026-01) — Electronic Signatures and Trust Infrastructures (ESI); Procedures for using EU Trusted Lists to determine qualified status](https://www.etsi.org/deliver/etsi_ts/119600_119699/119615/01.03.01_60/ts_119615v010301p.pdf) — Trusted-list interpretation procedure layer for authenticating the `LOTL` / national trusted lists, matching services to certificates, and deriving time-specific qualified / `Indeterminate` outcomes for certificates, `QWAC`s, `QSCD`s, qualified validation services, and `QEAAs` ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists), [§11](#11-rp-authentication-and-presentation-verification), [§12](#12-cryptographic-verification-pipeline-deep-dive), [§33](#33-csc-api-signature-formats-and-rp-signing-obligations))
 - [ETSI TS 119 602 V1.1.1 — Lists of Trusted Entities; Data Model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) — Abstract data model for LoTEs generalising TS 119 612; defines entity profiles for Wallet Providers, PID Providers, Access CAs, PuB-EAA Providers, and WRPAC Providers; Annex H specifies the JSON serialisation used for non-qualified EAA Provider LoTEs ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11))
 - [European Commission EFDA — EUDI Wallet Lists of Trusted Entities](https://eidas.ec.europa.eu/efda/wallet) — Commission-hosted dashboard publishing the operational LoTEs for Wallet Providers, PID Providers, Access CA Providers, and Registration Certificate Providers; the live instantiation of the Common Trust Infrastructure described in [§5.5.1](#551-architecture) ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities))
 - [Google longfellow-zk — Zero-Knowledge Proof Library](https://github.com/nicebyte/nicegraf) — Reference implementation of the ZKP verification protocol for ECDSA anonymous credentials; used by RPs implementing [§17](#17-dcql-query-language-and-request-construction) ZKP verification path ([§17](#17-dcql-query-language-and-request-construction))
