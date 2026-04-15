@@ -3496,16 +3496,21 @@ Annex E also pushes against unnecessary duplication of identification data acros
 
 ##### 5.4.1 What RPs Need to Know
 
-The **Wallet Unit Attestation (WUA)** is a signed information object issued by the Wallet Provider to the Wallet Unit during activation. However, there is a critical design decision in the ARF that RPs must understand:
+The **Wallet Unit Attestation (WUA)** is a signed information object issued by the Wallet Provider to the Wallet Unit during activation. For RP architects, two layers must be kept separate:
 
-> **WUAs are NOT presented to Relying Parties.** They are presented only to PID Providers and Attestation Providers during issuance. This is a deliberate privacy-preserving design: RPs do not have a business need to know the WSCA/WSCD properties of a Wallet Unit, and exposing WUAs to RPs would enable linkability.
+> **Current in-force position (`CIR 2024/2982`)**: Wallets must support protocols and interfaces allowing wallet-relying parties to request **WUAs** for wallet authentication. RP-facing WUA verification is therefore part of the current regulatory model.
+>
+> **Privacy / data-minimisation debate**: A draft amendment would narrow the RP-facing artifact from `WUA` to `WIA`, because a full WUA exposes more WSCA/WSCD detail than many RPs need and may create linkability risk.
 
-This means that an RP **cannot directly verify** whether a Wallet Unit has been revoked by checking a WUA. Instead, the RP relies on two indirect mechanisms:
+This means an RP should not collapse all wallet trust into a single assumption. Two patterns coexist:
 
-1. **PID credential validity**: PID Providers are legally required (CIR 2024/2977, Art. 5.4(b)) to revoke a PID when the Wallet Unit is revoked. If the RP verifies the PID is not revoked (via Status List), it can trust the Wallet Unit is valid.
-2. **Attestation validity**: Attestation Providers may similarly revoke attestations when a Wallet Unit is revoked.
+1. **Explicit wallet-authentication path**: the RP requests and verifies a WUA today (and may receive WIA instead if the amendment lands).
+2. **Indirect trust path**: even without a separate wallet-attestation step in a given deployment, PID validity remains a strong wallet-health proxy because PID Providers are legally required (CIR 2024/2977, Art. 5.4(b)) to revoke a PID when the Wallet Unit is revoked.
+3. **Attestation validity**: Attestation Providers may similarly revoke attestations when a Wallet Unit is revoked, though the obligations are weaker than for PID Providers.
 
 ##### 5.4.2 Implications for RP Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
+
+The sequence below focuses on the **indirect trust path** used in the core PID / attestation verification flow. It does not model the separate RP-facing wallet-authentication request path in which an RP explicitly requests a WUA under the current `CIR 2024/2982` rules.
 
 ```mermaid
 ---
@@ -3628,7 +3633,7 @@ The Status List confirms the PID's status is VALID (bit = 0). This carries a dee
 2. The PID Provider has not detected any compromise of the User's device
 3. The WSCA/WSCD binding is still intact (the PID Provider would revoke if notified of key compromise)
 
-This is why the Relying Party does not need to verify the WUA or WIA directly — the PID acts as a **trust proxy** for the entire Wallet Unit health chain.
+In baseline PID verification flows, this is why the PID can act as a **trust proxy** for the entire Wallet Unit health chain, even where the RP is not separately using the explicit WUA / future-WIA wallet-authentication path.
 
 **Artifact Produced:** Status List Reference Token (JWT).
 
@@ -3700,11 +3705,11 @@ If a WSCA binding proof is available (future feature — ARF v2.8 §7.6.3), the 
 
 > **Cascading revocation asymmetry — RP awareness**: The indirect trust model described above has an asymmetry that RPs should understand. When a Wallet Provider revokes a WUA (e.g., device compromise, user death), the **PID Provider is legally required** (CIR 2024/2977 Art. 5.4(b)) to cascade-revoke the associated PID immediately. However, **Attestation Providers are not obligated to cascade-revoke** — they MAY choose to revoke but are only required to publish their cascading revocation policy (ARF HLR AS-WP-38-019). This means that after a WUA revocation, a user's PID will become invalid within the PID Provider's status list refresh cycle, but their EAAs (e.g., a qualification attestation or an address credential) may remain valid depending on the issuing Attestation Provider's policy. RPs performing high-assurance verifications (e.g., AML/KYC onboarding per [§22](#22-amlkyc-onboarding-via-eudi-wallet)) should verify the PID's revocation status as the primary Wallet Unit health signal, since PID cascading revocation is mandatory. RPs that also rely on EAA revocation status for trust decisions should check the Attestation Provider's published cascading revocation policy to understand the gap.
 
-##### 5.4.3 Wallet Instance Attestation (WIA): Also Not Seen by RPs
+##### 5.4.3 Wallet Instance Attestation (WIA): Proposed Narrower RP-Facing Alternative
 
-Similarly, the **Wallet Instance Attestation (WIA)** — a short-lived (&lt; 24 hours) attestation about the Wallet Instance — is presented only to Providers, not to RPs.
+The **Wallet Instance Attestation (WIA)** is a short-lived (&lt; 24 hours) attestation about the **Wallet Instance** rather than the full Wallet Unit. It is **not** the in-force primary RP artifact today. Instead, it is the narrower attestation proposed to replace RP-facing WUA exposure in a draft amendment to `CIR 2024/2982`.
 
-However, this design is subject to active policy debate. The current CIR 2024/2982 mandates that wallets support protocols for RPs to request WUAs for wallet authentication. A proposed amendment of CIR 2024/2982 would replace this with a narrower mechanism: RPs would receive **Wallet Instance Attestations** instead of Wallet Unit Attestations. The WIA attests only to the integrity of the wallet instance (not the full WSCA/WSCD properties), with content specified in OID4VP Appendix E including the `eudi_wallet_info` claim. This proposal is motivated by data minimisation: WUAs expose WSCD-level details that RPs have no business need to know, and exposing them would enable linkability across presentations.
+Under that proposed model, RPs would receive **Wallet Instance Attestations** instead of full Wallet Unit Attestations for wallet authentication. The WIA attests only to the integrity of the wallet instance (not the full WSCA/WSCD properties), with content specified in OID4VP Appendix E including the `eudi_wallet_info` claim. The motivation is data minimisation: WUAs expose more WSCD-level detail than many RPs need and may enable linkability across presentations.
 
 **Non-EUDI wallet trust**: RPs that also interact with non-EUDI wallets — platform wallets (Apple Wallet, Google Wallet) or commercial/SSI wallets (Lissi, walt.id, etc.) — must maintain separate trust framework profiles. The trust model differs fundamentally by wallet category (see [§7.4](#74-platform-wallets-apple-wallet-and-google-wallet) for the full landscape analysis):
 
@@ -8739,11 +8744,11 @@ The following checklist maps each RP verification aspect to a specific test tool
 
 Three trust-boundary clarifications are critical for RP architects designing verification pipelines:
 
-**1. Wallet Unit Attestation (WUA) is NOT presented to RPs.**
+**1. Wallet Unit Attestation (WUA) is a current RP-facing option, but not the only trust signal.**
 
-The Wallet Unit Attestation (WUA, specified in TS3) proves that a Wallet Unit is genuine — certified by a Wallet Provider and running on a properly secured WSCA/WSCD. However, per ARF v2.8.0, the WUA is used **only during issuance** (between the Wallet Unit and the PID/Attestation Provider). The RP does **not** receive the WUA during presentation. The RP's trust in the Wallet Unit is *indirect*: a valid PID implies a valid Wallet Unit, because the PID Provider verified the WUA before issuing the PID.
+The Wallet Unit Attestation (WUA, specified in TS3) proves that a Wallet Unit is genuine — certified by a Wallet Provider and running on a properly secured WSCA/WSCD. Under the current in-force `CIR 2024/2982` model, wallets support RP-requested WUAs for wallet authentication. At the same time, many core credential-verification flows still infer wallet health *indirectly* from PID / attestation validity and cascading revocation, and a draft amendment would narrow the RP-facing artifact from `WUA` to `WIA`.
 
-> **RP implication**: Do not design verification pipelines that expect to receive or validate a WUA. The trust signal for the RP is the PID/attestation validity itself, not a separate Wallet attestation.
+> **RP implication**: Design verification pipelines to support today's explicit WUA path where exposed, while still treating PID / attestation validity as a key indirect trust signal. Do not hard-code the assumption that WUA will remain the long-term RP-facing artifact — `WIA` may replace it.
 
 **2. Device binding is recommended, not mandatory (ARF Topic Z).**
 
@@ -32193,7 +32198,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 16. <a id="finding-16"></a> **Data deletion request infrastructure is fragmented across 9 interfaces.** TS7 defines interfaces I1–I9 spanning the Wallet UI, Registrar API, browser, email client, phone application, and an optional OID4VP reverse-presentation for requester authentication. RPs must register at least one `supportURI` channel in the TS5/TS6 registration baseline, and Wallets may resolve that channel via WRPRC or Registrar API, but the lack of a standardised API interface still makes each RP's deletion process bespoke.
 
-17. <a id="finding-17"></a> **Wallet Unit trust is indirect for RPs.** The Wallet Unit Attestation (WUA, TS3) is used exclusively during credential issuance — the RP never receives or verifies it during presentation. An RP's trust in the Wallet Unit is derived entirely from the validity of the presented PID/attestation, whose issuer verified the WUA before issuance. This is a frequently misunderstood trust boundary.
+17. <a id="finding-17"></a> **Wallet Unit trust reaches RPs through both direct and indirect paths.** Under the current in-force `CIR 2024/2982` model, wallet-relying parties can request a `WUA` for wallet authentication. But many core credential flows still infer wallet health indirectly from PID / attestation validity because PID Providers must cascade-revoke when the underlying `WUA` breaks. A draft amendment would narrow the RP-facing artifact from `WUA` to `WIA`. This mixed model is a frequently misunderstood trust boundary.
 
 18. <a id="finding-18"></a> **Device binding is recommended, not mandatory.** ARF Topic Z (integrated in v2.6.0) changed device binding from a mandatory requirement to a recommended one. RPs must handle both device-bound attestations (with `cnf` claim and KB-JWT verification) and non-device-bound attestations (issuer signature only). High-assurance use cases should preferentially rely on device-bound credentials, but cannot enforce this via DCQL queries.
 
