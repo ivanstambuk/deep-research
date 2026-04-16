@@ -38,6 +38,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bPCI\s+DSS\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bOWASP\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\b(?:OID4VP|OID4VCI|OAuth|OpenID|FAPI)\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
+  /\bOIDC\s+Core\b(?:[\s,./():'’-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOpenID4VP\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOpenID\s+Connect\s+Core\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bPID\s+Rulebook\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
@@ -45,6 +46,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bCSC\s+API\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\b(?:SAMLCore|SAMLProf)\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOASIS\s+SAML(?:\s+V\d+(?:\.\d+)*)?(?:\s+Core)?\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
+  /\bMS-[A-Z0-9-]+\b(?:[\s,./():'’-]+\w[\w.-]*){0,8}\s*$/i,
   /\bWebAuthn(?:\s+Level\s+\d+)?\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bFielding\s+\d{4},?\s*$/i,
   /\bFielding\s+\d{4}\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
@@ -52,7 +54,11 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bCUBI\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bW3C\s+DBSC\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bTopic\s+\d[\w.-]*(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
+  /\b(?:DPDP\s+Act|Federal\s+Law\s+\d[\w-]*)\b(?:[\s,./():'’-]+\w[\w.-]*){0,8}\s*$/i,
 ];
+const INTERNAL_REFERENCE_PREFIX_RE = /\b(?:see|from|in|under|via|within|cross[- ]reference:?|described\s+in|documented\s+in|discussed\s+in|covered\s+(?:in\s+detail\s+)?in|referenced\s+in|mapped\s+in|detailed\s+in|analysed\s+in|analyzed\s+in)\s*$/i;
+const INTERNAL_REFERENCE_SUFFIX_RE = /^\s*(?:\)|\]|\.)?\s*(?:covers?|covered|describes?|described|discusses?|documented|details?|maps?|mapped|explains?|analyses?|analyzes?|provides?|traces?|shows?)\b/i;
+const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
 
 function stripMarkdownFormatting(value) {
   return value
@@ -251,6 +257,67 @@ function createDiagnostic(category, diagnosticBase, tokenText, referenceValue, l
   };
 }
 
+function normalizeCitationLookback(lookback) {
+  return lookback.replace(/[\s,;:()[\]{}]+$/g, '');
+}
+
+function normalizeTopicMatchText(value) {
+  return normalizeWhitespace(value)
+    .toLowerCase()
+    .replace(/[()[\]{}]/g, ' ')
+    .replace(/[^a-z0-9+./ -]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractTrailingTopicPhrase(lookback) {
+  const normalized = normalizeCitationLookback(lookback);
+  const match = normalized.match(/([A-Z][A-Za-z0-9+./-]*(?:\s+[A-Z0-9][A-Za-z0-9+./-]*){0,6})$/);
+  return match ? match[1] : null;
+}
+
+function targetHeadingStartsWithTrailingTopic({ lookback, target }) {
+  const topicPhrase = extractTrailingTopicPhrase(lookback);
+  if (!topicPhrase || !target?.text) {
+    return false;
+  }
+
+  const normalizedHeading = normalizeTopicMatchText(stripLeadingSectionEnumeration(target.text));
+  const normalizedTopic = normalizeTopicMatchText(topicPhrase);
+
+  if (!normalizedHeading || !normalizedTopic) {
+    return false;
+  }
+
+  return normalizedHeading.startsWith(normalizedTopic);
+}
+
+function hasInternalReferenceCue({ lookback, trailingText, target = null }) {
+  const normalizedPrefix = normalizeCitationLookback(lookback);
+
+  if (INTERNAL_REFERENCE_PREFIX_RE.test(normalizedPrefix) || /DR-\d{4}\s*$/i.test(normalizedPrefix)) {
+    return true;
+  }
+
+  if (!INTERNAL_REFERENCE_SUFFIX_RE.test(trailingText)) {
+    return false;
+  }
+
+  if (!STRONG_EXTERNAL_SOURCE_RE.test(normalizedPrefix)) {
+    return true;
+  }
+
+  return targetHeadingStartsWithTrailingTopic({ lookback: normalizedPrefix, target });
+}
+
+function hasReferenceSeparatorBeforeToken(lookback) {
+  return /§\d+(?:\.\d+)*\s*[-/–—]\s*$/.test(lookback);
+}
+
+function hasReferenceSeparatorAfterToken(trailingText) {
+  return /^\s*[-/–—]\s*(?:§\s*)?\d/.test(trailingText);
+}
+
 function isUnsupportedShape({ lookback, trailingText }) {
   const previousSignificantChar = lookback.match(/\S(?=\s*$)/)?.[0] ?? null;
 
@@ -258,11 +325,11 @@ function isUnsupportedShape({ lookback, trailingText }) {
     return true;
   }
 
-  if (previousSignificantChar && /[-/–—]/.test(previousSignificantChar)) {
+  if (hasReferenceSeparatorBeforeToken(lookback)) {
     return true;
   }
 
-  if (/^\s*[-/–—]/.test(trailingText)) {
+  if (hasReferenceSeparatorAfterToken(trailingText)) {
     return true;
   }
 
@@ -274,11 +341,57 @@ function isUnsupportedShape({ lookback, trailingText }) {
 }
 
 function isExternalCitation(lookback) {
-  return EXTERNAL_CITATION_PATTERNS.some((pattern) => pattern.test(lookback));
+  const normalized = normalizeCitationLookback(lookback);
+  return EXTERNAL_CITATION_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function isExternalCitationByTrailingText(trailingText) {
   return /^\s+of\s+the\s+(?:draft|spec|specification)\b/i.test(trailingText);
+}
+
+function splitDiagnosticSnippet(diagnostic) {
+  const snippet = diagnostic?.snippet ?? '';
+  const tokenText = diagnostic?.tokenText ?? '';
+  const tokenIndex = snippet.indexOf(tokenText);
+
+  if (tokenIndex === -1) {
+    return {
+      beforeToken: snippet,
+      afterToken: '',
+    };
+  }
+
+  return {
+    beforeToken: snippet.slice(0, tokenIndex),
+    afterToken: snippet.slice(tokenIndex + tokenText.length),
+  };
+}
+
+export function collectLikelyFalsePositiveExternalSkips({ diagnostics, targetIndex }) {
+  if (!(targetIndex instanceof Map)) {
+    return [];
+  }
+
+  return diagnostics
+    .filter((diagnostic) => diagnostic?.category === 'skipped_external_citation')
+    .filter((diagnostic) => (targetIndex.get(diagnostic.referenceValue)?.length ?? 0) === 1)
+    .filter((diagnostic) => {
+      const { beforeToken, afterToken } = splitDiagnosticSnippet(diagnostic);
+      const target = targetIndex.get(diagnostic.referenceValue)?.[0] ?? null;
+      return hasInternalReferenceCue({
+        lookback: beforeToken,
+        trailingText: afterToken,
+        target,
+      });
+    })
+    .map((diagnostic) => {
+      const target = targetIndex.get(diagnostic.referenceValue)?.[0] ?? null;
+      return {
+        ...diagnostic,
+        headingId: target?.headingId ?? null,
+        headingText: target?.text ?? null,
+      };
+    });
 }
 
 function resolveTarget(targetIndex, referenceValue) {
@@ -392,7 +505,14 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         continue;
       }
 
-      if (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingText)) {
+      const resolution = resolveTarget(targetIndex ?? new Map(), sectionNumber);
+      const hasInternalCue = hasInternalReferenceCue({
+        lookback: lookbackBeforeToken,
+        trailingText,
+        target: resolution.status === 'resolved' ? resolution.target : null,
+      });
+
+      if (!hasInternalCue && (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingText))) {
         parts.push({ type: 'text', value: tokenText });
         diagnostics.push(createDiagnostic(
           'skipped_external_citation',
@@ -406,8 +526,6 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         cursor = end;
         continue;
       }
-
-      const resolution = resolveTarget(targetIndex ?? new Map(), sectionNumber);
       if (resolution.status === 'unresolved') {
         parts.push({ type: 'text', value: tokenText });
         diagnostics.push(createDiagnostic(

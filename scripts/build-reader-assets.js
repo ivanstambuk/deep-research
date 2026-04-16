@@ -18,6 +18,7 @@ import {
   applyTextReplacements,
   buildLabelTargetIndex,
   buildSectionTargetIndex,
+  collectLikelyFalsePositiveExternalSkips,
   collectMarkdownLabelTargets,
   normalizeWhitespace,
   rewriteHastCrossReferences,
@@ -44,6 +45,25 @@ const SECONDARY_SECTION_TAG = 'h3';
 const OVERSIZED_SECTION_BYTES = 34_000;
 
 const htmlCompiler = unified().use(rehypeStringify);
+
+function logLikelyFalsePositiveExternalSkipReport(prefix, diagnostics) {
+  if (diagnostics.length === 0) {
+    return;
+  }
+
+  console.log(`[${prefix}] likely false-positive external skips: ${diagnostics.length}`);
+  diagnostics.slice(0, 12).forEach((diagnostic) => {
+    const targetLabel = diagnostic.headingText
+      ? `${diagnostic.tokenText} -> ${diagnostic.headingText}`
+      : diagnostic.tokenText;
+    console.log(`- ${diagnostic.documentSlug}: ${targetLabel}`);
+    console.log(`  ${diagnostic.snippet}`);
+  });
+
+  if (diagnostics.length > 12) {
+    console.log(`- ... ${diagnostics.length - 12} more`);
+  }
+}
 
 function stringifyHtml(tree) {
   return String(htmlCompiler.stringify(tree));
@@ -513,6 +533,7 @@ async function build() {
   const files = await listFiles(srcDir);
   const processedDocuments = [];
   const crossReferenceDiagnostics = [];
+  const likelyFalsePositiveExternalSkips = [];
 
   for (const file of files) {
     const filename = path.basename(file, '.mdx');
@@ -545,13 +566,18 @@ async function build() {
     crossReferenceDiagnostics.push(...labelTargets.diagnostics);
 
     sections = sections.map((section) => {
-      crossReferenceDiagnostics.push(...rewriteHastCrossReferences(section.tree, {
+      const sectionDiagnostics = rewriteHastCrossReferences(section.tree, {
         diagnosticBase: {
           documentSlug: filename,
         },
         slug: filename,
         targetIndex: crossReferenceIndex,
         labelTargetIndex,
+      });
+      crossReferenceDiagnostics.push(...sectionDiagnostics);
+      likelyFalsePositiveExternalSkips.push(...collectLikelyFalsePositiveExternalSkips({
+        diagnostics: sectionDiagnostics,
+        targetIndex: crossReferenceIndex,
       }));
       return finalizeSectionRecord(section);
     });
@@ -644,6 +670,7 @@ async function build() {
   if (crossReferenceDiagnostics.length > 0) {
     console.log(`[reader xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
   }
+  logLikelyFalsePositiveExternalSkipReport('reader xrefs', likelyFalsePositiveExternalSkips);
 
   console.log(`Built chapter reader assets for ${processedDocuments.length} documents.`);
 }

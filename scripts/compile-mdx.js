@@ -9,6 +9,7 @@ import {
   applyTextReplacements,
   buildLabelTargetIndex,
   buildSectionTargetIndex,
+  collectLikelyFalsePositiveExternalSkips,
   collectMarkdownLabelTargets,
   collectMarkdownCrossReferenceReplacements,
   normalizeWhitespace,
@@ -37,6 +38,25 @@ function normalizeCrossReferenceTypography(output) {
     .replace(/\(\s*[Ss]ection\s+([0-9]+(?:\.[0-9]+)*)\s*\)/g, '(§$1)')
     .replace(/(?<=\s)[Ss]ection\s+([0-9]+(?:\.[0-9]+)*)\b(?!\s*of\b)/g, '§$1')
     .replace(/(?<=\s)[Cc]hapter\s+([0-9]+(?:\.[0-9]+)*)\b(?!\s*of\b)/g, '§$1');
+}
+
+function logLikelyFalsePositiveExternalSkipReport(prefix, diagnostics) {
+  if (diagnostics.length === 0) {
+    return;
+  }
+
+  console.log(`[${prefix}] likely false-positive external skips: ${diagnostics.length}`);
+  diagnostics.slice(0, 12).forEach((diagnostic) => {
+    const targetLabel = diagnostic.headingText
+      ? `${diagnostic.tokenText} -> ${diagnostic.headingText}`
+      : diagnostic.tokenText;
+    console.log(`- ${diagnostic.documentSlug}: ${targetLabel}`);
+    console.log(`  ${diagnostic.snippet}`);
+  });
+
+  if (diagnostics.length > 12) {
+    console.log(`- ... ${diagnostics.length - 12} more`);
+  }
 }
 
 function isPathInside(childPath, parentPath) {
@@ -148,6 +168,7 @@ async function compileMdxToMarkdown() {
   const requestedArgs = process.argv.slice(2);
   const parser = unified().use(remarkParse).use(remarkGfm);
   const crossReferenceDiagnostics = [];
+  const likelyFalsePositiveExternalSkips = [];
   const publishedViewerBaseUrl = normalizeViewerBaseUrl(process.env.PUBLISHED_VIEWER_BASE_URL);
 
   try {
@@ -216,6 +237,10 @@ async function compileMdxToMarkdown() {
     const header = `<!-- AUTO-GENERATED FROM src/papers/${relativePath}. DO NOT EDIT. -->\n\n`;
     crossReferenceDiagnostics.push(...labelTargets.diagnostics);
     crossReferenceDiagnostics.push(...markdownRewrites.diagnostics);
+    likelyFalsePositiveExternalSkips.push(...collectLikelyFalsePositiveExternalSkips({
+      diagnostics: markdownRewrites.diagnostics,
+      targetIndex,
+    }));
 
     const output = frontMatter
       ? `${frontMatter}\n\n${header}${linkedBodyWithViewerBanner}`
@@ -260,6 +285,7 @@ async function compileMdxToMarkdown() {
   if (crossReferenceDiagnostics.length > 0) {
     console.log(`[markdown xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
   }
+  logLikelyFalsePositiveExternalSkipReport('markdown xrefs', likelyFalsePositiveExternalSkips);
 
   console.log('MDX to Markdown compilation complete!');
 }

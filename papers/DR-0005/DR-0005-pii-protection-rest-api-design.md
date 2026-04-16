@@ -402,7 +402,7 @@ Before the detailed analysis, the following rules represent the opinionated defa
 2. **For search/lookup by personal data, use POST request bodies.** Return opaque identifiers and switch subsequent reads back to GET ([§3.1](#31-post-body-migration)).
 3. **Use single-use or short-lived tokens for bounded link workflows** — email verification, password reset, magic links ([§3.5](#35-temporary-single-use-tokens)).
 4. **Treat encryption and tokenization in URLs as legacy accommodation, not greenfield default.** FPE, JWE, and vault-based tokenization are powerful but add complexity that is unnecessary when opaque identifiers suffice ([§4](#4-cryptographic-patterns), [§5](#5-pseudonymization-and-tokenization-patterns)).
-5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity ([§8](#8-protocol-and-deployment-contexts)).
+5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity (§8).
 6. **Enforce all of these at design time** via API contracts, linting rules, CI gates, and review processes.
 7. **Remember that pseudonymised and encrypted data remains personal data under GDPR.** Tokenization and encryption reduce risk but do not remove compliance obligations ([§2.3.3](#233-encrypted-personal-data-remains-personal-data), F3).
 8. **Audit observability pipelines for re-exposure.** Logs, traces, analytics, and error responses can reintroduce the PII that encryption was supposed to protect ([§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability), F8).
@@ -2371,7 +2371,7 @@ The JWT payload is a JSON object containing registered, public, and private clai
 }
 ```
 
-The namespaced approach (`https://example.com/claims`) follows the JWT best practice of using reverse-domain notation to prevent claim name collisions (RFC 7519, [§4.2](#42-format-preserving-encryption-fpe)).
+The namespaced approach (`https://example.com/claims`) follows the JWT best practice of using reverse-domain notation to prevent claim name collisions (RFC 7519, §4.2).
 
 #### §4.1.5 Expiry Claims for Automatic Token Invalidation
 
@@ -2400,11 +2400,11 @@ JWS(JWE(payload))
 
 The sender first encrypts the PII claims into a JWE, then signs the resulting JWE string as a JWS. The recipient verifies the JWS signature (authenticating the sender), then decrypts the inner JWE (recovering the PII). This encrypt-then-sign approach provides both confidentiality and authenticity, and is the composition recommended by RFC 8725 (JSON Web Token Best Current Practices) for tokens carrying sensitive data.
 
-RFC 7516 does not mandate nesting; the specification treats encryption and signing as independent operations. However, the security community broadly recommends nesting for tokens carrying sensitive data (see RFC 8725, [§2.6](#26-adjacent-regulatory-frameworks) and [§3.2](#32-header-based-placeholders)).
+RFC 7516 does not mandate nesting; the specification treats encryption and signing as independent operations. However, the security community broadly recommends nesting for tokens carrying sensitive data (see RFC 8725, §2.6 and [§3.2](#32-header-based-placeholders)).
 
 #### §4.1.7 URL-Safe base64url Encoding
 
-All five JWE segments use base64url encoding (RFC 4648, [§5](#5-pseudonymization-and-tokenization-patterns)), which replaces `+` with `-` and `/` with `_`, and strips trailing `=` padding. This encoding is safe for use in URL query parameters and path segments without additional escaping.
+All five JWE segments use base64url encoding (RFC 4648, §5), which replaces `+` with `-` and `/` with `_`, and strips trailing `=` padding. This encoding is safe for use in URL query parameters and path segments without additional escaping.
 
 | Standard base64 | base64url |
 |:----------------|:----------|
@@ -2435,7 +2435,7 @@ The most significant practical constraint on JWE tokens in URLs is **length**. A
 1. **Use POST instead of GET.** Moving the JWE to the request body eliminates URL length constraints entirely. The body is not logged by most proxies and CDNs.
 2. **Minimize claim payload.** Include only the PII fields the downstream service actually needs. Replace verbose claims (full address) with references (address_id pointing to server-side storage).
 3. **Use EC keys instead of RSA.** ECDH-ES key agreement produces shorter encrypted keys than RSA-OAEP (65 bytes vs 256 bytes for RSA-2048).
-4. **Use `dir` key agreement.** When the client and server share a symmetric key, the `dir` algorithm (RFC 7518, [§4.1](#41-jwtjwe-encrypted-parameters)) eliminates the Encrypted Key segment entirely, reducing token length by ~256 bytes.
+4. **Use `dir` key agreement.** When the client and server share a symmetric key, the `dir` algorithm (RFC 7518, §4.1) eliminates the Encrypted Key segment entirely, reducing token length by ~256 bytes.
 
 #### §4.1.9 Key Management: Symmetric vs Asymmetric
 
@@ -2727,7 +2727,7 @@ Because the SIV is a deterministic function of the plaintext, the same plaintext
 
 **When used with a fixed nonce** (or an empty nonce), AES-GCM-SIV becomes fully deterministic. This is the mode relevant for PII tokenization in URL parameters.
 
-**Security properties (RFC 8452, [§6](#6-infrastructure-and-operational-patterns)):**
+**Security properties (RFC 8452, §6):**
 - 128-bit or 256-bit key size
 - Provides 128-bit integrity for the ciphertext
 - Deterministic: same plaintext → same ciphertext
@@ -6367,10 +6367,10 @@ The primary problem examined in this document is still **REST-style HTTP APIs wh
 
 This chapter covers three protocol mechanisms and one deployment/applicability synthesis section:
 
-- **§8.1 — HTTP Message Signing (RFC 9421):** Cryptographic integrity over selected request components, preventing tampering with PII-bearing parameters.
-- **§8.2 — Mutual TLS for Identity:** Using client certificates to establish identity in bounded B2B/M2M cases, reducing the need to pass PII-as-credential in URLs.
-- **§8.3 — OAuth 2.0 Pushed Authorization Requests (RFC 9126):** Moving authorization parameters from the URL query string to a direct server-to-server POST, eliminating PII leakage through browser redirects.
-- **§8.4 — Other Protocols, Deployment Models, and Pattern Selection:** Clarifying where the URL leakage model applies across REST, GraphQL, gRPC, WebSocket, SOAP, and service-mesh-backed deployments, then showing how to choose the right bounded mechanism.
+- **[§8.1](#81-http-message-signing) — HTTP Message Signing (RFC 9421):** Cryptographic integrity over selected request components, preventing tampering with PII-bearing parameters.
+- **[§8.2](#82-mutual-tls-for-identity) — Mutual TLS for Identity:** Using client certificates to establish identity in bounded B2B/M2M cases, reducing the need to pass PII-as-credential in URLs.
+- **[§8.3](#83-oauth-20-pushed-authorization-requests-rfc-9126) — OAuth 2.0 Pushed Authorization Requests (RFC 9126):** Moving authorization parameters from the URL query string to a direct server-to-server POST, eliminating PII leakage through browser redirects.
+- **[§8.4](#84-other-protocols-deployment-models-and-pattern-selection) — Other Protocols, Deployment Models, and Pattern Selection:** Clarifying where the URL leakage model applies across REST, GraphQL, gRPC, WebSocket, SOAP, and service-mesh-backed deployments, then showing how to choose the right bounded mechanism.
 
 A critical theme across all of this material: these mechanisms solve *different* aspects of the problem. Signing provides integrity but not confidentiality. mTLS can replace identity-in-URL in the right deployment model but does not solve business-data PII. PAR protects browser-visible authorization parameters, not arbitrary API calls. None is a complete solution on its own.
 
@@ -7123,7 +7123,7 @@ The authorization server processes the authorization request and returns a login
 
 The client (a confidential backend service, not the user's browser) initiates the OAuth authorization flow by POSTing all authorization parameters directly to the authorization server's PAR endpoint. This is a server-to-server call — the parameters travel over a TLS-protected backend channel and never enter the browser's URL bar, history, or referrer headers. The client authenticates itself to the authorization server using its configured credential method (private_key_jwt, client_secret_basic, tls_client_auth, or another supported mechanism).
 
-The POST body carries the full set of OAuth 2.0 authorization parameters in `application/x-www-form-urlencoded` format, exactly as they would appear in a traditional authorization URL — but now in the request body where they are not logged by default and are not visible to the user or any browser extensions (RFC 9126, [§2](#2-regulatory-landscape)):
+The POST body carries the full set of OAuth 2.0 authorization parameters in `application/x-www-form-urlencoded` format, exactly as they would appear in a traditional authorization URL — but now in the request body where they are not logged by default and are not visible to the user or any browser extensions (RFC 9126, §2):
 
 ```http
 POST /as/par HTTP/1.1
@@ -7146,7 +7146,7 @@ The `login_hint` parameter here contains the user's email address — PII that w
 
 <details><summary><strong>5. Authorization Server validates and stores the pushed parameters</strong></summary>
 
-The authorization server receives the PAR request and performs a full validation pass before committing anything to storage. This is a key security advantage of PAR over the traditional flow: the AS validates parameters server-side, rejecting invalid requests before the browser is ever involved. The validation includes client authentication verification, `redirect_uri` matching against the client's pre-registered URIs, scope validation, and any policy-specific checks (RFC 9126, [§2.2](#22-article-25-data-protection-by-design-and-default)).
+The authorization server receives the PAR request and performs a full validation pass before committing anything to storage. This is a key security advantage of PAR over the traditional flow: the AS validates parameters server-side, rejecting invalid requests before the browser is ever involved. The validation includes client authentication verification, `redirect_uri` matching against the client's pre-registered URIs, scope validation, and any policy-specific checks (RFC 9126, §2.2).
 
 If the request passes validation, the AS generates a unique, opaque `request_uri` in the `urn:ietf:params:oauth:request_uri:` namespace and stores the authorization parameters under this key. The `request_uri` is not a navigable URL — it is a server-internal reference that only the issuing AS can resolve.
 
@@ -7167,7 +7167,7 @@ Cache-Control: no-store
 }
 ```
 
-The `expires_in` value (default 600 seconds per RFC 9126, [§2.2.1](#221-article-251-data-protection-by-design)) defines how long the AS will honor the stored request. The AS must enforce this TTL and reject any subsequent authorization request that references an expired `request_uri`. The stored parameters include the client identifier, so the AS can also enforce client-to-`request_uri` binding — preventing an attacker from using a `request_uri` created by one client to authorize a different client (the "request URI swapping" attack described in RFC 9126, [§7.4](#74-api-inventory-and-deprecation-discipline)).
+The `expires_in` value (default 600 seconds per RFC 9126, §2.2.1) defines how long the AS will honor the stored request. The AS must enforce this TTL and reject any subsequent authorization request that references an expired `request_uri`. The stored parameters include the client identifier, so the AS can also enforce client-to-`request_uri` binding — preventing an attacker from using a `request_uri` created by one client to authorize a different client (the "request URI swapping" attack described in RFC 9126, §7.4).
 
 </details>
 
@@ -7207,7 +7207,7 @@ This is the only browser-visible step in the PAR flow. The URL is short, contain
 
 <details><summary><strong>9. Authorization Server resolves the stored parameters</strong></summary>
 
-When the authorization server receives the GET request with a `request_uri` parameter, it resolves the URN against its internal store to retrieve the full set of authorization parameters that were pushed in Step 4. The AS verifies that the `request_uri` has not expired, has not been used before (single-use enforcement is recommended by RFC 9126, [§4](#4-cryptographic-patterns)), and is bound to the `client_id` specified in the redirect URL:
+When the authorization server receives the GET request with a `request_uri` parameter, it resolves the URN against its internal store to retrieve the full set of authorization parameters that were pushed in Step 4. The AS verifies that the `request_uri` has not expired, has not been used before (single-use enforcement is recommended by RFC 9126, §4), and is bound to the `client_id` specified in the redirect URL:
 
 ```
 → AS resolves urn:ietf:params:oauth:request_uri:bwc4JK-ESC0w8acc191e-Y1LTC2
@@ -7222,7 +7222,7 @@ The single-use property of `request_uri` (enforced by deleting the stored parame
 
 After the user authenticates and (if required) consents to the requested scopes, the authorization server redirects the browser back to the client's pre-registered `redirect_uri` with an authorization code and the `state` parameter. This redirect is standard OAuth 2.0 behavior — PAR does not change the authorization response flow. Note that the authorization code itself carries no PII — it is an opaque value that only the authorization server can decode. The `state` parameter is echoed back unchanged, allowing the client to verify that the response corresponds to its original request and to detect CSRF attacks.
 
-From this point forward, the flow is identical to a standard OAuth 2.0 authorization code grant: the client exchanges the code for access and ID tokens at the token endpoint (RFC 6749, [§4.1.3](#413-when-to-use-jwe-vs-jws)). PAR's contribution is complete — it ensured that PII (login hints, claims, scopes) never appeared in any browser-visible URL throughout the entire authorization lifecycle.
+From this point forward, the flow is identical to a standard OAuth 2.0 authorization code grant: the client exchanges the code for access and ID tokens at the token endpoint (RFC 6749, §4.1.3). PAR's contribution is complete — it ensured that PII (login hints, claims, scopes) never appeared in any browser-visible URL throughout the entire authorization lifecycle.
 
 </details>
 
@@ -7248,7 +7248,7 @@ PAR interacts with two related OAuth specifications:
 
 #### §8.3.6 FAPI 2.0: PAR as a Mandatory Requirement
 
-The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation as a Final specification (February 2025), mandates PAR as a required mechanism for all authorization requests (FAPI 2.0 Security Profile, [§5.3.2](#532-how-it-works-in-a-rest-api-context)). FAPI 2.0 builds on OAuth 2.1 and adds sender-constrained access tokens via DPoP (RFC 9449), HTTP Message Signatures for resource server validation (RFC 9421), and PAR for authorization request protection. The companion FAPI 2.0 Message Signing specification was also approved as a Final OpenID specification (September 2025). The security baseline for all of these specifications is established by RFC 9700 (OAuth 2.0 Security BCP, January 2025).
+The Financial-grade API (FAPI) 2.0 Security Profile, published by the OpenID Foundation as a Final specification (February 2025), mandates PAR as a required mechanism for all authorization requests (FAPI 2.0 Security Profile, §5.3.2). FAPI 2.0 builds on OAuth 2.1 and adds sender-constrained access tokens via DPoP (RFC 9449), HTTP Message Signatures for resource server validation (RFC 9421), and PAR for authorization request protection. The companion FAPI 2.0 Message Signing specification was also approved as a Final OpenID specification (September 2025). The security baseline for all of these specifications is established by RFC 9700 (OAuth 2.0 Security BCP, January 2025).
 
 FAPI 2.0's security rationale for mandating PAR (FAPI 2.0 Security Profile, §6.4 — "Authorization request leaks lead to CSRF") is that parameter leakage in URLs creates a cross-site request forgery vector. An attacker who can observe or inject authorization URLs can replay or modify authorization requests. PAR eliminates this class of attack by ensuring the authorization server validates all parameters before the browser redirect occurs.
 
@@ -7507,7 +7507,7 @@ The migration design should explicitly preserve or document these contract prope
 - whether clients must store a new opaque ID,
 - whether the replacement is backwards-compatible or requires a client release.
 
-The replacement contract should also be reflected in the OpenAPI spec and design-time governance rules from §7, so the organization does not recreate the legacy pattern during the migration.
+The replacement contract should also be reflected in the OpenAPI spec and design-time governance rules from [§7](#7-design-time-api-governance-and-contract-enforcement), so the organization does not recreate the legacy pattern during the migration.
 
 ---
 
@@ -8303,7 +8303,7 @@ Pangea Vault is more narrowly scoped than the enterprise platforms (HashiCorp Va
 
 ### Platform Architecture Classification
 
-The five platforms covered in this chapter map to three architectural patterns introduced in §5 — vaulted tokenization ([§5.3](#53-vault-based-tokenization)), vaultless tokenization ([§5.4](#54-vaultless-tokenization)), and the privacy-vault-as-a-service model:
+The five platforms covered in this chapter map to three architectural patterns introduced in [§5](#5-pseudonymization-and-tokenization-patterns) — vaulted tokenization ([§5.3](#53-vault-based-tokenization)), vaultless tokenization ([§5.4](#54-vaultless-tokenization)), and the privacy-vault-as-a-service model:
 
 ```mermaid
 flowchart TD
@@ -13192,7 +13192,7 @@ For existing APIs, follow the migration sequence in [§9](#9-migration-playbook-
 
 **R3. Use protocol mechanisms only where the problem is genuinely protocol-specific.**
 
-Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality ([§8](#8-protocol-and-deployment-contexts)). Do not use them as rhetorical substitutes for fixing the resource model itself.
+Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality (§8). Do not use them as rhetorical substitutes for fixing the resource model itself.
 
 **R4. Prefer cleaner contracts over cryptographic cleverness unless compatibility forces otherwise.**
 

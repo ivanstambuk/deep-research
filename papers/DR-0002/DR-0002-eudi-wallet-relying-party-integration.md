@@ -942,7 +942,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 | **PID / LPID Provider** | PID Providers (civil registries) | LPID Providers (business registers via BRIS) | ❌ No |
 | **CAB certification** | Certifies Wallet Solutions | Certifies EBW Wallet Solutions separately | Partial |
 
-RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. Structurally, that flexibility comes from the shared `LegalEntity` superclass inherited from TS2 and reused by the TS5/TS6 registration baseline ([§4.2.1](#421-walletrelyingparty-data-model)).
+RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. Structurally, that flexibility comes from the shared `LegalEntity` superclass inherited from TS2 and reused by the TS5/TS6 registration baseline (§4.2.1).
 
 #### 3.3 Legal Person Identification Data (LPID)
 
@@ -4426,7 +4426,7 @@ RPs must handle credential lifecycle events gracefully:
 |:------|:----------|:---------------------|
 | **PID re-issuance** (new `cnf` key) | The `cnf.jwk` in the new PID differs from the old PID. Any RP-side binding to the old key (e.g., cached device key) becomes invalid. | RP should match users by PID attributes (e.g., `personal_identifier`), not by `cnf` key alone. Update stored device key on each successful presentation. |
 | **Attestation expiry** | Expired attestation is rejected by RP verification pipeline | RP should inform the User with a clear message (e.g., "Your credential has expired — please re-issue it from your Wallet Provider"). Do not silently fail. |
-| **Wallet Unit migration** (device change) | **Device-bound** credentials (PIDs, most QEAAs) are re-issued with new `cnf` keys. **Non-device-bound** attestations (Topic Z) are restored directly from the Migration Object without re-issuance — same attestation instance, same binding (TS10 v1.1, `nonDeviceBoundCredentials`). | RP-side pseudonym bindings (WebAuthn, [§16](#16-pseudonym-based-authentication-and-webauthn)) may be lost if not backed up. RP should support account recovery via alternative verification ([§5.6.1](#561-wallet-migration-consolidated-rp-handling-guide)). For non-device-bound attestations, no RP-observable change occurs. |
+| **Wallet Unit migration** (device change) | **Device-bound** credentials (PIDs, most QEAAs) are re-issued with new `cnf` keys. **Non-device-bound** attestations (Topic Z) are restored directly from the Migration Object without re-issuance — same attestation instance, same binding (TS10 v1.1, `nonDeviceBoundCredentials`). | RP-side pseudonym bindings (WebAuthn, §16) may be lost if not backed up. RP should support account recovery via alternative verification ([§5.6.1](#561-wallet-migration-consolidated-rp-handling-guide)). For non-device-bound attestations, no RP-observable change occurs. |
 | **PID Provider rotation** (new signing key) | New PIDs are signed with a new key from the same or different Provider | RP should rely on LoTE-based trust anchor validation ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities)), not on cached specific signing keys. |
 
 > **Important — Do Not Treat `cnf.jwk` as a Stable User Identifier**
@@ -4775,7 +4775,7 @@ Attestation Rulebooks define the complete lifecycle and presentation rules for s
 
 #### 6.12 RP-Relevant Rulebook Content
 
-A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)):
+A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model (§6.16):
 
 | Aspect | Rulebook Chapter | What It Defines | `SchemaMeta` Field | RP Impact |
 |:-------|:-----------------|:----------------|:-------------------|:----------|
@@ -4912,7 +4912,7 @@ EWC RFC005 §6.10.4 defines the LPID attestation with VCT value `EWC_LPID_Attest
 
 Key observations for RPs:
 - **VCT value**: `EWC_LPID_Attestation` — distinct from `eu.europa.ec.eudi.pid.1`. RPs must check the `vct` claim to distinguish natural person from legal person credentials.
-- **Format**: `dc+sd-jwt` — identical format profile to natural person PID. The same SD-JWT VC verification pipeline applies ([§11.3](#113-verification-checklist-for-sd-jwt-vc)).
+- **Format**: `dc+sd-jwt` — identical format profile to natural person PID. The same SD-JWT VC verification pipeline applies (§11.3).
 - **Selective disclosure**: All claims are independently disclosable via SD-JWT's `_sd` mechanism.
 - **Key binding**: Uses the same `cnf` claim as natural person SD-JWT VCs — same `cnf.jwk` device binding model.
 
@@ -5180,7 +5180,7 @@ flowchart TD
 |:---------|:--------|:---------------|
 | **Schema caching** | Cache `SchemaMeta` locally vs. always query | Cache with TTL (e.g., 24h), invalidate on version change. The Catalogue API has rate limits ([§6.16.5](#6165-caching-strategy)). |
 | **Trust model plugin** | Hardcode vs. pluggable trust resolvers | Pluggable — implement `TrustResolver` interface with `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, `OpenIDFederationResolver` implementations |
-| **Format routing** | Separate pipelines vs. unified | Separate: mdoc ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) and SD-JWT VC ([§11.3](#113-verification-checklist-for-sd-jwt-vc)) parsing are fundamentally different. Use a `FormatHandler` abstraction. |
+| **Format routing** | Separate pipelines vs. unified | Separate: mdoc ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) and SD-JWT VC (§11.3) parsing are fundamentally different. Use a `FormatHandler` abstraction. |
 | **PID co-verification** | Always verify PID vs. per-Rulebook | Per-Rulebook (check Rulebook Ch. 4). Healthcare sectors mandate it; education recommends it; some sectors don't require it. |
 | **Obligation engine** | Static rules vs. Rulebook-derived | Hybrid: static rules for regulation-mandated obligations (revocation check), Rulebook-derived for sector-specific (PID co-verification, binding type). |
 
@@ -5217,7 +5217,7 @@ The critical first-order decision is not about credential formats or technical a
 - **Regulatory regime**: Non-qualified EAA, QEAA, or PuB-EAA — without this determination, downstream decisions cannot be made correctly
 - **Subject, attributes, and source**: Which person or entity is the subject, which attributes are attested, from which authentic source each attribute is obtained, and how the issuer verifies correctness before issuance (for QEAAs, this is part of the issuance regime per CIR 2025/1569 Art. 9)
 - **EUDI Wallet issuance scope**: Whether the attestation must be issued into an EUDI Wallet — if yes, CIR 2024/2977 applies (format, namespace, binding); if the attestation targets a proprietary wallet, the EUDI legal framework does not automatically apply
-- **Attestation Rulebook and scheme registration**: A human-readable specification plus a machine-readable definition ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)), with attestation type and namespace registered in the Catalogue of Schemes ([§6.16.3](#6163-rest-api))
+- **Attestation Rulebook and scheme registration**: A human-readable specification plus a machine-readable definition (§6.16), with attestation type and namespace registered in the Catalogue of Schemes ([§6.16.3](#6163-rest-api))
 - **Trust infrastructure**: How issuing parties, relying parties, trust anchors, and registrations are published and discovered — including RP registration ([§4](#4-rp-registration-data-model-and-registrar-api)), access certificates ([§5.2](#52-access-certificates-wrpac)), and LoTE publication ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities))
 - **Validity and revocation model**: Short-lived, ASL, ARL, or hybrid — chosen early in the design, not retrofitted (see Appendix B.1 for the binding legal framework)
 
@@ -5246,7 +5246,7 @@ A common question for RP integration architects is: **does the EUDI Wallet ecosy
 
 This chapter provides a definitive answer by examining:
 
-- The ARF's official position on X.509 vs. DIDs, including the authoritative clarification from the ARF team ([§7.2](#72-the-arf-mandate-x509-for-the-core-dids-optional-for-non-qualified-eaas))
+- The ARF's official position on X.509 vs. DIDs, including the authoritative clarification from the ARF team (§7.2)
 - The DID methods that exist in the European identity landscape and their relevance to the EUDI ecosystem ([§7.3](#73-did-methods-in-the-european-landscape))
 - The trust model used by every category of wallet an RP may encounter: platform wallets like Apple Wallet and Google Wallet ([§7.4](#74-platform-wallets-apple-wallet-and-google-wallet)), national EUDI wallets ([§7.5](#75-national-wallet-implementations)), and commercial/SSI wallets ([§7.6](#76-commercial-and-ssi-wallets))
 - The W3C Digital Credentials API browser mediation layer that connects RPs to wallets ([§7.7](#77-browser-mediated-credential-presentation-w3c-dc-api))
@@ -5260,10 +5260,10 @@ This chapter provides a definitive answer by examining:
 
 ##### 7.2.1 The Core Rule
 
-The ARF Trust Model ([§6.1](#61-sd-jwt-vc-overview)) establishes the foundational rule:
+The ARF Trust Model (§6.1) establishes the foundational rule:
 
 > *"For PIDs, qualified EAAs, PuB-EAAs, access certificates, and registration certificates, interoperability is essential (ARF §4.2.3). Interoperability is achieved by using a PKI following X.509 certificate standards ([RFC5280], [RFC3647]). **Non-qualified EAAs may adopt alternative trust models and verification mechanisms.**"*
-— ARF Main Document, [§6.1](#61-sd-jwt-vc-overview)
+> — ARF Main Document, §6.1
 
 This rule is reinforced by the high-level requirement **RPA_02** (Annex 2, Topic 6): Wallet Units and Relying Party Instances must support X.509 certificates for authentication.
 
@@ -5521,7 +5521,7 @@ flowchart LR
 
 ##### 7.4.5 WSCD Architecture Types (ARF §5.5.2)
 
-The security of every EUDI Wallet depends on how and where its cryptographic keys are stored and used. The ARF ([§5.5.2](#552-lote-types-relevant-to-rps)) defines four **Wallet Secure Cryptographic Device (WSCD)** architecture types. While the RP never directly inspects the WSCD type — trust is established indirectly via Wallet Unit Attestations and Trusted Lists ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists), [§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap)) — understanding these architectures is important for ecosystem awareness, availability planning, and user-support scenarios.
+The security of every EUDI Wallet depends on how and where its cryptographic keys are stored and used. The ARF (§5.5.2) defines four **Wallet Secure Cryptographic Device (WSCD)** architecture types. While the RP never directly inspects the WSCD type — trust is established indirectly via Wallet Unit Attestations and Trusted Lists ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists), [§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap)) — understanding these architectures is important for ecosystem awareness, availability planning, and user-support scenarios.
 
 | WSCD Type | Key Location | Implementation | RP-Relevant Implications |
 |:----------|:-------------|:---------------|:-------------------------|
@@ -6418,7 +6418,7 @@ The **HAIP 1.0 Final Specification** (December 2025) — the mandatory interoper
 This means:
 
 1. **HAIP mandates `response_type=vp_token`** — not `vp_token id_token`. The combined mode is not part of the EUDI interoperability profile.
-2. **Pseudonymous login uses WebAuthn**, not Self-Issued ID Tokens. DR-0002 §16 covers the WebAuthn-based pseudonym mechanism that HAIP recommends.
+2. **Pseudonymous login uses WebAuthn**, not Self-Issued ID Tokens. DR-0002 [§16](#16-pseudonym-based-authentication-and-webauthn) covers the WebAuthn-based pseudonym mechanism that HAIP recommends.
 3. **No EUDI regulatory instrument references SIOPv2.** It does not appear in the ARF (v2.8.0), any Commission Implementing Regulation (CIR), or the Technical Specifications (TS1–TS14).
 4. **The OIDF Self-Certification programme** (launched February 2026) offers conformance testing for OID4VP 1.0, OID4VCI 1.0, and HAIP 1.0 — but not for SIOPv2.
 
@@ -6426,7 +6426,7 @@ This means:
 
 **For EUDI mandatory flows (PID, QEAA, PuB-EAA): SIOPv2 is not required.**
 
-RPs implementing HAIP-compliant OpenID4VP ([§8.3](#83-haip-10-requirements-for-rps)) with `response_type=vp_token` and `response_mode=direct_post.jwt` cover 100% of the EUDI presentation flows. Pseudonymous authentication is handled by WebAuthn passkeys ([§16](#16-pseudonym-based-authentication-and-webauthn)), not by Self-Issued ID Tokens.
+RPs implementing HAIP-compliant OpenID4VP (§8.3) with `response_type=vp_token` and `response_mode=direct_post.jwt` cover 100% of the EUDI presentation flows. Pseudonymous authentication is handled by WebAuthn passkeys (§16), not by Self-Issued ID Tokens.
 
 SIOPv2 may be encountered in the following non-EUDI contexts:
 
@@ -6456,7 +6456,7 @@ OpenID4VP has undergone substantial breaking changes across its drafts. Many SDK
 **Key breaking changes for RP SDK selection:**
 
 - **`client_id_scheme` → URI prefix** (Draft 22): Any SDK that sends a `client_id_scheme` request parameter is non-compliant with OID4VP 1.0. Wallet Units built against Draft 22+ will not recognise or may reject the old parameter. Verify your SDK's handling of `client_id` before integration.
-- **DCQL replaces PE** (Draft 26 / 1.0 Final): SDKs exporting a `presentation_definition` field are targeting an outdated draft. See §17.1.1 for the full migration mapping.
+- **DCQL replaces PE** (Draft 26 / 1.0 Final): SDKs exporting a `presentation_definition` field are targeting an outdated draft. See [§17.1.1](#1711-migration-from-dif-presentation-exchange) for the full migration mapping.
 - **`response_mode=dc_api`** (Draft 24): Required for W3C Digital Credentials API flows ([§9](#9-same-device-remote-presentation)). SDKs lacking this mode cannot support same-device browser-based presentation.
 - **`response_mode=direct_post` → `direct_post.jwt`** (Draft 20+): Unencrypted `direct_post` is not compliant with the EUDI profile. HAIP mandates `direct_post.jwt` (JARM-encrypted). SDKs defaulting to unencrypted `direct_post` must be reconfigured.
 
@@ -6485,7 +6485,7 @@ An RP strictly implementing ISO 18013-7 Annex B will generate OpenID4VP requests
 
 **RP Mitigation Strategies & Timeline:** 
 The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating ISO 18013-7 Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
-1. **Using ISO 18013-7 Annex C (DC API)**: For browser-based flows, ISO 18013-7 Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* ISO 18013-7 Annex C ([§27.1](#271-vendor-detail-profiles)).
+1. **Using ISO 18013-7 Annex C (DC API)**: For browser-based flows, ISO 18013-7 Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* ISO 18013-7 Annex C (§27.1).
 2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to ISO 18013-7 Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. ISO 18013-7 Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
 
 ---
@@ -7447,7 +7447,7 @@ The flow proceeds as follows: (1) the native RP app requests a presentation sess
 >
 > - **`IdentityDocumentProvider` / `IdentityDocumentServicesUI`** — Enables third-party wallet apps to register as **document providers** on the system level. When a website or app requests identity verification via the W3C DC API (Safari) or Apple's identity sheet, registered third-party wallets appear alongside Apple Wallet in the system selector. This addresses the **wallet/holder side** — it does not provide a verifier-side API for native RP apps to request credentials from arbitrary wallets.
 >
-> Apple does **not** provide a native-app verifier equivalent to Android's `CredentialManager.getCredential()` for requesting OpenID4VP presentations from third-party EUDI wallets. Native iOS RP apps must continue using **Universal Links** as documented in [§9.3](#93-native-app-rp-integration-iosandroid) steps 1–13 above. However, the **web path partially works**: Safari on iOS supports the W3C DC API, which bridges to third-party wallets registered via `IdentityDocumentProvider` — but Safari's DC API implementation **only supports the `org.iso.mdoc` protocol** (ISO 18013-7 Annex C), **not OpenID4VP**. This means an RP operating as a web application can invoke wallets on iOS through the browser DC API only for **mDoc-format credentials** (e.g., mDL). EUDI Wallet credentials issued as SD-JWT VC over OpenID4VP **cannot** be presented via Safari's DC API — the wallet would need dual-protocol support (mDoc + OID4VP) to be reachable from both browsers. Chrome (from v141) is protocol-agnostic and supports both `org.iso.mdoc` and OpenID4VP, so the web path for OID4VP-based EUDI credentials works on Chrome but not Safari. RPs targeting cross-browser coverage must implement a **dual-protocol backend** or fall back to Universal Links for Safari-based OID4VP flows (Model D, [§26.6.1](#2661-integration-models-and-callback-layers)).
+> Apple does **not** provide a native-app verifier equivalent to Android's `CredentialManager.getCredential()` for requesting OpenID4VP presentations from third-party EUDI wallets. Native iOS RP apps must continue using **Universal Links** as documented in [§9.3](#93-native-app-rp-integration-iosandroid) steps 1–13 above. However, the **web path partially works**: Safari on iOS supports the W3C DC API, which bridges to third-party wallets registered via `IdentityDocumentProvider` — but Safari's DC API implementation **only supports the `org.iso.mdoc` protocol** (ISO 18013-7 Annex C), **not OpenID4VP**. This means an RP operating as a web application can invoke wallets on iOS through the browser DC API only for **mDoc-format credentials** (e.g., mDL). EUDI Wallet credentials issued as SD-JWT VC over OpenID4VP **cannot** be presented via Safari's DC API — the wallet would need dual-protocol support (mDoc + OID4VP) to be reachable from both browsers. Chrome (from v141) is protocol-agnostic and supports both `org.iso.mdoc` and OpenID4VP, so the web path for OID4VP-based EUDI credentials works on Chrome but not Safari. RPs targeting cross-browser coverage must implement a **dual-protocol backend** or fall back to Universal Links for Safari-based OID4VP flows (Model D, §26.6.1).
 
 > **Recommendation**: Native RP apps on Android SHOULD use `CredentialManager.getCredential()` with `DigitalCredentialOption` as the **primary invocation method** (Model E, [§26.6.1](#2661-integration-models-and-callback-layers)), falling back to App Links only when CredentialManager is unavailable (e.g., devices without Google Play Services). On iOS, Universal Links remain the sole remote invocation mechanism for OpenID4VP. RPs that also need to verify Apple Wallet government IDs (mDLs) should additionally integrate the PassKit "Verify with Wallet" API — but this is a **parallel capability**, not a replacement for the EUDI Wallet OpenID4VP flow.
 
@@ -7519,7 +7519,7 @@ Similarly, on Android, when the RP's **website** invokes the DC API via `navigat
 | **Single verification backend** | One OID4VP + DCQL pipeline serves both embedded and external wallets. No protocol branching. |
 | **Early adoption** | Banks/PSPs can issue RP-specific credentials (SCA attestations, loyalty cards) via OID4VCI into the embedded wallet *before* MS EUDI Wallets reach wide deployment. Protocol experience gained now transfers directly to external wallet integration. |
 | **UX continuity** | The user never leaves the RP app. For banking apps where session continuity is critical (e.g., mid-transaction authentication), the embedded wallet eliminates the jarring context switch to a separate wallet app. |
-| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
+| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI (§15.4), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
 | **Fallback for wallet-less users** | If a user has not installed the standalone EUDI Wallet, the embedded SDK in the RP app can still hold and present RP-specific credentials. This reduces friction during the ecosystem ramp-up period (2026–2028). |
 | **Branded consent screens** | Vendors like Verimi offer three UI modes: Generic (standard UI), Customised (RP-branded), and Headless (no UI — RP provides all rendering). This gives the RP full design control over the credential presentation experience. |
 
@@ -8049,7 +8049,7 @@ The Relying Party Backend retrieves the previously stored ephemeral private key 
 <details>
 <summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
 
-The Relying Party Backend runs the full SD-JWT VC verification pipeline ([§5.4.2](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)): 
+The Relying Party Backend runs the full SD-JWT VC verification pipeline (§5.4.2): 
 1. Verify the Issuer-JWT ES256 signature against the PID Provider's LoTE trust anchor.
 2. For each disclosed attribute, compute `SHA-256(base64url(disclosure))` and strictly match it against the `_sd` array hashes.
 3. Verify the KB-JWT signature against the `cnf.jwk` public key extracted from the Issuer-JWT.
@@ -8230,7 +8230,7 @@ These threats and their mitigations are analysed at protocol depth in the **Secu
 | DOM-injected QR code replacement | **[§29.2.18](#29218-cross-device-qr-code-substitution)** — QR Code Substitution | DC API origin validation; CSP hardening |
 | Credential replay across sessions | **[§29.2.2](#2922-credential-replay)** — Credential Replay | Unique `nonce` per request + short JAR TTL |
 
-Detection signals and operational alert triggers for these threats are classified in **[§30](#30-verification-signal-intelligence)** (Verification Signal Intelligence) — see specifically `KBJWT_AUD_MISMATCH` (relay detection), `KBJWT_NONCE_MISMATCH` (replay detection), and `CTX_TLS_FINGERPRINT_ANOMALY` (MitM detection). The complete signal-to-threat-to-alert-to-regulation traceability is mapped in **§30.9**.
+Detection signals and operational alert triggers for these threats are classified in **[§30](#30-verification-signal-intelligence)** (Verification Signal Intelligence) — see specifically `KBJWT_AUD_MISMATCH` (relay detection), `KBJWT_NONCE_MISMATCH` (replay detection), and `CTX_TLS_FINGERPRINT_ANOMALY` (MitM detection). The complete signal-to-threat-to-alert-to-regulation traceability is mapped in **[§30.9](#309-cross-reference-map-signal-to-threat-to-alert-to-regulation)**.
 
 #### 10.5 Cross-Device UX Patterns and Failure Recovery
 
@@ -8342,7 +8342,7 @@ Multiple independent timers interact in the cross-device flow. Misaligned timeou
 
 **Key constraint:** `request_uri` TTL ≥ JAR `exp` ≥ QR display TTL. The `request_uri` must remain fetchable for slightly longer than the JAR is valid, and the JAR must remain valid for at least as long as the QR is displayed. Violating this ordering creates a window where the QR is visible but the JAR behind it has already expired.
 
-**Relationship to [§11.5](#115-edge-cases-and-error-handling):** The error codes surfaced when these timers expire are handled by the RP's OpenID4VP error handling pipeline ([§11.6](#116-openid4vp-error-responses)). Specifically, an expired JAR results in the Wallet never reaching `response_uri` — the RP detects this as a session timeout rather than an explicit error response. The RP should treat any session that reaches the overall 300s timeout without a VP Token as an implicit `access_denied` and offer the user a fresh QR code.
+**Relationship to [§11.5](#115-edge-cases-and-error-handling):** The error codes surfaced when these timers expire are handled by the RP's OpenID4VP error handling pipeline (§11.6). Specifically, an expired JAR results in the Wallet never reaching `response_uri` — the RP detects this as a session timeout rather than an explicit error response. The RP should treat any session that reaches the overall 300s timeout without a VP Token as an implicit `access_denied` and offer the user a fresh QR code.
 
 #### 10.6 Cross-Device vs. Same-Device Decision Logic
 
@@ -8733,7 +8733,7 @@ The following checklist maps each RP verification aspect to a specific test tool
 | 9 | **Certificate revocation checking** | Self-signed test CA + CRL/OCSP | Issue CRL; verify RP correctly rejects revoked certs |
 | 10 | **Status List verification** | Reference Issuer Status List API | Issue credential, revoke it, verify RP detects revocation ([§11.8.4](#1184-obtaining-test-credentials)) |
 | 11 | **mdoc (ISO 18013-5/7) verification** | EU Reference Wallet + Verifier | Test COSE_Sign1, MSO, DeviceAuth validation ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) |
-| 12 | **Cross-device flow (QR/BLE)** | EU Reference Wallet (mobile) | Scan QR from RP, complete OID4VP flow cross-device ([§10](#10-cross-device-remote-presentation)) |
+| 12 | **Cross-device flow (QR/BLE)** | EU Reference Wallet (mobile) | Scan QR from RP, complete OID4VP flow cross-device (§10) |
 | 13 | **Same-device DC API flow** | Chrome Canary + Android 16 | Test `navigator.credentials.get()` with DC API ([§9](#9-same-device-remote-presentation)) |
 | 14 | **Error response handling** | OIDF Conformance Suite | Suite sends `access_denied`, `invalid_request`, `vp_formats_not_supported` ([§11.6](#116-openid4vp-error-responses)) |
 | 15 | **Timeout and orphaned sessions** | Manual testing | Simulate wallet crash mid-flow; verify RP session cleanup ([§11.7](#117-error-recovery-and-retry-strategies)) |
@@ -9091,14 +9091,14 @@ The following lookup table maps common RP use cases to their required LoA:
 | Age verification (18+) | Commercial | Low | No EU-level regulatory mandate |
 | Property transaction | Legal | High* | National land registration laws (varies by MS) |
 | Company director verification | B2B | High* | National company law (varies by MS) |
-| Pseudonymous account registration | Commercial | — | No LoA requirement (pseudonyms have no eIDAS LoA — §11.11.5) |
+| Pseudonymous account registration | Commercial | — | No LoA requirement (pseudonyms have no eIDAS LoA — [§11.11.5](#11115-pseudonym-loa-semantics)) |
 
 \* These LoA levels are indicative. The actual requirement depends on the Member State's transposition of the relevant EU directive or its own national legislation.
 
 
 #### §11.12 LPID Verification Pipeline Delta
 
-When an RP receives an LPID credential ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person)) instead of — or alongside — a natural person PID, the verification pipeline requires the following modifications. The base pipeline ([§11.3](#113-verification-checklist-for-sd-jwt-vc) for SD-JWT VC, [§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp) for mdoc) remains unchanged; this section documents only the **delta**.
+When an RP receives an LPID credential ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person)) instead of — or alongside — a natural person PID, the verification pipeline requires the following modifications. The base pipeline ([§11.3](#113-verification-checklist-for-sd-jwt-vc) for SD-JWT VC, §11.4 for mdoc) remains unchanged; this section documents only the **delta**.
 
 | Pipeline Step | Natural Person PID | LPID | Delta |
 |:-------------|:------------------|:-----|:------|
@@ -9191,7 +9191,7 @@ The mandate scope verification step should be implemented as a **pluggable modul
 2. **Phase 2 (Rulebook publication)**: When the Commission publishes the representation attestation Rulebook (mandated by RP_01), upgrade to Pattern 3 by loading the standardised vocabulary into the scope module
 3. **Interface**: The module should expose a simple `evaluateScope(mandate_scope, rp_operation, transaction_context) → { PASS | FAIL | AMBIGUOUS }` interface, allowing the RP's business logic to remain decoupled from scope evaluation internals
 
-> **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline ([§3.6](#36-ebw-regulation-timeline)). See [§18](#18-combined-presentations-lpid-and-mandate-credentials) for the full mandate credential taxonomy, attribute model, and verification flow.
+> **Specification gap**: No standardised mandate credential schema or scope vocabulary exists as of March 2026. ARF Topic 29 defines requirements (RP_01, RP_02) for representation attestation Rulebooks, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§3.6). See [§18](#18-combined-presentations-lpid-and-mandate-credentials) for the full mandate credential taxonomy, attribute model, and verification flow.
 
 #### §11.13 Pre-Presentation Trust Checks (CIR 2025/847, CIR 2025/1569)
 
@@ -9215,7 +9215,7 @@ CIR 2025/1569 Art. 6 requires the Commission to publish a machine-readable list 
 
 ##### §11.13.4 Catalogue of Attributes and Attestation Schemes
 
-CIR 2025/1569 Art. 7–8 establishes Commission-maintained catalogues of attributes and attestation schemes. RPs can use the catalogue to discover available attribute types and attestation schemas when constructing DCQL queries — particularly useful for sector-specific or cross-border use cases where the RP may not know the full set of available attributes from a given Member State. This connects to the TS11 catalogue interface documented in §1.4.
+CIR 2025/1569 Art. 7–8 establishes Commission-maintained catalogues of attributes and attestation schemes. RPs can use the catalogue to discover available attribute types and attestation schemas when constructing DCQL queries — particularly useful for sector-specific or cross-border use cases where the RP may not know the full set of available attributes from a given Member State. This connects to the TS11 catalogue interface documented in [§1.4](#14-technical-specifications-and-standards-sts).
 
 ---
 
@@ -10182,7 +10182,7 @@ The Wallet displays a consent screen showing the terminal's verified identity (e
 <details>
 <summary><strong>10. User approves via biometric or PIN</strong></summary>
 
-The User approves the data release by authenticating locally via biometric (fingerprint, FaceID) or device PIN. This user verification step proves "possession + inherence" (or "possession + knowledge") — the Wallet Unit only releases the credential after confirming the authorised User is physically present. The authentication happens via the WSCA/WSCD (unlike the WebAuthn pseudonym flow in §16.6 which uses OS-level authentication), because the credential being presented is an eIDAS-governed attestation (PID) that requires the full eIDAS trust chain.
+The User approves the data release by authenticating locally via biometric (fingerprint, FaceID) or device PIN. This user verification step proves "possession + inherence" (or "possession + knowledge") — the Wallet Unit only releases the credential after confirming the authorised User is physically present. The authentication happens via the WSCA/WSCD (unlike the WebAuthn pseudonym flow in [§16.6](#166-pseudonym-registration-and-authentication-flow-agnostic-applies-to-direct-rp-and-intermediary) which uses OS-level authentication), because the credential being presented is an eIDAS-governed attestation (PID) that requires the full eIDAS trust chain.
 
 **Failure Path:** If authentication fails, the Wallet MUST NOT release any data. The terminal detects the timeout (no DeviceResponse within the configured window, typically 30–60 seconds), resets to step 2, and logs a `USER_AUTHENTICATION_TIMEOUT` event.
 
@@ -10300,7 +10300,7 @@ Based on the policy evaluation result, the terminal executes the physical access
 <details>
 <summary><strong>16. Automated Terminal provides visual feedback to User</strong></summary>
 
-The terminal provides immediate, multi-modal feedback to the User (per EN 301 549 accessibility requirements — §13.11):
+The terminal provides immediate, multi-modal feedback to the User (per EN 301 549 accessibility requirements — [§13.11](#1311-accessibility-considerations-for-proximity-flows)):
 
 | Outcome | Visual | Audio | Haptic (if terminal supports) |
 |:--------|:-------|:------|:-----------------------------|
@@ -11257,7 +11257,7 @@ The EAA Provider registration requires:
 
 1. **Provider Information** — identity, supported attestation types, issuance policies, data sources, geographic scope (Annex I data model, CIR 2024/2981)
 2. **Attestation type definition** — registered in the Common Catalogue (TS11) with claims schema, format support, and revocation mechanism
-3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` ([§15.5.3](#1553-credential-issuer-metadata)) and linked from the Provider Information's `providesAttestations` field (TS2)
+3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` (§15.5.3) and linked from the Provider Information's `providesAttestations` field (TS2)
 4. **Non-discrimination** — per AS-AP-10-044, an EAA Provider must support all Wallet Solutions and must not discriminate between them
 
 > **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
@@ -12242,7 +12242,7 @@ The Wallet Unit constructs and returns a `PublicKeyCredential` object (WebAuthn 
 }
 ```
 
-The `attestationObject` is CBOR-encoded and contains the `authData` field (WebAuthn L3 §7.1), which in turn embeds the `credentialPublicKey` in COSE_Key format (RFC 9052). When `attestation: "none"` is used (recommended — §16.9), the `attStmt` is an empty map and `fmt` is `"none"`, providing no attestation to the RP about the authenticator's provenance.
+The `attestationObject` is CBOR-encoded and contains the `authData` field (WebAuthn L3 §7.1), which in turn embeds the `credentialPublicKey` in COSE_Key format (RFC 9052). When `attestation: "none"` is used (recommended — [§16.9](#169-privacy-analysis-attestation-type-selection)), the `attStmt` is an empty map and `fmt` is `"none"`, providing no attestation to the RP about the authenticator's provenance.
 
 **Artifact Produced:** `PublicKeyCredential` (JSON Object with CBOR-encoded elements)
 
@@ -12511,7 +12511,7 @@ The following binding strategies are available, listed from most practical (depl
 | **1. Session-Based Binding** | RP maintains a server-side session (e.g., HTTP-only cookie or opaque token). Both the WebAuthn ceremony and the OpenID4VP ceremony happen within the same TLS-authenticated browser session. The session acts as the continuity artifact. | Reasonable — both ceremonies require user presence on the same browser/device within the same session | ✅ **Available today** |
 | **2. Challenge Embedding** | RP embeds the WebAuthn registration `challenge` inside the OpenID4VP `nonce` parameter (or vice versa), creating a causal chain. The RP verifies that both responses reference the same challenge material. | Stronger than session-only — proves the two ceremonies were initiated by the same server-side transaction | ✅ **Available today** |
 | **3. Temporal Proximity + User Verification** | Both ceremonies enforce `userVerification: "required"`. If both biometric confirmations happen within seconds on the same device, the RP has high confidence of same-user continuity. | Probabilistic — strong for same-device, weaker for cross-device | ✅ **Available today** |
-| **4. Cryptographic Binding (WSCA proof)** | ARF Topic K ([§3.4](#34-euid-the-anchor-identifier-for-legal-persons), ACP_10–ACP_15) defines a mechanism where the Wallet Unit proves that the private keys of two attestations are managed by the same WSCD. If the pseudonym key and the PID key are both in the WSCA, this proof would cryptographically bind them. | **Strongest** — hardware-level proof of same-WSCD key management | ❌ **Not yet standardised** — guiding HLRs only |
+| **4. Cryptographic Binding (WSCA proof)** | ARF Topic K (§3.4, ACP_10–ACP_15) defines a mechanism where the Wallet Unit proves that the private keys of two attestations are managed by the same WSCD. If the pseudonym key and the PID key are both in the WSCA, this proof would cryptographically bind them. | **Strongest** — hardware-level proof of same-WSCD key management | ❌ **Not yet standardised** — guiding HLRs only |
 | **5. Attested Pseudonym (alternative path)** | Instead of WebAuthn + OpenID4VP, the Attestation Provider issues a (Q)EAA attesting a pseudonym to the User. The issuance process (OID4VCI) inherently binds the pseudonym to the User's PID via the Attestation Provider's identity verification. | Strong — the Attestation Provider guarantees binding during issuance | ⚠️ **Available but requires Attestation Provider** — no EU-wide pseudonym attestation type defined yet |
 
 **Recommended RP approach (today)**: Combine strategies 1–3: maintain a server-side session token, embed the WebAuthn challenge in the OpenID4VP nonce, and require both ceremonies within a tight temporal window on the same browser context. This provides a defence-in-depth approach:
@@ -13065,7 +13065,7 @@ The User navigates to an online marketplace that offers EUDI Wallet integration.
 <details>
 <summary><strong>2. RP Server sends WebAuthn registration options to Browser</strong></summary>
 
-The RP initiates a WebAuthn `create()` ceremony by generating `PublicKeyCredentialCreationOptions`. The options include the RP's identifier (`rp.id`), a unique `user.id` (opaque handle), and a fresh `challenge_R` (cryptographic random nonce). This follows the standard WebAuthn registration flow documented in §16.5.1, but with a key difference: the account will be created at **LoA Low** with no identity verification.
+The RP initiates a WebAuthn `create()` ceremony by generating `PublicKeyCredentialCreationOptions`. The options include the RP's identifier (`rp.id`), a unique `user.id` (opaque handle), and a fresh `challenge_R` (cryptographic random nonce). This follows the standard WebAuthn registration flow documented in [§16.5.1](#1651-registration-navigatorcredentialscreate), but with a key difference: the account will be created at **LoA Low** with no identity verification.
 
 **Audit Telemetry:** The RP Server logs a `LOW_ASSURANCE_REGISTRATION_INITIATED` event.
 
@@ -13205,7 +13205,7 @@ The RP's backend checks the pseudonym account's `identity_verified` flag. Findin
 <details>
 <summary><strong>18. RP Server sends OpenID4VP Authorization Request to Browser</strong></summary>
 
-The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** ([§16.7.3](#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity), Strategy 2: Challenge Embedding). The request URL might look like:
+The RP initiates an OpenID4VP authorization request with a DCQL query requesting `age_over_18` from the User's PID. Critically, the RP sets the OpenID4VP `nonce` parameter to include the original WebAuthn challenge (or a derivative), creating a **cross-ceremony binding** (§16.7.3, Strategy 2: Challenge Embedding). The request URL might look like:
 
 ```
 eudi-wallet://authorize?
@@ -13285,7 +13285,7 @@ The browser POSTs the `vp_token` to the RP's OpenID4VP response endpoint (via th
 <details>
 <summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
 
-The RP's backend performs the standard SD-JWT VC verification ([§14.3](#143-w2w-interaction-flow-ts9-wallet-to-wallet-model---no-intermediary)) and additionally:
+The RP's backend performs the standard SD-JWT VC verification (§14.3) and additionally:
 
 1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding between the WebAuthn session and this OpenID4VP presentation
 2. **Verifies session continuity** — the OpenID4VP response arrived within the same TLS session as the active pseudonym login
@@ -13856,7 +13856,7 @@ For high-assurance B2B use cases (financial onboarding, contract signing authori
 }
 ```
 
-> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline ([§3.6](#36-ebw-regulation-timeline)). See [§18](#18-combined-presentations-lpid-and-mandate-credentials) for the full mandate credential taxonomy, attribute model, and verification flow.
+> **Mandate VCT note**: The VCT value `eu.europa.ec.eudi.mandate.1` is projected — no finalised mandate credential schema exists in the ARF or EWC specifications as of March 2026. ARF Topic 29 (RP_01, RP_02) defines high-level requirements for representation attestations, but only for natural-person-to-natural-person representation. The natural-person-to-legal-person mandate specification is expected to follow the EBW regulation timeline (§3.6). See [§18](#18-combined-presentations-lpid-and-mandate-credentials) for the full mandate credential taxonomy, attribute model, and verification flow.
 
 **Joint Representation (Gesamtvertretung)**
 
@@ -14150,7 +14150,7 @@ If the Wallet provided a Wallet Secure Cryptographic Application (WSCA) binding 
 
 The RP calculates the overall combined presentation validity window by taking the **minimum** `exp` value across all presented credentials. For example, if the PID expires at `2025-12-31T23:59:59Z` and the mDL expires at `2025-06-15T00:00:00Z`, the combined presentation is valid only until `2025-06-15`. This minimum validity determines how long the RP can rely on the combined presentation for session-based decisions (e.g., how long an authenticated session should last before requiring re-verification).
 
-> **Session binding**: The RP should set the application session's `max-age` to no longer than this minimum validity, minus a safety margin. For time-sensitive transactions (SCA — §15), the validity window may be further constrained by the `transaction_data` expiry.
+> **Session binding**: The RP should set the application session's `max-age` to no longer than this minimum validity, minus a safety margin. For time-sensitive transactions (SCA — [§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)), the validity window may be further constrained by the `transaction_data` expiry.
 
 **Audit Telemetry:** The RP Instance logs a `COMBINED_PRESENTATION_EXPIRY_BOUND` event, recording the calculated minimum validity window.
 
@@ -14582,7 +14582,7 @@ The RP reads the `scope_of_authority` object, which contains the `operations` ar
 <details>
 <summary><strong>13. RP Instance matches scope to current operation</strong></summary>
 
-The RP compares its intended operation (e.g., `"contract_signing"`) against the mandate's `scope_of_authority.operations` array. If the operation is found and not in the `exclusions` array, the scope check passes. If not found, the RP applies its ambiguity handling policy (§11.12.3 — deny by default for high-value, allow with logging for low-value).
+The RP compares its intended operation (e.g., `"contract_signing"`) against the mandate's `scope_of_authority.operations` array. If the operation is found and not in the `exclusions` array, the scope check passes. If not found, the RP applies its ambiguity handling policy ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step) — deny by default for high-value, allow with logging for low-value).
 
 **Audit Telemetry:** On scope rejection, the RP Instance logs a `MANDATE_SCOPE_EXCEEDED` tracking violation.
 
@@ -15482,13 +15482,13 @@ The AV App has been operational since July 2025, providing a transitional soluti
 
 **Commercial deployments.** Google Wallet announced ZKP age verification integration at Google I/O 2025, signalling platform-level adoption of the technology. Bumble is among the first commercial partners to integrate Google Wallet's ZKP age verification (announced May 2025), enabling age checks without direct ID document upload. Separately, the German bank Sparkasse partnered with Google to support the EU's age assurance initiative. These deployments use Google's `longfellow-zk` implementation — they are Google Wallet integrations, not direct EU AV App deployments, but they demonstrate production viability of the underlying ECDSA Anonymous Credentials scheme and provide reference points for RPs evaluating the technology.
 
-> **Cross-references**: [§6.3](#63-sd-jwt-vc-selective-disclosure-in-practice) (SD-JWT selective disclosure for comparison), [§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap) (ZKP roadmap context within EUDI ARF), [§13.10](#1310-online-fallback-for-proximity-terminals) (proximity age verification alternative), [§22](#22-amlkyc-onboarding-via-eudi-wallet) (AML/KYC onboarding for KYC-obligated RPs).
+> **Cross-references**: [§6.3](#63-sd-jwt-vc-selective-disclosure-in-practice) (SD-JWT selective disclosure for comparison), [§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap) (ZKP roadmap context within EUDI ARF), §13.10 (proximity age verification alternative), [§22](#22-amlkyc-onboarding-via-eudi-wallet) (AML/KYC onboarding for KYC-obligated RPs).
 
 ##### 19.1.8 3rd-Party Application Issuance: Bank as Identity Proofing Delegate
 
 Since the 5th release (March 2026), the AV App supports a **3rd-party application issuance** flow where a trusted external application — typically a banking app, mobile operator app, or government services app — acts as the identity proofing source for age verification attestations. This pattern is architecturally significant for RPs that are also financial institutions: a bank that has already completed Customer Due Diligence (CDD, [§22](#22-amlkyc-onboarding-via-eudi-wallet)) on a customer can leverage that existing KYC relationship to bootstrap age verification attestations into the customer's AV App, without requiring the customer to scan a passport or authenticate via an eIDAS node.
 
-**Business case for banks.** A bank that implements EUDI Wallet integration as an RP ([§22](#22-amlkyc-onboarding-via-eudi-wallet)) may simultaneously participate in the age verification ecosystem as an **identity proofing delegate**. The bank does not become an Attestation Provider (AP) — it does not issue the `eu.europa.ec.av.1` attestation, does not need to register on the Commission's Trusted List as an AP, and does not manage signing keys for age attestations. Instead, the bank provides verified identity evidence (specifically: proof that the customer's age exceeds the threshold) to an authorised AP, which handles the cryptographic issuance. This delegation model has low integration cost for the bank — the same OID4VCI pre-authorized code flow used for SCA attestation provisioning ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) is reused, with only the credential type and target application changing.
+**Business case for banks.** A bank that implements EUDI Wallet integration as an RP ([§22](#22-amlkyc-onboarding-via-eudi-wallet)) may simultaneously participate in the age verification ecosystem as an **identity proofing delegate**. The bank does not become an Attestation Provider (AP) — it does not issue the `eu.europa.ec.av.1` attestation, does not need to register on the Commission's Trusted List as an AP, and does not manage signing keys for age attestations. Instead, the bank provides verified identity evidence (specifically: proof that the customer's age exceeds the threshold) to an authorised AP, which handles the cryptographic issuance. This delegation model has low integration cost for the bank — the same OID4VCI pre-authorized code flow used for SCA attestation provisioning (§15.4) is reused, with only the credential type and target application changing.
 
 > **Governance requirement**: The bank must establish a contractual relationship with an authorised Attestation Provider. The AP must be registered on the Commission's Trusted List (eIDAS Dashboard). The bank-to-AP channel for transmitting identity proofing results is a proprietary integration (spec §3.2.1) — no standardised protocol is mandated for this leg. The AP is ultimately responsible for ensuring the age verification meets LoA Substantial or High.
 
@@ -15592,7 +15592,7 @@ The AP generates the OID4VCI pre-authorized code flow credentials (identical to 
 <details>
 <summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
 
-The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) with the `eu.europa.ec.av.1` credential type:
+The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§15.4) with the `eu.europa.ec.av.1` credential type:
 
 ```json
 {
@@ -15698,7 +15698,7 @@ Each mDoc is signed with the AP's ECDSA P-256 key, producing a COSE_Sign1 `issue
 <details>
 <summary><strong>14. Attestation Provider returns Credential Response with batch of N signed mDocs</strong></summary>
 
-The AP returns the full batch in a single OID4VCI credential response. The batch delivery is identical to the eID-based and passport-based flows described in §19.1.4 — the AV App cannot distinguish which identity proofing method was used, and neither can any RP that later verifies a presentation.
+The AP returns the full batch in a single OID4VCI credential response. The batch delivery is identical to the eID-based and passport-based flows described in [§19.1.4](#1914-protocol-flow) — the AV App cannot distinguish which identity proofing method was used, and neither can any RP that later verifies a presentation.
 
 **Artifact Produced:** OID4VCI Credential Response payload containing the base64url-encoded array of issued `eu.europa.ec.av.1` mDoc attestations.
 
@@ -15724,7 +15724,7 @@ The user presents the Proof of Age attestation to any Relying Party using the st
 
 <br/>
 
-> **Comparison with SCA attestation issuance ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations))**: The 3rd-party AV App issuance flow is architecturally identical to the SCA attestation provisioning flow in §15.4 — both use the OID4VCI Pre-Authorized Code flow, both are initiated from the banking app, and both deliver credential offers via QR code or deep link. The key differences are: (a) the credential type (`eu.europa.ec.av.1` vs. PSD2 SCA attestation), (b) the target application (AV App vs. EUDI Wallet), (c) the trust anchor (Commission AV Trusted List vs. PSP-specific trust), and (d) the attestation purpose (age verification vs. payment authentication). Banks that have already implemented [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations) have the protocol infrastructure in place — integrating 3rd-party AV App issuance requires only a new credential type configuration and an AP partnership.
+> **Comparison with SCA attestation issuance ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations))**: The 3rd-party AV App issuance flow is architecturally identical to the SCA attestation provisioning flow in [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations) — both use the OID4VCI Pre-Authorized Code flow, both are initiated from the banking app, and both deliver credential offers via QR code or deep link. The key differences are: (a) the credential type (`eu.europa.ec.av.1` vs. PSD2 SCA attestation), (b) the target application (AV App vs. EUDI Wallet), (c) the trust anchor (Commission AV Trusted List vs. PSP-specific trust), and (d) the attestation purpose (age verification vs. payment authentication). Banks that have already implemented [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations) have the protocol infrastructure in place — integrating 3rd-party AV App issuance requires only a new credential type configuration and an AP partnership.
 
 ---
 
@@ -16222,7 +16222,7 @@ The European Commission adopted the **Payment Services Regulation (PSR)** propos
 | **Electronic money integration** | PSR covers e-money institutions (previously under EMD2) | E-money issuers must also support EUDI Wallet SCA |
 | **Effective date** | Provisional agreement reached Nov 2025; formal adoption expected mid-2026; applicable 18 months after publication (~early 2028) | Aligns with EUDI Wallet mandatory acceptance (Dec 2027) |
 
-> **Forward-compatibility note**: The TS12 SCA flows described in §15 are designed against PSD2 SCA requirements. The PSR maintains the same three-factor SCA model (knowledge + possession + inherence) and dynamic linking requirements, so the core EUDI Wallet SCA mechanism remains valid. RPs should monitor the final PSR text for any additional `transaction_data` fields required for IBAN/Name verification or enhanced fraud monitoring.
+> **Forward-compatibility note**: The TS12 SCA flows described in [§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking) are designed against PSD2 SCA requirements. The PSR maintains the same three-factor SCA model (knowledge + possession + inherence) and dynamic linking requirements, so the core EUDI Wallet SCA mechanism remains valid. RPs should monitor the final PSR text for any additional `transaction_data` fields required for IBAN/Name verification or enhanced fraud monitoring.
 
 #### 21.3 GDPR Obligations for RPs
 
@@ -16421,17 +16421,17 @@ NIS2 Art. 21(2) enumerates **10 mandatory cybersecurity risk-management measures
 | **(a)** | Risk analysis and information system security | **[§29](#29-security-threat-catalogue)** — Security Threat Model (19 threats, STRIDE + MITRE mapping, risk matrix) |
 | **(b)** | Incident handling | **[§31](#31-monitoring-observability-and-operational-readiness)** — Monitoring (62 alert triggers in 6 categories, audit trail) |
 | **(c)** | Business continuity and disaster recovery | **[§28](#28-ecosystem-readiness-and-testing) [Finding 4](#finding-4)** — Trust anchor caching, Status List caching, WRPAC renewal, fallback flows |
-| **(d)** | Supply chain security | **[§27](#27-vendor-evaluation)** — Vendor Ecosystem evaluation matrix; §25 — Intermediary Architecture |
+| **(d)** | Supply chain security | **[§27](#27-vendor-evaluation)** — Vendor Ecosystem evaluation matrix; [§25](#25-intermediary-architecture-and-trust-flows) — Intermediary Architecture |
 | **(e)** | Security in acquisition, development, maintenance | **[§11.8](#118-pre-production-conformance-testing)** — OIDF conformance testing; [§7](#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape) implementation checklist |
 | **(f)** | Effectiveness assessment of risk-management measures | **[§11.8](#118-pre-production-conformance-testing)** — OIDF conformance suite; [§7.1](#71-scope-of-this-chapter) step 20 |
 | **(g)** | Cyber hygiene and training | *(Not directly covered — general training is out of scope for DR-0002)* |
 | **(h)** | Cryptographic policies | **§8–§11** — ECDH-ES, SD-JWT, X.509, KB-JWT; [§29.2](#292-threat-catalogue) cryptographic threat model |
-| **(i)** | HR security and access control | **[§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)** — RP Obligations (data handling); §21.3 — GDPR (purpose limitation) |
-| **(j)** | Multi-factor authentication | **[§21.2.2](#2122-eudi-wallet-as-sca-method)** — EUDI Wallet as SCA Method (two-factor analysis); §11.11 — LoA mapping |
+| **(i)** | HR security and access control | **[§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)** — RP Obligations (data handling); [§21.3](#213-gdpr-obligations-for-rps) — GDPR (purpose limitation) |
+| **(j)** | Multi-factor authentication | **[§21.2.2](#2122-eudi-wallet-as-sca-method)** — EUDI Wallet as SCA Method (two-factor analysis); [§11.11](#1111-level-of-assurance-verification) — LoA mapping |
 
 **Incident reporting under NIS2 Art. 23**: NIS2-covered RPs must report significant incidents within strict timelines — **24-hour early warning**, **72-hour notification** (initial assessment, severity, IoCs), and **1-month final report** (root cause, mitigation, cross-border impact). EUDI-specific events that may trigger NIS2 reporting include: WRPAC private key compromise (enables RP impersonation to all Wallet Units), trust anchor poisoning (rogue trust anchor causes RP to accept forged credentials), mass verification failure (indicating systemic infrastructure compromise), SDK supply chain attack (compromised verification library), and Status List data breach (reveals credential validity/revocation status). RPs should extend existing [§31](#31-monitoring-observability-and-operational-readiness) alert triggers with NIS2 reporting classification and maintain CSIRT contact details for their Member State of establishment.
 
-**NIS2 vs DORA — lex specialis**: NIS2 Art. 4(1) establishes that sector-specific EU laws imposing equivalent cybersecurity requirements take precedence. **DORA** (Regulation 2022/2554) is lex specialis for financial entities — DORA Art. 6–16 (ICT risk management) are equivalent to NIS2 Art. 21, and DORA Art. 17–23 (incident reporting) are equivalent to NIS2 Art. 23. Financial RPs complying with DORA ([§21.4](#214-dora-considerations-for-financial-rps)) need not separately comply with NIS2 Art. 21/23. However, NIS2 Art. 29 (cybersecurity information sharing) has no direct DORA equivalent — financial RPs should still participate in sector-specific ISACs. **Non-financial** critical-sector RPs (healthcare, transport, energy, digital infrastructure, public administration) are subject to NIS2 in full.
+**NIS2 vs DORA — lex specialis**: NIS2 Art. 4(1) establishes that sector-specific EU laws imposing equivalent cybersecurity requirements take precedence. **DORA** (Regulation 2022/2554) is lex specialis for financial entities — DORA Art. 6–16 (ICT risk management) are equivalent to NIS2 Art. 21, and DORA Art. 17–23 (incident reporting) are equivalent to NIS2 Art. 23. Financial RPs complying with DORA (§21.4) need not separately comply with NIS2 Art. 21/23. However, NIS2 Art. 29 (cybersecurity information sharing) has no direct DORA equivalent — financial RPs should still participate in sector-specific ISACs. **Non-financial** critical-sector RPs (healthcare, transport, energy, digital infrastructure, public administration) are subject to NIS2 in full.
 
 ```
 NIS2:  ───[Awareness]──24h──▶[Early Warning]──72h──▶[Notification]──1 month──▶[Final Report]
@@ -16448,7 +16448,7 @@ DORA:  ───[Awareness]──4h───▶[Classification]─24h──▶[I
 
 ##### 21.7.1 Breach Lifecycle
 
-CIR 2025/847 defines a three-phase lifecycle for security breaches. The Member State assesses the breach against the Annex I criteria ([§21.7.2](#2172-annex-i-assessment-criteria)), and based on proportionality decides whether to suspend the affected wallet solution. If suspended, the breach must be remedied within 3 months — otherwise withdrawal is automatic.
+CIR 2025/847 defines a three-phase lifecycle for security breaches. The Member State assesses the breach against the Annex I criteria (§21.7.2), and based on proportionality decides whether to suspend the affected wallet solution. If suspended, the breach must be remedied within 3 months — otherwise withdrawal is automatic.
 
 ```mermaid
 ---
@@ -16546,7 +16546,7 @@ Upon receiving a breach notification, the RP must execute the following response
 
 ##### 21.7.5 NIS2 and DORA Cross-Reference
 
-CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive 2022/2555), the Cybersecurity Act (Regulation 2019/881), and the Cyber Resilience Act (Regulation 2024/2847). For NIS2-covered RPs ([§21.6](#216-nis2-considerations-for-critical-sector-rps)), a wallet solution security breach may trigger **parallel incident reporting obligations** under NIS2 Art. 23 — particularly if the breach materially affects the RP's service availability or data integrity. For DORA-covered financial RPs ([§21.4](#214-dora-considerations-for-financial-rps)), it may trigger ICT incident reporting under DORA Art. 17–23, especially if the RP treats the wallet integration infrastructure as a critical third-party ICT service.
+CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive 2022/2555), the Cybersecurity Act (Regulation 2019/881), and the Cyber Resilience Act (Regulation 2024/2847). For NIS2-covered RPs (§21.6), a wallet solution security breach may trigger **parallel incident reporting obligations** under NIS2 Art. 23 — particularly if the breach materially affects the RP's service availability or data integrity. For DORA-covered financial RPs ([§21.4](#214-dora-considerations-for-financial-rps)), it may trigger ICT incident reporting under DORA Art. 17–23, especially if the RP treats the wallet integration infrastructure as a critical third-party ICT service.
 
 > **⚠️ 3-Month Withdrawal Cliff:** If the breach is not remedied within **3 months**, withdrawal is automatic per Art. 8(1). Withdrawal **permanently** revokes all wallet unit attestations — they cannot revert to valid. RPs must have contingency plans for the sudden loss of an entire wallet solution from their accepted set. Single-wallet-solution dependency creates unacceptable residual risk; RPs should maintain multi-wallet verification capability and ensure fallback authentication paths exist for all user segments.
 
@@ -16777,7 +16777,7 @@ Key Binding JWT payload (proves Wallet Unit possesses the device key):
 <details>
 <summary><strong>7. Bank verifies PID signature, disclosures, and device binding</strong></summary>
 
-The Bank performs the complete SD-JWT VC verification pipeline ([§5.4.2](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)):
+The Bank performs the complete SD-JWT VC verification pipeline (§5.4.2):
 
 1. **Issuer signature** — verify the Issuer-JWT ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary))
 2. **Disclosure integrity** — for each of the 9 disclosed attributes, compute `SHA-256(base64url(disclosure))` and match against the `_sd` array in the Issuer-JWT
@@ -17386,7 +17386,7 @@ The TS12 payment authentication flow is the central PSP-specific obligation. PSP
 
 > For the initiation of electronic payment transactions [...], Member States shall ensure that, in addition to the requirements set out in paragraph 1, strong customer authentication also includes elements which dynamically link the transaction to a specific amount and a specific payee.
 
-The EUDI Wallet satisfies Dynamic Linking via the `transaction_data` field in the OpenID4VP request. The KB-JWT response contains a device-bound signature over the transaction hash, which constitutes the authentication code under RTS Art. 5. See §15.15 for the complete payload schema and [§15.14](#1514-payment-payload-json-schema-ts12-normative) for the normative JSON schema (TS12).
+The EUDI Wallet satisfies Dynamic Linking via the `transaction_data` field in the OpenID4VP request. The KB-JWT response contains a device-bound signature over the transaction hash, which constitutes the authentication code under RTS Art. 5. See [§15.15](#1515-transactional-data-hlrs-topic-w) for the complete payload schema and [§15.14](#1514-payment-payload-json-schema-ts12-normative) for the normative JSON schema (TS12).
 
 **EC-confirmed practical fulfilment model (Large Scale Pilots)**:
 
@@ -17606,7 +17606,7 @@ A common PSP concern is whether accepting EUDI Wallets for SCA requires an outso
 
 This is significant: the Wallet acts as a **secure carrier**, not a delegated authentication provider. The PSP issues the attestation, the Wallet stores and presents it, and the PSP verifies it. The entire authentication lifecycle stays within the PSP's control — no third-party delegation occurs.
 
-> **⚠️ Outsourcing distinction**: While the Wallet Provider is *not* an outsourced authentication provider, an RP *intermediary* (Art. 5b(10)) that handles wallet verification on behalf of the PSP *is* an ICT third-party service provider under DORA Art. 28. See §24.3.5 for the DORA implications.
+> **⚠️ Outsourcing distinction**: While the Wallet Provider is *not* an outsourced authentication provider, an RP *intermediary* (Art. 5b(10)) that handles wallet verification on behalf of the PSP *is* an ICT third-party service provider under DORA Art. 28. See [§24.3.5](#2435-dora-compliance) for the DORA implications.
 
 **The "accept" vs. "issue" question — is SCA Attestation issuance mandatory?**
 
@@ -18268,7 +18268,7 @@ Once a bank has built the PID verification infrastructure for the mandatory SCA 
 
 > **Compliance position**: Despite the open questions below, the core obligation is legally certain: eIDAS Reg. Art. 5f(2) **mandates** wallet acceptance for SCA by **21 December 2027**. The AMLR additionally *enables and recommends* wallet-based CDD from **10 July 2027** (Art. 22(6)(b), Recital 66) — creating a de facto dual-track where CDD readiness precedes SCA go-live. The EC's FAQ, TS12, Use Case Manual 11, EMVCo's 3DS alignment work, and the LSP results collectively demonstrate that the technical path exists and is viable. PSPs that delay implementation pending "further clarity" on peripheral issues assume significant regulatory risk. The Dutch PA's May 2025 position paper, while raising legitimate operational questions, is now materially outdated — its central objections (SUA ≠ SCA, no dynamic linking, no control model) have been explicitly addressed by the European Commission.
 >
-> For non-banking RPs facing the same acceptance obligation under different sector regulation, see **§24** (General RP Integration Blueprint).
+> For non-banking RPs facing the same acceptance obligation under different sector regulation, see **[§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub)** (General RP Integration Blueprint).
 
 #### Open Questions (Not Yet Settled)
 
@@ -19446,7 +19446,7 @@ If any **agreed** verification dimension fails, the intermediary `SHALL NOT` for
 <details>
 <summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
-The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification ([§26.6.5](#2665-callback-payload-requirements)):
+The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§26.6.5):
 
 ```json
 {
@@ -19516,7 +19516,7 @@ The RP treats the intermediary's signed assertion as the **authoritative source*
 The RP completes the User's session by redirecting to the authenticated area of the application. The redirect mechanism depends on how the flow was initiated:
 
 - **Same-device**: The RP's callback handler (triggered by step 9) sets a session cookie and sends a redirect response to the User's browser. The browser follows the redirect to the authenticated page (e.g., `/dashboard`).
-- **Cross-device**: Since the User's browser has been polling for session completion (or using SSE — §26.5.2), the frontend detects the session transition to `Fulfilled` and navigates to the authenticated page.
+- **Cross-device**: Since the User's browser has been polling for session completion (or using SSE — [§26.5.2](#2652-result-delivery-polling-vs-callbacks)), the frontend detects the session transition to `Fulfilled` and navigates to the authenticated page.
 
 The User experience is identical to the direct SaaS model ([§26.6.2](#2662-direct-saas-integration-pattern) step 12) — the intermediary is transparent from this point forward. The RP should log the completed verification event ([§31.3](#313-audit-trail-requirements)) and, if required by regulation, store a consent receipt linking the User's session to the disclosed attributes, the intermediary's identity, and the verification timestamp.
 
@@ -19652,9 +19652,9 @@ response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
 <details>
 <summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
 
-The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — §5.5.3), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
+The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — [§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
 
-This step is identical to the standard verification flow documented in §18.1.7 — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
+This step is identical to the standard verification flow documented in [§18.1.7](#1817-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
 
 **Artifact Produced:** Verification Result (per-credential pass/fail, disclosed attribute set, verification dimensions).
 
@@ -19814,7 +19814,7 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 | `dcql_query_matched` | 🟡 Optional | ✅ | Which DCQL query was fulfilled (important when multiple credential types are acceptable) |
 | `intermediary_id` | N/A | ✅ | URI identifying the intermediary |
 | `intermediary_signature` (JWS) | N/A | ✅ | Cryptographic proof that the intermediary performed the verification |
-| `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-as-rp-51-011012)) |
+| `verification_dimensions` | N/A | ✅ | Which of the 5 ARF verification dimensions passed (§25.4.1) |
 | `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata ([§26.6.6](#2666-risk-signal-forwarding)) |
 
 > **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see [§26.7.4](#2674-mode-deep-dives) for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
@@ -19831,7 +19831,7 @@ The L2 result delivery is not always a webhook push. Five mechanisms exist, each
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
 | **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design ([§15.7](#157-issuer-requested-sca-flow-description)) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.4](#2674-mode-deep-dives)). Separately, the RP may deploy a reverse proxy ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
+> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.4](#2674-mode-deep-dives)). Separately, the RP may deploy a reverse proxy ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
 ###### Multi-Entity Callback Routing
 
@@ -19886,7 +19886,7 @@ When the RP's webhook endpoint is unreachable (5xx, timeout, DNS failure), the v
 
 #### 26.7 Integration Delivery Modes
 
-The preceding sections describe the callback architecture in terms of **what** is delivered ([§26.6.5](#2665-callback-payload-requirements) payload specification) and **who** delivers it ([§26.6.1](#2661-integration-models-and-callback-layers) integration models A–E). This section addresses the equally critical question of **how** the verification result reaches the RP's backend.
+The preceding sections describe the callback architecture in terms of **what** is delivered ([§26.6.5](#2665-callback-payload-requirements) payload specification) and **who** delivers it (§26.6.1 integration models A–E). This section addresses the equally critical question of **how** the verification result reaches the RP's backend.
 
 Two **orthogonal** architectural dimensions govern this question:
 
@@ -19923,7 +19923,7 @@ Five distinct delivery modes exist for the verification result, three of which c
 | **Sync Inline** | RP's proxy gateway forwards `direct_post` to verifier, waits for verification result in the HTTP response, and processes the result before returning the response to the wallet — all in a single round-trip | Wallet → Gateway → Verifier → Gateway → Wallet | ~0ms (synchronous) | RP deploys API gateway in front of verifier ([§26.6.4](#2664-reverse-proxy-integration-pattern)) | RP has full result within the wallet's HTTP request lifecycle | — | **Yes** |
 | **Event Bus** | Connector publishes verification events to a message broker (Kafka, RabbitMQ, AWS EventBridge); RP subscribes | Connector → Broker → RP | ~100–500ms | RP runs message consumer; broker infrastructure | Attributes traverse broker; encryption at rest recommended | — | No |
 
-> **CIBA alignment**: The push, ping, and poll modes correspond directly to the three token delivery modes in OpenID Connect CIBA Core 1.0 ([§10](#10-cross-device-remote-presentation) Poll, [§11](#11-rp-authentication-and-presentation-verification) Ping, [§12](#12-cryptographic-verification-pipeline-deep-dive) Push). While CIBA governs **authentication token** delivery from an OpenID Provider to a client, the same patterns apply to **verification result** delivery from a wallet connector to an RP. Adopting this terminology provides a shared vocabulary for architects familiar with the OIDC ecosystem.
+> **CIBA alignment**: The push, ping, and poll modes correspond directly to the three token delivery modes in OpenID Connect CIBA Core 1.0 (§10 Poll, [§11](#11-rp-authentication-and-presentation-verification) Ping, [§12](#12-cryptographic-verification-pipeline-deep-dive) Push). While CIBA governs **authentication token** delivery from an OpenID Provider to a client, the same patterns apply to **verification result** delivery from a wallet connector to an RP. Adopting this terminology provides a shared vocabulary for architects familiar with the OIDC ecosystem.
 >
 > **Sync Inline is the only mode that requires proxy deployment.** All other modes work with both direct and proxy topologies. When the RP deploys a proxy but uses push/ping/poll for result delivery, the proxy provides HTTP context capture as a side-channel benefit — the result delivery itself is no different from the direct topology.
 
@@ -20232,7 +20232,7 @@ The following errors are commonly encountered during EUDI Wallet integration, co
 | **"Invalid Request"** during verification | The `x509_hash` in the `client_id` does not match the leaf certificate actually used to sign the request, or the `x5c` array is in the wrong order. | Recalculate the `x509_hash` from the leaf certificate ([§7.3.2](#732-ebsi-the-eus-own-did-infrastructure)). Verify `x5c` ordering: `[leaf, intermediate, root]`. |
 | **"Certificate Validation Failed"** | The verifier certificate has expired, or the certificate chain has a broken signing relationship (intermediate not signed by root). | Check certificate expiry dates. Regenerate the chain if signing relationships are broken. If your Access CA / ecosystem profile uses CT, ensure the required SCT / transparency evidence and policy conditions are met ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)). |
 | **Wallet cannot reach Verifier** | In development environments, the Verifier's `response_uri` is not publicly accessible (e.g., `localhost`). In production, DNS or firewall misconfiguration blocks the Wallet's `direct_post` callback. | Use tunnelling (ngrok, Cloudflare Tunnel) for local development. In production, ensure the `response_uri` domain is publicly resolvable and accepts POST requests. |
-| **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc ([§17.2](#172-dcql-structure)). |
+| **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc (§17.2). |
 | **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.4). |
 | **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction per [§12.1](#121-direct_postjwt-jarm-response-unwrapping). Ensure the Wallet is using the correct device key for signing. |
 | **Clock skew rejection** | The Verifier rejects a credential or KB-JWT because the system clocks of the Wallet and Verifier differ by more than the allowed skew window (typically 30–60 seconds). | Implement NTP synchronisation. Allow a configurable clock skew tolerance in the verification pipeline ([§31.2](#312-alert-triggers) alert triggers). |
@@ -20380,7 +20380,7 @@ The delivery mode capability should be evaluated against the RP's architectural 
 
 ##### 27.8.2 Issuance (OID4VCI)
 
-Banking RPs acting as SCA attestation issuers ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) and RPs issuing other EAAs (account ownership, loyalty, age verification delegation — §15.15) need OID4VCI issuer capabilities. The issuance delivery model differs from verification: the OID4VCI Credential Endpoint is inherently **synchronous** — the wallet POSTs its access token + proof-of-possession, and the issuer returns the credential in the HTTP response body. The RP-as-issuer's architectural concern is: **how does the RP learn that issuance completed successfully** (credential accepted/stored by wallet)?
+Banking RPs acting as SCA attestation issuers ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) and RPs issuing other EAAs (account ownership, loyalty, age verification delegation — [§15.15](#1515-transactional-data-hlrs-topic-w)) need OID4VCI issuer capabilities. The issuance delivery model differs from verification: the OID4VCI Credential Endpoint is inherently **synchronous** — the wallet POSTs its access token + proof-of-possession, and the issuer returns the credential in the HTTP response body. The RP-as-issuer's architectural concern is: **how does the RP learn that issuance completed successfully** (credential accepted/stored by wallet)?
 
 | Vendor | OID4VCI Issuer API | Issuance lifecycle webhook | Deferred issuance | Sync Credential Endpoint | Notes |
 |:-------|:------------------:|:--------------------------:|:-----------------:|:------------------------:|:------|
@@ -20538,7 +20538,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 ## Security and Operations
 
-This group focuses on defending and operating the RP infrastructure in production. It catalogues 41 specific security threats against Relying Parties ([§29](#29-security-threat-catalogue)) — each documented as a standardised threat card with STRIDE classification, CIR 2024/2981 Annex I risk register traceability, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry — classifies 62 verification signals into a structured intelligence taxonomy (§30 — Verification Signal Intelligence), and defines the observability metrics and alert triggers required to maintain continuous compliance ([§31](#31-monitoring-observability-and-operational-readiness)).
+This group focuses on defending and operating the RP infrastructure in production. It catalogues 41 specific security threats against Relying Parties ([§29](#29-security-threat-catalogue)) — each documented as a standardised threat card with STRIDE classification, CIR 2024/2981 Annex I risk register traceability, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry — classifies 62 verification signals into a structured intelligence taxonomy ([§30](#30-verification-signal-intelligence) — Verification Signal Intelligence), and defines the observability metrics and alert triggers required to maintain continuous compliance ([§31](#31-monitoring-observability-and-operational-readiness)).
 
 ---
 
@@ -20557,7 +20557,7 @@ This section presents a systematic security threat model for RPs integrating wit
 **Nomenclature & Threat Tagging**: 
 Each threat in the catalogue below incorporates technical tagging in its title (e.g., `TT5.3, CWE-294`). Three identifier systems are used:
 
-- **EU Risk Register ([CIR 2024/2981](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I), Annex I)**: Official identifiers from the European Commission's Risk Register for European Digital Identity Wallets. The ARF ([§7.4.2](#742-google-wallet)) defers entirely to this register as the single authoritative threat taxonomy — it reproduces the same identifiers verbatim and defines no additional codes. The register defines four identifier families organised in a layered hierarchy:
+- **EU Risk Register ([CIR 2024/2981](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I), Annex I)**: Official identifiers from the European Commission's Risk Register for European Digital Identity Wallets. The ARF (§7.4.2) defers entirely to this register as the single authoritative threat taxonomy — it reproduces the same identifiers verbatim and defines no additional codes. The register defines four identifier families organised in a layered hierarchy:
   - **R** = High-level Risk (R1–R14) — abstract harm categories describing *what* can go wrong: *R3: Creation or use of fake attributes*, *R6: Data disclosure*, *R9: Unauthorised transaction*
   - **SR** = System-related Risk (SR1–SR3) — emergent systemic consequences arising from combinations of threats at scale: *SR1: Wholesale surveillance*, *SR3: Legal non-compliance*
   - **TT** = Technical Threat (TT1–TT5, with subcategories) — attack technique classifications describing *how* an attack is carried out: *TT5.3: Replay of messages*, *TT5.5: Software vulnerabilities*, *TT5.7: Malware*
@@ -20572,11 +20572,11 @@ Each threat in the catalogue below incorporates technical tagging in its title (
 **Sources and Methodology**: The threat scenarios in this catalogue are derived from the following sources, in addition to the ARF Risk Register:
 
 - **Protocol-level formal analysis**: The [University of Stuttgart formal security analysis of OID4VC](https://sec.ise.uni-stuttgart.de/research/oid4vc/) (Hauck, Fett et al., 2023–2025), which applies the Web Infrastructure Model (WIM) to prove security properties and identify vulnerabilities in OID4VP and OID4VCI flows — including credential injection attacks in the Pre-Authorized Code flow and cross-device session confusion.
-- **OID4VP Security Considerations**: The [OpenID for Verifiable Presentations 1.0 specification](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)), covering `response_uri` validation, session binding, nonce freshness, and `aud` enforcement.
-- **OID4VCI Security Considerations**: The [OpenID for Verifiable Credential Issuance 1.0 specification](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)), covering pre-authorized code interception, `tx_code` enforcement, and credential offer delivery channel security.
-- **OpenID Federation 1.0**: The [OpenID Federation specification](https://openid.net/specs/openid-federation-1_0.html) ([§8](#8-openid4vp-and-haip-protocol-foundations) Security Considerations), covering trust chain validation, subordinate statement integrity, and Trust Mark spoofing.
+- **OID4VP Security Considerations**: The [OpenID for Verifiable Presentations 1.0 specification](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (§13), covering `response_uri` validation, session binding, nonce freshness, and `aud` enforcement.
+- **OID4VCI Security Considerations**: The [OpenID for Verifiable Credential Issuance 1.0 specification](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) (§13), covering pre-authorized code interception, `tx_code` enforcement, and credential offer delivery channel security.
+- **OpenID Federation 1.0**: The [OpenID Federation specification](https://openid.net/specs/openid-federation-1_0.html) (§8 Security Considerations), covering trust chain validation, subordinate statement integrity, and Trust Mark spoofing.
 - **ISO/IEC 18013-5**: The [mobile document standard](https://www.iso.org/standard/69084.html) ([§9](#9-same-device-remote-presentation)), covering `SessionTranscript` binding, reader authentication requirements, and proximity relay attack characteristics.
-- **SD-JWT VC Security Considerations**: The [SD-JWT-based Verifiable Credentials specification](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) ([§10](#10-cross-device-remote-presentation)), covering `sd_hash` verification, Key Binding JWT validation, and algorithm enforcement.
+- **SD-JWT VC Security Considerations**: The [SD-JWT-based Verifiable Credentials specification](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) (§10), covering `sd_hash` verification, Key Binding JWT validation, and algorithm enforcement.
 - **Cryptographic standards**: [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979) (deterministic ECDSA nonce generation) and [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700.html) for redirect URI validation and open redirector prevention.
 - **ETSI TS 119 602**: The [Lists of Trusted Entities data model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) for LoTE integrity verification and cache poisoning prevention.
 - **Vulnerability databases**: CVE-2015-9235 and related JWT algorithm confusion CVEs (CWE-345) informing JWT-specific implementation threats.
@@ -21320,7 +21320,7 @@ The Attacker's active desktop browser receives the signal that the presentation 
 - **Primary**: The CTAP 2.2 hybrid transport, mediated by the W3C Digital Credentials API, provides BLE-based proximity binding between the browser and the user's phone — defeating remote relay by ensuring the phone is within ~10m of the QR-displaying device. See **[§10.3](#103-cross-device-proximity-binding-ctap-22-hybrid-flow)** for the full protocol architecture (BLE advertisement encoding, tunnel establishment, DC API vs. legacy URI scheme fallback, and RP-side compensating controls when BLE binding is unavailable).
 - **Secondary**: Session timeouts — the QR code should expire within 120 seconds ([§11.8](#118-pre-production-conformance-testing)) and the `request_uri` endpoint should be single-use (invalidated after first fetch).
 - **Tertiary**: The Wallet must prominently display the authenticated RP identity (from the WRPAC) so the victim can recognise they did not initiate interaction with this RP.
-- **Fallback flows** (custom URI schemes without DC API) lack the proximity binding and therefore have higher residual risk — §10.3.2 details the compensating controls (IP geolocation heuristics, session binding signals, user-side friction via confirmation codes). The ARF explicitly recommends DC API for cross-device flows to mitigate this (ARF §5.4.3).
+- **Fallback flows** (custom URI schemes without DC API) lack the proximity binding and therefore have higher residual risk — [§10.3.2](#1032-dc-api-vs-legacy-uri-scheme-fallback) details the compensating controls (IP geolocation heuristics, session binding signals, user-side friction via confirmation codes). The ARF explicitly recommends DC API for cross-device flows to mitigate this (ARF §5.4.3).
 - **mdoc proximity variant** (ISO 18013-5 BLE/NFC): For mdoc proximity flows, the `SessionTranscript` incorporates ephemeral keys exchanged during device engagement, making protocol-level replay infeasible. However, real-time relay remains possible if the attacker can relay BLE advertisements with sub-millisecond latency (using a relay device pair: a "mole" near the victim's phone and a "proxy" near the verifier's reader). Distance bounding protocols — measuring physical-layer round-trip time — are the primary defense against BLE relay, but are not yet mandated by ISO 18013-5. RPs operating proximity readers should implement environmental controls (visual verification of the presenter, liveness checks, staff training to recognise relay artifacts such as unusual device behaviour) as compensating mitigations until distance bounding is standardised.
 
 ##### 29.2.5 Malicious RP Endpoint: Phishing
@@ -21862,7 +21862,7 @@ Although the Network Eavesdropper intercepted both the outbound JAR (containing 
 **Mitigation**:
 
 - **By design**: The ECDH-ES key agreement (RFC 7518 §5.6) ensures that even if the JAR (containing the public key) is intercepted, the attacker cannot derive the content encryption key without the RP's ephemeral private key.
-- **Implementation requirements**: The RP must generate a fresh ECDH key pair per session (§11.4 — P-256 curve, `use: enc`); the private key must exist only in server memory and be destroyed after JWE decryption; the private key must never be logged, serialised, or persisted to disk.
+- **Implementation requirements**: The RP must generate a fresh ECDH key pair per session ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp) — P-256 curve, `use: enc`); the private key must exist only in server memory and be destroyed after JWE decryption; the private key must never be logged, serialised, or persisted to disk.
 - **Additional layer**: The Wallet also applies its own content encryption (the SD-JWT VC disclosures are selectively revealed, and the response itself is JWE-wrapped), creating a double encryption layer that makes interception futile.
 
 ##### 29.2.8 JAR Modification in Transit
@@ -22180,7 +22180,7 @@ The Rogue Insider bundles the compiled identity intelligence and exfiltrates it 
 
 - **Preventive**: Role-based access control (RBAC) with least-privilege — separate the systems that decrypt JWE responses from the systems that store processed attribute values. The decryption service ([§27.2](#272-selection-decision-matrix) Model B webhook) should strip and discard raw attestation elements (salts, hashes, signature values) before passing attribute values to the application layer. Encrypt PID data at rest with application-layer encryption.
 - **Detective**: Comprehensive audit logging of all access to PID data, with tamper-evident log storage; anomaly detection on access patterns (e.g., employee accessing more records than normal). Security monitoring per [§31.1](#311-key-metrics) alert triggers.
-- **GDPR-specific**: Implement data minimisation per §11.10 — if unique attestation elements are discarded immediately after verification, an insider cannot extract them for linkability purposes. Distinct retention periods per attribute type ([§31.3](#313-audit-trail-requirements)).
+- **GDPR-specific**: Implement data minimisation per [§11.10](#1110-linkability-resistant-verification-practices) — if unique attestation elements are discarded immediately after verification, an insider cannot extract them for linkability purposes. Distinct retention periods per attribute type ([§31.3](#313-audit-trail-requirements)).
 - **Regulatory**: For financial RPs, DORA Art. 9(4)(c) mandates HR-level security measures for ICT staff with access to sensitive data.
 
 ##### 29.2.10 Verification SDK Vulnerability
@@ -22339,7 +22339,7 @@ The RP Application layer, acting implicitly on the corrupted assertion from the 
 </details>
 <br/>
 
-**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction (§11.5 / Appendix A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem (§26 — most SDKs are pre-1.0) makes this threat elevated.
+**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction ([§11.5](#115-edge-cases-and-error-handling) / Appendix A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem ([§26](#26-rp-verification-architecture-patterns) — most SDKs are pre-1.0) makes this threat elevated.
 
 **Impact**: The RP accepts forged, expired, or revoked credentials as valid — potentially onboarding a fraudulent identity ([§22](#22-amlkyc-onboarding-via-eudi-wallet) KYC), granting access to protected resources, or authorising a payment ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking) SCA). Alternatively, a false-*negative* bug (rejecting valid credentials) causes service disruption for legitimate users (R13). The impact is proportional to the RP's reliance on the EUDI Wallet as an identity assertion — for a bank using it as primary KYC, a verification bypass is catastrophic.
 
@@ -22348,7 +22348,7 @@ The RP Application layer, acting implicitly on the corrupted assertion from the 
 - **Primary**: Regular SDK updates from the vendor, tracking the vendor's security advisories ([§26](#26-rp-verification-architecture-patterns) vendor evaluation should include security response track record).
 - **Testing**: Integration test suite with known-good credentials (must pass) *and* known-bad credentials (must fail) — including: expired credentials, revoked credentials (Status List bit set), invalid signatures, mismatched `aud`/`nonce`, tampered disclosures, and incomplete certificate chains. This test suite acts as a regression guard against verification bugs.
 - **Defence in depth**: Run critical verification steps (signature, revocation, holder binding) through two independent code paths or libraries and compare results.
-- **Monitoring**: Log all verification outcomes per §31.3.1 — an unexpected spike in acceptance rates or a drop in rejection rates may indicate a verification bug.
+- **Monitoring**: Log all verification outcomes per [§31.3.1](#3131-verification-result-object-structure) — an unexpected spike in acceptance rates or a drop in rejection rates may indicate a verification bug.
 - **Vendor diversity**: Consider using different verification libraries for SD-JWT VC and mdoc pipelines, reducing the risk of a single bug affecting both format stacks.
 
 ##### 29.2.11 Session Fixation: `state` Parameter Hijacking
@@ -22526,7 +22526,7 @@ Because the Attacker holds the session cookie natively logically associated with
 </details>
 <br/>
 
-**Attack Vector**: Attacker pre-sets or predicts the OAuth `state` parameter used in the OpenID4VP flow. In the standard flow ([§9.2](#92-detailed-sequence-diagram-direct-rp-model) step 3), the RP generates a `state` value, includes it in the JAR, and expects it back in the Wallet's response. If the attacker can fix this `state` to a value they know (e.g., by injecting a crafted `request_uri` into the victim's browser), they can correlate the Wallet's response to their own session. When the victim completes the presentation, the Wallet redirects the response to the RP's `response_uri` with the attacker's `state` — and the RP maps it to the attacker's session, granting the attacker an authenticated session backed by the victim's PID.
+**Attack Vector**: Attacker pre-sets or predicts the OAuth `state` parameter used in the OpenID4VP flow. In the standard flow (§9.2 step 3), the RP generates a `state` value, includes it in the JAR, and expects it back in the Wallet's response. If the attacker can fix this `state` to a value they know (e.g., by injecting a crafted `request_uri` into the victim's browser), they can correlate the Wallet's response to their own session. When the victim completes the presentation, the Wallet redirects the response to the RP's `response_uri` with the attacker's `state` — and the RP maps it to the attacker's session, granting the attacker an authenticated session backed by the victim's PID.
 
 **Impact**: Full session hijack — the attacker gains an authenticated session at the RP as the victim. This is functionally equivalent to Credential Replay in impact but uses a different mechanism: instead of replaying a captured token, the attacker tricks the system into delivering a fresh, legitimate token into a pre-arranged session bucket. For banking RPs ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)), this could enable account takeover.
 
@@ -22673,7 +22673,7 @@ The RP Server algorithmically links Session B to Session A, merging the supposed
 
 **Mitigation**:
 
-- **Primary**: Anti-linkability practices per §11.10 — the RP must discard all unique attestation elements (salts, disclosure hashes, signature values, `cnf.jwk` key material) immediately after completing the verification pipeline. The RP should retain only the extracted *attribute values* (given_name, birth_date, etc.) and an application-level session token, never the raw cryptographic artefacts.
+- **Primary**: Anti-linkability practices per [§11.10](#1110-linkability-resistant-verification-practices) — the RP must discard all unique attestation elements (salts, disclosure hashes, signature values, `cnf.jwk` key material) immediately after completing the verification pipeline. The RP should retain only the extracted *attribute values* (given_name, birth_date, etc.) and an application-level session token, never the raw cryptographic artefacts.
 - **Issuer-side**: The ARF mandates that PID Providers support Method A (once-only attestations) or Method B (limited-time attestations) per Topic A [§3](#3-legal-person-identification-and-the-european-business-wallet) and Topic 10 HLRs — meaning each attestation is used for a limited number of presentations, reducing the correlation window.
 - **Organisational**: Relying Parties found offending can have their WRPAC revoked by the national Registrar (ARF §7.4.3), permanently blocking them from the ecosystem.
 - **Technical verification**: Implement automated code review or runtime assertions that verify unique elements are not persisted to any durable storage.
@@ -23605,13 +23605,13 @@ The attacker instantaneously dumps the contents of the centralized database, acq
 </details>
 <br/>
 
-**Attack Vector**: External attacker breaches the RP's infrastructure (SQLi, RCE, misconfigured storage, ransomware) and exfiltrates stored PID attribute values and unique attestation elements (salts, hashes, `cnf.jwk` thumbprints, signature values). This is the *involuntary* counterpart to RP-Side Attestation Linkability and Cross-RP Collusion — the same correlation weapons (ARF Topic A, [§2.2](#22-rp-instances)) become available to a third-party attacker rather than a malicious RP.
+**Attack Vector**: External attacker breaches the RP's infrastructure (SQLi, RCE, misconfigured storage, ransomware) and exfiltrates stored PID attribute values and unique attestation elements (salts, hashes, `cnf.jwk` thumbprints, signature values). This is the *involuntary* counterpart to RP-Side Attestation Linkability and Cross-RP Collusion — the same correlation weapons (ARF Topic A, §2.2) become available to a third-party attacker rather than a malicious RP.
 
 **Impact**: Mass identity data exposure; third-party linkability across RPs (if multiple RPs are breached or breach data is combined); GDPR Art. 33/34 breach notification obligations (72-hour reporting window); reputational and regulatory consequences (fines up to 4% of global turnover or €20M). For financial RPs: DORA Art. 17 ICT incident classification and reporting obligations add a second regulatory track.
 
 **Mitigation**:
 
-- **Primary (EUDI-specific)**: Data minimisation per §11.10 — discard unique attestation elements (salts, hashes, signature values) immediately after verification. If they are not stored, they cannot be breached, and the breach cannot enable cross-RP correlation. This is the single most effective EUDI-specific mitigation.
+- **Primary (EUDI-specific)**: Data minimisation per [§11.10](#1110-linkability-resistant-verification-practices) — discard unique attestation elements (salts, hashes, signature values) immediately after verification. If they are not stored, they cannot be breached, and the breach cannot enable cross-RP correlation. This is the single most effective EUDI-specific mitigation.
 - **Secondary**: Encryption at rest for any retained PID attributes, using application-layer encryption with keys stored separately from the database.
 - **Tertiary**: Access controls with least-privilege (complements Insider Threat: Privileged Access to PID Data); distinct retention periods per attribute type ([§31.3](#313-audit-trail-requirements)).
 - **Response**: GDPR Art. 33 72-hour supervisory authority notification; Art. 34 data subject notification if risk is high; forensic investigation to determine scope.
@@ -24610,7 +24610,7 @@ When the legitimate user finally scans the QR code and attempts to redeem the pr
 </details>
 <br/>
 
-**Attack Vector**: When the RP acts as a credential issuer via OID4VCI ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations) SCA attestation, [§15.15](#1515-transactional-data-hlrs-topic-w) EAA issuance), it generates a Credential Offer containing a `pre-authorized_code` and delivers it to the user via QR code, deep link, or push notification. An attacker intercepts this Credential Offer — through shoulder-surfing, malicious app handler registration, or delivery channel compromise — and redeems the pre-authorized code at the RP's Token Endpoint before the legitimate user. The attacker obtains an access token and requests credential issuance, binding the credential to their own key via the `cnf` claim. For SCA attestations, this gives the attacker the ability to authorise payments on the victim's account.
+**Attack Vector**: When the RP acts as a credential issuer via OID4VCI (§15.4 SCA attestation, [§15.15](#1515-transactional-data-hlrs-topic-w) EAA issuance), it generates a Credential Offer containing a `pre-authorized_code` and delivers it to the user via QR code, deep link, or push notification. An attacker intercepts this Credential Offer — through shoulder-surfing, malicious app handler registration, or delivery channel compromise — and redeems the pre-authorized code at the RP's Token Endpoint before the legitimate user. The attacker obtains an access token and requests credential issuance, binding the credential to their own key via the `cnf` claim. For SCA attestations, this gives the attacker the ability to authorise payments on the victim's account.
 
 **Impact**: High — the attacker obtains a credential that should have been issued to the legitimate user. For SCA attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)), the attacker can authorise payments. For EAAs ([§15.15](#1515-transactional-data-hlrs-topic-w)), the attacker holds a verifiable claim about the victim's account, membership, or status. The credential is holder-bound to the attacker's key, making revocation the only remedy — the victim cannot "reclaim" the credential.
 
@@ -28644,7 +28644,7 @@ The composition engine emits a VSI event to the SIEM/SOAR platform with `priorit
 <details>
 <summary><strong>9. Composition engine sends STEP-UP decision to gateway</strong></summary>
 
-When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
+When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn (§15), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
 
 **Artifact Produced:** STEP-UP decision dispatched to the API gateway with challenge type specification.
 
@@ -31873,7 +31873,7 @@ If any hash mismatch is detected, the Wallet immediately aborts the flow and ale
 <details>
 <summary><strong>8. EUDI Wallet performs full CSC API signing flow against Remote QTSP</strong></summary>
 
-The Wallet executes the CSC API v2.0 baseline through the richer ETSI TS 119 432-shaped runtime flow described in §32.1 — service-level OAuth2 authorization, credential listing, document hash computation (PAdES-specific), credential-level SCAL2 authorization with hash binding, `signHash` invocation, and signed document assembly. For the complete step-by-step breakdown of this phase, see the Scenario B walkthrough ([§32.2.2](#3222-scenario-b-wallet-channelled-remote-qes), steps 4–10).
+The Wallet executes the CSC API v2.0 baseline through the richer ETSI TS 119 432-shaped runtime flow described in [§32.1](#321-overview) — service-level OAuth2 authorization, credential listing, document hash computation (PAdES-specific), credential-level SCAL2 authorization with hash binding, `signHash` invocation, and signed document assembly. For the complete step-by-step breakdown of this phase, see the Scenario B walkthrough ([§32.2.2](#3222-scenario-b-wallet-channelled-remote-qes), steps 4–10).
 
 **Artifact Produced:** PKCS#1 signature value returned from Remote QTSP QSCD (Protocol layer).
 
@@ -32246,7 +32246,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 24. <a id="finding-24"></a> **Progressive assurance is the dominant real-world pseudonym pattern.** Most RPs will not require identity verification at pseudonym registration. Instead, they will register pseudonyms at LoA Low and upgrade via step-up verification ([§16.13](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)) when higher-assurance actions are needed. The pseudonym itself has no eIDAS LoA (Topic E, Requirement 8), but the RP account can carry an effective assurance level based on bound identity verification.
 
-25. <a id="finding-25"></a> **Same-user binding across WebAuthn and OpenID4VP is solvable today, but imperfectly.** Session-based binding ([§16.7.3](#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity), Strategies 1–3) provides reasonable assurance for same-device flows. Cryptographic binding (Strategy 4, ARF Topic K) would provide hardware-level guarantees but is not yet standardised.
+25. <a id="finding-25"></a> **Same-user binding across WebAuthn and OpenID4VP is solvable today, but imperfectly.** Session-based binding (§16.7.3, Strategies 1–3) provides reasonable assurance for same-device flows. Cryptographic binding (Strategy 4, ARF Topic K) would provide hardware-level guarantees but is not yet standardised.
 
 26. <a id="finding-26"></a> **WebAuthn for pseudonyms is becoming optional.** PA_22 now uses MAY instead of SHALL. Wallet Providers can implement alternative pseudonym technologies, but no alternative is standardised yet. WebAuthn remains the only interoperable approach.
 
@@ -32278,7 +32278,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 38. <a id="finding-38"></a> **RPs acting as both Verifier and Issuer operate under two distinct trust chains.** An RP's Verifier role uses a WRPAC (issued by an Access CA) for Wallet authentication via OpenID4VP; its Issuer role uses a separate Attestation Provider signing key for credential issuance via OID4VCI 1.0. These chains have different root CAs, different registration requirements (RP registration vs. EAA Provider registration, CIR 2025/848 Art. 3–6 vs. Art. 12), and different operational obligations — the verifier consumes Status Lists while the issuer publishes them. Banks already exhibit this duality in SCA flows ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); the pattern generalises to any RP issuing non-qualified EAAs such as loyalty cards, student IDs, employee badges, or travel passes ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)).
 
-39. <a id="finding-39"></a> **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native ISO 18013-7 Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. ([§8.8](#88-iso-18013-7-and-oid4vp-version-alignment))
+39. <a id="finding-39"></a> **ISO/IEC 18013-7 Annex B creates a protocol version mismatch with EUDI Wallet implementations.** Annex B mandates the `mdoc://` scheme and the older OpenID4VP Draft 18, which diverges from the EUDI HAIP 1.0 requirement of OID4VP 1.0 Final (DCQL, encrypted JARM responses, URI prefixes for Client ID). RPs strictly following the ISO Annex B profile will generate requests that EUDI Wallets must reject. RPs should mitigate this by either targeting OID4VP 1.0 directly or using the browser-native ISO 18013-7 Annex C (DC API) until the third edition of ISO 18013-7 resolves the gap in 2026. (§8.8)
 
 40. <a id="finding-40"></a> **The EU Commission's Age Verification Solution provides a privacy-preserving age verification system using batch-issued, single-use mDoc attestations with optional ZKP unlinkability.** Available since July 2025 via the standalone Age Verification App (piloting in DK, FR, GR, IT, ES), the baseline system uses standard mDoc presentation with single-use attestations for presentation-level unlinkability. As an experimental feature, the AV App SHOULD (not SHALL) implement a ZKP mechanism based on ECDSA Anonymous Credentials (Frigo & shelat, ePrint 2024/2010) — selected as "the most promising" from five candidates but not yet peer-reviewed. ZKP for Android was released January 2026; full iOS + Android support is planned for March 2026. Open-source implementation at `github.com/google/longfellow-zk`. No RP registration required (unlike the EUDI Wallet's WRPAC requirement). ([§19](#19-age-verification-attestation-pipelines))
 
@@ -32302,7 +32302,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 49. <a id="finding-49"></a> **Cross-border mandate recognition remains legally fragmented.** Despite EU harmonisation efforts, no single legal instrument covers all mandate types cross-border. Brussels IIb covers parental authority, Hague 2000 covers adult guardianship, and the EBW regulation (COM(2025) 838) aims to harmonise corporate mandates — but adoption is projected for 2027+. RPs accepting foreign mandates before standardisation must apply a layered resolution strategy with inherent legal uncertainty. ([§18.2.8](#1828-cross-border-mandate-recognition))
 
-50. <a id="finding-50"></a> **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. ([§18.2.4](#1824-natural-to-legal-person-mandates-paradigm-b), [§18.1](#181-example-legal-person-verification-lpid))
+50. <a id="finding-50"></a> **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. (§18.2.4, [§18.1](#181-example-legal-person-verification-lpid))
 
 51. <a id="finding-51"></a> **Mandate revocation requires shorter Status List TTL than PIDs.** Authority continues until revocation — a 24h polling interval creates unacceptable financial exposure for mandate credentials. RPs should use ≤1h cache TTL for mandates and perform real-time checks for high-value operations. This is a mandate-specific requirement that standard PID revocation guidance does not address. ([§18.2.7](#1827-mandate-revocation-model))
 
@@ -32346,7 +32346,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 #### 34.12 NIS2 Observations
 
-66. <a id="finding-66"></a> **NIS2 Art. 21 risk management measures are substantially addressed by existing DR-0002 content — §29, [§31](#31-monitoring-observability-and-operational-readiness), [§27](#27-vendor-evaluation), §8–§11 — but were not labelled as NIS2-relevant until [§21.6](#216-nis2-considerations-for-critical-sector-rps).** Of the 10 mandatory measures in Art. 21(2), 8 are covered by existing sections (risk analysis, incident handling, business continuity, supply chain security, cryptographic policies, MFA). Only cyber hygiene/training (Art. 21(2)(g)) falls entirely outside DR-0002's scope — it is a general organisational obligation, not specific to EUDI Wallet integration. The [§21.6](#216-nis2-considerations-for-critical-sector-rps) mapping table makes these connections explicit. ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
+66. <a id="finding-66"></a> **NIS2 Art. 21 risk management measures are substantially addressed by existing DR-0002 content — [§29](#29-security-threat-catalogue), [§31](#31-monitoring-observability-and-operational-readiness), [§27](#27-vendor-evaluation), §8–§11 — but were not labelled as NIS2-relevant until [§21.6](#216-nis2-considerations-for-critical-sector-rps).** Of the 10 mandatory measures in Art. 21(2), 8 are covered by existing sections (risk analysis, incident handling, business continuity, supply chain security, cryptographic policies, MFA). Only cyber hygiene/training (Art. 21(2)(g)) falls entirely outside DR-0002's scope — it is a general organisational obligation, not specific to EUDI Wallet integration. The [§21.6](#216-nis2-considerations-for-critical-sector-rps) mapping table makes these connections explicit. ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
 
 67. <a id="finding-67"></a> **EUDI Wallet presentation inherently satisfies NIS2 Art. 21(2)(j) MFA requirement — possession factor via WSCA/WSCD + inherence/knowledge factor via biometric/PIN.** NIS2-covered RPs that accept EUDI Wallet for authentication are automatically using a compliant multi-factor authentication mechanism. This is directly analogous to the PSD2 SCA analysis in [§21.2.2](#2122-eudi-wallet-as-sca-method) and the LoA High assurance demonstrated in [§11.11](#1111-level-of-assurance-verification). This should be highlighted as a compliance benefit in any NIS2 mapping exercise. ([§21.6](#216-nis2-considerations-for-critical-sector-rps), [§21.2.2](#2122-eudi-wallet-as-sca-method))
 
@@ -32442,7 +32442,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | **Extend incident response plans to include EUDI-specific NIS2-reportable events** — WRPAC private key compromise, trust anchor poisoning, mass verification failure, SDK supply chain attack, Status List data breach — with the 24h early warning / 72h notification / 1-month final report timeline. Maintain CSIRT contact details for each Member State of establishment. ([§21.6](#216-nis2-considerations-for-critical-sector-rps), [§31](#31-monitoring-observability-and-operational-readiness)) |
 | 🔴 **Critical** | **Implement wallet solution suspension/withdrawal handling per [§21.7](#217-wallet-solution-security-breach-response-cir-2025847) breach response playbook.** Establish notification channel with MS Single Point of Contact (Art. 46c(1)) before go-live. Subscribe to CIRAS (from May 2026) or MS-defined interim notification mechanism. Ensure automated flagging of suspended wallet solutions in local verification configuration. ([§21.7](#217-wallet-solution-security-breach-response-cir-2025847), [§31.4](#314-breach-notification-monitoring-cir-2025847)) |
 | 🟡 **High** | **Add wallet solution certification status check (CIR 2025/849) as a pre-presentation trust gate** in the verification pipeline. Reject presentations from wallet solutions not on the certified list, or whose status is "suspended" or "withdrawn." Maintain a locally cached copy refreshed at least daily. ([§11.13.1](#11131-wallet-solution-certification-status-check)) |
-| 🟡 **High** | **Implement identity matching normalisation per CIR 2025/846 Art. 2(6)** for cross-border identity matching scenarios — Unicode NFC normalisation, whitespace collapse, hyphen/dash equivalence, and name concatenation awareness. Maintain matching process logs for 6–12 months per Art. 5. ([§23.6](#236-identity-matching-normalisation-cir-2025846)) |
+| 🟡 **High** | **Implement identity matching normalisation per CIR 2025/846 Art. 2(6)** for cross-border identity matching scenarios — Unicode NFC normalisation, whitespace collapse, hyphen/dash equivalence, and name concatenation awareness. Maintain matching process logs for 6–12 months per Art. 5. (§23.6) |
 
 #### 35.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -32544,16 +32544,16 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | <a id="oq-26"></a> 26 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
 | <a id="oq-27"></a> 27 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
 | <a id="oq-28"></a> 28 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. ([§17.1.1](#1711-migration-from-dif-presentation-exchange)) |
-| <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. ([§8.8](#88-iso-18013-7-and-oid4vp-version-alignment)) |
+| <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§8.8) |
 | <a id="oq-30"></a> 30 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching ([§6.15.1](#6151-vct-value-and-issuer-metadata)) |
-| <a id="oq-31"></a> 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. ([§6.15.3](#6153-mdoc-format-gap)) |
+| <a id="oq-31"></a> 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§6.15.3) |
 | <a id="oq-32"></a> 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit ([§18.1.3](#1813-identity-matching-in-lpid-combined-presentations)) |
 | <a id="oq-33"></a> 33 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. ([§18](#18-combined-presentations-lpid-and-mandate-credentials), [§11.12.3](#11123-mandate-scope-verification-new-pipeline-step)) |
 | <a id="oq-34"></a> 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, Topic 29 | Not addressed. LoA inference model from [§11.11](#1111-level-of-assurance-verification) may apply, but mandate-specific guidance is absent. ([§18.2.2](#1822-mandate-credential-attribute-model)) |
-| <a id="oq-35"></a> 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. ([§18.2.7](#1827-mandate-revocation-model)) |
+| <a id="oq-35"></a> 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. (§18.2.7) |
 | <a id="oq-36"></a> 36 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step), [§18.2.8](#1828-cross-border-mandate-recognition)) |
 | <a id="oq-37"></a> 37 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. ([§18.1](#181-example-legal-person-verification-lpid)) |
-| <a id="oq-38"></a> 38 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. ([§18.1](#181-example-legal-person-verification-lpid), [§18.2.4](#1824-natural-to-legal-person-mandates-paradigm-b)) |
+| <a id="oq-38"></a> 38 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§18.1, [§18.2.4](#1824-natural-to-legal-person-mandates-paradigm-b)) |
 | <a id="oq-39"></a> 39 | When a Wallet Provider uses a remote HSM (ARF §7.5.4.3), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF §7.5.4.3, TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. ([§5.6.1](#561-wallet-migration-consolidated-rp-handling-guide)) |
 | <a id="oq-40"></a> 40 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF §7.1 | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
 | <a id="oq-41"></a> 41 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
@@ -32564,7 +32564,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | <a id="oq-46"></a> 46 | When will the OIDF accreditation services enable national authorities to mandate specific conformance test plans? Will OIDF self-certification become a prerequisite or accepted evidence for eIDAS conformity assessment under CIR 2024/2981? | OIDF accreditation programme (Q2 2026) | Currently voluntary and separate from eIDAS certification. Some CABs may accept OIDF results as supporting evidence but no formal integration into the eIDAS conformity assessment framework exists. Monitor the OIDF accreditation programme and national certification body announcements. ([§11.8.1](#1181-oidf-oid4vphaip-conformance-suite-and-self-certification), [§11.8.2](#1182-oidf-accreditation-services-q2-2026)) |
 | <a id="oq-47"></a> 47 | Will the Commission issue EUDI-specific guidance under NIS2, particularly regarding incident classification thresholds for trust infrastructure events (WRPAC compromise, LoTE poisoning, Status List breach)? Current NIS2 Art. 23(3) significant-incident criteria are generic — sector-specific thresholds for digital identity infrastructure are absent. | NIS2 Art. 23, IR 2024/2690 | No EUDI-specific NIS2 guidance exists. IR 2024/2690 provides technical requirements for digital infrastructure entities but does not address EUDI Wallet trust infrastructure specifically. Monitor ENISA's NIS2 technical guidance development and national transposition measures. ([§21.6](#216-nis2-considerations-for-critical-sector-rps)) |
 | <a id="oq-48"></a> 48 | How will CIRAS (ENISA) breach notification delivery to individual RPs be operationalised? Will RPs receive notifications directly via API, or through their Member State's Single Point of Contact as an intermediary? | CIR 2025/847 Art. 10 | CIRAS applies from May 2026. The regulation specifies RP notification via the registering MS (Art. 5(1)(d)), not directly from CIRAS. The delivery mechanism (email, API, push notification) is MS-defined. RPs should contact their MS Single Point of Contact proactively. ([§21.7.3](#2173-rp-notification-obligations), [§31.4](#314-breach-notification-monitoring-cir-2025847)) |
-| <a id="oq-49"></a> 49 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. §21.7.4 provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. ([§21.7](#217-wallet-solution-security-breach-response-cir-2025847)) |
+| <a id="oq-49"></a> 49 | Will the Commission publish RP-specific implementation guidance for CIR 2025/847 breach response, including recommended automation patterns for suspension/withdrawal handling? | CIR 2025/847 | No implementation guidance exists beyond the regulation text. [§21.7.4](#2174-rp-response-playbook) provides a recommended response playbook based on the regulatory requirements, but MS-level operational guidance (notification formats, API specifications, testing procedures) is absent. ([§21.7](#217-wallet-solution-security-breach-response-cir-2025847)) |
 | <a id="oq-50"></a> 50 | What is the exact certification scope of Verimi's EUDI Wallet SDK? Under which Member State certification scheme was it certified, for which WSCD architecture type (remote HSM, local native, local internal), and does the certification cover the embedded SDK deployment model or only the standalone wallet? | Verimi, CIR 2024/2981 | Verimi claims "government-certified architecture and infrastructure" but public documentation does not specify the certification scope, certifying CAB, or WSCD type. RPs evaluating Verimi should request the certification certificate and its scope statement. ([§9.4.4](#944-regulatory-constraints), [§27.7](#277-embedded-wallet-sdk-capability-assessment)) |
 | <a id="oq-51"></a> 51 | Can an RP app register its embedded wallet SDK as a `DigitalCredential` provider on Android CredentialManager alongside the standalone EUDI Wallet? If so, does the OS present both in the credential picker, and what are the UX and regulatory implications of a user choosing the RP's embedded wallet over the government EUDI Wallet? | Android CredentialManager, ARF §5.4.3.2 | Technically possible — Android CredentialManager supports multiple credential providers. However, no EUDI ecosystem guidance addresses this dual-registration scenario. The ARF anticipates inter-app flows but not competing wallet providers in the same picker. ([§9.4.2](#942-protocol-reuse-single-qr-code-dual-wallet)) |
 | <a id="oq-52"></a> 52 | For embedded wallet SDKs, who is the Wallet Provider for the purposes of Wallet Unit Attestation (WUA) issuance — the SDK vendor, the RP, or neither? The ARF requires WUAs to be issued by the Wallet Provider (ARF §7.5.3.4), but in the embedded SDK model, the "Wallet Provider" role is ambiguous. | ARF §7.5.3.4, CIR 2024/2981 | Not addressed. If the SDK vendor is not a designated Wallet Provider, WUAs may not be issuable — limiting the embedded wallet to non-EUDI credential use cases. This is consistent with the dual-wallet model ([§9.4.5](#945-recommended-architecture-the-dual-wallet-model)) but creates a gap for RPs seeking EUDI-equivalent embedded functionality. ([§9.4.6](#946-risks-and-mitigations)) |
@@ -33155,12 +33155,12 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Regulation (EU) 2024/1183 — European Digital Identity Framework (eIDAS 2.0)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — Amends Regulation (EU) No 910/2014; establishes the European Digital Identity Wallet and framework for electronic identification, authentication, and trust services ([§1](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications))
 - [Commission Implementing Regulation (EU) 2024/2977 — PID and EAA](https://data.europa.eu/eli/reg_impl/2024/2977/oj) — Implementing regulation for person identification data (PID) and electronic attestations of attributes (EAA) ([§1](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications), [§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection))
 - [Commission Implementing Regulation (EU) 2024/2979 — Integrity and Core Functionalities](https://data.europa.eu/eli/reg_impl/2024/2979/oj) — Implementing rules on integrity, core functionalities, and certificate requirements for EUDI Wallets ([§1](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications), [§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists), [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
-- [Commission Implementing Regulation (EU) 2024/2982 — Protocols and Interfaces](https://data.europa.eu/eli/reg_impl/2024/2982/oj) — Implementing regulation on protocols and interfaces between EUDI Wallet components ([§1](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications))
+- [Commission Implementing Regulation (EU) 2024/2982 — Protocols and Interfaces](https://data.europa.eu/eli/reg_impl/2024/2982/oj) — Implementing regulation on protocols and interfaces between EUDI Wallet components (§1)
 - [Commission Implementing Regulation (EU) 2025/848 — RP Registration](https://data.europa.eu/eli/reg_impl/2025/848/oj) — Implementing regulation on registration of Wallet-Relying Parties with Member State Registrars ([§3](#3-legal-person-identification-and-the-european-business-wallet))
 - [Directive (EU) 2015/2366 — Payment Services Directive (PSD2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366) — Payment services in the internal market; mandates Strong Customer Authentication (SCA) for electronic payments ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking), [§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2))
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to processing of personal data; governs RP data handling obligations ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy), [§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2))
 - [Regulation (EU) 2022/2554 — Digital Operational Resilience Act (DORA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) — ICT risk management, incident reporting, and third-party oversight for financial entities ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2))
-- [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
+- [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) (§21.6)
 - [Commission Implementing Regulation (EU) 2024/2690 — NIS2 Technical Requirements](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690) — Technical and methodological requirements for NIS2 Art. 21(2) risk management measures; mandatory for digital infrastructure entities and trust service providers; compliance benchmark for all NIS2-covered RPs ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities ([§22](#22-amlkyc-onboarding-via-eudi-wallet))
 - [Regulation (EU) 2022/2065 — Digital Services Act (DSA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2065) — Single market for digital services; Art. 28 mandates age verification for online platforms hosting user-generated content ([§19](#19-age-verification-attestation-pipelines))
@@ -33173,7 +33173,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, and high-level requirements (§1–§36)
 - [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Discussion paper on identity matching, cryptographic binding (ACP_01–ACP_15), and privacy-preserving combined presentations ([§18](#18-combined-presentations-lpid-and-mandate-credentials))
 - [ARF Discussion Topic 29 — Representation (Natural Person Acting on Behalf of Another)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/) — Discussion paper on representation attestation Rulebooks; RP_01 mandates Commission SHALL create Rulebook. Currently covers natural-person-to-natural-person only; legal person mandates projected for EBW timeline ([§18.1.3](#1813-identity-matching-in-lpid-combined-presentations), [§18](#18-combined-presentations-lpid-and-mandate-credentials))
-- [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person))
+- [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§3, [§6.15](#615-lpid-credential-format-legal-person))
 - [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes ([§16](#16-pseudonym-based-authentication-and-webauthn))
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
 - [TS2 — Notification and Publication of Provider Information (v1.0.1)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md) — Provider-information publication model and inherited `LegalEntity` / `Provider` superclasses reused by RP registration ([§4](#4-rp-registration-data-model-and-registrar-api), [§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern))
@@ -33183,7 +33183,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [TS8 — Common Interface for Reporting of WRP to DPA (v0.11)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts8-common-interface-for-reporting-of-wrp-to-dpa.md) — Wallet/User interface for reporting suspicious RP requests to Data Protection Authorities using registered `supervisoryAuthority` contact data ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
 - [TS9 — Wallet-to-Wallet Interactions (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Proximity-only Wallet-to-Wallet flows: PresentationOffer, rate limiting, IntentToRetain constraints ([§14](#14-w2w-presentation-flow-ts9))
 - [TS12 — SCA Implementation with the Wallet (v1.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Strong Customer Authentication via EUDI Wallet: SCA attestation types, Dynamic Linking, transaction_data, consent screen rendering ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking))
-- [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements ([§19](#19-age-verification-attestation-pipelines))
+- [EU Age Verification Technical Specification (v1.0)](https://ageverification.dev/) — Technical specification for the EU Commission Age Verification App: Proof of Age attestation format, batch issuance via OID4VCI, presentation via OID4VP, zero-knowledge proof option, and Attestation Provider requirements (§19)
 
 #### Signing and Trust Service Standards
 
@@ -33206,14 +33206,14 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); mandates JAR, `x509_hash`, `direct_post.jwt`, and DCQL for EUDI Wallet ecosystem ([§7](#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape))
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units ([§14](#14-w2w-presentation-flow-ts9))
 - [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§8](#8-openid4vp-and-haip-protocol-foundations), [§10](#10-cross-device-remote-presentation), Appendix A)
-- [Selective Disclosure for JSON Web Tokens (SD-JWT, RFC 9901)](https://www.rfc-editor.org/rfc/rfc9901) — IETF RFC 9901 (November 2025); base selective disclosure primitive for JWTs — `_sd` hash mechanism, Disclosures, and optional Key Binding JWT; SD-JWT VC (above) is an application profile built on this specification ([§6.1](#61-sd-jwt-vc-overview), [§11.3](#113-verification-checklist-for-sd-jwt-vc))
+- [Selective Disclosure for JSON Web Tokens (SD-JWT, RFC 9901)](https://www.rfc-editor.org/rfc/rfc9901) — IETF RFC 9901 (November 2025); base selective disclosure primitive for JWTs — `_sd` hash mechanism, Disclosures, and optional Key Binding JWT; SD-JWT VC (above) is an application profile built on this specification (§6.1, [§11.3](#113-verification-checklist-for-sd-jwt-vc))
 - [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§12](#12-cryptographic-verification-pipeline-deep-dive), [§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised))
-- [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP ([§9](#9-same-device-remote-presentation))
+- [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§9)
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests ([§7](#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape), [§8](#8-openid4vp-and-haip-protocol-foundations))
 - [RFC 6962 — Certificate Transparency](https://datatracker.ietf.org/doc/rfc6962/) — Baseline Certificate Transparency framework and artefact model still referenced by ETSI CT guidance and ecosystem transition language for WRPAC transparency ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
 - [IETF Token Status List (draft-ietf-oauth-status-list-19)](https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-19.html) — Underlying specification for Attestation Status Lists (compressed bitstring-based credential revocation mechanism); used by PID Providers and Attestation Providers for real-time status verification ([§10](#10-cross-device-remote-presentation), Appendix B)
-- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol ([§8](#8-openid4vp-and-haip-protocol-foundations), Appendix A)
+- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
 - [ETSI TS 119 475 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Relying party attributes supporting EUDI Wallet user's authorization decisions](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/01.02.01_60/ts_119475v010201p.pdf) — Technical specification for RP attributes, WRPAC identity mapping, and WRPRC JWT/CWT structures (§4–§5)
 - [ETSI TS 119 472-1 V1.2.1 (2026-02) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA credentials and claims](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947201/01.02.01_60/ts_11947201v010201p.pdf) — Supporting semantic baseline for PID/EAA categories, audience, subject identifiers, one-time-use, and status / short-lived semantics used by the RP-facing presentation profile (§8–§18)
 - [ETSI TS 119 472-2 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA presentations to a Relying Party](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf) — Primary ETSI presentation profile for RP-facing OpenID4VC-HAIP and ISO/IEC-mdoc request / response construction, including `verifier_info`, `requestInfo`, and API-mediated vs non-API-mediated transport rules (§8–§18)
@@ -33232,13 +33232,13 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [IRTF draft-irtf-cfrg-bbs-signatures-10 — The BBS Signature Scheme](https://datatracker.ietf.org/doc/draft-irtf-cfrg-bbs-signatures/) — IRTF CFRG Internet-Draft (Informational, January 2026); BBS multi-message signature scheme on BLS12-381 pairing-friendly curves enabling selective disclosure and unlinkable derived proofs; future candidate for EUDI ZKP credential formats ([§11.9](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap), [§11.10](#1110-linkability-resistant-verification-practices), [§19](#19-age-verification-attestation-pipelines))
 - [OpenID Federation 1.0](https://openid.net/specs/openid-federation-1_0.html) — OIDF specification for hierarchical trust chain resolution via signed Entity Statements and Trust Marks; used by Member States as alternative trust management model alongside X.509-based LoTE ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§29](#29-security-threat-catalogue))
 - [RFC 6979 — Deterministic Usage of the Digital Signature Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm (ECDSA)](https://www.rfc-editor.org/rfc/rfc6979) — IETF RFC specifying deterministic ECDSA nonce generation to eliminate nonce bias vulnerabilities; recommended for RP-side JAR signing implementations ([§29](#29-security-threat-catalogue))
-- [RFC 9700 — OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html) — IETF BCP covering open redirector prevention, exact redirect URI matching, PKCE, and sender-constrained tokens; foundational security baseline for all OAuth 2.0/OID4VP implementations ([§29](#29-security-threat-catalogue))
+- [RFC 9700 — OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html) — IETF BCP covering open redirector prevention, exact redirect URI matching, PKCE, and sender-constrained tokens; foundational security baseline for all OAuth 2.0/OID4VP implementations (§29)
 - [University of Stuttgart — Formal Security Analysis of OID4VC Protocols](https://sec.ise.uni-stuttgart.de/research/oid4vc/) — Formal analysis of OpenID4VP and OpenID4VCI using the Web Infrastructure Model (WIM); identifies credential injection in Pre-Authorized Code flow, cross-device session confusion, and proves security properties of same-device flows under specified assumptions ([§29](#29-security-threat-catalogue))
 
 #### Conformance Testing and Interoperability Resources
 
 - [OIDF Conformance Suite](https://gitlab.com/openid/conformance-suite/) — Open-source conformance testing harness for OpenID4VP 1.0, HAIP 1.0, and OpenID4VCI 1.0; supports automated CI/CD integration via `run-test-plan.py` ([§11.8](#118-pre-production-conformance-testing))
-- [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net ([§11.8.1](#1181-oidf-oid4vphaip-conformance-suite-and-self-certification))
+- [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net (§11.8.1)
 - [German EUDI Wallet Sandbox (SPRIND)](https://opencode.de) — First Member State–operated RP test environment for PID use cases; managed by the Federal Agency for Disruptive Innovation; Ecosystem Management Portal for RP onboarding ([§28.3](#283-wallet-interoperability-testing))
 - [EUDI Wallets Launchpad 2025 — Technical Report](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) — European Commission interoperability event (Dec 10–12, 2025, Brussels); 570+ tests, 420 successful, 60+ testers from 16 countries ([§28.3](#283-wallet-interoperability-testing))
 - [POTENTIAL LSP — Final Report](https://potential-eudigitalidentity.eu) — Large-Scale Pilot covering banking KYC, eGov, mDL, QES, ePrescription, SIM registration; 19 MS + Ukraine; 1,300+ tests, 1,000+ successful transactions, 249 cross-border; concluded Sep 2025 ([§28.3](#283-wallet-interoperability-testing))

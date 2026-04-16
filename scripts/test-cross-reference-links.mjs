@@ -6,6 +6,7 @@ import {
   applyTextReplacements,
   buildLabelTargetIndex,
   buildSectionTargetIndex,
+  collectLikelyFalsePositiveExternalSkips,
   collectMarkdownLabelTargets,
   collectMarkdownCrossReferenceReplacements,
   linkifyTextValue,
@@ -67,6 +68,41 @@ function testExternalCitationIsSkipped() {
     },
     targetIndex: buildIndex([]),
   });
+  const webauthnResult = linkifyTextValue('The flow waits for confirmation (WebAuthn Level 2, §9.3 — timeout handling).', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0003-authentication-and-session-management',
+    },
+    targetIndex: buildIndex([{ headingId: '93-internal', text: '9.3 Internal timeout handling' }]),
+  });
+  const msResult = linkifyTextValue('The PAC structure is defined in MS-PAC, §2 — the authorization-data container.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0003-authentication-and-session-management',
+    },
+    targetIndex: buildIndex([{ headingId: '2-internal', text: '2 Internal section' }]),
+  });
+  const oidcResult = linkifyTextValue('OIDC Core §13 / RFC 7523 remains the applicable rule.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0003-authentication-and-session-management',
+    },
+    targetIndex: buildIndex([{ headingId: '13-internal', text: '13 Internal section' }]),
+  });
+  const dpdpResult = linkifyTextValue('India (DPDP Act §21 — negative-list approach) imposes localization rules.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0001-mcp-authentication-authorization-agent-identity',
+    },
+    targetIndex: buildIndex([{ headingId: '21-internal', text: '21 Internal section' }]),
+  });
+  const parentheticalRfcResult = linkifyTextValue('RFC 9449 (§4) provides the proof syntax.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0003-authentication-and-session-management',
+    },
+    targetIndex: buildIndex([{ headingId: '4-internal', text: '4 Internal section' }]),
+  });
 
   assert.equal(result.changed, false);
   assert.equal(result.diagnostics.length, 1);
@@ -74,16 +110,116 @@ function testExternalCitationIsSkipped() {
   assert.equal(euResult.changed, false);
   assert.equal(euResult.diagnostics.length, 1);
   assert.equal(euResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(webauthnResult.changed, false);
+  assert.equal(webauthnResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(msResult.changed, false);
+  assert.equal(msResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(oidcResult.changed, false);
+  assert.equal(oidcResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(dpdpResult.changed, false);
+  assert.equal(dpdpResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(parentheticalRfcResult.changed, false);
+  assert.equal(parentheticalRfcResult.diagnostics[0].category, 'skipped_external_citation');
+}
+
+function testInternalCueOverridesExternalCitationSkip() {
+  const targetIndex = buildIndex([
+    { headingId: '35-token-introspection-and-revocation', text: '3.5 Token Introspection and Revocation' },
+    { headingId: '411-oauth-21-and-fapi', text: '4.1 OAuth 2.1 Consolidation and FAPI 2.0 Security Profile' },
+    { headingId: '2174-rp-response-playbook', text: '21.7.4 RP Response Playbook' },
+    { headingId: '29-openid4vp', text: '29 OpenID4VP and OpenID4VCI Verifiable Credential Presentation and Issuance' },
+    { headingId: '16-pseudonym-based-authentication-and-webauthn', text: '16 Pseudonym-Based Authentication and WebAuthn' },
+  ]);
+
+  const rfcWithInternalCue = linkifyTextValue(
+    "The resource server must call the authorization server's token introspection endpoint (RFC 7662, see §3.5) to validate the token.",
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0003-authentication-and-session-management',
+      },
+      targetIndex,
+    },
+  );
+  const coveredInDetailCue = linkifyTextValue(
+    'FAPI 2.0 is covered in detail in §4.1.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0003-authentication-and-session-management',
+      },
+      targetIndex,
+    },
+  );
+  const sentenceInitialCue = linkifyTextValue(
+    'No implementation guidance exists beyond the regulation text. §21.7.4 provides a recommended response playbook based on the regulatory requirements.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+  const topicParentheticalCue = linkifyTextValue(
+    'OpenID4VP (§29) provides the presentation protocol layer that makes these privacy-preserving credentials usable at scale.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0003-authentication-and-session-management',
+      },
+      targetIndex,
+    },
+  );
+  const documentSlugCue = linkifyTextValue(
+    'DR-0002 §16 covers the WebAuthn-based pseudonym mechanism that HAIP recommends.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+
+  assert.equal(rfcWithInternalCue.changed, true);
+  assert.equal(rfcWithInternalCue.diagnostics.length, 0);
+  assert.equal(rfcWithInternalCue.parts.some((part) => part.type === 'link' && part.href === '#35-token-introspection-and-revocation'), true);
+
+  assert.equal(coveredInDetailCue.changed, true);
+  assert.equal(coveredInDetailCue.diagnostics.length, 0);
+  assert.equal(coveredInDetailCue.parts.some((part) => part.type === 'link' && part.href === '#411-oauth-21-and-fapi'), true);
+
+  assert.equal(sentenceInitialCue.changed, true);
+  assert.equal(sentenceInitialCue.diagnostics.length, 0);
+  assert.equal(sentenceInitialCue.parts.some((part) => part.type === 'link' && part.href === '#2174-rp-response-playbook'), true);
+
+  assert.equal(topicParentheticalCue.changed, true);
+  assert.equal(topicParentheticalCue.diagnostics.length, 0);
+  assert.equal(topicParentheticalCue.parts.some((part) => part.type === 'link' && part.href === '#29-openid4vp'), true);
+
+  assert.equal(documentSlugCue.changed, true);
+  assert.equal(documentSlugCue.diagnostics.length, 0);
+  assert.equal(documentSlugCue.parts.some((part) => part.type === 'link' && part.href === '#16-pseudonym-based-authentication-and-webauthn'), true);
 }
 
 function testUnsupportedShapesStayPlain() {
   const targetIndex = buildIndex([
     { headingId: '5-section', text: '5 Section' },
     { headingId: '6-section', text: '6 Section' },
+    { headingId: '231-section', text: '23.1 Section' },
+    { headingId: '10-section', text: '10 Section' },
     { headingId: '164312-security', text: '164.312 Security' },
   ]);
 
   const rangeResult = linkifyTextValue('See §5–§6.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
+  const shorthandRangeResult = linkifyTextValue('See §23.1–24.4 and §10–12.', {
     buildHref: (target) => `#${target.headingId}`,
     diagnosticBase: {
       documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
@@ -101,6 +237,9 @@ function testUnsupportedShapesStayPlain() {
   assert.equal(rangeResult.changed, false);
   assert.equal(rangeResult.diagnostics.length, 2);
   assert.equal(rangeResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
+  assert.equal(shorthandRangeResult.changed, false);
+  assert.equal(shorthandRangeResult.diagnostics.length, 2);
+  assert.equal(shorthandRangeResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
   assert.equal(legalResult.changed, false);
   assert.equal(legalResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
 }
@@ -118,6 +257,42 @@ function testExactMatchDoesNotGuessDescendants() {
 
   assert.equal(result.changed, false);
   assert.equal(result.diagnostics[0].category, 'unresolved_internal_xref');
+}
+
+function testDashPunctuationReferencesLinkNormally() {
+  const targetIndex = buildIndex([
+    { headingId: '1032-dc-api-vs-legacy-uri-scheme-fallback', text: '10.3.2 DC API vs. Legacy URI Scheme Fallback' },
+    { headingId: '11123-ambiguity-handling-policy', text: '11.12.3 Ambiguity Handling Policy' },
+  ]);
+
+  const leadingDashResult = linkifyTextValue(
+    'Fallback flows have higher residual risk — §10.3.2 details the compensating controls.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+  const trailingDashResult = linkifyTextValue(
+    'Apply the ambiguity handling policy (§11.12.3 — deny by default for high-value flows).',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+
+  assert.equal(leadingDashResult.changed, true);
+  assert.equal(leadingDashResult.diagnostics.length, 0);
+  assert.equal(leadingDashResult.parts.some((part) => part.type === 'link' && part.href === '#1032-dc-api-vs-legacy-uri-scheme-fallback'), true);
+
+  assert.equal(trailingDashResult.changed, true);
+  assert.equal(trailingDashResult.diagnostics.length, 0);
+  assert.equal(trailingDashResult.parts.some((part) => part.type === 'link' && part.href === '#11123-ambiguity-handling-policy'), true);
 }
 
 function testHastRewriteOnlyLinksInternalReferences() {
@@ -297,15 +472,59 @@ function testMarkdownCrossReferencesSupportLabels() {
   assert.equal(linked, 'See [Finding 2](#finding-2) and [OQ-9](#oq-9), but keep `OQ1` plain in code.\n');
 }
 
+function testLikelyFalsePositiveExternalSkipReport() {
+  const targetIndex = buildIndex([
+    { headingId: '2110-identity-chaining', text: '21.10 Identity Chaining' },
+    { headingId: '5-direct-token-exchange', text: '5 Direct Token Exchange' },
+    { headingId: '231-spec-compliance', text: '23.1 Gateway Spec Compliance Matrix' },
+  ]);
+  const diagnostics = [
+    {
+      category: 'skipped_external_citation',
+      tokenText: '§21.10',
+      referenceValue: '21.10',
+      snippet: 'Authorization Chaining Across Domains specification (draft-ietf-oauth-identity-chaining-08, see §21.10). The protocol enables MCP clients to chain identity.',
+    },
+    {
+      category: 'skipped_external_citation',
+      tokenText: '§5',
+      referenceValue: '5',
+      snippet: 'Pattern A (Direct Token Exchange) is the RFC 8693 model from §5, viewed from the credential delegation perspective.',
+    },
+    {
+      category: 'skipped_external_citation',
+      tokenText: '§5.1',
+      referenceValue: '5.1',
+      snippet: 'RFC 6750 §5.1 defines the insufficient_scope error.',
+    },
+  ];
+
+  const result = collectLikelyFalsePositiveExternalSkips({
+    diagnostics,
+    targetIndex,
+  });
+
+  assert.deepEqual(
+    result.map((entry) => ({ referenceValue: entry.referenceValue, headingId: entry.headingId })),
+    [
+      { referenceValue: '21.10', headingId: '2110-identity-chaining' },
+      { referenceValue: '5', headingId: '5-direct-token-exchange' },
+    ],
+  );
+}
+
 testLinkifySupportedInternalReference();
 testExternalCitationIsSkipped();
+testInternalCueOverridesExternalCitationSkip();
 testUnsupportedShapesStayPlain();
 testExactMatchDoesNotGuessDescendants();
+testDashPunctuationReferencesLinkNormally();
 testHastRewriteOnlyLinksInternalReferences();
 testMarkdownRewritesRespectExistingFormatting();
 testLabelLinkifySupportsFindingAndOqReferences();
 testMarkdownLabelTargetsCoverListsTablesAndParagraphs();
 testHeadingBackedLabelAnchorsStayAfterHeadingLine();
 testMarkdownCrossReferencesSupportLabels();
+testLikelyFalsePositiveExternalSkipReport();
 
 console.log('[xref test] cross-reference linker checks passed');
