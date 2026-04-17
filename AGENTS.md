@@ -333,15 +333,25 @@ If a product now supports A2A, update the section to say it supports A2A. If a m
 >
 > Do not memorize error-prevention rules. Instead, rely on automated guardrails (pre-commit hooks, linters, validators) to catch mistakes at commit time. When a guardrail blocks your commit, read its error output — it contains everything you need to diagnose and fix the issue.
 
+**Default stance:** if an issue is both **mechanically detectable** and **potentially scalable/recurring**, do **not** jump straight to a one-off direct fix. The default is **guardrail-first**.
+
 **When you encounter a new class of recurring mistake** — whether it's a formatting error, a broken cross-reference pattern, a naming convention violation, or anything else that can be detected mechanically:
 
-1. **Propose a new guardrail.** Write a validation script in `.githooks/` and wire it into the pre-commit hook. The script should detect the error class automatically.
-2. **Make the error message self-sufficient.** The output must explain: what went wrong, why it's wrong, and exactly how to fix it — with copy-pasteable commands or suggestions where possible. An agent seeing the error for the first time should be able to resolve it without any prior context.
-3. **Remove the corresponding rule from AGENTS.md** (if one exists). Once a guardrail catches an error class, there is no need to also document it as a rule agents must remember. The guardrail *is* the rule.
+1. **Stop and propose a new guardrail to the user first.** Do **not** autonomously implement a new validator, linter, hook, or pre-commit rule. Escalate the idea and wait for approval.
+2. **Your proposal must be concrete.** State:
+   - what error class should be caught,
+   - why it is scalable/recurring rather than a one-off issue,
+   - where the guardrail would live (`.githooks/`, script path, pre-commit/pre-push wiring),
+   - whether it should block commits or be advisory,
+   - and whether the currently observed instance would still need a direct content fix after the guardrail is in place.
+3. **After approval, implement the guardrail before fixing the content instance** whenever practical. Then run it broadly enough to detect existing violations, report the findings, and only then fix the affected content.
+4. **Make the error message self-sufficient.** The output must explain: what went wrong, why it's wrong, and exactly how to fix it — with copy-pasteable commands or suggestions where possible. An agent seeing the error for the first time should be able to resolve it without any prior context.
+5. **Remove the corresponding rule from AGENTS.md** (if one exists). Once a guardrail catches an error class, there is no need to also document it as a rule agents must remember. The guardrail *is* the rule.
+6. **Direct-fix first only when the user explicitly wants that, or when the issue is clearly not guardrailable.** If there is real doubt, ask.
 
 This keeps AGENTS.md small, avoids cognitive load, and ensures consistency through enforcement rather than convention.
 
-**CRITICAL RULE:** You are not allowed to autonomously edit existing guardrail scripts (e.g., in `.githooks/`) to bypass or relax rules without explicitly discussing it with the user first. If a guardrail forces a bad outcome, bring it to the user's attention.
+**CRITICAL RULE:** You are not allowed to autonomously create, relax, bypass, or materially change guardrail scripts (e.g., in `.githooks/`) without explicitly discussing it with the user first. If a guardrail forces a bad outcome, bring it to the user's attention.
 
 ## Git Hooks
 
@@ -478,7 +488,7 @@ This rule applies to any file that is not intended to be committed. If you are u
 - Keep the retro thin and practical: `what broke`, `root cause`, `what would have prevented it`, `concrete follow-up items`.
 - Promote only stable lessons:
   - to `AGENTS.md` if the lesson is process-level,
-  - to tests/guardrails if it is mechanically enforceable,
+  - to tests/guardrails if it is mechanically enforceable and the user approves the new guardrail,
   - otherwise leave it in the retro document.
 - Do not let retros become bureaucracy. This repo is primarily content plus a thin reader wrapper; the workflow should stay lightweight.
 
