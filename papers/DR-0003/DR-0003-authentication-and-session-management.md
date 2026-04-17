@@ -5,14 +5,15 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-04-01
+date_updated: 2026-04-17
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
+
 ---
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0003/DR-0003-authentication-and-session-management.mdx. DO NOT EDIT. -->
 
-**DR-0003** · Published · Last updated 2026-04-01 · ~48,700 lines
+**DR-0003** · Published · Last updated 2026-04-17 · ~48,700 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0003-authentication-and-session-management/reader-orientation)
@@ -17666,7 +17667,7 @@ This group addresses the physical and logical architectures required to protect 
 
 ### 16. Client-Side Secret Protection Architectures
 
-Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets (§11–§12), OCRA extends secrets with challenge-response ([§13](#13-ocra-challenge-response-authentication-rfc-6287)), and WebAuthn generates asymmetric key pairs bound to authenticators (§14). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
+Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets (§11–§12), OCRA extends secrets with challenge-response ([§13](#13-ocra-challenge-response-authentication-rfc-6287)), and WebAuthn generates asymmetric key pairs bound to authenticators ([§14](#14-webauthn-and-ctap2-architecture)). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
 
 The central principle is **key isolation** — the private key or shared secret must be computationally inaccessible to any software running outside the security boundary, including the application that uses the key. Whether that boundary is a dedicated coprocessor (Secure Enclave, StrongBox), a firmware-partitioned trust zone (TEE), a discrete tamper-resistant chip (TPM, SE), or a software-enforced derivation pipeline, the architecture must ensure that secrets cannot be extracted even by a fully compromised operating system.
 
@@ -47389,7 +47390,7 @@ As analyzed in [§40.4](#404-oidc-front-channel-vs-back-channel-logout), [§40.6
 standards-based path forward for near real-time federated state synchronization and forced
 revocation.
 
-In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§40.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, [§41.1](#411-caep-event-types-and-real-time-session-revocation)). A harder variant — cross-domain session revocation across independent, non-federated services ([§40.14](#4014-cross-domain-session-revocation-propagation)) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
+In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs ([§40.4](#404-oidc-front-channel-vs-back-channel-logout)). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, [§41.1](#411-caep-event-types-and-real-time-session-revocation)). A harder variant — cross-domain session revocation across independent, non-federated services ([§40.14](#4014-cross-domain-session-revocation-propagation)) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
 
 #### F10: Continuous Access Evaluation (CAE) is the Future of Session Security
 <a id="finding-f-10"></a>
@@ -47555,7 +47556,7 @@ selectively, orchestrating a deterministic, multi-app step-up flow requires deep
 to-point integration. It cannot be achieved safely through out-of-the-box federation protocols
 without significant bespoke mapping architectures.
 
-Step-up authentication crosses two architectural boundaries (client to AS, AS to user) with no standard protocol for real-time risk signalling. Implementation is fragmented: SAML uses `AuthnContextClassRef`, OIDC uses `acr_values`, and OAuth 2.0 has no native step-up mechanism (§28.5, [§41.1](#411-caep-event-types-and-real-time-session-revocation)). The OpenID Foundation's FAPI 2.0 provides the closest standardised framework, but is narrowly scoped to financial services. Step-up authentication will increasingly be implemented at the gateway/API level using CAE (F10) signals rather than at the identity protocol level.
+Step-up authentication crosses two architectural boundaries (client to AS, AS to user) with no standard protocol for real-time risk signalling. Implementation is fragmented: SAML uses `AuthnContextClassRef`, OIDC uses `acr_values`, and OAuth 2.0 has no native step-up mechanism ([§28.5](#285-step-up-authentication-trigger-conditions-and-challenge-selection), [§41.1](#411-caep-event-types-and-real-time-session-revocation)). The OpenID Foundation's FAPI 2.0 provides the closest standardised framework, but is narrowly scoped to financial services. Step-up authentication will increasingly be implemented at the gateway/API level using CAE (F10) signals rather than at the identity protocol level.
 
 #### F21: The Biometric Paradigm is Authenticator-Bound, Not Server-Validated
 <a id="finding-f-21"></a>

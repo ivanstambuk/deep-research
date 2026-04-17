@@ -122,6 +122,50 @@ function testExternalCitationIsSkipped() {
   assert.equal(parentheticalRfcResult.diagnostics[0].category, 'skipped_external_citation');
 }
 
+function testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks() {
+  const targetIndex = buildIndex([
+    {
+      headingId: '1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity',
+      text: '16.7.3 Same-User Binding: How RPs Guarantee Pseudonym–Attribute Continuity',
+    },
+  ]);
+
+  const findingResult = linkifyTextValue(
+    'Same-user binding across WebAuthn and OpenID4VP is solvable today, but imperfectly. Session-based binding (§16.7.3, Strategies 1–3) provides reasonable assurance for same-device flows.',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+  const challengeEmbeddingResult = linkifyTextValue(
+    'The RP sets the OpenID4VP nonce parameter to include the original WebAuthn challenge (or a derivative), creating a cross-ceremony binding (§16.7.3, Strategy 2: Challenge Embedding).',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+
+  assert.equal(findingResult.changed, true);
+  assert.equal(findingResult.diagnostics.length, 0);
+  assert.equal(
+    findingResult.parts.some((part) => part.type === 'link' && part.href === '#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity'),
+    true,
+  );
+
+  assert.equal(challengeEmbeddingResult.changed, true);
+  assert.equal(challengeEmbeddingResult.diagnostics.length, 0);
+  assert.equal(
+    challengeEmbeddingResult.parts.some((part) => part.type === 'link' && part.href === '#1673-same-user-binding-how-rps-guarantee-pseudonymattribute-continuity'),
+    true,
+  );
+}
+
 function testInternalCueOverridesExternalCitationSkip() {
   const targetIndex = buildIndex([
     { headingId: '35-token-introspection-and-revocation', text: '3.5 Token Introspection and Revocation' },
@@ -515,6 +559,7 @@ function testLikelyFalsePositiveExternalSkipReport() {
 
 testLinkifySupportedInternalReference();
 testExternalCitationIsSkipped();
+testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks();
 testInternalCueOverridesExternalCitationSkip();
 testUnsupportedShapesStayPlain();
 testExactMatchDoesNotGuessDescendants();

@@ -1,6 +1,7 @@
 import GithubSlugger from 'github-slugger';
 
 const LOOKBACK_LIMIT = 96;
+const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
 const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
 const LABEL_TOKEN_RE = /\b(?:Key Finding \d+|KF \d+|Finding F-?\d+|Finding \d+|OQ(?:\d+|-\d+|\s+#\d+|\s+\d+)|Open Question(?:\s+#\d+|\s+\d+))\b/g;
 const HAST_ELIGIBLE_CONTAINER_TAGS = new Set(['blockquote', 'li', 'p', 'summary', 'td', 'th']);
@@ -261,6 +262,18 @@ function normalizeCitationLookback(lookback) {
   return lookback.replace(/[\s,;:()[\]{}]+$/g, '');
 }
 
+function extractCitationLookbackWindow(lookback) {
+  const normalized = normalizeCitationLookback(lookback);
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized
+    .split(/\s+/)
+    .slice(-EXTERNAL_CITATION_LOOKBACK_TOKENS)
+    .join(' ');
+}
+
 function normalizeTopicMatchText(value) {
   return normalizeWhitespace(value)
     .toLowerCase()
@@ -341,7 +354,7 @@ function isUnsupportedShape({ lookback, trailingText }) {
 }
 
 function isExternalCitation(lookback) {
-  const normalized = normalizeCitationLookback(lookback);
+  const normalized = extractCitationLookbackWindow(lookback);
   return EXTERNAL_CITATION_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
