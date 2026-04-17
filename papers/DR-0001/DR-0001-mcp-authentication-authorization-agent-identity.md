@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-03-29
+date_updated: 2026-04-17
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 ---
@@ -13,7 +13,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-08 · ~28,000 lines
+**DR-0001** · Published · Last updated 2026-04-17 · ~28,000 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -15045,7 +15045,6 @@ This matrix shows **all** authorization models each gateway supports — not jus
 | **Guardrails / PII** | ❌ | ❌ | ❌ | ✅ Tool poisoning | ❌ | ❌ | ✅ 10+ plugins | ✅ 20+ categories | ❌ | ✅ Interceptors | ✅ Guardrails + DLP + WAF |
 | **Container Isolation** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Per-server | ❌ |
 | **Zero Trust (SASE)** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Cloudflare One |
-| | | | | | | | | | | | |
 | **Extension Mechanism** | C# policy expressions | Groovy ScriptableFilter | TypeScript | Rust handlers | Java mediators | Actions (JS) | Python extensions | Lua plugins | Go middleware | — | Workers (JS/Rust) |
 
 > **Extensibility note:** Any ❌ cell above can *theoretically* become possible on gateways with an extension mechanism. For example, PingGateway could implement ACL-like behavior via a custom Groovy `ScriptableFilter`, and Kong could add TBAC-like logic via a custom Lua plugin. The matrix captures **what ships today** — not what's theoretically achievable. The Extension Mechanism row shows the scripting/plugin system available for custom implementations.
@@ -18558,16 +18557,13 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz | Callbacks + hooks |
 | **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
 | **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 | ✅ MIT |
-| | | | | | | | | | | | | | |
 | **Nov 2025 Spec** | | | | | | | | | | | | | |
 | **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Scope Challenge (401/403)** | ❌ | ✅ Auto | ❌ | ✅ MCP auth | ✅ Native | ✅ | ❌ | ❌ | ✅ OAuth 2.1 RS | ❌ | ❌ | ✅ via Authorino | ❌ |
 | **ext-auth: Client Credentials** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **ext-auth: Enterprise Managed** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| | | | | | | | | | | | | | |
 | **Session Security** | | | | | | | | | | | | | |
 | **Session-Token Binding** | 🟡 Implicit | ❌ | ❌ | 🟡 State-in-ID | 🟡 Platform | ❌ | ❌ | 🟡 HTTP-layer | ❌ | 🟡 Isolation | 🟡 DO isolation | 🟡 Wristband | ❌ |
-| | | | | | | | | | | | | | |
 | **Credential Delegation** | | | | | | | | | | | | | |
 | **Delegation Pattern ([§11.1](#111-credential-delegation-pattern-taxonomy))** | E+A | A+DPoP | C (Inject) | B (sidecar) | B | B (Vault) | A (auto-gen) | A | A (OBO) | D (Secret) | — | A+D (OBO+Vault) | C (JWT Signer) |
 | **DPoP Support ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents))** | ❌ | ✅ | N/A | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ Planned | N/A | ❌ | ❌ | ❌ |

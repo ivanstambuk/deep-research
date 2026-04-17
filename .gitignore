@@ -2,6 +2,9 @@
 .scratch/
 .vscode/
 WORKFLOW.md
+DR_REFRESH_WORKFLOW.md
+SEQUENCE_DIAGRAM_HOUSE_STYLE.md
+scripts/lint-sequence-house-style.py
 
 # Node and build outputs
 node_modules/

@@ -196,6 +196,16 @@ Create the planning document in `.scratch/` following this template:
 
 This repository contains **Deep Research (DR)** documents — exhaustive, long-form Markdown articles (5,000–30,000+ lines) with rich Unicode content including section signs (§), em/en dashes (—/–), arrows (→/←/↔), check/cross marks (✅/❌), warning signs (⚠️), and emoji.
 
+## Local Workflow Docs
+
+This repo may contain **local, gitignored workflow guides** for recurring DR maintenance tasks. When a user asks to **refresh an existing DR document, chapter, appendix, or subsection**, check for and follow:
+
+- `DR_REFRESH_WORKFLOW.md` — the default five-step workflow for refreshing existing DR content: research report + claim ledger, integration edits, cross-reference/matrix sweep, style-normalization sweep, then verification/commit.
+- `SEQUENCE_DIAGRAM_HOUSE_STYLE.md` — the editorial house style for Mermaid `sequenceDiagram` walkthroughs. Use it when the target scope includes diagrams or when walkthrough quality/style consistency matters.
+- `scripts/lint-sequence-house-style.py` — an **advisory, non-blocking** checker for obvious sequence-walkthrough style drift.
+
+These local docs complement `AGENTS.md`; they do not override explicit user instructions.
+
 ## Editing Large Documents
 
 DR documents are very large. When editing:

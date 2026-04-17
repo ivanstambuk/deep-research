@@ -8,7 +8,8 @@ Checks:
   4. `dr_id` matches the filename pattern (DR-NNNN)
   5. `date_created` and `date_updated` are valid ISO dates (YYYY-MM-DD)
   6. `date_updated` is not earlier than `date_created`
-  7. Visible metadata line exists and its status matches the YAML `status`
+  7. Visible metadata line exists and its DR ID, status, and updated date
+     match the YAML front matter
 
 Usage:
   python3 .githooks/validate-front-matter.py papers/DR-0001-*.md [papers/DR-0002-*.md ...]
@@ -170,6 +171,14 @@ def validate_file(filepath: Path) -> list[str]:
 
     # ── 7. Visible metadata line consistency ──────────────────────────
     line_idx, meta_line = find_visible_metadata_line(lines)
+    if meta_line is None:
+        errors.append(
+            "Visible metadata line not found within the first 30 lines. "
+            "Expected a line like: "
+            "'**DR-0001** · Published · Last updated YYYY-MM-DD · ~10,500 lines'"
+        )
+        return errors
+
     if meta_line and status:
         expected_display = STATUS_DISPLAY.get(status, status.title())
         # Extract the status token from the visible line:
@@ -192,6 +201,26 @@ def validate_file(filepath: Path) -> list[str]:
                     f"Visible metadata line shows DR ID '{visible_dr_id}' "
                     f"but YAML front matter has dr_id '{dr_id}'"
                 )
+
+        if len(parts) >= 3:
+            updated_part = parts[2]
+            m_updated = re.match(r"^Last updated (\d{4}-\d{2}-\d{2})$", updated_part)
+            if not m_updated:
+                errors.append(
+                    f"Visible metadata line updated-date format invalid: '{updated_part}'. "
+                    f"Expected format: 'Last updated YYYY-MM-DD'"
+                )
+            else:
+                visible_updated = m_updated.group(1)
+                if visible_updated != date_updated_str:
+                    errors.append(
+                        f"Visible metadata line shows updated date '{visible_updated}' "
+                        f"but YAML front matter has date_updated '{date_updated_str}'."
+                    )
+        else:
+            errors.append(
+                "Visible metadata line is missing the 'Last updated YYYY-MM-DD' segment."
+            )
 
         # Validate approximate line count
         if len(parts) >= 4:

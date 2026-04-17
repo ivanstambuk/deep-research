@@ -2,6 +2,7 @@
 # Pre-commit hook for deep-research repository.
 #
 # Check 0: Block commits on any branch other than main.
+# Auto-sync A: Update DR `date_updated` metadata for staged authoring docs.
 # Check 1: Block commits containing mojibake (double-encoded UTF-8).
 # Check 2: Block commits with broken Table of Contents anchor links.
 # Check 3: Block commits with invalid front matter (status, dates, DR ID) or draft status.
@@ -33,6 +34,7 @@
 # Check 33: Block commits with changed display-math blocks that KaTeX cannot parse.
 # Check 34: Block commits with malformed numeric heading numbering or alpha-suffixed numeric section IDs.
 # Check 35: Block commits with raw Markdown bold inside Mermaid node/subgraph labels.
+# Check 36: Block commits with all-empty Markdown table rows.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -83,6 +85,24 @@ GENERATED_MIRRORS=""
 
 if [ -n "$STAGED_MDX" ]; then
   mapfile -t STAGED_MDX_FILES <<< "$STAGED_MDX"
+
+  if ! python3 "$HOOK_DIR/sync-dr-updated-dates.py" "${STAGED_MDX_FILES[@]}"; then
+    echo "╔══════════════════════════════════════════════════════════════════╗"
+    echo "║  ❌ DR UPDATED-DATE AUTO-SYNC FAILED                            ║"
+    echo "╚══════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo "WHAT HAPPENED:"
+    echo "  The hook could not synchronize one or more staged DR documents'"
+    echo "  \`date_updated\` frontmatter or visible 'Last updated' metadata."
+    echo ""
+    echo "HOW TO FIX:"
+    echo "  1. Inspect the reported file path and error."
+    echo "  2. Ensure the document still has valid front matter and a visible"
+    echo "     metadata line near the top."
+    echo "  3. Re-stage the affected file and commit again."
+    echo ""
+    exit 1
+  fi
 
   if ! node scripts/compile-mdx.js "${STAGED_MDX_FILES[@]}"; then
     echo "╔══════════════════════════════════════════════════════════════════╗"
@@ -757,6 +777,21 @@ for file in $STAGED_AUTHORING_DOCS; do
 done
 
 if [ -n "$HEADING_NUMBERING_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 36: Empty Markdown table rows ─────────────────────────────
+
+EMPTY_TABLE_ROW_FAILURES=""
+for file in $STAGED_AUTHORING_DOCS; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-empty-table-rows.py" "$file"; then
+      EMPTY_TABLE_ROW_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$EMPTY_TABLE_ROW_FAILURES" ]; then
   EXITCODE=1
 fi
 
