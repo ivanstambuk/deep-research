@@ -89,7 +89,7 @@ function alignHashTarget(hash, behavior = 'auto') {
   return true;
 }
 
-export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'standard' }) {
+export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'standard', theme = 'dark' }) {
   const { chapterId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -217,6 +217,7 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
 
     renderMermaid(articleRef.current, {
       sectionId: chapter.chapterId,
+      theme,
     })
       .then(() => {
         if (cancelled) {
@@ -251,7 +252,7 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
         window.cancelAnimationFrame(postRenderFrame2);
       }
     };
-  }, [chapter, shouldRenderArticle]);
+  }, [chapter, shouldRenderArticle, theme]);
 
   useEffect(() => {
     if (!shouldRenderArticle || !articleRef.current) {

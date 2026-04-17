@@ -22,6 +22,8 @@ const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
 const DR2_TARGET_HEADING_ID = '91-flow-description';
 const DR2_MERMAID_CHAPTER_ID = '24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub';
 const DR2_MERMAID_HEADING_ID = '245-psp-specific-threat-profile';
+const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
+const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
 const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
@@ -420,6 +422,159 @@ async function assertInitialHashRouteSurvivesMermaidRender(page) {
   }, { timeout: 20_000 });
 }
 
+async function readMermaidPresentationSnapshot(page) {
+  return page.evaluate((headingId) => {
+    const heading = document.getElementById(headingId);
+    let container = heading?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.nextElementSibling;
+    }
+    const svg = container?.querySelector('svg');
+    const textNode = svg?.querySelector('.noteText, text, tspan');
+    const actorBox = svg?.querySelector('rect.actor');
+    const line = svg?.querySelector('.actor-line, .messageLine0, .messageLine1, .flowchart-link');
+    const sequenceNumber = svg?.querySelector('.sequenceNumber');
+    const sequenceBadge = svg?.querySelector("marker[id$='sequencenumber'] circle");
+    const scrollHint = container?.querySelector('.mermaid-scroll-hint');
+
+    return {
+      theme: document.documentElement.dataset.theme,
+      containerTheme: container?.dataset.mermaidTheme ?? null,
+      hasSvg: Boolean(svg),
+      hasFallbackSource: (container?.textContent ?? '').includes('sequenceDiagram'),
+      isOverflowing: container?.dataset.mermaidOverflowing ?? null,
+      overflowRight: container?.dataset.mermaidOverflowRight ?? null,
+      textFill: textNode ? window.getComputedStyle(textNode).fill : null,
+      actorBoxFill: actorBox ? window.getComputedStyle(actorBox).fill : null,
+      lineStroke: line ? window.getComputedStyle(line).stroke : null,
+      sequenceNumberFill: sequenceNumber ? window.getComputedStyle(sequenceNumber).fill : null,
+      sequenceBadgeFill: sequenceBadge ? window.getComputedStyle(sequenceBadge).fill : null,
+      scrollHintOpacity: scrollHint ? window.getComputedStyle(scrollHint).opacity : null,
+    };
+  }, DR2_PILOT_HEADING_ID);
+}
+
+async function assertMermaidThemeToggle(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_PILOT_CHAPTER_ID}#${DR2_PILOT_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking Mermaid theme toggle rerender: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(({ slug, chapterId, headingId }) => {
+    const target = document.getElementById(headingId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    let container = target?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.nextElementSibling;
+    }
+    const svg = container?.querySelector('svg');
+    const textNode = svg?.querySelector('.noteText, text, tspan');
+    const actorBox = svg?.querySelector('rect.actor');
+    const line = svg?.querySelector('.actor-line, .messageLine0, .messageLine1, .flowchart-link');
+
+    return (
+      window.location.pathname === `/${slug}/${chapterId}` &&
+      window.location.hash === `#${headingId}` &&
+      top != null &&
+      top >= 0 &&
+      top <= 180 &&
+      Boolean(svg) &&
+      Boolean(textNode) &&
+      Boolean(actorBox) &&
+      Boolean(line)
+    );
+  }, {
+    slug: DR2_SLUG,
+    chapterId: DR2_PILOT_CHAPTER_ID,
+    headingId: DR2_PILOT_HEADING_ID,
+  }, { timeout: 20_000 });
+
+  await page.waitForTimeout(250);
+  const darkSnapshot = await readMermaidPresentationSnapshot(page);
+  if (!darkSnapshot.hasSvg || darkSnapshot.hasFallbackSource) {
+    throw new Error(`pilot Mermaid dark snapshot invalid: ${JSON.stringify(darkSnapshot)}`);
+  }
+
+  if (darkSnapshot.isOverflowing !== 'true' || darkSnapshot.overflowRight !== 'true') {
+    throw new Error(`pilot Mermaid dark overflow affordance missing: ${JSON.stringify(darkSnapshot)}`);
+  }
+
+  await page.locator('button.theme-toggle').click();
+
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light', null, { timeout: 20_000 });
+  await page.waitForFunction(() => {
+    const heading = document.getElementById('431-registration-sequence-diagram-direct-rp-model');
+    let container = heading?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.nextElementSibling;
+    }
+    const svg = container?.querySelector('svg');
+    const textNode = svg?.querySelector('.noteText, text, tspan');
+    const actorBox = svg?.querySelector('rect.actor');
+    const line = svg?.querySelector('.actor-line, .messageLine0, .messageLine1, .flowchart-link');
+
+    return Boolean(svg) &&
+      container?.dataset.mermaidTheme === 'light' &&
+      Boolean(textNode) &&
+      Boolean(actorBox) &&
+      Boolean(line) &&
+      !(container?.textContent ?? '').includes('sequenceDiagram');
+  }, null, { timeout: 20_000 });
+
+  await page.waitForTimeout(250);
+  const lightSnapshot = await readMermaidPresentationSnapshot(page);
+  if (!lightSnapshot.hasSvg || lightSnapshot.hasFallbackSource) {
+    throw new Error(`pilot Mermaid light snapshot invalid: ${JSON.stringify(lightSnapshot)}`);
+  }
+
+  if (lightSnapshot.isOverflowing !== 'true' || lightSnapshot.overflowRight !== 'true') {
+    throw new Error(`pilot Mermaid light overflow affordance missing: ${JSON.stringify(lightSnapshot)}`);
+  }
+
+  if (darkSnapshot.textFill === lightSnapshot.textFill) {
+    throw new Error(`diagram text color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (darkSnapshot.actorBoxFill === lightSnapshot.actorBoxFill) {
+    throw new Error(`actor box color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (darkSnapshot.lineStroke === lightSnapshot.lineStroke) {
+    throw new Error(`line color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (!darkSnapshot.sequenceNumberFill || !lightSnapshot.sequenceNumberFill) {
+    throw new Error(`sequence number color missing from pilot snapshots: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (!darkSnapshot.sequenceBadgeFill || !lightSnapshot.sequenceBadgeFill) {
+    throw new Error(`sequence badge color missing from pilot snapshots: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (darkSnapshot.sequenceNumberFill === lightSnapshot.sequenceNumberFill) {
+    throw new Error(`sequence number color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (darkSnapshot.sequenceBadgeFill === lightSnapshot.sequenceBadgeFill) {
+    throw new Error(`sequence badge color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+
+  if (Number(darkSnapshot.scrollHintOpacity ?? '0') < 0.95 || Number(lightSnapshot.scrollHintOpacity ?? '0') < 0.95) {
+    throw new Error(`scroll hint not visible for overflowing pilot Mermaid diagram: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+}
+
 async function main() {
   await runCommand('node', ['scripts/build-reader-assets.js']);
 
@@ -447,6 +602,7 @@ async function main() {
     await assertGeneratedCrossReferenceNavigation(page);
     await assertGeneratedLabelCrossReferenceNavigation(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
+    await assertMermaidThemeToggle(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {

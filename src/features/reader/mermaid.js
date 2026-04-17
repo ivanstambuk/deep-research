@@ -12,8 +12,177 @@ function logMermaidMetric(name, payload = {}) {
   debugLog(getCurrentReaderDebugConfig(), 'mermaid', name, payload);
 }
 
+function readThemeToken(styles, name, fallback = '') {
+  const value = styles.getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function stabilizeRenderedSvg(svgElement) {
+  if (!(svgElement instanceof SVGElement)) {
+    return;
+  }
+
+  const viewBox = svgElement.getAttribute('viewBox') ?? '';
+  const parts = viewBox.trim().split(/\s+/);
+  if (parts.length !== 4) {
+    return;
+  }
+
+  const intrinsicWidth = Number(parts[2]);
+  const intrinsicHeight = Number(parts[3]);
+  if (!Number.isFinite(intrinsicWidth) || !Number.isFinite(intrinsicHeight)) {
+    return;
+  }
+
+  svgElement.setAttribute('width', String(intrinsicWidth));
+  svgElement.setAttribute('height', String(intrinsicHeight));
+  svgElement.style.width = `${intrinsicWidth}px`;
+  svgElement.style.maxWidth = 'none';
+  svgElement.style.height = 'auto';
+}
+
+function applySequenceNumberTheme(svgElement) {
+  if (!(svgElement instanceof SVGElement)) {
+    return;
+  }
+
+  const styles = getComputedStyle(document.documentElement);
+  const numberColor = readThemeToken(styles, '--mermaid-sequence-number-color');
+  const numberBackground = readThemeToken(styles, '--mermaid-sequence-number-bg-color');
+  const numberBorder = readThemeToken(styles, '--mermaid-sequence-number-border-color', numberBackground);
+
+  svgElement.querySelectorAll('.sequenceNumber').forEach((node) => {
+    node.setAttribute('fill', numberColor);
+    node.style.fill = numberColor;
+    node.style.fontWeight = '700';
+  });
+
+  svgElement.querySelectorAll("marker[id$='sequencenumber'] circle").forEach((node) => {
+    node.setAttribute('fill', numberBackground);
+    node.setAttribute('stroke', numberBorder);
+    node.setAttribute('stroke-width', '1.5');
+    node.style.fill = numberBackground;
+    node.style.stroke = numberBorder;
+    node.style.strokeWidth = '1.5px';
+  });
+}
+
+function clearMermaidOverflowState(container) {
+  if (!(container instanceof HTMLElement)) {
+    return;
+  }
+
+  delete container.dataset.mermaidOverflowing;
+  delete container.dataset.mermaidOverflowLeft;
+  delete container.dataset.mermaidOverflowRight;
+  delete container.dataset.mermaidScrolled;
+}
+
+function cleanupMermaidOverflowAffordances(container) {
+  if (!(container instanceof HTMLElement)) {
+    return;
+  }
+
+  if (typeof container.__mermaidOverflowCleanup === 'function') {
+    container.__mermaidOverflowCleanup();
+  }
+
+  delete container.__mermaidOverflowCleanup;
+  clearMermaidOverflowState(container);
+  container.querySelector('.mermaid-scroll-hint')?.remove();
+}
+
+function ensureMermaidScrollHint(container) {
+  let hint = container.querySelector('.mermaid-scroll-hint');
+  if (hint) {
+    return hint;
+  }
+
+  hint = document.createElement('div');
+  hint.className = 'mermaid-scroll-hint';
+  hint.textContent = 'Scroll to view full diagram';
+  hint.setAttribute('aria-hidden', 'true');
+  container.prepend(hint);
+  return hint;
+}
+
+function syncMermaidOverflowState(container, scrollShell) {
+  if (!(container instanceof HTMLElement) || !(scrollShell instanceof HTMLElement)) {
+    return;
+  }
+
+  const maxScrollLeft = Math.max(0, scrollShell.scrollWidth - scrollShell.clientWidth);
+  const isOverflowing = maxScrollLeft > 8;
+  const hasScrolled = scrollShell.scrollLeft > 4;
+
+  container.dataset.mermaidOverflowing = isOverflowing ? 'true' : 'false';
+  container.dataset.mermaidScrolled = hasScrolled ? 'true' : 'false';
+
+  if (!isOverflowing) {
+    container.dataset.mermaidOverflowLeft = 'false';
+    container.dataset.mermaidOverflowRight = 'false';
+    scrollShell.removeAttribute('tabindex');
+    scrollShell.setAttribute('aria-label', 'Mermaid diagram');
+    return;
+  }
+
+  container.dataset.mermaidOverflowLeft = hasScrolled ? 'true' : 'false';
+  container.dataset.mermaidOverflowRight = scrollShell.scrollLeft < maxScrollLeft - 4 ? 'true' : 'false';
+  scrollShell.setAttribute('tabindex', '0');
+  scrollShell.setAttribute('aria-label', 'Mermaid diagram. Scroll horizontally to view the full diagram.');
+}
+
+function installMermaidOverflowAffordances(container) {
+  if (!(container instanceof HTMLElement)) {
+    return;
+  }
+
+  cleanupMermaidOverflowAffordances(container);
+
+  const scrollShell = container.querySelector('.mermaid-scroll-shell');
+  if (!(scrollShell instanceof HTMLElement)) {
+    return;
+  }
+
+  ensureMermaidScrollHint(container);
+
+  const sync = () => {
+    syncMermaidOverflowState(container, scrollShell);
+  };
+
+  const handleScroll = () => {
+    sync();
+  };
+
+  scrollShell.addEventListener('scroll', handleScroll, { passive: true });
+
+  let resizeObserver = null;
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => {
+      sync();
+    });
+    resizeObserver.observe(scrollShell);
+    const viewport = scrollShell.querySelector('.mermaid-viewport');
+    if (viewport instanceof HTMLElement) {
+      resizeObserver.observe(viewport);
+    }
+    const svg = scrollShell.querySelector('svg');
+    if (svg instanceof SVGElement) {
+      resizeObserver.observe(svg);
+    }
+  }
+
+  const rafId = requestAnimationFrame(sync);
+
+  container.__mermaidOverflowCleanup = () => {
+    cancelAnimationFrame(rafId);
+    scrollShell.removeEventListener('scroll', handleScroll);
+    resizeObserver?.disconnect();
+  };
+}
+
 function getMermaidConfig() {
-  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const styles = getComputedStyle(document.documentElement);
 
   return {
     startOnLoad: false,
@@ -28,72 +197,39 @@ function getMermaidConfig() {
       rankSpacing: 34,
       padding: 12,
     },
-    themeVariables: isDark ? {
-      background: 'transparent',
-      primaryColor: '#242b33',
-      primaryTextColor: '#f2ede6',
-      primaryBorderColor: '#b7bfc9',
-      lineColor: '#c4ccd6',
-      secondaryColor: '#3a424d',
-      tertiaryColor: '#1b2128',
-      mainBkg: '#242b33',
-      secondBkg: '#313945',
-      tertiaryBkg: '#1b2128',
-      nodeBorder: '#b7bfc9',
-      clusterBkg: '#1b2128',
-      clusterBorder: '#6e7783',
-      titleColor: '#f2ede6',
-      textColor: '#f2ede6',
-      edgeLabelBackground: '#5f646b',
-      actorBkg: '#242b33',
-      actorBorder: '#b7bfc9',
-      actorTextColor: '#f2ede6',
-      actorLineColor: '#c4ccd6',
-      signalColor: '#c4ccd6',
-      signalTextColor: '#f2ede6',
-      labelBoxBkgColor: '#5f646b',
-      labelBoxBorderColor: '#8c949d',
-      labelTextColor: '#f2ede6',
-      loopTextColor: '#f2ede6',
-      noteBkgColor: '#5f646b',
-      noteBorderColor: '#8c949d',
-      noteTextColor: '#f2ede6',
-      activationBorderColor: '#c4ccd6',
-      activationBkgColor: '#313945',
-      sequenceNumberColor: '#f2ede6',
-    } : {
-      background: 'transparent',
-      primaryColor: '#f4efe8',
-      primaryTextColor: '#1f2328',
-      primaryBorderColor: '#b9b1a6',
-      lineColor: '#7d7367',
-      secondaryColor: '#eee6db',
-      tertiaryColor: '#f7f3ed',
-      mainBkg: '#f4efe8',
-      secondBkg: '#eee6db',
-      tertiaryBkg: '#f7f3ed',
-      nodeBorder: '#b9b1a6',
-      clusterBkg: '#f7f3ed',
-      clusterBorder: '#b9b1a6',
-      titleColor: '#1f2328',
-      textColor: '#1f2328',
-      edgeLabelBackground: '#f3ede4',
-      actorBkg: '#f4efe8',
-      actorBorder: '#b9b1a6',
-      actorTextColor: '#1f2328',
-      actorLineColor: '#7d7367',
-      signalColor: '#7d7367',
-      signalTextColor: '#1f2328',
-      labelBoxBkgColor: '#f3ede4',
-      labelBoxBorderColor: '#b9b1a6',
-      labelTextColor: '#1f2328',
-      loopTextColor: '#1f2328',
-      noteBkgColor: '#f3ede4',
-      noteBorderColor: '#b9b1a6',
-      noteTextColor: '#1f2328',
-      activationBorderColor: '#7d7367',
-      activationBkgColor: '#eee6db',
-      sequenceNumberColor: '#1f2328',
+    themeVariables: {
+      background: readThemeToken(styles, '--mermaid-background', 'transparent'),
+      primaryColor: readThemeToken(styles, '--mermaid-primary-color'),
+      primaryTextColor: readThemeToken(styles, '--mermaid-primary-text-color'),
+      primaryBorderColor: readThemeToken(styles, '--mermaid-primary-border-color'),
+      lineColor: readThemeToken(styles, '--mermaid-line-color'),
+      secondaryColor: readThemeToken(styles, '--mermaid-secondary-color'),
+      tertiaryColor: readThemeToken(styles, '--mermaid-tertiary-color'),
+      mainBkg: readThemeToken(styles, '--mermaid-main-bg'),
+      secondBkg: readThemeToken(styles, '--mermaid-second-bg'),
+      tertiaryBkg: readThemeToken(styles, '--mermaid-tertiary-bg'),
+      nodeBorder: readThemeToken(styles, '--mermaid-node-border'),
+      clusterBkg: readThemeToken(styles, '--mermaid-cluster-bg'),
+      clusterBorder: readThemeToken(styles, '--mermaid-cluster-border'),
+      titleColor: readThemeToken(styles, '--mermaid-title-color'),
+      textColor: readThemeToken(styles, '--mermaid-text-color'),
+      edgeLabelBackground: readThemeToken(styles, '--mermaid-edge-label-background'),
+      actorBkg: readThemeToken(styles, '--mermaid-actor-bg'),
+      actorBorder: readThemeToken(styles, '--mermaid-actor-border'),
+      actorTextColor: readThemeToken(styles, '--mermaid-actor-text-color'),
+      actorLineColor: readThemeToken(styles, '--mermaid-actor-line-color'),
+      signalColor: readThemeToken(styles, '--mermaid-signal-color'),
+      signalTextColor: readThemeToken(styles, '--mermaid-signal-text-color'),
+      labelBoxBkgColor: readThemeToken(styles, '--mermaid-label-box-bg-color'),
+      labelBoxBorderColor: readThemeToken(styles, '--mermaid-label-box-border-color'),
+      labelTextColor: readThemeToken(styles, '--mermaid-label-text-color'),
+      loopTextColor: readThemeToken(styles, '--mermaid-loop-text-color'),
+      noteBkgColor: readThemeToken(styles, '--mermaid-note-bg-color'),
+      noteBorderColor: readThemeToken(styles, '--mermaid-note-border-color'),
+      noteTextColor: readThemeToken(styles, '--mermaid-note-text-color'),
+      activationBorderColor: readThemeToken(styles, '--mermaid-activation-border-color'),
+      activationBkgColor: readThemeToken(styles, '--mermaid-activation-bg-color'),
+      sequenceNumberColor: readThemeToken(styles, '--mermaid-sequence-number-color'),
     },
   };
 }
@@ -112,6 +248,7 @@ export async function renderMermaid(root, {
   onDebugEvent = null,
   sectionId = null,
   priority = 'normal',
+  theme = null,
 } = {}) {
   const mermaidCodeBlocks = root.querySelectorAll('pre > code.language-mermaid');
   const existingMermaidNodes = root.querySelectorAll('.mermaid[data-mermaid-source]');
@@ -141,6 +278,9 @@ export async function renderMermaid(root, {
       ?.replace(/&nbsp;/g, ' ')
       ?.trim() ?? '');
     container.dataset.mermaidSource = source;
+    if (theme) {
+      container.dataset.mermaidTheme = theme;
+    }
 
     pre.replaceWith(container);
     nodes.push(container);
@@ -152,7 +292,11 @@ export async function renderMermaid(root, {
       return;
     }
 
+    cleanupMermaidOverflowAffordances(node);
     node.removeAttribute('data-processed');
+    if (theme) {
+      node.dataset.mermaidTheme = theme;
+    }
     node.innerHTML = '';
     nodes.push(node);
   });
@@ -171,8 +315,19 @@ export async function renderMermaid(root, {
       try {
         const renderId = `mermaid-render-${Math.random().toString(36).slice(2, 10)}`;
         const { svg } = await mermaid.render(renderId, source);
-        node.innerHTML = svg;
-        const renderedSvgCount = node.querySelectorAll('svg').length;
+        cleanupMermaidOverflowAffordances(node);
+        const viewport = document.createElement('div');
+        viewport.className = 'mermaid-viewport';
+        viewport.innerHTML = svg;
+        const scrollShell = document.createElement('div');
+        scrollShell.className = 'mermaid-scroll-shell';
+        scrollShell.append(viewport);
+        const renderedSvg = viewport.querySelector('svg');
+        stabilizeRenderedSvg(renderedSvg);
+        applySequenceNumberTheme(renderedSvg);
+        node.replaceChildren(scrollShell);
+        installMermaidOverflowAffordances(node);
+        const renderedSvgCount = viewport.querySelectorAll('svg').length;
         if (!renderedSvgCount) {
           throw new Error('Mermaid render completed without SVG output');
         }
@@ -184,6 +339,7 @@ export async function renderMermaid(root, {
           failed: false,
         });
       } catch (error) {
+        cleanupMermaidOverflowAffordances(node);
         node.textContent = source;
         logMermaidMetric('failed', { error: String(error), sectionId });
         onDebugEvent?.('mermaid', 'render_failed', {

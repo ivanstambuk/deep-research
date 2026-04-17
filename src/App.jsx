@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import manifest from './generated/reader-manifest.json';
 import ChapterPage from './features/reader/ChapterPage.jsx';
@@ -185,7 +185,7 @@ function AppShell() {
     return layoutWidthPreference;
   }, [layoutWidthPreference, recommendedLayoutWidth]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
 
@@ -334,7 +334,7 @@ function AppShell() {
               />
               <Route
                 path={`/${document.slug}/:chapterId`}
-                element={<ChapterPage readerDocumentMeta={document} layoutWidthMode={layoutWidthMode} />}
+                element={<ChapterPage readerDocumentMeta={document} layoutWidthMode={layoutWidthMode} theme={theme} />}
               />
             </React.Fragment>
           ))}

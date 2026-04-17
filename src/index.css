@@ -37,6 +37,45 @@
   --directive-tip-bg: rgba(46, 160, 67, 0.08);
   --directive-tip-border: #2ea043;
   --directive-tip-title: #8ae7a0;
+  --mermaid-background: transparent;
+  --mermaid-card-bg: #1b2128;
+  --mermaid-card-border: rgba(238, 229, 219, 0.12);
+  --mermaid-primary-color: #242b33;
+  --mermaid-primary-text-color: #f2ede6;
+  --mermaid-primary-border-color: #b7bfc9;
+  --mermaid-line-color: #c4ccd6;
+  --mermaid-secondary-color: #3a424d;
+  --mermaid-tertiary-color: #1b2128;
+  --mermaid-main-bg: #242b33;
+  --mermaid-second-bg: #313945;
+  --mermaid-tertiary-bg: #1b2128;
+  --mermaid-node-border: #b7bfc9;
+  --mermaid-cluster-bg: #1b2128;
+  --mermaid-cluster-border: #6e7783;
+  --mermaid-title-color: #f2ede6;
+  --mermaid-text-color: #f2ede6;
+  --mermaid-edge-label-background: #5f646b;
+  --mermaid-actor-bg: #242b33;
+  --mermaid-actor-border: #b7bfc9;
+  --mermaid-actor-text-color: #f2ede6;
+  --mermaid-actor-line-color: #c4ccd6;
+  --mermaid-signal-color: #c4ccd6;
+  --mermaid-signal-text-color: #f2ede6;
+  --mermaid-label-box-bg-color: #5f646b;
+  --mermaid-label-box-border-color: #8c949d;
+  --mermaid-label-text-color: #f2ede6;
+  --mermaid-loop-text-color: #f2ede6;
+  --mermaid-note-bg-color: #5f646b;
+  --mermaid-note-border-color: #8c949d;
+  --mermaid-note-text-color: #f2ede6;
+  --mermaid-activation-border-color: #c4ccd6;
+  --mermaid-activation-bg-color: #313945;
+  --mermaid-sequence-number-color: #1f2328;
+  --mermaid-sequence-number-bg-color: #f2ede6;
+  --mermaid-sequence-number-border-color: #b7bfc9;
+  --mermaid-scroll-hint-bg: rgba(242, 237, 230, 0.1);
+  --mermaid-scroll-hint-border: rgba(238, 229, 219, 0.18);
+  --mermaid-scroll-hint-text: #d7dfeb;
   --doc-summary-size: 0.94rem;
   --doc-summary-line: 1.56;
   --doc-body-size: 0.96rem;
@@ -79,6 +118,44 @@
   --directive-tip-bg: rgba(26, 127, 55, 0.06);
   --directive-tip-border: #1a7f37;
   --directive-tip-title: #116329;
+  --mermaid-card-bg: #fffdf8;
+  --mermaid-card-border: rgba(33, 39, 46, 0.12);
+  --mermaid-primary-color: #f4efe8;
+  --mermaid-primary-text-color: #1f2328;
+  --mermaid-primary-border-color: #b9b1a6;
+  --mermaid-line-color: #7d7367;
+  --mermaid-secondary-color: #eee6db;
+  --mermaid-tertiary-color: #f7f3ed;
+  --mermaid-main-bg: #f4efe8;
+  --mermaid-second-bg: #eee6db;
+  --mermaid-tertiary-bg: #f7f3ed;
+  --mermaid-node-border: #b9b1a6;
+  --mermaid-cluster-bg: #f7f3ed;
+  --mermaid-cluster-border: #b9b1a6;
+  --mermaid-title-color: #1f2328;
+  --mermaid-text-color: #1f2328;
+  --mermaid-edge-label-background: #f3ede4;
+  --mermaid-actor-bg: #f4efe8;
+  --mermaid-actor-border: #b9b1a6;
+  --mermaid-actor-text-color: #1f2328;
+  --mermaid-actor-line-color: #7d7367;
+  --mermaid-signal-color: #7d7367;
+  --mermaid-signal-text-color: #1f2328;
+  --mermaid-label-box-bg-color: #f3ede4;
+  --mermaid-label-box-border-color: #b9b1a6;
+  --mermaid-label-text-color: #1f2328;
+  --mermaid-loop-text-color: #1f2328;
+  --mermaid-note-bg-color: #f3ede4;
+  --mermaid-note-border-color: #b9b1a6;
+  --mermaid-note-text-color: #1f2328;
+  --mermaid-activation-border-color: #7d7367;
+  --mermaid-activation-bg-color: #eee6db;
+  --mermaid-sequence-number-color: #fffdf8;
+  --mermaid-sequence-number-bg-color: #7f4f36;
+  --mermaid-sequence-number-border-color: #5f2f17;
+  --mermaid-scroll-hint-bg: rgba(141, 77, 47, 0.12);
+  --mermaid-scroll-hint-border: rgba(95, 47, 23, 0.22);
+  --mermaid-scroll-hint-text: #5f2f17;
 }
 
 :root[data-text-size='small'] {
@@ -1413,31 +1490,93 @@ img {
 }
 
 .doc-article .mermaid {
+  position: relative;
   margin: 1rem 0 1.2rem;
   padding: 12px 8px;
-  overflow-x: auto;
+  overflow: hidden;
   border-radius: 18px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
+  background: var(--mermaid-card-bg);
+  border: 1px solid var(--mermaid-card-border);
 }
 
-:root:not([data-theme='light']) .doc-article .mermaid {
-  background: #1b2128;
-  border-color: rgba(238, 229, 219, 0.12);
+.doc-article .mermaid::before,
+.doc-article .mermaid::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+  z-index: 1;
+}
+
+.doc-article .mermaid::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--mermaid-card-bg) 0%, color-mix(in srgb, var(--mermaid-card-bg) 86%, transparent) 68%, transparent 100%);
+}
+
+.doc-article .mermaid::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--mermaid-card-bg) 0%, color-mix(in srgb, var(--mermaid-card-bg) 86%, transparent) 68%, transparent 100%);
+}
+
+.doc-article .mermaid[data-mermaid-overflow-left='true']::before,
+.doc-article .mermaid[data-mermaid-overflow-right='true']::after {
+  opacity: 1;
+}
+
+.doc-article .mermaid-scroll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 4px 10px auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--mermaid-scroll-hint-border);
+  background: var(--mermaid-scroll-hint-bg);
+  color: var(--mermaid-scroll-hint-text);
+  font-size: 0.74rem;
+  line-height: 1.1;
+  width: fit-content;
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+}
+
+.doc-article .mermaid[data-mermaid-overflowing='true'][data-mermaid-overflow-right='true'][data-mermaid-scrolled='false'] .mermaid-scroll-hint {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.doc-article .mermaid-scroll-shell {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior-x: contain;
+  position: relative;
+  z-index: 0;
+}
+
+.doc-article .mermaid-scroll-shell:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 4px;
+}
+
+.doc-article .mermaid-viewport {
+  width: max-content;
+  min-width: 100%;
 }
 
 .doc-article .mermaid svg {
   display: block;
-  max-width: 100%;
+  max-width: none;
   height: auto;
-}
-
-:root:not([data-theme='light']) .doc-article .mermaid svg text.actor,
-:root:not([data-theme='light']) .doc-article .mermaid svg text.noteText,
-:root:not([data-theme='light']) .doc-article .mermaid svg text.messageText,
-:root:not([data-theme='light']) .doc-article .mermaid svg text.labelText,
-:root:not([data-theme='light']) .doc-article .mermaid svg text.loopText {
-  fill: #f2ede6 !important;
 }
 
 .doc-article pre code {

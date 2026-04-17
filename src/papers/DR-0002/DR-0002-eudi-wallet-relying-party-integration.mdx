@@ -1492,7 +1492,7 @@ sequenceDiagram
     participant RCP as 📜 Registration<br/>Cert Provider
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of RP: Phase 1: Application
+    Note over RP,RCP: Phase 1: Application
     RP->>REG: Submit registration application
     Note right of RP: Includes: legal identity, contact info,<br/>intended attributes, purposes,<br/>intermediary status (if applicable),<br/>intended use cases
     REG->>REG: Validate application
@@ -1503,7 +1503,7 @@ sequenceDiagram
     end
 
     rect rgba(52, 152, 219, 0.14)
-    Note right of RP: Phase 2: Access Certificate Issuance
+    Note over RP,RCP: Phase 2: Access Certificate Issuance
     RP->>ACA: Request WRPAC(s)
     Note right of RP: One per RP Instance
     ACA->>REG: Verify RP registration
@@ -1516,7 +1516,7 @@ sequenceDiagram
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note right of RP: Phase 3: Registration Certificate (Optional)
+    Note over RP,RCP: Phase 3: Registration Certificate (Optional)
     RP->>RCP: Request WRPRC
     RCP->>REG: Retrieve registration data
     REG-->>RCP: Registration data
@@ -16977,7 +16977,7 @@ sequenceDiagram
     participant LOTE as 📜 Foreign PID<br/>Provider LoTE
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of RP: Phase 1: Identification & Fetch
+    Note over RP,LOTE: Phase 1: Identification & Fetch
     RP->>RP: Extract Issuer & Country Code from PID
     RP->>PUB: Resolve foreign LoTE endpoint
     PUB-->>RP: Foreign LoTE endpoint +<br/>TL bootstrap metadata
@@ -16987,7 +16987,7 @@ sequenceDiagram
     end
     
     rect rgba(46, 204, 113, 0.14)
-    Note right of RP: Phase 2: Validation & Cache
+    Note over RP,LOTE: Phase 2: Validation & Cache
     RP->>RP: Validate PID signature vs. Trust Anchor
     RP->>RP: Cache foreign LoTE anchors +<br/>separate TL bootstrap state
     Note right of LOTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
