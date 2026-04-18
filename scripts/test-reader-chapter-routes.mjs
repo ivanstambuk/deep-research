@@ -24,6 +24,8 @@ const DR2_MERMAID_CHAPTER_ID = '24-bank-and-psp-integration-blueprint-eudi-walle
 const DR2_MERMAID_HEADING_ID = '245-psp-specific-threat-profile';
 const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
 const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
+const DR2_MULTI_MERMAID_CHAPTER_ID = '13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
+const DR2_MULTI_MERMAID_HEADING_ID = '134-supervised-flow-sequence-diagram-direct-rp-model';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
 const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
@@ -422,6 +424,114 @@ async function assertInitialHashRouteSurvivesMermaidRender(page) {
   }, { timeout: 20_000 });
 }
 
+async function ensureTheme(page, expectedTheme) {
+  const currentTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? 'dark');
+  if (currentTheme === expectedTheme) {
+    return;
+  }
+
+  await page.locator('button.theme-toggle').click();
+  await page.waitForFunction((theme) => document.documentElement.dataset.theme === theme, expectedTheme, { timeout: 20_000 });
+}
+
+async function tagMermaidContainerForHeading(page, headingId, tagName) {
+  const tagged = await page.evaluate(({ headingId: requestedHeadingId, tagName: requestedTagName }) => {
+    const heading = document.getElementById(requestedHeadingId);
+    let container = heading?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.nextElementSibling;
+    }
+
+    if (!(container instanceof HTMLElement)) {
+      return false;
+    }
+
+    container.setAttribute('data-test-mermaid-target', requestedTagName);
+    return true;
+  }, { headingId, tagName });
+
+  if (!tagged) {
+    throw new Error(`failed to tag Mermaid container for heading ${headingId}`);
+  }
+}
+
+async function tagMermaidContainerByIndex(page, index, tagName) {
+  const tagged = await page.evaluate(({ requestedIndex, requestedTagName }) => {
+    const container = document.querySelectorAll('.chapter-article .mermaid')[requestedIndex];
+    if (!(container instanceof HTMLElement)) {
+      return false;
+    }
+
+    container.setAttribute('data-test-mermaid-target', requestedTagName);
+    return true;
+  }, { requestedIndex: index, requestedTagName: tagName });
+
+  if (!tagged) {
+    throw new Error(`failed to tag Mermaid container at index ${index}`);
+  }
+}
+
+async function readTaggedMermaidSnapshot(page, tagName) {
+  return page.evaluate((requestedTagName) => {
+    const container = document.querySelector(`[data-test-mermaid-target="${requestedTagName}"]`);
+    const scrollShell = container?.querySelector('.mermaid-scroll-shell');
+    const svg = container?.querySelector('svg');
+    const textNode = svg?.querySelector('.noteText, text, tspan');
+    const actorBox = svg?.querySelector('rect.actor');
+    const line = svg?.querySelector('.actor-line, .messageLine0, .messageLine1, .flowchart-link');
+    const sequenceNumber = svg?.querySelector('.sequenceNumber');
+    const sequenceBadge = svg?.querySelector("marker[id$='sequencenumber'] circle");
+    const scrollHint = container?.querySelector('.mermaid-scroll-hint');
+    const expandButton = container?.querySelector('.mermaid-expand-button');
+    const zoomOutButton = container?.querySelector('button[data-mermaid-action="zoom-out"]');
+    const zoomInButton = container?.querySelector('button[data-mermaid-action="zoom-in"]');
+    const zoomDisplay = container?.querySelector('.mermaid-zoom-display');
+
+    return {
+      theme: document.documentElement.dataset.theme,
+      containerTheme: container?.dataset.mermaidTheme ?? null,
+      hasSvg: Boolean(svg),
+      hasFallbackSource: (container?.textContent ?? '').includes('sequenceDiagram'),
+      hasExpandButton: Boolean(expandButton),
+      hasZoomOutButton: Boolean(zoomOutButton),
+      hasZoomInButton: Boolean(zoomInButton),
+      zoomDisplay: zoomDisplay?.textContent?.trim() ?? null,
+      zoom: Number(container?.dataset.mermaidZoom ?? '0'),
+      isOverflowing: container?.dataset.mermaidOverflowing ?? null,
+      isPannable: container?.dataset.mermaidPannable ?? null,
+      overflowRight: container?.dataset.mermaidOverflowRight ?? null,
+      scrollLeft: Math.round(scrollShell?.scrollLeft ?? 0),
+      scrollTop: Math.round(scrollShell?.scrollTop ?? 0),
+      textFill: textNode ? window.getComputedStyle(textNode).fill : null,
+      actorBoxFill: actorBox ? window.getComputedStyle(actorBox).fill : null,
+      lineStroke: line ? window.getComputedStyle(line).stroke : null,
+      sequenceNumberFill: sequenceNumber ? window.getComputedStyle(sequenceNumber).fill : null,
+      sequenceBadgeFill: sequenceBadge ? window.getComputedStyle(sequenceBadge).fill : null,
+      scrollHintOpacity: scrollHint ? window.getComputedStyle(scrollHint).opacity : null,
+    };
+  }, tagName);
+}
+
+async function openDisplaySettings(page) {
+  const popover = page.locator('.display-settings-popover');
+  if (!(await popover.isVisible().catch(() => false))) {
+    await page.locator('button[aria-label="Display settings"]').click();
+    await popover.waitFor({ state: 'visible', timeout: 20_000 });
+  }
+}
+
+async function closeDisplaySettings(page) {
+  const popover = page.locator('.display-settings-popover');
+  if (await popover.isVisible().catch(() => false)) {
+    await page.locator('button[aria-label="Display settings"]').click();
+    await popover.waitFor({ state: 'hidden', timeout: 20_000 });
+  }
+}
+
 async function readMermaidPresentationSnapshot(page) {
   return page.evaluate((headingId) => {
     const heading = document.getElementById(headingId);
@@ -440,12 +550,14 @@ async function readMermaidPresentationSnapshot(page) {
     const sequenceNumber = svg?.querySelector('.sequenceNumber');
     const sequenceBadge = svg?.querySelector("marker[id$='sequencenumber'] circle");
     const scrollHint = container?.querySelector('.mermaid-scroll-hint');
+    const expandButton = container?.querySelector('.mermaid-expand-button');
 
     return {
       theme: document.documentElement.dataset.theme,
       containerTheme: container?.dataset.mermaidTheme ?? null,
       hasSvg: Boolean(svg),
       hasFallbackSource: (container?.textContent ?? '').includes('sequenceDiagram'),
+      hasExpandButton: Boolean(expandButton),
       isOverflowing: container?.dataset.mermaidOverflowing ?? null,
       overflowRight: container?.dataset.mermaidOverflowRight ?? null,
       textFill: textNode ? window.getComputedStyle(textNode).fill : null,
@@ -456,6 +568,84 @@ async function readMermaidPresentationSnapshot(page) {
       scrollHintOpacity: scrollHint ? window.getComputedStyle(scrollHint).opacity : null,
     };
   }, DR2_PILOT_HEADING_ID);
+}
+
+async function readExpandedMermaidSnapshot(page) {
+  return page.evaluate(() => {
+    const modal = document.querySelector('.mermaid-modal');
+    const diagram = modal?.querySelector('.mermaid-modal-diagram');
+    const scrollShell = diagram?.querySelector('.mermaid-scroll-shell');
+    const svg = diagram?.querySelector('svg');
+    const textNode = svg?.querySelector('.noteText, text, tspan');
+    const actorBox = svg?.querySelector('rect.actor');
+    const line = svg?.querySelector('.actor-line, .messageLine0, .messageLine1, .flowchart-link');
+    const copyImageButton = Array.from(modal?.querySelectorAll('.mermaid-modal-button') ?? [])
+      .find((node) => (node.textContent ?? '').includes('Copy image') || (node.textContent ?? '').includes('Copied image'));
+
+    return {
+      isOpen: Boolean(modal),
+      title: modal?.querySelector('h2')?.textContent ?? null,
+      hasSvg: Boolean(svg),
+      hasFallbackSource: (diagram?.textContent ?? '').includes('sequenceDiagram'),
+      modalTheme: diagram?.dataset.mermaidTheme ?? null,
+      modalZoom: Number(diagram?.dataset.mermaidZoom ?? '0'),
+      isPannable: diagram?.dataset.mermaidPannable ?? null,
+      scrollLeft: Math.round(scrollShell?.scrollLeft ?? 0),
+      scrollTop: Math.round(scrollShell?.scrollTop ?? 0),
+      svgWidth: Math.round(svg?.getBoundingClientRect().width ?? 0),
+      textFill: textNode ? window.getComputedStyle(textNode).fill : null,
+      actorBoxFill: actorBox ? window.getComputedStyle(actorBox).fill : null,
+      lineStroke: line ? window.getComputedStyle(line).stroke : null,
+      copyImageDisabled: copyImageButton instanceof HTMLButtonElement ? copyImageButton.disabled : null,
+    };
+  });
+}
+
+async function dragMermaidScrollShell(page, selector, { deltaX = 0, deltaY = 0 } = {}) {
+  const result = await page.evaluate(({ requestedSelector, requestedDeltaX, requestedDeltaY }) => {
+    const shell = document.querySelector(requestedSelector);
+    if (!(shell instanceof HTMLElement)) {
+      return { ok: false, reason: `missing selector: ${requestedSelector}` };
+    }
+
+    const rect = shell.getBoundingClientRect();
+    const startX = rect.left + Math.min(Math.max(rect.width * 0.5, 24), rect.width - 24);
+    const startY = rect.top + Math.min(Math.max(rect.height * 0.5, 24), rect.height - 24);
+    const endX = startX + requestedDeltaX;
+    const endY = startY + requestedDeltaY;
+
+    const dispatch = (target, type, x, y, buttons) => {
+      target.dispatchEvent(new MouseEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX: x,
+        clientY: y,
+        button: 0,
+        buttons,
+        view: window,
+      }));
+    };
+
+    dispatch(shell, 'mousedown', startX, startY, 1);
+    dispatch(window, 'mousemove', endX, endY, 1);
+    dispatch(window, 'mouseup', endX, endY, 0);
+
+    return {
+      ok: true,
+      scrollLeft: Math.round(shell.scrollLeft),
+      scrollTop: Math.round(shell.scrollTop),
+    };
+  }, {
+    requestedSelector: selector,
+    requestedDeltaX: deltaX,
+    requestedDeltaY: deltaY,
+  });
+
+  if (!result?.ok) {
+    throw new Error(`failed to drag Mermaid scroll shell: ${result?.reason ?? 'unknown error'}`);
+  }
+
+  return result;
 }
 
 async function assertMermaidThemeToggle(page) {
@@ -570,9 +760,312 @@ async function assertMermaidThemeToggle(page) {
     throw new Error(`sequence badge color did not change across theme toggle: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
   }
 
-  if (Number(darkSnapshot.scrollHintOpacity ?? '0') < 0.95 || Number(lightSnapshot.scrollHintOpacity ?? '0') < 0.95) {
-    throw new Error(`scroll hint not visible for overflowing pilot Mermaid diagram: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  if (Number(darkSnapshot.scrollHintOpacity ?? '0') < 0.95) {
+    throw new Error(`scroll hint not visible for overflowing pilot Mermaid diagram in dark theme: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
   }
+
+  if (!lightSnapshot.hasExpandButton) {
+    throw new Error(`expanded-view affordance missing for overflowing pilot Mermaid diagram in light theme: ${JSON.stringify({ darkSnapshot, lightSnapshot })}`);
+  }
+}
+
+async function assertMermaidExpandControlVisibleOnAllDiagrams(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MERMAID_CHAPTER_ID}#${DR2_MERMAID_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking Mermaid expand control on non-pilot diagram: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => document.querySelectorAll('.mermaid .mermaid-expand-button').length >= 1, null, { timeout: 20_000 });
+}
+
+async function assertExpandedMermaidViewer(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_PILOT_CHAPTER_ID}#${DR2_PILOT_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking expanded Mermaid viewer: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await ensureTheme(page, 'dark');
+  await page.evaluate(() => {
+    window.localStorage.setItem('dr-reader-mermaid-global-zoom', '100');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom', 'false');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom-explicit', 'true');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ensureTheme(page, 'dark');
+
+  await page.waitForFunction((headingId) => {
+    const heading = document.getElementById(headingId);
+    let container = heading?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        container = null;
+        break;
+      }
+      container = container.nextElementSibling;
+    }
+
+    return Boolean(container?.querySelector('svg')) && Boolean(container?.querySelector('.mermaid-expand-button'));
+  }, DR2_PILOT_HEADING_ID, { timeout: 20_000 });
+
+  await tagMermaidContainerForHeading(page, DR2_PILOT_HEADING_ID, 'pilot');
+
+  const initialInlineSnapshot = await readTaggedMermaidSnapshot(page, 'pilot');
+  if (initialInlineSnapshot.isPannable !== 'true') {
+    throw new Error(`pilot Mermaid diagram is not marked pannable before drag test: ${JSON.stringify(initialInlineSnapshot)}`);
+  }
+
+  const inlineDragResult = await dragMermaidScrollShell(page, '[data-test-mermaid-target="pilot"] .mermaid-scroll-shell', { deltaX: -160 });
+  if ((inlineDragResult.scrollLeft ?? 0) <= 40) {
+    throw new Error(`inline Mermaid drag pan did not move scroll position: ${JSON.stringify(inlineDragResult)}`);
+  }
+
+  await page.locator('[data-test-mermaid-target="pilot"] button[data-mermaid-action="zoom-in"]').click();
+  await page.waitForFunction(() => (
+    Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 110 &&
+    Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 110
+  ), null, { timeout: 20_000 });
+
+  const expandButton = page.locator('[data-test-mermaid-target="pilot"] .mermaid-expand-button');
+  const modal = page.locator('.mermaid-modal');
+  await expandButton.focus();
+  await expandButton.click();
+
+  await page.waitForFunction(() => {
+    const modal = document.querySelector('.mermaid-modal');
+    const diagram = modal?.querySelector('.mermaid-modal-diagram');
+    const svg = diagram?.querySelector('svg');
+    return Boolean(modal) &&
+      Boolean(svg) &&
+      diagram?.dataset.mermaidTheme === 'dark' &&
+      !(diagram?.textContent ?? '').includes('sequenceDiagram');
+  }, null, { timeout: 20_000 });
+
+  const darkModalSnapshot = await readExpandedMermaidSnapshot(page);
+  if (!darkModalSnapshot.isOpen || !darkModalSnapshot.hasSvg || darkModalSnapshot.hasFallbackSource) {
+    throw new Error(`expanded Mermaid modal dark snapshot invalid: ${JSON.stringify(darkModalSnapshot)}`);
+  }
+
+  if (!darkModalSnapshot.title?.includes('Registration Sequence Diagram')) {
+    throw new Error(`expanded Mermaid modal title missing pilot heading text: ${JSON.stringify(darkModalSnapshot)}`);
+  }
+
+  if (darkModalSnapshot.modalZoom !== 110) {
+    throw new Error(`expanded Mermaid modal did not inherit inline zoom: ${JSON.stringify(darkModalSnapshot)}`);
+  }
+
+  if (darkModalSnapshot.isPannable !== 'true') {
+    throw new Error(`expanded Mermaid modal diagram is not marked pannable: ${JSON.stringify(darkModalSnapshot)}`);
+  }
+
+  const baselineWidth = darkModalSnapshot.svgWidth;
+  if (baselineWidth <= 0) {
+    throw new Error(`expanded Mermaid baseline width invalid: ${JSON.stringify(darkModalSnapshot)}`);
+  }
+
+  const modalDragResult = await dragMermaidScrollShell(page, '.mermaid-modal-diagram .mermaid-scroll-shell', { deltaX: -160 });
+  if ((modalDragResult.scrollLeft ?? 0) <= 40) {
+    throw new Error(`expanded Mermaid drag pan did not move scroll position: ${JSON.stringify(modalDragResult)}`);
+  }
+
+  await modal.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await page.waitForFunction((initialWidth) => {
+    const diagram = document.querySelector('.mermaid-modal-diagram');
+    const svg = diagram?.querySelector('svg');
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 120 &&
+      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 120 &&
+      Number(diagram?.dataset.mermaidZoom ?? '0') === 120 &&
+      Math.round(svg?.getBoundingClientRect().width ?? 0) > initialWidth;
+  }, baselineWidth, { timeout: 20_000 });
+
+  await modal.getByRole('button', { name: 'Reset', exact: true }).click();
+  await page.waitForFunction((initialWidth) => {
+    const diagram = document.querySelector('.mermaid-modal-diagram');
+    const svg = diagram?.querySelector('svg');
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 100 &&
+      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 100 &&
+      Number(diagram?.dataset.mermaidZoom ?? '0') === 100 &&
+      Math.round(svg?.getBoundingClientRect().width ?? 0) < initialWidth;
+  }, baselineWidth, { timeout: 20_000 });
+
+  await modal.getByRole('button', { name: 'Zoom out', exact: true }).click();
+  await page.waitForFunction((initialWidth) => {
+    const diagram = document.querySelector('.mermaid-modal-diagram');
+    const svg = diagram?.querySelector('svg');
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 90 &&
+      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 90 &&
+      Number(diagram?.dataset.mermaidZoom ?? '0') === 90 &&
+      Math.round(svg?.getBoundingClientRect().width ?? 0) < initialWidth;
+  }, baselineWidth, { timeout: 20_000 });
+
+  await modal.getByRole('button', { name: 'Reset', exact: true }).click();
+  await page.waitForFunction(() => (
+    Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 100 &&
+    Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 100 &&
+    Number(document.querySelector('.mermaid-modal-diagram')?.dataset.mermaidZoom ?? '0') === 100
+  ), null, { timeout: 20_000 });
+
+  const inlineSnapshotWhileModalOpen = await readTaggedMermaidSnapshot(page, 'pilot');
+  if (inlineSnapshotWhileModalOpen.zoom !== 100) {
+    throw new Error(`modal zoom did not stay synchronized with inline pilot diagram: ${JSON.stringify(inlineSnapshotWhileModalOpen)}`);
+  }
+
+  await modal.getByRole('button', { name: 'Copy source', exact: true }).click();
+  await page.waitForTimeout(200);
+  const copiedSource = await page.evaluate(() => navigator.clipboard.readText());
+  if (!copiedSource.includes('sequenceDiagram') || !copiedSource.includes('participant RP')) {
+    throw new Error(`expanded Mermaid source copy returned unexpected clipboard text: ${copiedSource.slice(0, 160)}`);
+  }
+
+  const canCopyImage = !(await modal.getByRole('button', { name: 'Copy image', exact: true }).isDisabled());
+  if (canCopyImage) {
+    await modal.getByRole('button', { name: 'Copy image', exact: true }).click();
+    await page.waitForFunction(() => {
+      const button = Array.from(document.querySelectorAll('.mermaid-modal-button'))
+        .find((node) => (node.textContent ?? '').includes('Copied image'));
+      return Boolean(button);
+    }, null, { timeout: 20_000 });
+  }
+
+  await page.evaluate(() => {
+    document.querySelector('button.theme-toggle')?.click();
+  });
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light', null, { timeout: 20_000 });
+  await page.waitForFunction(() => {
+    const diagram = document.querySelector('.mermaid-modal-diagram');
+    const svg = diagram?.querySelector('svg');
+    return Boolean(svg) &&
+      diagram?.dataset.mermaidTheme === 'light' &&
+      !(diagram?.textContent ?? '').includes('sequenceDiagram');
+  }, null, { timeout: 20_000 });
+
+  const lightModalSnapshot = await readExpandedMermaidSnapshot(page);
+  if (!lightModalSnapshot.isOpen || !lightModalSnapshot.hasSvg || lightModalSnapshot.hasFallbackSource) {
+    throw new Error(`expanded Mermaid modal light snapshot invalid: ${JSON.stringify(lightModalSnapshot)}`);
+  }
+
+  if (lightModalSnapshot.modalZoom !== 100) {
+    throw new Error(`expanded Mermaid modal zoom drifted across theme toggle: ${JSON.stringify({ darkModalSnapshot, lightModalSnapshot })}`);
+  }
+
+  if (darkModalSnapshot.textFill === lightModalSnapshot.textFill) {
+    throw new Error(`expanded Mermaid text color did not change across theme toggle: ${JSON.stringify({ darkModalSnapshot, lightModalSnapshot })}`);
+  }
+
+  if (darkModalSnapshot.actorBoxFill === lightModalSnapshot.actorBoxFill) {
+    throw new Error(`expanded Mermaid actor color did not change across theme toggle: ${JSON.stringify({ darkModalSnapshot, lightModalSnapshot })}`);
+  }
+
+  if (darkModalSnapshot.lineStroke === lightModalSnapshot.lineStroke) {
+    throw new Error(`expanded Mermaid line color did not change across theme toggle: ${JSON.stringify({ darkModalSnapshot, lightModalSnapshot })}`);
+  }
+
+  const downloadPromise = page.waitForEvent('download');
+  await modal.getByRole('button', { name: 'Download PNG', exact: true }).click();
+  const download = await downloadPromise;
+  const suggestedFilename = download.suggestedFilename();
+  if (!suggestedFilename.endsWith('-light.png')) {
+    throw new Error(`expanded Mermaid PNG download filename did not include active theme: ${suggestedFilename}`);
+  }
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('.mermaid-modal'), null, { timeout: 20_000 });
+  await page.waitForFunction(() => document.activeElement?.dataset?.mermaidAction === 'expand', null, { timeout: 5_000 });
+}
+
+async function assertMermaidZoomControlsAndPersistence(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MULTI_MERMAID_CHAPTER_ID}#${DR2_MULTI_MERMAID_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking Mermaid zoom controls and persistence: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.evaluate(() => {
+    window.localStorage.setItem('dr-reader-mermaid-global-zoom', '100');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom', 'false');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom-explicit', 'true');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ensureTheme(page, 'dark');
+
+  await page.waitForFunction(() => {
+    const containers = document.querySelectorAll('.chapter-article .mermaid');
+    return containers.length >= 2 &&
+      Array.from(containers).every((container) => Boolean(container.querySelector('svg')));
+  }, null, { timeout: 20_000 });
+
+  await tagMermaidContainerForHeading(page, DR2_MULTI_MERMAID_HEADING_ID, 'primary');
+  await tagMermaidContainerByIndex(page, 1, 'secondary');
+
+  const initialPrimary = await readTaggedMermaidSnapshot(page, 'primary');
+  const initialSecondary = await readTaggedMermaidSnapshot(page, 'secondary');
+
+  if (!initialPrimary.hasZoomOutButton || !initialPrimary.hasZoomInButton || !initialPrimary.hasExpandButton) {
+    throw new Error(`primary Mermaid controls missing: ${JSON.stringify(initialPrimary)}`);
+  }
+
+  if (initialPrimary.zoom !== 100 || initialPrimary.zoomDisplay !== '100%' || initialSecondary.zoom !== 100) {
+    throw new Error(`initial Mermaid zoom state unexpected: ${JSON.stringify({ initialPrimary, initialSecondary })}`);
+  }
+
+  await openDisplaySettings(page);
+  if (await page.locator('.display-settings-popover').getByText('Remember diagram zoom globally').count()) {
+    throw new Error('display settings still expose the removed Mermaid zoom persistence toggle');
+  }
+  await closeDisplaySettings(page);
+
+  await page.locator('[data-test-mermaid-target="primary"] button[data-mermaid-action="zoom-in"]').click();
+  await page.waitForFunction(() => {
+    const primary = document.querySelector('[data-test-mermaid-target="primary"]');
+    const secondary = document.querySelector('[data-test-mermaid-target="secondary"]');
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 110 &&
+      Number(primary?.dataset.mermaidZoom ?? '0') === 110 &&
+      Number(secondary?.dataset.mermaidZoom ?? '0') === 110;
+  }, null, { timeout: 20_000 });
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await ensureTheme(page, 'dark');
+  await page.waitForFunction(() => {
+    const containers = document.querySelectorAll('.chapter-article .mermaid');
+    return containers.length >= 2 &&
+      Array.from(containers).every((container) => Boolean(container.querySelector('svg')));
+  }, null, { timeout: 20_000 });
+
+  await tagMermaidContainerForHeading(page, DR2_MULTI_MERMAID_HEADING_ID, 'primary');
+  await tagMermaidContainerByIndex(page, 1, 'secondary');
+
+  await page.waitForFunction(() => (
+    Number(document.querySelector('[data-test-mermaid-target="primary"]')?.dataset.mermaidZoom ?? '0') === 110 &&
+    Number(document.querySelector('[data-test-mermaid-target="secondary"]')?.dataset.mermaidZoom ?? '0') === 110
+  ), null, { timeout: 20_000 });
+
+  await page.locator('button.theme-toggle').click();
+  await page.waitForFunction(() => (
+    document.documentElement.dataset.theme === 'light' &&
+    Number(document.querySelector('[data-test-mermaid-target="primary"]')?.dataset.mermaidZoom ?? '0') === 110 &&
+    Number(document.querySelector('[data-test-mermaid-target="secondary"]')?.dataset.mermaidZoom ?? '0') === 110 &&
+    Boolean(document.querySelector('[data-test-mermaid-target="primary"] svg')) &&
+    Boolean(document.querySelector('[data-test-mermaid-target="secondary"] svg'))
+  ), null, { timeout: 20_000 });
+
+  const persistedPrimary = await readTaggedMermaidSnapshot(page, 'primary');
+  const persistedSecondary = await readTaggedMermaidSnapshot(page, 'secondary');
+  if (persistedPrimary.zoomDisplay !== '110%' || persistedSecondary.zoomDisplay !== '110%') {
+    throw new Error(`persisted inline Mermaid zoom display drifted after reload/theme toggle: ${JSON.stringify({ persistedPrimary, persistedSecondary })}`);
+  }
+
+  const nextUrl = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MERMAID_CHAPTER_ID}#${DR2_MERMAID_HEADING_ID}`;
+  await page.goto(nextUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => {
+    const container = document.querySelector('.chapter-article .mermaid');
+    return Boolean(container?.querySelector('svg')) && Number(container?.dataset.mermaidZoom ?? '0') === 110;
+  }, null, { timeout: 20_000 });
+
+  await page.evaluate(() => {
+    window.localStorage.setItem('dr-reader-mermaid-global-zoom', '999');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom', 'false');
+    window.localStorage.setItem('dr-reader-mermaid-remember-zoom-explicit', 'true');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => {
+    const container = document.querySelector('.chapter-article .mermaid');
+    return Boolean(container?.querySelector('svg')) &&
+      Number(container?.dataset.mermaidZoom ?? '0') === 100 &&
+      window.localStorage.getItem('dr-reader-mermaid-global-zoom') === '100';
+  }, null, { timeout: 20_000 });
 }
 
 async function main() {
@@ -580,13 +1073,19 @@ async function main() {
 
   const server = startServer();
   let browser;
+  let context;
 
   try {
     const serverHandle = await server;
     await waitForFreshServer(serverHandle);
 
     browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage({ viewport: { width: 1960, height: 1280 } });
+    context = await browser.newContext({
+      acceptDownloads: true,
+      viewport: { width: 1960, height: 1280 },
+    });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: getBaseUrl(serverHandle.port) });
+    const page = await context.newPage();
     page.__readerPort = serverHandle.port;
 
     await assertSlugRedirect(page);
@@ -603,9 +1102,15 @@ async function main() {
     await assertGeneratedLabelCrossReferenceNavigation(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
     await assertMermaidThemeToggle(page);
+    await assertMermaidExpandControlVisibleOnAllDiagrams(page);
+    await assertExpandedMermaidViewer(page);
+    await assertMermaidZoomControlsAndPersistence(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {
+    if (context) {
+      await context.close();
+    }
     if (browser) {
       await browser.close();
     }

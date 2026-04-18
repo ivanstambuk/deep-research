@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { READER_SCROLL_OFFSET } from './constants.js';
-import { renderMermaid } from './mermaid.js';
+import {
+  canCopyMermaidPngToClipboard,
+  copyMermaidPngToClipboard,
+  copyMermaidSourceToClipboard,
+  downloadMermaidPng,
+  getMermaidPngFileName,
+  renderMermaid,
+  renderMermaidDiagram,
+  setInlineMermaidZoom,
+  setRenderedMermaidZoom,
+} from './mermaid.js';
 import { scrollIntoViewWithOffset } from './scroll.js';
 import { useActiveHeading } from './useOutlineSync.js';
 
@@ -13,6 +23,21 @@ const NAV_MAX_WIDTH = 520;
 const NAV_DEFAULT_WIDTH = 280;
 const NAV_COLLAPSED_WIDTH = 54;
 const NAV_RESIZER_GUTTER = 12;
+const MERMAID_MODAL_TITLE_ID = 'reader-mermaid-modal-title';
+const MERMAID_ACTION_FEEDBACK_RESET_MS = 1800;
+const MERMAID_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+const DEFAULT_MERMAID_ACTION_FEEDBACK = {
+  source: 'idle',
+  image: 'idle',
+  download: 'idle',
+};
 
 function findChapter(shellDocument, chapterId) {
   return shellDocument?.chapters?.find((chapter) => chapter.chapterId === chapterId) ?? null;
@@ -24,6 +49,10 @@ function findChapterTitle(shellDocument, chapterId) {
 
 function clampNavWidth(value) {
   return Math.min(NAV_MAX_WIDTH, Math.max(NAV_MIN_WIDTH, value));
+}
+
+function clampMermaidZoom(value) {
+  return Math.min(200, Math.max(50, value));
 }
 
 function readStoredNavWidth() {
@@ -89,12 +118,61 @@ function alignHashTarget(hash, behavior = 'auto') {
   return true;
 }
 
-export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'standard', theme = 'dark' }) {
+function getFocusableMermaidModalNodes(container) {
+  if (!(container instanceof HTMLElement)) {
+    return [];
+  }
+
+  return Array.from(container.querySelectorAll(MERMAID_FOCUSABLE_SELECTOR))
+    .filter((node) => node instanceof HTMLElement && !node.hasAttribute('disabled') && node.tabIndex !== -1);
+}
+
+function getMermaidActionLabel(action, status) {
+  if (status === 'success') {
+    if (action === 'source') {
+      return 'Copied source';
+    }
+    if (action === 'image') {
+      return 'Copied image';
+    }
+    return 'Downloaded PNG';
+  }
+
+  if (status === 'error') {
+    if (action === 'download') {
+      return 'Download failed';
+    }
+    return 'Copy failed';
+  }
+
+  if (action === 'source') {
+    return 'Copy source';
+  }
+
+  if (action === 'image') {
+    return 'Copy image';
+  }
+
+  return 'Download PNG';
+}
+
+export default function ChapterPage({
+  readerDocumentMeta,
+  layoutWidthMode = 'standard',
+  theme = 'dark',
+  globalMermaidZoomPercent = 100,
+  onGlobalMermaidZoomChange = () => {},
+}) {
   const { chapterId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const articleRef = useRef(null);
   const resizeStateRef = useRef(null);
+  const mermaidModalRef = useRef(null);
+  const mermaidModalCloseButtonRef = useRef(null);
+  const mermaidModalDiagramRef = useRef(null);
+  const mermaidModalTriggerRef = useRef(null);
+  const mermaidFeedbackTimeoutsRef = useRef({});
   const [shellDocument, setShellDocument] = useState(null);
   const [shellError, setShellError] = useState(null);
   const [chapter, setChapter] = useState(null);
@@ -104,6 +182,38 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
   const [navWidthExplicit, setNavWidthExplicit] = useState(readStoredNavWidthExplicit);
   const [navCollapsed, setNavCollapsed] = useState(readStoredNavCollapsed);
   const [navResizing, setNavResizing] = useState(false);
+  const [expandedMermaid, setExpandedMermaid] = useState(null);
+  const [expandedMermaidZoom, setExpandedMermaidZoom] = useState(clampMermaidZoom(globalMermaidZoomPercent));
+  const [expandedMermaidReady, setExpandedMermaidReady] = useState(false);
+  const [mermaidActionFeedback, setMermaidActionFeedback] = useState(DEFAULT_MERMAID_ACTION_FEEDBACK);
+
+  const imageClipboardSupported = typeof window !== 'undefined' && canCopyMermaidPngToClipboard();
+
+  function resolveInlineMermaidZoom() {
+    return clampMermaidZoom(globalMermaidZoomPercent);
+  }
+
+  function getInlineMermaidZoomForContainer() {
+    return resolveInlineMermaidZoom();
+  }
+
+  function syncInlineMermaidZoomsInDom({
+    articleNode = articleRef.current,
+    globalZoom = globalMermaidZoomPercent,
+  } = {}) {
+    if (!(articleNode instanceof HTMLElement)) {
+      return;
+    }
+
+    articleNode.querySelectorAll('.mermaid[data-mermaid-source]').forEach((container) => {
+      if (!(container instanceof HTMLElement)) {
+        return;
+      }
+
+      const nextZoom = clampMermaidZoom(globalZoom);
+      setInlineMermaidZoom(container, nextZoom);
+    });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -186,6 +296,87 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
   const chapterHeadings = isCurrentChapterReady ? (chapter?.headings ?? []) : [];
   const activeHeadingId = useActiveHeading(headingIds);
 
+  function clearMermaidFeedbackTimeouts() {
+    Object.values(mermaidFeedbackTimeoutsRef.current).forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    mermaidFeedbackTimeoutsRef.current = {};
+  }
+
+  function resetMermaidActionFeedback() {
+    clearMermaidFeedbackTimeouts();
+    setMermaidActionFeedback(DEFAULT_MERMAID_ACTION_FEEDBACK);
+  }
+
+  function scheduleMermaidActionFeedback(action, status) {
+    clearTimeout(mermaidFeedbackTimeoutsRef.current[action]);
+    setMermaidActionFeedback((current) => ({
+      ...current,
+      [action]: status,
+    }));
+    mermaidFeedbackTimeoutsRef.current[action] = window.setTimeout(() => {
+      setMermaidActionFeedback((current) => ({
+        ...current,
+        [action]: 'idle',
+      }));
+      delete mermaidFeedbackTimeoutsRef.current[action];
+    }, MERMAID_ACTION_FEEDBACK_RESET_MS);
+  }
+
+  function restoreMermaidTriggerFocus() {
+    const triggerButton = mermaidModalTriggerRef.current;
+    if (!(triggerButton instanceof HTMLElement)) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (triggerButton.isConnected) {
+          triggerButton.focus({ preventScroll: true });
+        }
+      }, 0);
+    });
+  }
+
+  function closeExpandedMermaid({ restoreFocus = true } = {}) {
+    setExpandedMermaid(null);
+    setExpandedMermaidReady(false);
+    setExpandedMermaidZoom(clampMermaidZoom(globalMermaidZoomPercent));
+    resetMermaidActionFeedback();
+    if (restoreFocus) {
+      restoreMermaidTriggerFocus();
+    }
+  }
+
+  function openExpandedMermaidFromButton(button) {
+    if (!(button instanceof HTMLElement)) {
+      return;
+    }
+
+    const container = button.closest('.mermaid');
+    if (!(container instanceof HTMLElement)) {
+      return;
+    }
+
+    const source = container.dataset.mermaidSource?.trim();
+    if (!source) {
+      return;
+    }
+
+    const initialZoom = getInlineMermaidZoomForContainer(container);
+
+    mermaidModalTriggerRef.current = button;
+    setExpandedMermaid({
+      source,
+      title: container.dataset.mermaidTitle || 'Mermaid diagram',
+      fileStem: container.dataset.mermaidFileStem || 'mermaid-diagram',
+      diagramId: container.dataset.mermaidDiagramId || '',
+    });
+    setExpandedMermaidZoom(initialZoom);
+    setExpandedMermaidReady(false);
+    resetMermaidActionFeedback();
+  }
+
   useEffect(() => {
     if (!shouldRenderArticle) {
       return;
@@ -218,11 +409,14 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
     renderMermaid(articleRef.current, {
       sectionId: chapter.chapterId,
       theme,
+      getZoomPercent: (node) => getInlineMermaidZoomForContainer(node),
     })
       .then(() => {
         if (cancelled) {
           return;
         }
+
+        syncInlineMermaidZoomsInDom({ articleNode: articleRef.current });
 
         const currentHash = window.location.hash;
         if (!currentHash || !getHashTarget(currentHash)) {
@@ -255,6 +449,112 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
   }, [chapter, shouldRenderArticle, theme]);
 
   useEffect(() => {
+    if (!expandedMermaid || !mermaidModalDiagramRef.current) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    setExpandedMermaidReady(false);
+
+    renderMermaidDiagram(mermaidModalDiagramRef.current, {
+      source: expandedMermaid.source,
+      sectionId: chapter?.chapterId ?? chapterId,
+      priority: 'target',
+      theme,
+      zoomPercent: expandedMermaidZoom,
+    })
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+        setRenderedMermaidZoom(mermaidModalDiagramRef.current, expandedMermaidZoom);
+        setExpandedMermaidReady(true);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error('Expanded Mermaid render failed', error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [expandedMermaid, theme, chapter?.chapterId, chapterId]);
+
+  useEffect(() => {
+    if (!expandedMermaid || !expandedMermaidReady || !mermaidModalDiagramRef.current) {
+      return;
+    }
+
+    setRenderedMermaidZoom(mermaidModalDiagramRef.current, expandedMermaidZoom);
+  }, [expandedMermaid, expandedMermaidReady, expandedMermaidZoom]);
+
+  useEffect(() => {
+    if (!expandedMermaid || !mermaidModalRef.current) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      (mermaidModalCloseButtonRef.current ?? mermaidModalRef.current)?.focus();
+    });
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeExpandedMermaid();
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusableNodes = getFocusableMermaidModalNodes(mermaidModalRef.current);
+      if (!focusableNodes.length) {
+        event.preventDefault();
+        mermaidModalRef.current?.focus();
+        return;
+      }
+
+      const firstNode = focusableNodes[0];
+      const lastNode = focusableNodes[focusableNodes.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstNode) {
+        event.preventDefault();
+        lastNode.focus();
+      } else if (!event.shiftKey && document.activeElement === lastNode) {
+        event.preventDefault();
+        firstNode.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [expandedMermaid]);
+
+  useEffect(() => {
+    return () => {
+      clearMermaidFeedbackTimeouts();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!shouldRenderArticle) {
+      return;
+    }
+
+    syncInlineMermaidZoomsInDom();
+  }, [globalMermaidZoomPercent, shouldRenderArticle]);
+
+  useEffect(() => {
     if (!shouldRenderArticle || !articleRef.current) {
       return undefined;
     }
@@ -263,6 +563,33 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
 
     const handleArticleClick = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const mermaidActionButton = event.target instanceof Element
+        ? event.target.closest('button[data-mermaid-action]')
+        : null;
+
+      if (mermaidActionButton instanceof HTMLButtonElement) {
+        event.preventDefault();
+
+        const mermaidAction = mermaidActionButton.dataset.mermaidAction ?? '';
+        if (mermaidAction === 'expand') {
+          openExpandedMermaidFromButton(mermaidActionButton);
+          return;
+        }
+
+        if (mermaidAction === 'zoom-in' || mermaidAction === 'zoom-out') {
+          const container = mermaidActionButton.closest('.mermaid');
+          if (!(container instanceof HTMLElement)) {
+            return;
+          }
+
+          const delta = mermaidAction === 'zoom-in' ? 10 : -10;
+          const nextZoom = clampMermaidZoom(getInlineMermaidZoomForContainer(container) + delta);
+          onGlobalMermaidZoomChange(nextZoom);
+          syncInlineMermaidZoomsInDom({ globalZoom: nextZoom });
+        }
         return;
       }
 
@@ -301,7 +628,21 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
     return () => {
       articleNode.removeEventListener('click', handleArticleClick);
     };
-  }, [chapterId, navigate, readerDocumentMeta.slug, shouldRenderArticle]);
+  }, [
+    chapterId,
+    globalMermaidZoomPercent,
+    navigate,
+    onGlobalMermaidZoomChange,
+    readerDocumentMeta.slug,
+    shouldRenderArticle,
+  ]);
+
+  useEffect(() => {
+    setExpandedMermaid(null);
+    setExpandedMermaidReady(false);
+    setExpandedMermaidZoom(clampMermaidZoom(globalMermaidZoomPercent));
+    resetMermaidActionFeedback();
+  }, [chapterId]);
 
   useEffect(() => {
     if (!navWidthExplicit) {
@@ -393,6 +734,86 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
     });
     if (target) {
       scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
+    }
+  };
+
+  const handleMermaidBackdropMouseDown = (event) => {
+    if (event.target === event.currentTarget) {
+      closeExpandedMermaid();
+    }
+  };
+
+  const expandedMermaidResetZoom = 100;
+
+  const adjustExpandedMermaidZoom = (delta) => {
+    const nextZoom = clampMermaidZoom(expandedMermaidZoom + delta);
+    setExpandedMermaidZoom(nextZoom);
+    onGlobalMermaidZoomChange(nextZoom);
+    syncInlineMermaidZoomsInDom({ globalZoom: nextZoom });
+  };
+
+  const resetExpandedMermaidZoom = () => {
+    setExpandedMermaidZoom(expandedMermaidResetZoom);
+    onGlobalMermaidZoomChange(expandedMermaidResetZoom);
+    syncInlineMermaidZoomsInDom({ globalZoom: expandedMermaidResetZoom });
+  };
+
+  const handleCopyMermaidSource = async () => {
+    if (!expandedMermaid?.source) {
+      return;
+    }
+
+    try {
+      await copyMermaidSourceToClipboard(expandedMermaid.source);
+      scheduleMermaidActionFeedback('source', 'success');
+    } catch (error) {
+      console.error('Failed to copy Mermaid source', error);
+      scheduleMermaidActionFeedback('source', 'error');
+    }
+  };
+
+  const handleCopyMermaidImage = async () => {
+    if (!expandedMermaidReady || !imageClipboardSupported) {
+      return;
+    }
+
+    const svgElement = mermaidModalDiagramRef.current?.querySelector('svg');
+    if (!(svgElement instanceof SVGElement)) {
+      scheduleMermaidActionFeedback('image', 'error');
+      return;
+    }
+
+    try {
+      await copyMermaidPngToClipboard(svgElement);
+      scheduleMermaidActionFeedback('image', 'success');
+    } catch (error) {
+      console.error('Failed to copy Mermaid PNG image', error);
+      scheduleMermaidActionFeedback('image', 'error');
+    }
+  };
+
+  const handleDownloadMermaidPng = async () => {
+    if (!expandedMermaidReady || !expandedMermaid) {
+      return;
+    }
+
+    const svgElement = mermaidModalDiagramRef.current?.querySelector('svg');
+    if (!(svgElement instanceof SVGElement)) {
+      scheduleMermaidActionFeedback('download', 'error');
+      return;
+    }
+
+    const fileName = getMermaidPngFileName({
+      fileStem: expandedMermaid.fileStem,
+      theme,
+    });
+
+    try {
+      await downloadMermaidPng(svgElement, fileName);
+      scheduleMermaidActionFeedback('download', 'success');
+    } catch (error) {
+      console.error('Failed to download Mermaid PNG', error);
+      scheduleMermaidActionFeedback('download', 'error');
     }
   };
 
@@ -537,6 +958,104 @@ export default function ChapterPage({ readerDocumentMeta, layoutWidthMode = 'sta
           </nav>
         </div>
       </aside>
+
+      {expandedMermaid ? (
+        <div className="mermaid-modal-backdrop" onMouseDown={handleMermaidBackdropMouseDown}>
+          <div
+            ref={mermaidModalRef}
+            className="mermaid-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={MERMAID_MODAL_TITLE_ID}
+            tabIndex={-1}
+          >
+            <div className="mermaid-modal-header">
+              <div className="mermaid-modal-title-group">
+                <h2 id={MERMAID_MODAL_TITLE_ID}>{expandedMermaid.title}</h2>
+                <div className="mermaid-modal-caption">
+                  <span>{expandedMermaidZoom}%</span>
+                  {!imageClipboardSupported ? (
+                    <span>PNG copy unavailable in this browser</span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mermaid-modal-controls">
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={() => adjustExpandedMermaidZoom(-10)}
+                  disabled={!expandedMermaidReady || expandedMermaidZoom <= 50}
+                  aria-label="Zoom out"
+                  title="Zoom out"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={resetExpandedMermaidZoom}
+                  disabled={!expandedMermaidReady || expandedMermaidZoom === expandedMermaidResetZoom}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={() => adjustExpandedMermaidZoom(10)}
+                  disabled={!expandedMermaidReady || expandedMermaidZoom >= 200}
+                  aria-label="Zoom in"
+                  title="Zoom in"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={handleCopyMermaidSource}
+                  disabled={!expandedMermaidReady}
+                >
+                  {getMermaidActionLabel('source', mermaidActionFeedback.source)}
+                </button>
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={handleCopyMermaidImage}
+                  disabled={!expandedMermaidReady || !imageClipboardSupported}
+                >
+                  {getMermaidActionLabel('image', mermaidActionFeedback.image)}
+                </button>
+                <button
+                  type="button"
+                  className="mermaid-modal-button"
+                  onClick={handleDownloadMermaidPng}
+                  disabled={!expandedMermaidReady}
+                >
+                  {getMermaidActionLabel('download', mermaidActionFeedback.download)}
+                </button>
+                <button
+                  ref={mermaidModalCloseButtonRef}
+                  type="button"
+                  className="mermaid-modal-button is-close"
+                  onClick={() => closeExpandedMermaid()}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="mermaid-modal-body">
+              <div
+                ref={mermaidModalDiagramRef}
+                className="mermaid mermaid-modal-diagram"
+                data-mermaid-source={expandedMermaid.source}
+                data-mermaid-title={expandedMermaid.title}
+                data-mermaid-file-stem={expandedMermaid.fileStem}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

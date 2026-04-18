@@ -10,8 +10,12 @@ const chapterLoaders = import.meta.glob('./generated/chapters/**/*.json');
 const THEME_STORAGE_KEY = 'dr-reader-theme';
 const TEXT_SIZE_STORAGE_KEY = 'dr-reader-text-size';
 const LAYOUT_WIDTH_STORAGE_KEY = 'dr-reader-layout-width';
+const MERMAID_GLOBAL_ZOOM_STORAGE_KEY = 'dr-reader-mermaid-global-zoom';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
 const LAYOUT_WIDTH_OPTIONS = ['standard', 'wide', 'comfort'];
+const DEFAULT_MERMAID_ZOOM_PERCENT = 100;
+const MIN_MERMAID_ZOOM_PERCENT = 50;
+const MAX_MERMAID_ZOOM_PERCENT = 200;
 const ROUTER_BASENAME = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 const documents = (manifest.documents ?? [])
@@ -134,6 +138,32 @@ function readInitialLayoutWidthPreference() {
   return 'recommended';
 }
 
+function clampMermaidZoomPreference(value) {
+  return Math.min(MAX_MERMAID_ZOOM_PERCENT, Math.max(MIN_MERMAID_ZOOM_PERCENT, value));
+}
+
+function normalizeMermaidZoomPreference(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue) || numericValue < MIN_MERMAID_ZOOM_PERCENT || numericValue > MAX_MERMAID_ZOOM_PERCENT) {
+    return null;
+  }
+
+  return numericValue;
+}
+
+function readInitialGlobalMermaidZoom() {
+  try {
+    const stored = normalizeMermaidZoomPreference(window.localStorage.getItem(MERMAID_GLOBAL_ZOOM_STORAGE_KEY));
+    if (stored != null) {
+      return stored;
+    }
+  } catch {
+    // Ignore storage errors and fall back to default.
+  }
+
+  return DEFAULT_MERMAID_ZOOM_PERCENT;
+}
+
 function OverviewPage() {
   return (
     <section className="overview-page page-shell">
@@ -171,6 +201,7 @@ function AppShell() {
   const [theme, setTheme] = useState(() => readInitialTheme());
   const [textSize, setTextSize] = useState(() => readInitialTextSize());
   const [layoutWidthPreference, setLayoutWidthPreference] = useState(() => readInitialLayoutWidthPreference());
+  const [globalMermaidZoomPercent, setGlobalMermaidZoomPercent] = useState(() => readInitialGlobalMermaidZoom());
   const [textMenuOpen, setTextMenuOpen] = useState(false);
   const textMenuRef = useRef(null);
   const recommendedLayoutWidth = useMemo(
@@ -213,6 +244,14 @@ function AppShell() {
       // Ignore storage errors and keep the in-memory preference.
     }
   }, [layoutWidthPreference]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MERMAID_GLOBAL_ZOOM_STORAGE_KEY, String(clampMermaidZoomPreference(globalMermaidZoomPercent)));
+    } catch {
+      // Ignore storage errors and keep the in-memory preference.
+    }
+  }, [globalMermaidZoomPercent]);
 
   useEffect(() => {
     if (!textMenuOpen) {
@@ -334,7 +373,15 @@ function AppShell() {
               />
               <Route
                 path={`/${document.slug}/:chapterId`}
-                element={<ChapterPage readerDocumentMeta={document} layoutWidthMode={layoutWidthMode} theme={theme} />}
+                element={(
+                  <ChapterPage
+                    readerDocumentMeta={document}
+                    layoutWidthMode={layoutWidthMode}
+                    theme={theme}
+                    globalMermaidZoomPercent={globalMermaidZoomPercent}
+                    onGlobalMermaidZoomChange={setGlobalMermaidZoomPercent}
+                  />
+                )}
               />
             </React.Fragment>
           ))}
