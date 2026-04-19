@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-17
+date_updated: 2026-04-19
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-17 · ~33,200 lines
+**DR-0002** · Published · Last updated 2026-04-19 · ~33,200 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -2211,7 +2211,7 @@ The current TS5 package splits its API detail between prose and the published Op
 
 Parameters can be combined:
 
-```
+```http
 GET /wrp?identifier=5299001GCLKH6FPVJW75&credentialformat=dc+sd-jwt&credentialmeta=eu.europa.ec.eudi.pid.1
 GET /wrp?legalname=Another%20Org&isintermediary=false
 GET /wrp/check-intended-use?rpidentifier=5299001GCLKH6FPVJW75&credentialformat=dc%2Bsd-jwt&claimpath=family_name
@@ -4686,7 +4686,7 @@ flowchart TD
 
 #### 6.7 MSO in CBOR Diagnostic Notation
 
-```
+```json
 {
   "version": "1.0",
   "digestAlgorithm": "SHA-256",
