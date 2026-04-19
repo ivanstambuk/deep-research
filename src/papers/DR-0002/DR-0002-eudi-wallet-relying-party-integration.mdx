@@ -18117,7 +18117,7 @@ The following recommendations are not legally mandated but represent proven arch
 
 ##### 24.6.1 Financial-Sector High-Assurance Wallet Profile
 
-For banks, PSPs, and similarly fraud-sensitive RPs, the generic architectural patterns above should be turned into an explicit **high-assurance wallet policy profile** rather than left as ad hoc design choices. The goal is not to force proximity for every presentation, but to define which flows require a stronger ceremony by default and which flows should escalate when signals indicate elevated risk.
+For banks, PSPs, and similarly fraud-sensitive RPs, the generic architectural patterns above should be turned into an explicit **high-assurance wallet policy profile** rather than left as ad hoc design choices. This subsection is the **financial-sector instantiation** of the broader assurance-profile model in §26.1.2, while §35.2 translates the same profile into an implementation-facing recommendation set. The goal is not to force proximity for every presentation, but to define which flows require a stronger ceremony by default and which flows should escalate when signals indicate elevated risk.
 
 | Policy Dimension | Recommended Financial-Sector Profile |
 |:-----------------|:-------------------------------------|
@@ -18130,7 +18130,7 @@ For banks, PSPs, and similarly fraud-sensitive RPs, the generic architectural pa
 
 This profile matters because the main hardening levers operate at different layers. **DC API-first** reduces QR / out-of-band invocation exposure in browser flows. **Proximity** reduces relay opportunity for the lifecycle events where it is invoked. **Device binding** reduces forwarding and credential-sharing risk when the RP controls issuance. These controls should therefore be expressed as one coherent policy set rather than as isolated recommendations.
 
-For financial-sector RPs, the practical rule is: **do not require proximity for routine presentation by default, but do require stronger ceremony for credential issuance, recovery, re-binding, and signal-triggered escalation paths.**
+For financial-sector RPs, the practical rule is: **do not require proximity for routine presentation by default, but do require stronger ceremony for credential issuance, recovery, re-binding, and signal-triggered escalation paths.** For the abstract policy model, see §26.1.2; for the prioritised financial-sector action list, see §35.2.
 
 
 #### 24.7 Industry Interpretation Disputes: Settled and Open
@@ -20598,6 +20598,8 @@ Treat this catalogue as an operational control baseline, not as a narrative appe
 #### 29.1 Overview
 
 This section presents a systematic security threat model for RPs integrating with the EUDI Wallet ecosystem. It focuses on RP-side threats — attacks targeting the RP's infrastructure, implementation, or operational practices.
+
+The catalogue intentionally stays separate from the RP's **assurance-profile** design choices in §26.1.2. Threat cards describe what can go wrong and how it manifests; assurance profiles describe which attack surfaces the RP reduces **by design** through channel choice, ceremony strength, device-binding posture, and signal-triggered escalation. Where relevant, this chapter therefore calls out not only direct mitigations, but also structural exposure reductions produced by profile choices.
 
 **Nomenclature & Threat Tagging**: 
 Each threat in the catalogue below incorporates technical tagging in its title (e.g., `TT5.3, CWE-294`). Three identifier systems are used:
@@ -28116,6 +28118,15 @@ The RP emits `WUA_INVALID` at severity **S0 (Critical)** — an invalid WUA indi
 
 The following matrix consolidates the risk ratings for all 41 threat scenarios documented in §29.2. Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
 
+Before reading the matrix, keep one distinction in mind: an assurance profile does **not** "solve" a threat in the abstract. Instead, it can materially **reduce exposure by design** for certain attack classes. The most important design-level levers are summarised below:
+
+| Profile Lever (§26.1.2) | Exposure Reduced by Design | Representative Threats | Boundary |
+|:------------------------|:---------------------------|:-----------------------|:---------|
+| **DC API-first browser policy** | Reduces QR / out-of-band invocation abuse by making same-device origin-bound presentation the default path | §29.2.4 Relay Attack: Cross-Device; §29.2.5 Malicious RP Endpoint: Phishing; §29.2.18 Cross-Device QR Code Substitution | Does not eliminate all presentation abuse; fallback channels still require their own controls |
+| **Controlled proximity for selected lifecycle events** | Reduces relay opportunity and remote social-engineering exposure for issuance, recovery, rebinding, and other high-risk ceremonies | §29.2.4 Relay Attack: Cross-Device; §29.2.25 Credential Injection into Victim Wallet; §29.2.16 User Device Malware: Consent Manipulation | Applies only to the flows where the RP actually invokes proximity or supervised ceremony |
+| **Device-binding-required for RP-issued high-risk credentials** | Reduces forwarding, replay-adjacent reuse, and credential-sharing risk when the RP controls issuance policy | §29.2.2 Credential Replay; §29.2.39 Unbound Credential Forwarding; §29.2.41 Compromised Wallet Environment: WUA Verification Failure | Cannot be retroactively forced on third-party credentials that arrive without holder binding |
+| **VSI-driven assurance escalation** | Reduces dwell time and repeated low-friction abuse by routing suspicious sessions into stronger channels or stronger review paths | §29.2.17 Browser-Side Session Hijacking: Post-Verification; §29.2.33 `request_uri` Endpoint Abuse; §29.2.40 Clock Manipulation / Environment Emulation | It is a runtime containment control, not a substitute for preventive protocol validation |
+
 | Scenario | Threat | Likelihood | Impact | Residual Risk |
 |:---------|:-------|:-----------|:-------|:--------------|
 | §29.2.22 | LoTE Cache Poisoning | Low | Critical | 🔴 High — if the RP accepts unsigned LoTE updates or discovers the TA key dynamically; 🟡 Medium if LoTE responses are cryptographically signed by the Trust Anchor and the RP verifies against a pinned bootstrap key |
@@ -28157,7 +28168,7 @@ The following matrix consolidates the risk ratings for all 41 threat scenarios d
 ### 30. Verification Signal Intelligence
 
 :::important
-Treat VSI as the RP's decision layer, not optional telemetry. If verification outcomes are not converted into typed, severity-graded signals that feed fraud scoring, SOC workflows, and step-up or block logic, the RP loses most of the operational value of the credential verification pipeline.
+Treat VSI as the RP's decision layer, not optional telemetry. If verification outcomes are not converted into typed, severity-graded signals that feed fraud scoring, SOC workflows, and step-up or block logic, the RP loses most of the operational value of the credential verification pipeline. In higher-assurance deployments, that "step-up" path should be defined explicitly as an **assurance-profile escalation** per §26.1.2, not left as an ad hoc fallback.
 :::
 
 > **DORA Art. 17 — ICT incident classification** and **PSD2 RTS Art. 18 — Transaction Risk Analysis**: The signal taxonomy in this chapter provides the structured data model that financial RPs need to classify verification failures as ICT-related incidents (DORA) and to feed verification signals into Transaction Risk Analysis engines (PSD2). For non-financial RPs, these signals map directly to NIS2 Art. 21(2)(a) risk analysis requirements and GDPR Art. 33 breach detection obligations.
@@ -28204,7 +28215,7 @@ flowchart LR
     DEC -- "decisions feed" --> M1
 ```
 
-Each threat in §29 produces one or more named verification signals when it manifests. Each signal has a defined severity level (S0 Critical through S4 Noise), a STRIDE classification, and a composition weight. The signal composition engine aggregates individual signals into a composite risk score that drives one of four outcomes: **Allow** (proceed normally), **Flag** (allow but mark for review), **Step-up** (require additional authentication), or **Block** (reject and alert SOC).
+Each threat in §29 produces one or more named verification signals when it manifests. Each signal has a defined severity level (S0 Critical through S4 Noise), a STRIDE classification, and a composition weight. The signal composition engine aggregates individual signals into a composite risk score that drives one of four outcomes: **Allow** (proceed normally), **Flag** (allow but mark for review), **Step-up** (require additional authentication or a stronger presentation path), or **Block** (reject and alert SOC). The policy definition for that stronger path belongs in the RP's assurance-profile model (§26.1.2).
 
 ##### Industry Framework Mapping
 
@@ -28432,6 +28443,8 @@ The intersection of severity level and STRIDE classification reveals the most da
 #### 30.7 Signal Composition and Risk Scoring
 
 Individual VSI signals are **individually insufficient** for definitive blocking decisions — with the exception of S0 signals, which are independently actionable. For S1–S4 signals, the RP's risk engine composes signals across all three layers into a **composite risk score** that drives the final Allow / Flag / Step-up / Block decision.
+
+For RPs using explicit assurance profiles (§26.1.2), the composition engine should not treat `STEP_UP` as a generic placeholder. It should map elevated-risk outcomes to a **stronger predefined ceremony**: for example, prefer same-device DC API over cross-device fallback, require supervised or controlled proximity for a recovery or rebinding event, or restrict a non-device-bound presentation to lower-risk operations until stronger evidence is obtained.
 
 ##### Scoring Model
 
