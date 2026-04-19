@@ -4775,22 +4775,22 @@ Attestation Rulebooks define the complete lifecycle and presentation rules for s
 
 #### 6.12 RP-Relevant Rulebook Content
 
-A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model (§6.16):
+A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model (§6.16). The `Rulebook Chapter` links point to the corresponding chapter in the official EC Rulebook template:
 
 | Aspect | Rulebook Chapter | What It Defines | `SchemaMeta` Field | RP Impact |
 |:-------|:-----------------|:----------------|:-------------------|:----------|
-| **Attribute catalogue** | Ch. 2 — Attributes | Mandatory vs. optional attributes within the attestation | `schemaURIs[].uri` → JSON schema | RP knows which attributes it *can* request |
-| **Namespace / DocType** | Ch. 3 — Encoding | DocType and namespace identifiers (for mdoc) | `supportedFormats` | RP must use exact identifiers in DeviceRequest |
-| **VCT** | Ch. 3 — Encoding | Verifiable Credential Type URI (for SD-JWT VC) | `schemaURIs[].uri` | RP uses this in DCQL `meta.vct_values` |
-| **Issuer trust model** | Ch. 5 — Trust Anchors | How the issuer chain is validated | `trustedAuthorities[]` | RP builds verification logic accordingly (§6.16) |
-| **Selective disclosability** | Ch. 3 — Encoding | Per-claim selective disclosure policy (ARB_30) | `schemaURIs[].uri` → claim metadata | RP must respect per-claim disclosability rules |
-| **PID co-verification** | Ch. 4 — Usage | Whether RP must also verify PID alongside this attestation (ARB_27) | *(indirect — Rulebook text)* | RP's obligation engine checks co-verification requirement |
-| **Device binding** | Ch. 4 — Usage | Device-bound vs. non-device-bound (ARB_34) | `bindingType` | RP verification pipeline differs based on binding |
-| **Cross-attestation binding** | Ch. 4 — Usage | `cryptographically_bound_to` field for binding to PID (ARB_28) | *(indirect — Rulebook text)* | RP must verify cryptographic binding when specified |
-| **Disclosure policies** | Ch. 3 — Encoding | Default and allowed disclosure policies | *(indirect — Rulebook text)* | RP knows if embedded restrictions may apply |
-| **Revocation** | Ch. 6 — Revocation | Required revocation mechanism (Status List) | *(indirect — Rulebook text)* | RP knows which endpoint to check |
-| **Validity period** | Ch. 6 — Revocation | Maximum credential lifetime | *(indirect — Rulebook text)* | RP can enforce freshness thresholds |
-| **Level of Security** | Ch. 7 — Compliance | ISO 18045 security evaluation level | `attestationLoS` | RP can apply risk-based acceptance policies |
+| **Attribute catalogue** | [Ch. 2 — Attributes](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#2-attestation-attributes-and-metadata) | Mandatory vs. optional attributes within the attestation | `schemaURIs[].uri` → JSON schema | RP knows which attributes it *can* request |
+| **Namespace / DocType** | [Ch. 3 — Encoding](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#3-attestation-encoding) | DocType and namespace identifiers (for mdoc) | `supportedFormats` | RP must use exact identifiers in DeviceRequest |
+| **VCT** | [Ch. 3 — Encoding](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#3-attestation-encoding) | Verifiable Credential Type URI (for SD-JWT VC) | `schemaURIs[].uri` | RP uses this in DCQL `meta.vct_values` |
+| **Issuer trust model** | [Ch. 5 — Trust Anchors](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#5-trust-anchors) | How the issuer chain is validated | `trustedAuthorities[]` | RP builds verification logic accordingly (§6.16) |
+| **Selective disclosability** | [Ch. 3 — Encoding](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#3-attestation-encoding) | Per-claim selective disclosure policy (ARB_30) | `schemaURIs[].uri` → claim metadata | RP must respect per-claim disclosability rules |
+| **PID co-verification** | [Ch. 4 — Usage](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#4-attestation-usage) | Whether RP must also verify PID alongside this attestation (ARB_27) | *(indirect — Rulebook text)* | RP's obligation engine checks co-verification requirement |
+| **Device binding** | [Ch. 4 — Usage](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#4-attestation-usage) | Device-bound vs. non-device-bound (ARB_34) | `bindingType` | RP verification pipeline differs based on binding |
+| **Cross-attestation binding** | [Ch. 4 — Usage](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#4-attestation-usage) | `cryptographically_bound_to` field for binding to PID (ARB_28) | *(indirect — Rulebook text)* | RP must verify cryptographic binding when specified |
+| **Disclosure policies** | [Ch. 3 — Encoding](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#3-attestation-encoding) | Default and allowed disclosure policies | *(indirect — Rulebook text)* | RP knows if embedded restrictions may apply |
+| **Revocation** | [Ch. 6 — Revocation](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#6-revocation) | Required revocation mechanism (Status List) | *(indirect — Rulebook text)* | RP knows which endpoint to check |
+| **Validity period** | [Ch. 6 — Revocation](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#6-revocation) | Maximum credential lifetime | *(indirect — Rulebook text)* | RP can enforce freshness thresholds |
+| **Level of Security** | [Ch. 7 — Compliance](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#7-compliance) | ISO 18045 security evaluation level | `attestationLoS` | RP can apply risk-based acceptance policies |
 
 > **Machine-readable discovery**: The `SchemaMeta` fields above are queryable via the TS11 Catalogue of Schemes REST API — see §6.16 for the discovery mechanism and RP integration flow.
 

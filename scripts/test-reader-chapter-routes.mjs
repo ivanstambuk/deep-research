@@ -26,6 +26,7 @@ const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
 const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
 const DR2_MULTI_MERMAID_CHAPTER_ID = '13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
 const DR2_MULTI_MERMAID_HEADING_ID = '134-supervised-flow-sequence-diagram-direct-rp-model';
+const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-selection';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
 const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
@@ -398,6 +399,27 @@ async function assertGeneratedLabelCrossReferenceNavigation(page) {
     chapterId: DR1_LABEL_TARGET_CHAPTER_ID,
     headingId: DR1_LABEL_TARGET_HEADING_ID,
   }, { timeout: 20_000 });
+}
+
+async function assertExternalLinksOpenInNewTab(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_RULEBOOK_CHAPTER_ID}#612-rp-relevant-rulebook-content`;
+  console.log(`[chapter routes smoke] checking external links open in new tab: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  const externalLink = page.locator('a[href^="https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#2-attestation-attributes-and-metadata"]').first();
+  await externalLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const target = await externalLink.getAttribute('target');
+  const rel = await externalLink.getAttribute('rel');
+  if (target !== '_blank' || !rel?.includes('noopener') || !rel?.includes('noreferrer')) {
+    throw new Error(`external reader link missing new-tab safety attrs: target=${target}, rel=${rel}`);
+  }
+
+  const internalLink = page.locator('a[data-doc-xref="true"]').first();
+  const internalTarget = await internalLink.getAttribute('target');
+  if (internalTarget !== null) {
+    throw new Error(`internal cross-reference unexpectedly opens in a new tab: target=${internalTarget}`);
+  }
 }
 
 async function assertInitialHashRouteSurvivesMermaidRender(page) {
@@ -1100,6 +1122,7 @@ async function main() {
     await assertBottomPager(page);
     await assertGeneratedCrossReferenceNavigation(page);
     await assertGeneratedLabelCrossReferenceNavigation(page);
+    await assertExternalLinksOpenInNewTab(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
     await assertMermaidThemeToggle(page);
     await assertMermaidExpandControlVisibleOnAllDiagrams(page);

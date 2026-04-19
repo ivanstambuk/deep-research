@@ -43,6 +43,7 @@ const HEADING_TAGS = new Set(['h2', 'h3', 'h4', 'h5', 'h6']);
 const PRIMARY_SECTION_TAG = 'h2';
 const SECONDARY_SECTION_TAG = 'h3';
 const OVERSIZED_SECTION_BYTES = 34_000;
+const READER_LINK_BASE_URL = 'https://reader.local/';
 
 const htmlCompiler = unified().use(rehypeStringify);
 
@@ -428,6 +429,61 @@ function collectElementIds(tree) {
   return ids;
 }
 
+function shouldOpenExternalLinkInNewTab(href) {
+  if (typeof href !== 'string') {
+    return false;
+  }
+
+  const trimmedHref = href.trim();
+  if (!trimmedHref || trimmedHref.startsWith('#')) {
+    return false;
+  }
+
+  try {
+    const resolvedUrl = new URL(trimmedHref, READER_LINK_BASE_URL);
+    return (
+      (resolvedUrl.protocol === 'http:' || resolvedUrl.protocol === 'https:') &&
+      resolvedUrl.origin !== new URL(READER_LINK_BASE_URL).origin
+    );
+  } catch {
+    return false;
+  }
+}
+
+function appendExternalLinkTargets(tree) {
+  function visit(node) {
+    if (!node || typeof node !== 'object') {
+      return;
+    }
+
+    if (node.type === 'element' && node.tagName === 'a') {
+      const href = typeof node.properties?.href === 'string' ? node.properties.href : '';
+      if (shouldOpenExternalLinkInNewTab(href)) {
+        const existingRel = Array.isArray(node.properties?.rel)
+          ? node.properties.rel
+          : typeof node.properties?.rel === 'string'
+            ? node.properties.rel.split(/\s+/).filter(Boolean)
+            : [];
+        const relTokens = new Set(existingRel);
+        relTokens.add('noopener');
+        relTokens.add('noreferrer');
+
+        node.properties = {
+          ...node.properties,
+          target: '_blank',
+          rel: [...relTokens],
+        };
+      }
+    }
+
+    if (Array.isArray(node.children)) {
+      node.children.forEach(visit);
+    }
+  }
+
+  visit(tree);
+}
+
 function buildReaderLabelTargetIndex({ sections, slug, targets }) {
   const chapterByAnchorId = new Map();
 
@@ -579,6 +635,7 @@ async function build() {
         diagnostics: sectionDiagnostics,
         targetIndex: crossReferenceIndex,
       }));
+      appendExternalLinkTargets(section.tree);
       return finalizeSectionRecord(section);
     });
 
