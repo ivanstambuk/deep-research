@@ -1168,6 +1168,10 @@ img {
   margin-top: 0;
 }
 
+.doc-article > br {
+  display: none;
+}
+
 .doc-section-slot {
   position: relative;
 }

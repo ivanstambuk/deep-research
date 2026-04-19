@@ -446,6 +446,31 @@ async function assertInitialHashRouteSurvivesMermaidRender(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertViewerSuppressesStandaloneBreakSpacers(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/29-security-threat-catalogue#2921-rp-driven-credential-phishing-and-os-spying`;
+  console.log(`[chapter routes smoke] checking standalone break spacers are suppressed in viewer: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(() => {
+    const article = document.querySelector('.chapter-article');
+    if (!(article instanceof HTMLElement)) {
+      return false;
+    }
+
+    const topLevelBreak = Array.from(article.children).find((node) => (
+      node instanceof HTMLBRElement &&
+      node.previousElementSibling?.tagName === 'DETAILS' &&
+      node.nextElementSibling?.tagName === 'P'
+    ));
+
+    if (!(topLevelBreak instanceof HTMLBRElement)) {
+      return false;
+    }
+
+    return window.getComputedStyle(topLevelBreak).display === 'none';
+  }, null, { timeout: 20_000 });
+}
+
 async function ensureTheme(page, expectedTheme) {
   const currentTheme = await page.evaluate(() => document.documentElement.dataset.theme ?? 'dark');
   if (currentTheme === expectedTheme) {
@@ -1124,6 +1149,7 @@ async function main() {
     await assertGeneratedLabelCrossReferenceNavigation(page);
     await assertExternalLinksOpenInNewTab(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
+    await assertViewerSuppressesStandaloneBreakSpacers(page);
     await assertMermaidThemeToggle(page);
     await assertMermaidExpandControlVisibleOnAllDiagrams(page);
     await assertExpandedMermaidViewer(page);
