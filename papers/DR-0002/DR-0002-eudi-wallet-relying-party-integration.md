@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-19
+date_updated: 2026-04-20
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-19 · ~33,200 lines
+**DR-0002** · Published · Last updated 2026-04-20 · ~33,300 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -18105,16 +18105,33 @@ The following recommendations are not legally mandated but represent proven arch
 
 | # | Recommendation | Priority | DR-0002 Reference |
 |:-:|:--------------|:---------|:------------------|
-| 1 | Deploy a pluggable verification architecture supporting SD-JWT, mdoc, and ZKP proof types | 🟡 High | [§11](#11-rp-authentication-and-presentation-verification), [§19](#19-age-verification-attestation-pipelines) |
-| 2 | Implement the Verification Signal Intelligence (VSI) pipeline as a first-class SIEM integration | 🟡 High | [§30](#30-verification-signal-intelligence) |
-| 3 | Implement an API gateway in the `direct_post` path for Layer 3 signal capture | 🟡 High | [§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural), [§26.7](#267-integration-delivery-modes) |
-| 4 | Evaluate embedded wallet SDK for SCA attestation issuance (dual-wallet model) | 🟢 Medium | [§9.4](#94-embedded-wallet-sdk-integration-pattern), [§27.7](#277-embedded-wallet-sdk-capability-assessment) |
-| 5 | Integrate OIDF OID4VP/HAIP Conformance Suite into CI/CD pipelines | 🔴 Critical | [§11.8.3](#1183-cicd-pipeline-integration) |
-| 6 | Test against at least two different Wallet implementations before production | 🟡 High | [§11.8.5](#1185-rp-pre-production-testing-checklist), [§28.3](#283-wallet-interoperability-testing) |
-| 7 | Register for the German EUDI Wallet Sandbox early access | 🟡 High | [§28.3](#283-wallet-interoperability-testing) |
-| 8 | Map EUDI integration security controls to DORA Art. 25 resilience testing framework | 🟡 High | [§21.4](#214-dora-considerations-for-financial-rps) |
-| 9 | Implement identity matching normalisation (CIR 2025/846): Unicode NFC, whitespace collapse, hyphen equivalence | 🟡 High | [§23.6](#236-identity-matching-normalisation-cir-2025846) |
-| 10 | Design attestation processing to be entity-type-agnostic (natural person PID + LPID + mandate) | 🟡 High | [§11.12](#1112-lpid-verification-pipeline-delta), [§18](#18-combined-presentations-lpid-and-mandate-credentials) |
+| 1 | Integrate OIDF OID4VP/HAIP Conformance Suite into CI/CD pipelines | 🔴 Critical | [§11.8.3](#1183-cicd-pipeline-integration) |
+| 2 | Deploy a pluggable verification architecture supporting SD-JWT, mdoc, and ZKP proof types | 🟡 High | [§11](#11-rp-authentication-and-presentation-verification), [§19](#19-age-verification-attestation-pipelines) |
+| 3 | Implement the Verification Signal Intelligence (VSI) pipeline as a first-class SIEM integration | 🟡 High | [§30](#30-verification-signal-intelligence) |
+| 4 | Implement an API gateway in the `direct_post` path for Layer 3 signal capture | 🟡 High | [§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural), [§26.7](#267-integration-delivery-modes) |
+| 5 | Test against at least two different Wallet implementations before production | 🟡 High | [§11.8.5](#1185-rp-pre-production-testing-checklist), [§28.3](#283-wallet-interoperability-testing) |
+| 6 | Register for the German EUDI Wallet Sandbox early access | 🟡 High | [§28.3](#283-wallet-interoperability-testing) |
+| 7 | Map EUDI integration security controls to DORA Art. 25 resilience testing framework | 🟡 High | [§21.4](#214-dora-considerations-for-financial-rps) |
+| 8 | Implement identity matching normalisation (CIR 2025/846): Unicode NFC, whitespace collapse, hyphen equivalence | 🟡 High | [§23.6](#236-identity-matching-normalisation-cir-2025846) |
+| 9 | Design attestation processing to be entity-type-agnostic (natural person PID + LPID + mandate) | 🟡 High | [§11.12](#1112-lpid-verification-pipeline-delta), [§18](#18-combined-presentations-lpid-and-mandate-credentials) |
+| 10 | Evaluate embedded wallet SDK for SCA attestation issuance (dual-wallet model) | 🟢 Medium | [§9.4](#94-embedded-wallet-sdk-integration-pattern), [§27.7](#277-embedded-wallet-sdk-capability-assessment) |
+
+##### 24.6.1 Financial-Sector High-Assurance Wallet Profile
+
+For banks, PSPs, and similarly fraud-sensitive RPs, the generic architectural patterns above should be turned into an explicit **high-assurance wallet policy profile** rather than left as ad hoc design choices. The goal is not to force proximity for every presentation, but to define which flows require a stronger ceremony by default and which flows should escalate when signals indicate elevated risk.
+
+| Policy Dimension | Recommended Financial-Sector Profile |
+|:-----------------|:-------------------------------------|
+| **Browser presentation channel** | Use **same-device presentation via the W3C Digital Credentials API** as the preferred remote-browser path where platform support exists. Treat QR-based cross-device presentation as a fallback path rather than the normative default. |
+| **Cross-device remote presentation** | Permit cross-device remote presentation for compatibility and accessibility, but attach stricter session TTLs, replay protections, and step-up triggers than for same-device origin-bound flows. |
+| **Sensitive lifecycle events** | For **issuance, recovery, credential re-binding, and other fraud-sensitive lifecycle events**, use **supervised or otherwise controlled proximity flows** where operationally feasible. This is especially relevant when a bank issues its own high-risk credentials such as SCA attestations. |
+| **RP-issued credentials** | For credentials under RP control, make **device binding a policy requirement at issuance time** for high-assurance use cases. This is an RP/issuer policy choice, not merely a verifier preference. |
+| **Externally issued credentials** | Accept that some external credentials may be non-device-bound. Do not treat those presentations as assurance-equivalent to device-bound ones; instead, shorten session duration, limit downstream actions, or require step-up when the assurance gap matters. |
+| **Signal-triggered escalation** | Use Verification Signal Intelligence ([§30](#30-verification-signal-intelligence)) not only to score or block a session, but to **change the required ceremony**: same-device to supervised flow, remote to proximity, low-friction presentation to stronger re-verification. |
+
+This profile matters because the main hardening levers operate at different layers. **DC API-first** reduces QR / out-of-band invocation exposure in browser flows. **Proximity** reduces relay opportunity for the lifecycle events where it is invoked. **Device binding** reduces forwarding and credential-sharing risk when the RP controls issuance. These controls should therefore be expressed as one coherent policy set rather than as isolated recommendations.
+
+For financial-sector RPs, the practical rule is: **do not require proximity for routine presentation by default, but do require stronger ceremony for credential issuance, recovery, re-binding, and signal-triggered escalation paths.**
 
 
 #### 24.7 Industry Interpretation Disputes: Settled and Open
@@ -18789,6 +18806,34 @@ Verification policies are typically organised into three tiers of increasing fle
 | **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching ([§18.1.8](#1818-cross-format-identity-matching)) | Rule definitions managed as code artifacts; version-controllable and independently testable |
 
 > **Why this matters for RPs**: The policy engine architecture determines how much verification logic lives in the RP's own codebase versus being delegated to the verification platform. RPs operating in regulated industries (banking, healthcare) benefit from the **auditability** of declarative policy definitions — each policy decision can be traced to a specific, versioned rule rather than buried in application code.
+
+##### 26.1.2 Assurance Profiles and Channel Policy
+
+The policy engine should govern more than credential-field validation rules. In production deployments it often becomes the control plane for an RP's **assurance profile**: the policy layer that decides which presentation channel, ceremony strength, and post-verification actions are acceptable for a given use case. This sits **above** the threat catalogue in [§29](#29-security-threat-catalogue) and the signal taxonomy in [§30](#30-verification-signal-intelligence). The threat catalogue explains what can go wrong; the assurance profile determines how the RP responds structurally.
+
+Four policy levers usually matter most:
+
+| Lever | What It Controls | Typical Policy Question |
+|:------|:------------------|:------------------------|
+| **Channel policy** | Same-device DC API, cross-device QR/deep-link, native app invocation | Which presentation path is the default, and which ones are fallback-only? |
+| **Proximity policy** | Whether an in-person / supervised flow is required | Which operations justify a stronger ceremony than remote presentation? |
+| **Device-binding policy** | How the RP treats `cnf` / holder-binding presence or absence | Is device binding mandatory, preferred, or merely advisory for this credential class? |
+| **Signal-escalation policy** | How VSI outcomes change the required ceremony | Does a suspicious session get blocked, stepped up, or re-routed to a stronger channel? |
+
+The resulting assurance profiles are typically coarse-grained rather than per-credential bespoke:
+
+| Profile | Channel Default | Proximity Use | Device-Binding Posture | VSI Response |
+|:--------|:----------------|:--------------|:------------------------|:-------------|
+| **Baseline RP** | Accept same-device and cross-device remote flows | Rare; reserved for niche operational contexts | Accept bound and unbound credentials where ecosystem-compatible | Allow / flag / block based on risk score |
+| **Elevated / Regulated** | Prefer same-device DC API where available; cross-device is fallback | Use proximity for selected issuance, recovery, or rebinding events | Prefer device-bound credentials; downgrade assurance when binding is absent | Step-up into stronger channel for elevated-risk events |
+| **Financial / High-Fraud** | Make DC API-first the normal browser path; treat QR cross-device as fallback | Require stronger ceremony for issuance, recovery, rebinding, and selected high-risk events | Require device binding for RP-issued high-risk credentials; treat external unbound credentials as lower-assurance inputs | Use VSI to trigger channel escalation, re-verification, or controlled fallback rather than only scoring |
+
+Two implementation boundaries are important:
+
+1. **DC API is not just a UX preference.** In a high-assurance profile it is a channel-hardening choice because same-device browser mediation reduces QR / URI relay exposure and adds origin-bound invocation semantics.
+2. **Device binding is not universally enforceable at RP query time.** For credentials issued by third parties, the RP may not be able to force device binding through DCQL alone. In those cases, the policy engine should express the assurance consequence of missing binding, not pretend the verifier can mandate ecosystem behaviour retroactively.
+
+This framing also clarifies how [§30](#30-verification-signal-intelligence) should be used. Verification signals do not only influence a final risk score; they can select the next required ceremony. A policy engine may decide that an otherwise valid presentation must be repeated through a stronger path, must be limited to low-risk operations, or must trigger an in-person or supervised follow-up depending on the RP's profile.
 
 #### 26.2 Webhook and Callback Delegation
 
@@ -28412,6 +28457,30 @@ Decision:
 
 > **Implementation note**: The specific thresholds (20/50/80) and weights above are **illustrative, not prescriptive**. RPs MUST calibrate these values against their own transaction volumes, risk appetite, and regulatory tier. Financial RPs subject to PSD2 TRA should align thresholds with their reference fraud rate monitoring data ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking), RTS Art. 19).
 
+##### Fail-Fast vs Aggregate Validation
+
+RPs should not collapse VP Token validation into a single undifferentiated `verification_failed` result. A verifier can be implemented in two broad modes:
+
+- **Fail-fast**: stop at the first failed check and return only that error.
+- **Aggregate**: continue running all remaining **safe and meaningful** checks for the same presentation, then return the full set of failures and passes.
+
+For VSI, aggregate validation is operationally superior. A fail-fast verifier may report only `signature_invalid` or only `aud_mismatch`, even though the same VP Token also fails nonce freshness, revocation status, holder binding, or trust-chain validation. That throws away useful security detail. The RP still blocks the presentation, but it loses the richer failure map that explains **how many controls were violated simultaneously** and whether the failure looks like ordinary implementation drift, a malformed submission, or an actively hostile payload.
+
+The goal is therefore not "keep validating forever regardless of prerequisites." It is: **collect every failure that can still be evaluated correctly after the first error**. If a prerequisite failure makes later checks meaningless, the verifier should emit `not_evaluated` or `skipped_due_to_prerequisite_failure` rather than inventing results. For example:
+
+- If JWE decryption fails, downstream credential checks cannot run and should be marked not evaluated.
+- If the token is structurally parseable, the RP may still be able to report multiple independent failures such as `KBJWT_AUD_MISMATCH`, `KBJWT_NONCE_REUSE`, and `SDJWT_STATUS_REVOKED` from the same presentation.
+- If trust material is temporarily unavailable, the verifier should distinguish `issuer_trust_indeterminate` from a definitive cryptographic failure.
+
+This is why vendors and in-house verification stacks should preserve:
+
+- **Per-check outcomes**, including `pass`, `fail`, `indeterminate`, and `not_evaluated`.
+- **Aggregate failure arrays** listing all failed checks from the same validation pass, not just the first one encountered.
+- **Per-policy result objects** showing which checks passed even though the overall presentation failed.
+- **Decision rationale** explaining which failures were decisive for the final `FLAG`, `STEP_UP`, or `BLOCK` outcome.
+
+Without that granularity, the RP can still reject the single presentation, but it loses the most useful part of VSI: the ability to inspect the full failure surface of one suspicious VP Token instead of only the first error a library happened to report.
+
 ##### Composite Scenario Walkthroughs
 
 The following worked examples demonstrate how multi-signal composition drives decisions that differ from any individual signal's standalone action:
@@ -28863,7 +28932,7 @@ The following table closes the traceability loop, connecting each representative
 
 Not all verifier vendors expose the same level of signal granularity. Some return rich per-check failure data; others return opaque pass/fail results. The RP's ability to implement a VSI pipeline depends on the vendor's signal exposure.
 
-This assessment evaluates vendor capabilities across five VSI-relevant dimensions (cross-references [§27.6](#276-unified-vendor-capability-matrix) Unified Vendor Capability Matrix and [§27.8](#278-vendor-integration-delivery-mode-matrix) Delivery Mode Selection Guide):
+This assessment evaluates vendor capabilities across six VSI-relevant dimensions (cross-references [§27.6](#276-unified-vendor-capability-matrix) Unified Vendor Capability Matrix and [§27.8](#278-vendor-integration-delivery-mode-matrix) Delivery Mode Selection Guide):
 
 | Capability | Description | What to Ask the Vendor |
 |:-----------|:------------|:----------------------|
@@ -28872,26 +28941,27 @@ This assessment evaluates vendor capabilities across five VSI-relevant dimension
 | **Raw VP Token access** | Can the RP access the raw VP Token (JWT string or CBOR bytes) for independent verification and signal extraction, or only vendor-processed results? | "Can we receive the raw VP Token in addition to your verification result, to run our own verification pipeline?" |
 | **Webhook event types** | Does the vendor distinguish between `verification_failed` (check failed), `verification_error` (infrastructure error), `verification_timeout`, and `user_cancelled`? | "Does your webhook payload differentiate between verification failure, system error, timeout, and user cancellation?" |
 | **SIEM-friendly event format** | Does the vendor produce structured events (JSON with consistent schema) suitable for SIEM ingestion, or are events only available via a vendor-specific dashboard? | "Can we export verification events as structured JSON via webhook or API for ingestion into our SIEM?" |
+| **Aggregate validation output** | When a presentation fails, does the verifier stop at the first error, or does it return the full set of applicable failed / passed / indeterminate checks from the same validation pass? | "Can your verifier return all applicable policy failures for one VP Token, rather than only the first error encountered?" |
 
 ##### Vendor Assessment Matrix
 
-| Vendor | Granular Failure Codes | Per-Policy Results | Raw VP Token Access | Webhook Event Types | SIEM-Friendly Format | VSI Readiness |
-|:-------|:---------------------:|:------------------:|:-------------------:|:-------------------:|:--------------------:|:-------------:|
-| **walt.id** | ✅ | ✅ | ✅ (OCI library) | ✅ | ✅ (JSON) | 🟢 High |
-| **Procivis** | 🟡 | 🟡 | ✅ (on-prem) | 🟡 | 🟡 | 🟡 Medium |
-| **Vidos** | ✅ | ✅ | 🟡 (API access) | 🟡 | ✅ (JSON) | 🟡 Medium |
-| **Paradym** | 🟡 | 🟡 | ❌ (SaaS-only) | 🟡 | 🟡 | 🟡 Medium |
-| **Spruce** | N/A | N/A | ✅ (library) | N/A | N/A | 🟢 High (library model — RP controls signal extraction) |
-| **MATTR** | 🟡 | 🟡 | ❌ (SaaS-only) | ✅ | ✅ (webhook JSON) | 🟡 Medium |
-| **iGrant** | 🟡 | 🟡 | ❌ | 🟡 | 🟡 | 🟡 Medium |
-| **Lissi** | 🟡 | 🟡 | ❌ (SaaS) | 🟡 | ❌ | 🔴 Low |
-| **Indicio** | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 Medium |
-| **Scytáles** | N/A | N/A | ✅ (SDK) | N/A | N/A | 🟢 High (SDK model) |
-| **Signicat** | ❓ | ❓ | ❓ | ✅ | 🟡 | ❓ Unassessable |
-| **Gataca** | ❓ | ❓ | ❓ | 🟡 | ❓ | ❓ Unassessable |
-| **Thales** | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ Unassessable |
+| Vendor | Granular Failure Codes | Per-Policy Results | Raw VP Token Access | Webhook Event Types | SIEM-Friendly Format | Aggregate Validation Output | VSI Readiness |
+|:-------|:---------------------:|:------------------:|:-------------------:|:-------------------:|:--------------------:|:--------------------------:|:-------------:|
+| **walt.id** | ✅ | ✅ | ✅ (OCI library) | ✅ | ✅ (JSON) | ✅ | 🟢 High |
+| **Procivis** | 🟡 | 🟡 | ✅ (on-prem) | 🟡 | 🟡 | 🟡 | 🟡 Medium |
+| **Vidos** | ✅ | ✅ | 🟡 (API access) | 🟡 | ✅ (JSON) | 🟡 | 🟡 Medium |
+| **Paradym** | 🟡 | 🟡 | ❌ (SaaS-only) | 🟡 | 🟡 | ❌ | 🟡 Medium |
+| **Spruce** | N/A | N/A | ✅ (library) | N/A | N/A | ✅ | 🟢 High (library model — RP controls signal extraction) |
+| **MATTR** | 🟡 | 🟡 | ❌ (SaaS-only) | ✅ | ✅ (webhook JSON) | 🟡 | 🟡 Medium |
+| **iGrant** | 🟡 | 🟡 | ❌ | 🟡 | 🟡 | ❌ | 🟡 Medium |
+| **Lissi** | 🟡 | 🟡 | ❌ (SaaS) | 🟡 | ❌ | ❌ | 🔴 Low |
+| **Indicio** | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 Medium |
+| **Scytáles** | N/A | N/A | ✅ (SDK) | N/A | N/A | ✅ | 🟢 High (SDK model) |
+| **Signicat** | ❓ | ❓ | ❓ | ✅ | 🟡 | ❓ | ❓ Unassessable |
+| **Gataca** | ❓ | ❓ | ❓ | 🟡 | ❓ | ❓ | ❓ Unassessable |
+| **Thales** | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ Unassessable |
 
-> **Key insight**: **Library/SDK-embed vendors** (walt.id OCI, Spruce DIDKit, Scytáles SDK) inherently provide **full VSI readiness** because the RP runs the verification pipeline locally and controls all signal extraction. **SaaS verifier vendors** vary widely — the RP must explicitly evaluate signal granularity during vendor selection. RPs that require a full VSI pipeline (e.g., financial RPs subject to DORA) should strongly prefer library/SDK-embed delivery models ([§26.6.5](#2665-callback-payload-requirements) Model L2) or negotiate per-signal webhook events with their SaaS provider.
+> **Key insight**: **Library/SDK-embed vendors** (walt.id OCI, Spruce DIDKit, Scytáles SDK) inherently provide **full VSI readiness** because the RP runs the verification pipeline locally and controls whether validation is fail-fast or aggregate. **SaaS verifier vendors** vary widely — the RP must explicitly evaluate not only per-check failure granularity, but also whether the vendor exposes the **full failure set from a single validation pass**. RPs that require a full VSI pipeline (e.g., financial RPs subject to DORA) should strongly prefer library/SDK-embed delivery models ([§26.6.5](#2665-callback-payload-requirements) Model L2) or negotiate aggregate per-policy validation results with their SaaS provider.
 
 ---
 
@@ -32394,6 +32464,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | For native mobile RPs, migrate from custom URI schemes (`eudiw://`) to OS-level mechanisms: use Android CredentialManager `DigitalCredential` API as the preferred approach on Android ([§9.3.1](#931-android-credentialmanager-flow-preferred)), with Universal Links (iOS) / App Links (Android) as the cross-platform fallback. |
 | 🟡 **High** | Implement DCQL combined presentation queries for multi-attestation use cases. Prepare verification logic for all three identity matching methods (presentation-based, attribute-based, cryptographic). |
 | 🟡 **High** | Handle both device-bound and non-device-bound attestations in verification pipelines. Do not assume all credentials have a `cnf` claim — verify KB-JWT only when present. |
+| 🟡 **High** | Define an explicit **assurance profile** for each RP journey instead of choosing channels ad hoc. At minimum, document the default presentation path, the fallback path, whether proximity is required for any lifecycle events, and how missing device binding changes downstream assurance. ([§24.6.1](#2461-financial-sector-high-assurance-wallet-profile), [§26.1.2](#2612-assurance-profiles-and-channel-policy)) |
 | 🟡 **High** | If your Access CA / ecosystem profile uses CT logging, verify the required SCT or equivalent transparency evidence, monitor CT logs or CT monitors for unauthorised WRPACs, and route response through the Access CA / Registrar authority layer rather than treating CT itself as the revocation source. ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)) |
 | 🟡 **High** | Design fallback flows for EDP-denied attestations that do not reveal whether the failure was due to policy, User refusal, or credential absence. ([§20.3.3](#2033-the-rp-experience-handling-rejections)) |
 | 🟡 **High** | For payment SCA, structure `transaction_data` in OpenID4VP requests per Topic W HLRs. The signed KB-JWT response constitutes the PSD2 Dynamic Linking proof. ([§15.15](#1515-transactional-data-hlrs-topic-w)) |
@@ -32419,6 +32490,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟢 **Medium** | Monitor ARF Topic 37 for forthcoming QES remote signing technical requirements. The HLR section does not yet exist. ([§32.1](#321-overview)) |
 | 🟢 **Medium** | If your RP also issues credentials (loyalty cards, memberships, employee badges), register separately as an EAA Provider and implement OID4VCI 1.0 (credential offer, credential endpoint, issuer metadata). Reuse [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)'s Pre-Authorized Code pattern with your own VCT definition. Maintain separate key material for verification (WRPAC) and issuance (Attestation Provider key). ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)) |
 | 🟡 **High** | ISO 18013-7 Annex B profiles OID4VP Draft 18, creating a version mismatch with the EUDI ecosystem. RPs should use ISO 18013-7 Annex C (DC API) for browser-based mdoc online presentation, or target OID4VP 1.0 directly, bypassing Annex B. The third edition of ISO 18013-7, expected Q2 2026, will address this gap. ([§8.8](#88-iso-18013-7-and-oid4vp-version-alignment)) |
+| 🟡 **High** | Treat **same-device DC API** as the preferred browser presentation path where platform support exists. Keep cross-device QR / deep-link presentation as an interoperability and accessibility fallback, but do not treat it as the default channel when a same-device path is available. ([§9](#9-same-device-remote-presentation), [§24.6.1](#2461-financial-sector-high-assurance-wallet-profile), [§26.1.2](#2612-assurance-profiles-and-channel-policy)) |
 | 🟡 **High** | **Implement a pluggable verification architecture** that supports multiple proof types: SD-JWT selective disclosure, mdoc signature validation, and ZKP mathematical verification. This enables seamless adoption of the Commission's ZKP age verification ([§19](#19-age-verification-attestation-pipelines)) alongside existing EUDI Wallet flows. Design the verification pipeline with a proof-type-agnostic interface. |
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution ([§19](#19-age-verification-attestation-pipelines)) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
 | 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation ([§22](#22-amlkyc-onboarding-via-eudi-wallet)) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. ([§19.1.3](#1913-trust-model-and-issuer-infrastructure), [§19.1.6](#1916-comparison-zkp-vs-sd-jwt)) |
@@ -32452,15 +32524,18 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🔴 **Critical** | **📖 See [§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub)** for the comprehensive Bank/PSP compliance hub — covers all mandatory and conditional obligations, SCA trigger analysis, regulatory dispute resolutions, and implementation sequencing. |
 | 🔴 **Critical** | Implement TS12 SCA flow including `transaction_data` and Dynamic Linking. |
 | 🔴 **Critical** | Map EUDI Wallet SCA response to existing authorisation decision infrastructure. |
-| 🟡 **High** | Keep the two bank trust stacks explicit in design and operations: the Wallet-facing RP stack (`WRPAC` / `WRPRC`, OpenID4VP, TS12 SCA) and the institution-facing PSD2/open-banking certificate stack (`QWAC` / `QSealC`, open-banking `QCStatement`, `rolesOfPSP`, `NCAName` / `NCAId`, NCA/EBA register checks). Parse the certificate profile, but do not treat certificate fields alone as the full current-authorization truth source. ([§21.2](#212-psd2psr-and-sca-bridge), [§24.3.1](#2431-rp-registration-and-trust-establishment)) |
 | 🔴 **Critical** | Implement CDD onboarding flow using PID + address attestation. |
+| 🔴 **Critical** | Adopt a **financial-sector high-assurance wallet profile**: DC API-first for browser presentation where supported, supervised or otherwise controlled proximity for issuance/recovery/rebinding ceremonies, and VSI-triggered escalation into stronger channels when risk warrants it. ([§24.6.1](#2461-financial-sector-high-assurance-wallet-profile), [§26.1.2](#2612-assurance-profiles-and-channel-policy), [§30](#30-verification-signal-intelligence)) |
+| 🟡 **High** | Keep the two bank trust stacks explicit in design and operations: the Wallet-facing RP stack (`WRPAC` / `WRPRC`, OpenID4VP, TS12 SCA) and the institution-facing PSD2/open-banking certificate stack (`QWAC` / `QSealC`, open-banking `QCStatement`, `rolesOfPSP`, `NCAName` / `NCAId`, NCA/EBA register checks). Parse the certificate profile, but do not treat certificate fields alone as the full current-authorization truth source. ([§21.2](#212-psd2psr-and-sca-bridge), [§24.3.1](#2431-rp-registration-and-trust-establishment)) |
 | 🟡 **High** | Include EUDI Wallet integration in DORA digital resilience testing programme. |
 | 🟡 **High** | Assess intermediary as ICT third-party service provider under DORA Art. 28–30. |
-| 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
+| 🟡 **High** | For bank-issued high-risk credentials under RP control, make **device binding mandatory by issuance policy**. For externally issued credentials that arrive without holder/device binding, do not treat them as assurance-equivalent; shorten session validity, restrict sensitive actions, or require step-up where the risk model demands it. ([§11.5](#115-edge-cases-and-error-handling), [§24.6.1](#2461-financial-sector-high-assurance-wallet-profile), [OQ #13](#oq-13)) |
+| 🟡 **High** | Use supervised or otherwise controlled proximity flows selectively, not universally: prioritise issuance of bank-native credentials, recovery after device loss or account-takeover suspicion, credential re-binding, and other signal-triggered high-risk events rather than every routine presentation. ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised), [§24.6.1](#2461-financial-sector-high-assurance-wallet-profile), [§30](#30-verification-signal-intelligence)) |
 | 🟡 **High** | **Differentiate Status List cache TTL by credential type**: PID 24h, LPID 12h, mandate ≤1h or real-time for high-value operations. Do not apply blanket 24h caching to mandate credentials. ([§18.2.7](#1827-mandate-revocation-model)) |
 | 🟡 **High** | **Prepare triple-credential combined presentation verification** (LPID + PID + mandate) with three-way binding checks: `cnf.jwk` match, `representative_id` ↔ `personal_identifier`, `represented_entity_id` ↔ `legal_person_id`. ([§18.1](#181-example-legal-person-verification-lpid), [§18.2.5](#1825-mandate-verification-flow)) |
 | 🟡 **High** | **Evaluate embedded wallet SDKs for SCA attestation issuance** ([§9.4](#94-embedded-wallet-sdk-integration-pattern), [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)). In the dual-wallet model, the bank issues SCA attestations via OID4VCI directly into its own embedded SDK, eliminating the external EUDI Wallet from the SCA flow. Assess Verimi (EUDI-certified), walt.id (open-source, protocol-complete), or Ping Identity (enterprise IAM integration) per [§27.7](#277-embedded-wallet-sdk-capability-assessment). |
 | 🟢 **Medium** | **Test CredentialManager dual-registration** on Android: verify that the bank's embedded wallet SDK and the standalone EUDI Wallet both appear in the OS credential picker when the bank's website invokes the DC API. Document the user experience for wallet selection and ensure the verification backend handles both wallets identically. ([§9.4.2](#942-protocol-reuse-single-qr-code-dual-wallet)) |
+| 🟢 **Medium** | Prepare for Enhanced Due Diligence attestation types as MS ecosystems mature. |
 
 #### 35.3 Implementation Checklist
 
