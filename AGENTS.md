@@ -28,18 +28,18 @@ During DR-0005 content generation, SearXNG's upstream engines (Brave, DuckDuckGo
 
 **Current configuration** (`/home/ivan/searxng/settings.yml`):
 
-| Engine | Status (2026-04-08) | Notes |
+| Engine | Status (2026-04-19) | Notes |
 |:-------|:--------------------:|:------|
 | **Seznam** | ✅ Enabled | Best relevance for regulatory and technical queries |
 | **Presearch** | ✅ Enabled | Excellent for legal/regulatory content |
+| **DuckDuckGo** | ✅ Enabled | Good general coverage |
+| **Startpage** | ✅ Enabled | Google-proxied results |
 | **Yandex** | ✅ Enabled | Good broad coverage |
+| **Google** | ✅ Enabled | Requires recent SearXNG image for consent-redirect handling |
 | **Bing** | ✅ Enabled | Unreliable under load — returns irrelevant results when rate-limited |
 | Brave | ❌ Disabled | Rate limited ("too many requests") |
-| DuckDuckGo | ❌ Disabled | Timeout |
-| Google | ❌ Disabled | Access denied |
-| Mojeek | ❌ Disabled | Access denied |
+| Mojeek | ❌ Disabled | Access denied (403 — IP-level block) |
 | Qwant | ❌ Disabled | Access denied |
-| Startpage | ❌ Disabled | CAPTCHA |
 
 **How to rotate engines when search degrades:**
 
@@ -65,7 +65,47 @@ During DR-0005 content generation, SearXNG's upstream engines (Brave, DuckDuckGo
 6. **Verify** with both a regulatory query and a technical query before resuming work.
 
 **Other potentially useful engines** (available but not currently enabled): `marginalia`, `mwmbl`, `yahoo`, `seznam` (already enabled), `wikipedia` (for definitions only), `stackexchange` (for developer Q&A).
+### Docker Image Upgrades
 
+**SearXNG engine failures are often caused by an outdated Docker image**, not by the upstream engine itself. Before concluding an engine is "blocked" or "rate-limited", check the image version and pull a fresh one.
+
+**Docker image**: `searxng/searxng:latest` — hosted on Docker Hub.
+
+**Container setup**: bind-mounted config at `/home/ivan/searxng/settings.yml` (read-only), port `8880→8080`, restart policy `unless-stopped`.
+
+**How to upgrade:**
+
+1. **Check current version:**
+   ```bash
+   docker inspect searxng --format '{{index .Config.Labels "org.opencontainers.image.version"}}'
+   ```
+
+2. **Check latest available:**
+   ```bash
+   curl -sf 'https://hub.docker.com/v2/repositories/searxng/searxng/tags/?page_size=3' \
+     | python3 -c "import sys,json; [print(r['name'], r.get('last_updated','')[:10]) for r in json.load(sys.stdin).get('results',[])]"
+   ```
+
+3. **Pull and recreate** (preserves the bind-mounted config):
+   ```bash
+   docker pull searxng/searxng:latest
+   docker stop searxng && docker rm searxng
+   docker run -d \
+     --name searxng \
+     --restart unless-stopped \
+     -p 8880:8080 \
+     -v /home/ivan/searxng/settings.yml:/etc/searxng/settings.yml:ro \
+     searxng/searxng:latest
+   ```
+
+4. **Verify** by testing all enabled engines after the upgrade.
+
+**When to upgrade:**
+- Whenever engines start returning "access denied" or "CAPTCHA" errors that previously worked — the SearXNG parser may be out of date.
+- Before intensive research sessions (DR document work), check if the image is more than 2 weeks old.
+- After upgrading, re-test all engines (including disabled ones) to see if any have recovered.
+
+**Lesson (2026-04-19):** Google was "access denied" for weeks on image `2026.3.10`. Pulling `2026.4.17` fixed it immediately — the old image couldn't parse Google's consent redirect page. DuckDuckGo and Startpage also recovered after the upgrade.
 ## Missing Tools or Packages — Immediate Stop and Escalate
 
 **If a required binary, library, package, module, CLI, or system dependency is missing, you MUST stop immediately and escalate to the user.** Do not silently switch to a different toolchain, do not invent a workaround, and do not continue with a degraded approach unless the user explicitly tells you to.
@@ -119,6 +159,24 @@ When the user specifies an explicit process (e.g., "sequentially," "one at a tim
 
 The same principle applies to any user-specified workflow: editing order, review gates, approval checkpoints, or sequential task execution. Respect the process even when it feels inefficient.
 
+## WORKFLOW.md Phase Order Is Non-Negotiable
+
+**WORKFLOW.md defines a strict phase ordering for DR document production. You MUST NOT deviate from it — ever.** The phases are sequential gates, not suggestions:
+
+1. **Phase 2 (Deep Dives):** Write ALL chapter deep dives to `.scratch/` files first. Do not integrate any chapter into the main document until the deep dive phase is complete or a coherent batch is finished.
+2. **Phase 3 (Integration Plans):** Create integration plans AFTER deep dives are written. Not before. Not during.
+3. **Phase 4 (Integration):** Execute integration AFTER plans are created. Not before. Not during.
+
+**Concrete rules:**
+
+- **Do not start from an arbitrary chapter.** Deep dives proceed sequentially from §1 or in parallel batches of 2 — never skip ahead because a later chapter "seems more interesting" or "validates the format."
+- **Do not integrate a chapter until its batch of deep dives is complete.** Integration is a separate phase. Writing a deep dive and immediately integrating it before writing the next deep dive is a phase violation.
+- **Do not skip the research pass.** The multi-pass model is: research → gap analysis → refinement. Bundling research into the writing subagent without a dedicated research step is a shortcut.
+- **Do not skip integration plans.** Every chapter gets an integration plan before any edits touch the main document.
+- **Do not suggest deviating.** When asked for next steps, propose the next step in the correct phase sequence — not a shortcut that skips phases.
+
+**Why this exists (DR-0006 lesson, 2026-04-19):** During DR-0006 production, the orchestrator started with §5 (Memory Management) instead of §1, skipped the research pass, integrated §5 into the main document before writing any other deep dives, and skipped integration plans. This resulted in a single integrated chapter floating in an empty skeleton, no research artifacts for the remaining 61 chapters, and the workflow being half-done before the mistake was caught. The correct process — write all deep dives, then plan integration, then integrate — prevents partial work from creating inconsistent document state.
+
 ## Planned Work — No Silent Process Deviation
 
 When a task is being executed from an explicit plan that the user has approved, you must treat the plan as an execution contract, not as flexible guidance.
@@ -136,6 +194,22 @@ When a task is being executed from an explicit plan that the user has approved, 
 5. **Deviations are hard-stop events.** If you believe a shortcut, reordered sequence, reduced read depth, or batched execution would be better, stop and ask the user before deviating.
 
 6. **Self-detected deviation must be reported immediately.** If you realize you have already deviated from the agreed process, stop at once, say exactly what deviated, correct any inaccurate tracker state, and ask how to proceed if recovery is ambiguous.
+
+## Research and Gap Analysis Must Use Subagents (GitHub Copilot Only)
+
+> **Scope**: This rule applies only to **GitHub Copilot** (VS Code), which has native `runSubagent` dispatch. Other harnesses (Google Antigravity, Claude Code, etc.) do not have subagent dispatch and should perform analysis directly using their own tools.
+
+**All gap analysis, research, and content-enrichment work for DR chapters MUST be performed by subagents — never in the orchestrator's main context.** The orchestrator's job is to dispatch, verify, and integrate — not to analyze, synthesize, or generate chapter content directly.
+
+### Rules
+
+1. **Gap analysis is a subagent task.** When a gap analysis is needed for a chapter, dispatch a subagent with web search access to read the current deep dive, identify missing topics, and verify technical claims against live sources. The orchestrator must not produce gap analyses from its own knowledge.
+
+2. **Content enrichment is a subagent task.** Expanding chapters with deeper subsections (h4/h5), additional code examples, or new topic coverage must be done by a subagent. The orchestrator provides the gap analysis results and enrichment instructions; the subagent writes the content.
+
+3. **Why this matters.** The orchestrator context is limited and shared across all tasks. Performing substantive analysis in the main context (a) consumes context budget needed for orchestration, (b) produces lower-quality output than a focused subagent with web search, and (c) loses the work on context compaction. Subagent output persists in `.scratch/` files; orchestrator thinking does not.
+
+4. **Exception: trivial observations are fine.** Noting "this file has 94 lines" or "the heading says Chapter 7 but the content is about concurrency" is an observation, not analysis. Quick structural checks in the main context are acceptable. Substantive technical analysis is not.
 
 ## Planning Documents for Multi-Step Tasks (10+ Steps)
 
@@ -461,7 +535,7 @@ After executing a plan, batch of edits, or any multi-step task, present a **stru
 
 **When to use:** Any time the orchestrator completes 2+ edits in a session. For single trivial edits, a one-sentence confirmation suffices.
 
-**Document references in user communication.** When referring the user to content inside DR documents, prefer section / subsection IDs and titles (for example `§5.1 Token Exchange Flow`) rather than line numbers. Use line numbers only if the user explicitly asks for them or if the target is code rather than document content.
+**Document references in user communication.** When referring the user to content inside DR documents, use **section / subsection IDs and titles** (for example `§5.1 Token Exchange Flow`) rather than line numbers. Do **not** point the user to line numbers for document prose by default — DR articles are read by section, not by source line. If a file reference is helpful, mention the document path once and then name the relevant section(s). Use line numbers only if the user explicitly asks for them or if the target is **code**, not document content.
 
 ## Research from GitHub Repositories
 
