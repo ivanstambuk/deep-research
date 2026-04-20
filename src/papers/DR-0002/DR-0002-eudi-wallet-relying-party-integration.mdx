@@ -19,7 +19,7 @@ related: []
 
 **DR-0002** · Published · Last updated 2026-04-20 · ~30,100 lines
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, the ETSI TR 119 411-9 CT ecosystem/governance layer, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance, and the adjacent bank/PSP certificate-profile layer for PSD2/open-banking `QWAC` / `QSealC` semantics via ETSI TS 119 495), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, holder binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 41-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 62-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, the ETSI TR 119 411-9 CT ecosystem/governance layer, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance, and the adjacent bank/PSP certificate-profile layer for PSD2/open-banking `QWAC` / `QSealC` semantics via ETSI TS 119 495), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, device binding, user binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 44-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 65-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 24-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -154,7 +154,7 @@ related: []
     - [11.6 OpenID4VP Error Responses](#116-openid4vp-error-responses)
     - [11.7 Error Recovery and Retry Strategies](#117-error-recovery-and-retry-strategies)
     - [11.8 Pre-Production Conformance Testing](#118-pre-production-conformance-testing)
-    - [11.9 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap](#119-trust-boundaries-wua-device-binding-and-zkp-roadmap)
+    - [11.9 Trust Boundaries: User Binding, Wallet Trust, Device Binding, and ZKP Roadmap](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap)
     - [11.10 Linkability-Resistant Verification Practices](#1110-linkability-resistant-verification-practices)
     - [§11.11 Level of Assurance Verification](#1111-level-of-assurance-verification)
     - [§11.12 LPID Verification Pipeline Delta](#1112-lpid-verification-pipeline-delta)
@@ -5230,6 +5230,8 @@ The critical first-order decision is not about credential formats or technical a
 
 > **RP impact**: For RPs that also operate as QEAAs issuers (dual-role organisations), these identity verification hardening requirements directly affect onboarding flows. Where the user already holds a PID in the EUDI Wallet, the QTSP can perform identification at LoA high by requesting and verifying PID attributes — a practical design pattern documented in ARF v2.8.0, though not an independent legal exemption from Art. 24.
 
+**Adjacent upstream onboarding act — CIR 2026/798**: Commission Implementing Regulation (EU) 2026/798 performs a related but distinct function for the Wallet ecosystem: it also designates **ETSI TS 119 461 V2.1.1 (2025-02)** as the conformance baseline, but for **remote onboarding of wallet users** where an eID means at **LoA substantial** is combined with additional remote onboarding procedures that together satisfy **LoA high**. For `DR-0002`, this matters mainly as an **upstream trust enabler** rather than a new RP-duty source: it strengthens the legal basis for trusting that PID issuance and wallet-user binding may have been achieved through a harmonised, high-assurance remote proofing process before the RP ever receives a presentation.
+
 **Recommended sequencing**: Since downstream requirements cascade from upstream decisions, the design considerations above should be addressed in roughly this order: (1) determine the regulatory regime, (2) decide EUDI Wallet scope and applicable CIRs, (3) define the attribute model and source verification chain, (4) design the Rulebook and register the attestation scheme, (5) select the validity/revocation model, and — for QEAAs specifically — design the issuance flow against Art. 24 + CIR 2025/1566 from the outset rather than treating identity verification as an afterthought.
 
 ---
@@ -8484,6 +8486,8 @@ After receiving and decrypting the response, the RP performs:
 
 > **Qualified-status boundary**: The checklist above establishes ordinary RP trust for a presented credential: issuer authenticity, disclosure integrity, device binding, and revocation state. If the RP later needs to claim that an embedded certificate, `QWAC`, `QSCD`, or related service is **qualified**, that is a separate second-stage evaluation. The RP must authenticate the `LOTL`, authenticate the relevant national trusted list, perform service matching, and only then derive a time-specific `ETSI TS 119 615` conclusion such as `QC_For_eSig`, `QWAC`, or `Indeterminate`.
 
+> **User-binding boundary**: Steps 6-7 above prove **device / key possession** for a device-bound SD-JWT VC. That is a core input into **User binding**, but it is not the whole concept. In ARF terms, the RP often verifies device binding first and then **trusts** the Wallet Unit / WSCA user-auth ceremony to have authenticated the User before presentation. Additional portrait/PAD or supervised checks are optional, flow-dependent strengthening layers rather than the default baseline. See §11.9.
+
 #### 11.4 Verification Checklist for mdoc (via ISO 18013-7/OpenID4VP)
 
 | Step | Verification | Failure Action |
@@ -8499,6 +8503,8 @@ After receiving and decrypting the response, the RP performs:
 | 9 | **Extract data elements** from verified IssuerSignedItems | Process |
 
 > **Qualified-status boundary**: The mdoc checklist above proves that the CBOR payload is authentic, untampered, device-bound, and not revoked under the issuer's normal lifecycle. It does **not** by itself establish a qualified certificate / `QSCD` / qualified validation / `QEAA` conclusion. Where those conclusions matter, the RP must run the separate `ETSI TS 119 615` trusted-list procedure layer after the technical checks succeed.
+
+> **User-binding boundary**: `DeviceAuth` and `SessionTranscript` validation establish that the mdoc presentation came from the device controlling the bound key in this session. For ARF-style **User binding**, the RP may then trust the Wallet Unit's internal user-auth step, or add stronger flow-specific checks such as supervised portrait comparison or PAD-backed remote selfie comparison where needed. See §11.9.
 
 #### 11.5 Edge Cases and Error Handling
 
@@ -8751,28 +8757,48 @@ The following checklist maps each RP verification aspect to a specific test tool
 > 3. Test against the **German Sandbox** and **French Playground** — real Member State Wallet implementations (§28.3)
 > 4. Attend the **EUDI Wallets Launchpad** — structured cross-border, multi-party interoperability testing
 
-#### 11.9 Trust Boundaries: WUA, Device Binding, and ZKP Roadmap
+#### 11.9 Trust Boundaries: User Binding, Wallet Trust, Device Binding, and ZKP Roadmap
 
-Three trust-boundary clarifications are critical for RP architects designing verification pipelines:
+Five trust-boundary clarifications are critical for RP architects designing verification pipelines:
 
-**1. Wallet Unit Attestation (WUA) is a current RP-facing option, but not the only trust signal.**
+##### 11.9.1 User Binding vs Device Binding
+
+ARF §6.6.3.9 defines **User binding** (sometimes also called *holder binding*) as the property that the person presenting the PID or attestation is the User to whom it was issued. This is the actual RP-facing assurance question: *is the presenter the rightful user?*
+
+In practice, the ARF block around §6.6.3.8-§6.6.3.12 implies three distinct patterns:
+
+| User-binding method | How the RP reaches the conclusion | Typical flows | Assurance shape |
+|:--------------------|:----------------------------------|:--------------|:----------------|
+| **Trust Wallet user-auth after device binding** | Verify device binding first, then trust the Wallet Unit / WSCA/WSCD to have authenticated the User before presentation | Most remote PID and device-bound-attestation flows | Strong baseline when device binding exists |
+| **Additional attribute-based user binding** | Compare `portrait` or similar attributes to the live presenter (human inspection or remote selfie) | Supervised proximity, selected remote onboarding journeys | Stronger live-person assurance, but more intrusive |
+| **Document-supported user binding** | Compare PID / attestation attributes against a separate identity document and verify that document too | Exception / fallback / high-friction flows | Operationally heavy; only justified in selected cases |
+
+The key ARF insight is that **portrait is not the default definition of User binding**. For device-bound PIDs and attestations, the RP can often verify device binding and then **trust** the wallet's internal user-authentication mechanisms. Portrait/PAD or photo-ID comparison are additive methods the RP can choose when the risk model requires a stronger live-person ceremony.
+
+The July 2025 **ANSSI/BSI joint paper on remote identity proofing for EUDI Wallet onboarding** sharpens this distinction further by decomposing remote proofing into **biometric genuineness**, **document authenticity**, and **face matching**. In that model, portrait/selfie comparison mainly strengthens the **face matching** side and part of the biometric-genuineness side; it is **not** the whole onboarding assurance story. That is a useful check against overstating `portrait` as if it were equivalent to full User binding or to the issuer's upstream document-proofing process.
+
+> **RP implication**: In `DR-0002`, treat **User binding** as the broader assurance conclusion and **device binding** as one important enabling proof for device-bound credentials. Use portrait/PAD as a supplementary control, not as the universal baseline. This is why §24.3.8 now frames portrait as conditional/risk-based rather than mandatory by default.
+
+##### 11.9.2 Wallet Unit Attestation (WUA) and Wallet Trust
 
 The Wallet Unit Attestation (WUA, specified in TS3) proves that a Wallet Unit is genuine — certified by a Wallet Provider and running on a properly secured WSCA/WSCD. Under the current in-force `CIR 2024/2982` model, wallets support RP-requested WUAs for wallet authentication. At the same time, many core credential-verification flows still infer wallet health *indirectly* from PID / attestation validity and cascading revocation, and a draft amendment would narrow the RP-facing artifact from `WUA` to `WIA`.
 
-> **RP implication**: Design verification pipelines to support today's explicit WUA path where exposed, while still treating PID / attestation validity as a key indirect trust signal. Do not hard-code the assumption that WUA will remain the long-term RP-facing artifact — `WIA` may replace it.
+ARF §6.6.3.11 and §6.6.3.12 sharpen the trust boundary here: the RP does **not** directly verify that the Wallet Provider authenticated the Wallet Unit at issuance time. Instead, the RP often **trusts the issuer** to have done so when issuing the PID or attestation. For PIDs specifically, revocation status also carries an indirect wallet-health signal because the PID Provider must cascade-revoke when the underlying Wallet Unit is revoked.
 
-**2. Device binding is recommended, not mandatory (ARF Topic Z).**
+> **RP implication**: Design verification pipelines to support today's explicit WUA path where exposed, while still treating PID / attestation validity as a key indirect trust signal. Do not hard-code the assumption that WUA will remain the long-term RP-facing artifact — `WIA` may replace it. Also distinguish clearly between **direct wallet-authentication evidence** (WUA/WIA) and **issuer-mediated wallet trust** (PID validity + cascade revocation).
+
+##### 11.9.3 Device Binding Is Recommended, Not Mandatory
 
 ARF v2.6.0 integrated Discussion Paper Topic Z on device-bound attestations, which changed device binding from **mandatory** to **recommended**. This means some attestations may not have a `cnf` (confirmation) claim binding the credential to a specific device key. RPs should handle both cases:
 
-| Scenario | RP Verification | Assurance Level |
-|:---------|:----------------|:----------------|
-| **Device-bound attestation** (`cnf` present) | Verify KB-JWT signature against `cnf.jwk` | High — proves the presenting device holds the private key |
-| **Non-device-bound attestation** (no `cnf`) | Verify issuer signature only; no device binding check | Medium — proves the attestation is authentic but not which device holds it |
+| Scenario | RP Verification | User-binding consequence | Assurance Level |
+|:---------|:----------------|:-------------------------|:----------------|
+| **Device-bound attestation** (`cnf` present) | Verify KB-JWT signature against `cnf.jwk` or validate mdoc `DeviceAuth` | RP can use ARF's default model: verify device binding, then trust Wallet user-auth for baseline User binding | High |
+| **Non-device-bound attestation** (no `cnf`) | Verify issuer signature only; no device binding check | RP cannot derive the same wallet-auth-based User-binding conclusion from the presentation alone | Medium |
 
-> **RP guidance**: For high-assurance use cases (financial, healthcare), RPs should preferentially request device-bound attestations. For low-assurance use cases (age verification, newsletter sign-up), non-device-bound attestations are acceptable. The RP's DCQL query cannot currently enforce device binding — this is an issuer-level policy decision.
+> **RP guidance**: For high-assurance use cases (financial, healthcare), RPs should preferentially request device-bound attestations. For low-assurance use cases (age verification, newsletter sign-up), non-device-bound attestations are acceptable. The RP's DCQL query cannot currently enforce device binding — this is an issuer-level policy decision. Where device binding is absent, the RP should express the **assurance downgrade** explicitly rather than pretending the same User-binding strength still exists. The right place to encode that downgrade operationally is the RP's assurance-profile model in §26.1.2.
 
-**3. Credential churn is by-design, not an error (Topic A + Topic B).**
+##### 11.9.4 Credential Churn Is By Design
 
 RPs should expect that a **single user presents different attestation instances** across sessions. Privacy-preserving mitigation measures (§11.10) mean that Attestation Providers frequently re-issue PIDs and attestations — with new salts, new key pairs, new status indices, and new signature values — to limit linkability. A user who authenticated yesterday with PID instance A may authenticate today with PID instance B — structurally different in every cryptographic aspect — but representing the same underlying identity.
 
@@ -8789,7 +8815,7 @@ Topic B (v0.9, Feb 2025) establishes the re-issuance lifecycle: re-issuance is t
 
 > **Wallet migration and non-device-bound attestations**: After wallet migration, non-device-bound attestations (Topic Z) may be presented unchanged — same `cnf` binding (or no `cnf`), same issuer signature, same status index. RPs should not assume that migration necessarily changes all cryptographic identifiers. Only device-bound credentials (PIDs, most QEAAs) are re-issued with new key material. See §5.6.1 for the consolidated migration handling guide.
 
-**4. Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline.**
+##### 11.9.5 Zero-Knowledge Proofs (ZKP) and the Evolving Verification Pipeline
 
 While SD-JWT VC and mdoc rely on the selective disclosure of exact, unhashed attribute values, upcoming ARF specifications (Topic G, TS4, TS13, and TS14) define mechanisms for **Zero-Knowledge Proofs (ZKP)**. ZKPs fundamentally shift the RP verification paradigm: instead of validating a JWS signature over a disclosed scalar value (e.g., `birth_date = "1990-01-01"`), the RP mathematically verifies a derived cryptographic proof without ever seeing the raw data.
 
@@ -8843,7 +8869,7 @@ PID Providers and Attestation Providers will employ one or more of the following
 | **C** | **Rotating-batch attestations** | Batch of N attestations issued simultaneously. The Wallet selects randomly from the batch for each presentation. The entire batch is replaced at expiry. | RP sees different unique elements ~(N-1)/N of the time. Correlation probability decreases with batch size. | Partial — improves with larger batch size |
 | **D** | **Per-RP attestations** | A different attestation instance is used for each RP. The same attestation is always presented to the same RP. | RP sees a stable credential per user. Cross-RP correlation is impossible because different RPs never see the same attestation instance. | Full cross-RP mitigation; same-RP linkability remains |
 
-> **What this means for RPs**: Credential churn is by-design. The same user may present structurally different attestation instances across sessions — different `cnf.jwk`, different `status_list.idx`, different disclosures — but with the same underlying identity. RPs must design verification pipelines that do not assume credential stability. See also §11.9 point 4 on credential churn.
+> **What this means for RPs**: Credential churn is by-design. The same user may present structurally different attestation instances across sessions — different `cnf.jwk`, different `status_list.idx`, different disclosures — but with the same underlying identity. RPs must design verification pipelines that do not assume credential stability. See also §11.9.4 on credential churn.
 
 ##### 11.10.3 RP Anti-Linkability Obligations
 
@@ -17236,6 +17262,8 @@ Banks and PSPs face two converging regulatory tracks that drive EUDI Wallet inte
 
 The PID verification pipeline (§11) must be operational *before* the SCA Attestation flow — CDD readiness is the logical first deployment milestone. This dual-track reality drives the recommended implementation sequence:
 
+> **Upstream issuance enabler — CIR 2026/798**: The April 2026 remote-onboarding act does not change the RP-side deadlines in this timeline, but it materially improves the **supply-side path** for wallet issuance: Member States can now rely on a harmonised route where an existing eID at **LoA substantial** is combined with additional remote onboarding procedures to reach **LoA high**. For banks and PSPs, that does not remove PID verification, revocation checking, or CDD obligations; it does mean that remotely issued, high-assurance Wallet/PID populations are more defensible as an onboarding basis.
+
 **Implementation Sequencing:**
 
 | Phase | Milestone | Dependencies | Target |
@@ -17753,15 +17781,107 @@ The **Digital Operational Resilience Act (DORA)** — Regulation (EU) 2022/2554 
 
 ##### 24.3.8 Supplementary Identity Verification (Portrait/PAD)
 
-🔴 **Mandatory** — Banks and PSPs performing AML/CDD onboarding (recommended: ETSI TS 119 461 PAD)
+🟡 **Conditional / risk-based** — Banks and PSPs performing remote AML/CDD onboarding where additional live-person assurance is justified
 
-Banks face a unique tension: eIDAS 2.0 provides LoA High cryptographic assurance, but AMLR requires them to detect **presentation attacks** (coercion, relay, deepfake) that the Wallet's cryptographic assertion cannot prevent. Article 5b(8) explicitly permits supplementary security measures:
+Banks face a unique tension: eIDAS 2.0 and the Wallet trust chain can already provide a **high-assurance upstream identity result**, while AMLR still requires the RP to manage fraud, mule, coercion, and onboarding risk in its own channel. Commission Implementing Regulation (EU) 2026/798 sharpens this distinction by formalising a harmonised remote-onboarding path in which a wallet user may be onboarded with an eID means at **LoA substantial** plus additional remote proofing steps that together satisfy **LoA high**. In other words: the Wallet/PID may already arrive at the RP with a stronger upstream identity-proofing pedigree than the earlier 2024/2025 text alone made explicit.
+
+That means three distinct "binding" questions should be kept separate:
+
+| Layer | What is being bound | Who is responsible | Typical evidence |
+|:------|:--------------------|:-------------------|:-----------------|
+| **1. Upstream onboarding / issuance binding** | Real-world person ↔ PID ↔ Wallet Unit / user device | PID provider / wallet onboarding stack | Issuer identity proofing, Wallet issuance controls, CIR 2026/798 / CIR 2024/2977 compliance |
+| **2. Presentation-time holder binding** | Presented credential ↔ current Wallet Unit control | RP / intermediary verifier | KB-JWT, DeviceAuth, WUA validity, issuer signature, revocation checks |
+| **3. RP-side live-person binding** | Current presenter ↔ the human physically in front of the camera / onboarding session | RP | Selfie, video-ident, `portrait` comparison, PAD, operator review |
+
+For many RP use cases, **layers 1 and 2 are enough**. If the RP trusts the issuer's proofing, validates the trust chain, checks revocation, and verifies holder/device binding, it does **not** automatically need the optional `portrait` attribute. Portrait/PAD becomes relevant when the RP wants an additional **session-local live-person check** beyond the upstream trust it already receives.
+
+The July 2025 **ANSSI/BSI joint paper** is useful here because it breaks remote identity proofing into three separate verification goals: **biometric genuineness**, **document authenticity**, and **face matching**. For RP-side supplementary checks, that means a `portrait`/selfie step addresses only part of the problem. It can strengthen the link between the current presenter and the PID holder, but it does not by itself prove that any additional document shown to the camera is genuine, current, or actually in the applicant's possession.
+
+```mermaid
+flowchart LR
+    INPUT["`**Inputs**
+    Live presenter
+    PID portrait / attributes
+    Optional physical identity document`"]
+
+    subgraph CAPTURE["`**Capture**`"]
+        FACE["`Face capture
+        Selfie / video stream`"]
+        DOC["`Document capture
+        Camera capture or NFC chip read`"]
+    end
+
+    subgraph PROCESS["`**Processing**`"]
+        BIO["`Biometric genuineness
+        PAD / liveness / anti-spoofing`"]
+        AUTH["`Document authenticity
+        Chip validation / document checks`"]
+        MATCH["`Face matching
+        Presenter ↔ portrait / document photo`"]
+        CTRL["`Controls
+        Challenge-response
+        Tamper checks
+        Policy gates`"]
+    end
+
+    DECISION["`**Decision**
+    Allow
+    Step-up
+    Reject / review`"]
+
+    INPUT --> FACE
+    INPUT --> DOC
+    FACE --> BIO
+    FACE --> MATCH
+    DOC --> AUTH
+    DOC --> MATCH
+    BIO --> CTRL
+    AUTH --> CTRL
+    MATCH --> CTRL
+    CTRL --> DECISION
+
+    style INPUT text-align:left
+    style FACE text-align:left
+    style DOC text-align:left
+    style BIO text-align:left
+    style AUTH text-align:left
+    style MATCH text-align:left
+    style CTRL text-align:left
+    style DECISION text-align:left
+```
+
+The flow above is a better mental model for RP architects than "selfie check" alone. It shows why a supplementary remote-proofing ceremony is really a **pipeline of separate control objectives** rather than one biometric yes/no decision.
+
+That same control model also needs a hard distinction between **presentation attacks** and **injection attacks** in the capture pipeline. Presentation attacks involve artefacts shown to the sensor (printed photos, masks, replayed documents on a screen); injection attacks bypass the sensor path entirely via virtual cameras, deepfakes, or modified video streams. For `DR-0002`, the practical consequence is simple: if the RP invokes remote selfie/video-ident as a stronger ceremony, the control set should cover **both** PAD and IAD / capture-integrity checks rather than treating a face-match score as sufficient.
+
+OCR-heavy document capture is also fragile and can itself become an integrity risk, whereas chip reading is materially stronger where legally and operationally possible. So if an RP's fallback ceremony asks for a physical identity document in addition to Wallet data, **NFC chip reading should be preferred over OCR-only extraction** when available; otherwise the RP should classify the ceremony accordingly and compensate with stronger supervision or manual review.
+
+Those three RP-side attack families are modelled explicitly later in the threat section: biometric presentation attacks in §29.2.42, capture-pipeline injection attacks in §29.2.43, and fallback document-authenticity failures in §29.2.44. Teams designing supplementary proofing should treat those sections as the concrete attack and mitigation companion to this policy discussion.
+
+The current standards landscape is useful to summarise here in adapted form:
+
+| Domain | Ongoing Activity | Current Gap / Constraint |
+|:-------|:-----------------|:-----------------------------|
+| **Remote identity proofing** | `ETSI TS 119 461` | Still too abstract on its own; needs clearer mapping to **LoA High** |
+| **Injection-specific threats** | `CEN TS 18099` | Technical specificity is still needed for implementation validation |
+| **Security testing & evaluation** | `ETSI TS 119 461` references both `CEN TS 18099` and `ISO/IEC 19989-3` | Test specifications are not yet widely available or harmonised across Europe |
+| **EUDI Wallet onboarding** | `CEN TS 18098` (`CEN TC 224 WG20`) | Still evolving; lacks detailed conformance guidance |
+| **Biometric security** | `CEN TC 224 WG18` work on biometric product requirements | Still under development |
+
+For `DR-0002`, the practical RP reading of that matrix is:
+
+- `ETSI TS 119 461` is an important umbrella baseline, but RPs should not treat it as meaning that every live-person step-up path is already fully harmonised or equally testable across Europe.
+- `CEN TS 18099` matters because a strong selfie/video-ident ceremony must address **injection attacks** and capture-integrity threats, not just presentation attacks or passive liveness.
+- This matrix does not eliminate the separate **remote document authenticity** problem: if the RP asks for an additional identity document, document validation remains its own control domain rather than a by-product of face matching.
+- The broader conclusion is that **chip reading is stronger than OCR-only extraction** where legally and operationally possible; OCR-only fallback should therefore be classified as a weaker or more supervised ceremony.
+
+Article 5b(8) explicitly permits supplementary security measures:
 
 > **eIDAS Reg. Art. 5b(8):** *"Nothing in this Article shall prevent a relying party from applying a higher level of security in the authentication of the user than the level of security applied to the European Digital Identity Wallet, or from applying a different level of security to the authentication of the user for the provision of an online service."*
 
-This means requesting a supplementary biometric liveness check is **not an obstruction** of eIDAS 2.0, provided it is justified under the bank's AML risk framework and applied uniformly (not penalising EUDI Wallet users).
+This means requesting a supplementary biometric liveness check is **not an obstruction** of eIDAS 2.0, provided it is justified under the bank's AML risk framework and applied uniformly (not penalising EUDI Wallet users). It does **not** mean that every wallet-based onboarding flow must request `portrait` by default.
 
-**The `portrait` PID attribute**: CIR 2024/2977 defines `portrait` as an **optional** PID attribute — a facial image compliant with ISO 19794-5. To request it:
+**The `portrait` PID attribute**: CIR 2024/2977 defines `portrait` as an **optional** PID attribute — a facial image compliant with ISO 19794-5. Its best reading in light of CIR 2026/798 is as a **supplementary RP-side control**, not as the universal mechanism by which all RPs must establish user binding. To request it:
 
 1. Declare `portrait` in the RP registration (eIDAS Reg. Art. 5b(2)(c))
 2. State the intended use as "Biometric liveness matching for AML/CDD compliance"
@@ -17777,15 +17897,15 @@ This means requesting a supplementary biometric liveness check is **not an obstr
 | **Deepfake injection** | Fraudster bypasses camera sensor, injects AI-generated synthetic video derived from stolen `portrait` | **Bank (RP)** | Bank's selfie check was insufficient — no Presentation Attack Detection (PAD). |
 | **Forged PID** | MS registry compromised; PID issued to imposter | **Issuer (MS)** | eIDAS Art. 11 — Issuer liable for authentication failures due to its negligence. |
 
-**Key finding**: eIDAS 2.0 shifts **document forgery** liability to the Issuer (Art. 11), but PSD2/AMLR keeps **transaction fraud** liability on the PSP. The bank owns the risk if it skips liveness checks.
+**Key finding**: eIDAS 2.0 shifts **document forgery / issuer-side identity-proofing** liability to the Issuer (Art. 11), but PSD2/AMLR keeps **transaction fraud and onboarding-channel risk** on the PSP. The bank does not have to recreate the issuer's identity proofing in every session, but it does own the decision whether additional live-person friction is needed for the specific risk profile.
 
 **Required check quality — ETSI TS 119 461 PAD**:
 
-A vanilla selfie comparison against the `portrait` attribute is **insufficient**. Modern generative AI defeats simple photo matching. Banks must implement **Presentation Attack Detection (PAD)** per ETSI TS 119 461:
+A vanilla selfie comparison against the `portrait` attribute is **insufficient**. Modern generative AI defeats simple photo matching. If a bank chooses to use portrait-based live-person matching, it should implement **Presentation Attack Detection (PAD)** per ETSI TS 119 461:
 
 | Approach | Coercion Defence | Deepfake Defence | RP Liability Risk |
 |:---------|:----------------|:----------------|:-----------------|
-| EUDI Wallet only (no selfie) | None | N/A | 🔴 Critical |
+| EUDI Wallet only (no selfie) | None | N/A | Depends on use case — acceptable where upstream proofing + holder binding are sufficient; weak for high-fraud remote onboarding |
 | EUDI + basic selfie comparison | Low | None | 🟡 High |
 | EUDI + ETSI-grade PAD (active/passive liveness + injection detection) | High | High | 🟢 Low |
 
@@ -17795,15 +17915,17 @@ A vanilla selfie comparison against the `portrait` attribute is **insufficient**
 
 | # | Action | Priority |
 |:-:|:-------|:---------|
-| 1 | Include `portrait` in CDD registration; justify under AMLR risk framework | 🔴 Critical |
-| 2 | Implement ETSI TS 119 461-compliant PAD for high-risk onboarding (new accounts, cross-border) | 🔴 Critical |
-| 3 | For low-risk re-verification (returning customers), PID-only may suffice — apply risk-based approach | 🟢 Medium |
-| 4 | Ensure PAD includes injection attack detection (virtual camera, OS-level hook) — not just liveness | 🟡 High |
-| 5 | Apply the progressive assurance pattern (§16.13): PID-only for browsing → full PID + PAD for account opening | 🟡 High |
+| 1 | Treat verified PID + trust-chain validation + holder/device binding as the **baseline**; do not request `portrait` by default | 🔴 Critical |
+| 2 | Register `portrait` only for specific intended uses where a supplementary live-person check is justified under the AML risk framework | 🔴 Critical |
+| 3 | Implement ETSI TS 119 461-compliant PAD for high-risk onboarding, fallback, or exception flows that actually use portrait/selfie matching (see §29.2.42) | 🔴 Critical |
+| 4 | For low-risk re-verification or flows relying on upstream high-assurance proofing, PID-only may suffice — apply risk-based approach | 🟢 Medium |
+| 5 | Ensure the capture pipeline also covers injection attack detection, randomized challenge-response, and tamper checks — not just liveness (see §29.2.43) | 🟡 High |
+| 6 | Apply the progressive assurance pattern (§16.13): PID-only for browsing → full PID, and only add portrait/PAD where the risk model demands it | 🟡 High |
+| 7 | If a fallback path asks for an additional identity document, treat document authenticity as a separate control and prefer NFC chip reading over OCR-only extraction where possible (see §29.2.44) | 🟡 High |
 
 > **⚠️ Data minimisation tension**: Requesting `portrait` increases the PID attribute set and must be justified. Register it exclusively for the CDD intended use — never for SCA or general authentication. The GDPR DPIA (§21.3) must assess the proportionality of biometric collection against the specific AML risk being mitigated.
 
-> **Source**: Analysis based on eIDAS Reg. Art. 5b(8), AMLR CDD obligations, ETSI TS 119 461, and EC EUDIW FAQ liability clarifications.
+> **Source**: Analysis based on eIDAS Reg. Art. 5b(8), CIR 2026/798, the July 2025 ANSSI/BSI joint paper on remote identity proofing for EUDI Wallet onboarding, AMLR CDD obligations, ETSI TS 119 461, and EC EUDIW FAQ liability clarifications.
 
 ##### 24.3.9 Identity Matching (CIR 2025/846)
 
@@ -18744,7 +18866,7 @@ flowchart TD
         V3["`**3.&nbsp;Device&nbsp;Binding**
         Verify&nbsp;WSCD&nbsp;proof`"]
         V4["`**4.&nbsp;User&nbsp;Binding**
-        Verify&nbsp;authorised&nbsp;user`"]
+        Trust&nbsp;or&nbsp;verify&nbsp;rightful&nbsp;user`"]
         V5["`**5.&nbsp;Wallet&nbsp;Unit&nbsp;Authenticity**
         Verify&nbsp;WUA&nbsp;+&nbsp;revocation`"]
     end
@@ -18778,6 +18900,8 @@ flowchart TD
 
 **The "As Agreed" Qualification**: The ARF explicitly notes that it *does not mandate* a Relying Party to require all 5 verifications. The intermediary and the intermediated RP must agree contractually on which verifications the intermediary will carry out. This creates a per-RP configuration requirement.
 
+> **Meaning of "User binding" here**: Per ARF §6.6.3.9, this does **not** always mean a separate cryptographic artifact beyond device binding. For device-bound credentials, the intermediary may verify device binding and then **trust** the Wallet Unit / WSCA/WSCD user-auth ceremony as the baseline user-binding result. For higher-friction journeys, the agreed verification package may additionally include portrait/selfie comparison, PAD-backed live-person checks, or supervised document comparison. See §11.9 for the trust model and §24.3.8 for the portrait/PAD escalation path.
+
 **Conditional Forwarding (AS-RP-51-011)**: If any of the *agreed* verifications fail, the intermediary `SHALL NOT` forward any attributes to the RP. Successful verification is a strict prerequisite for forwarding. Beyond the verification gate, when transmitting the payload, the intermediary MUST: (1) **Authenticate** the RP, (2) **Encrypt** in transit, (3) **NOT store** content data, (4) Include **provenance metadata**, and (5) **Forward promptly**.
 
 ---
@@ -18800,7 +18924,7 @@ Verification policies are typically organised into three tiers of increasing fle
 
 | Tier | Description | EUDI Examples | Configuration |
 |:-----|:-----------|:-------------|:--------------|
-| **Static** | Built-in checks with no parameters. Always executed in the same way. | Cryptographic signature verification, expiry check (`exp`), not-before check (`nbf`), holder binding (`cnf.jwk` confirmation), schema validation | Enabled/disabled per verification request |
+| **Static** | Built-in checks with no parameters. Always executed in the same way. | Cryptographic signature verification, expiry check (`exp`), not-before check (`nbf`), device/key binding (`cnf.jwk` confirmation or mdoc `DeviceAuth`), schema validation | Enabled/disabled per verification request |
 | **Parameterized** | Checks that accept configuration arguments to customise behaviour. | Trusted issuer whitelist (X.509 certificate hash or Trusted List anchor), revocation status check (TokenStatusList index + expected value), credential type filter (`vct_values`) | Arguments provided per verification request or per verifier instance configuration |
 | **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching (§18.1.8) | Rule definitions managed as code artifacts; version-controllable and independently testable |
 
@@ -18810,27 +18934,33 @@ Verification policies are typically organised into three tiers of increasing fle
 
 The policy engine should govern more than credential-field validation rules. In production deployments it often becomes the control plane for an RP's **assurance profile**: the policy layer that decides which presentation channel, ceremony strength, and post-verification actions are acceptable for a given use case. This sits **above** the threat catalogue in §29 and the signal taxonomy in §30. The threat catalogue explains what can go wrong; the assurance profile determines how the RP responds structurally.
 
-Four policy levers usually matter most:
+Five policy levers usually matter most:
 
 | Lever | What It Controls | Typical Policy Question |
 |:------|:------------------|:------------------------|
 | **Channel policy** | Same-device DC API, cross-device QR/deep-link, native app invocation | Which presentation path is the default, and which ones are fallback-only? |
 | **Proximity policy** | Whether an in-person / supervised flow is required | Which operations justify a stronger ceremony than remote presentation? |
 | **Device-binding policy** | How the RP treats `cnf` / holder-binding presence or absence | Is device binding mandatory, preferred, or merely advisory for this credential class? |
+| **Live-person-binding policy** | Whether the RP relies on wallet-trusted User binding alone, or requires extra live-person / document-backed evidence | For this journey, is device-bound wallet presentation enough, or must the RP add `portrait` + PAD, supervised inspection, additional document comparison, or manual review? |
 | **Signal-escalation policy** | How VSI outcomes change the required ceremony | Does a suspicious session get blocked, stepped up, or re-routed to a stronger channel? |
 
 The resulting assurance profiles are typically coarse-grained rather than per-credential bespoke:
 
-| Profile | Channel Default | Proximity Use | Device-Binding Posture | VSI Response |
-|:--------|:----------------|:--------------|:------------------------|:-------------|
-| **Baseline RP** | Accept same-device and cross-device remote flows | Rare; reserved for niche operational contexts | Accept bound and unbound credentials where ecosystem-compatible | Allow / flag / block based on risk score |
-| **Elevated / Regulated** | Prefer same-device DC API where available; cross-device is fallback | Use proximity for selected issuance, recovery, or rebinding events | Prefer device-bound credentials; downgrade assurance when binding is absent | Step-up into stronger channel for elevated-risk events |
-| **Financial / High-Fraud** | Make DC API-first the normal browser path; treat QR cross-device as fallback | Require stronger ceremony for issuance, recovery, rebinding, and selected high-risk events | Require device binding for RP-issued high-risk credentials; treat external unbound credentials as lower-assurance inputs | Use VSI to trigger channel escalation, re-verification, or controlled fallback rather than only scoring |
+| Profile | Channel Default | Proximity Use | Device-Binding Posture | Live-Person / Document Rule | VSI Response |
+|:--------|:----------------|:--------------|:------------------------|:----------------------------|:-------------|
+| **Baseline RP** | Accept same-device and cross-device remote flows | Rare; reserved for niche operational contexts | Accept bound and unbound credentials where ecosystem-compatible | Normally rely on wallet-trusted User binding; do not request `portrait` by default | Allow / flag / block based on risk score |
+| **Elevated / Regulated** | Prefer same-device DC API where available; cross-device is fallback | Use proximity for selected issuance, recovery, or rebinding events | Prefer device-bound credentials; downgrade assurance when binding is absent | Define explicit exception journeys where extra live-person evidence is required; `portrait` + PAD is one option, but supervised or document-backed fallback must exist | Step-up into stronger channel for elevated-risk events |
+| **Financial / High-Fraud** | Make DC API-first the normal browser path; treat QR cross-device as fallback | Require stronger ceremony for issuance, recovery, rebinding, and selected high-risk events | Require device binding for RP-issued high-risk credentials; treat external unbound credentials as lower-assurance inputs | For first-time remote onboarding and other high-fraud journeys, define a mandatory **supplementary binding path**: if `portrait` is registered and disclosed, consume it with PAD; if not available, quality-insufficient, or policy-restricted, escalate to supervised proximity, additional document comparison, video-ident, or manual review | Use VSI to trigger channel escalation, re-verification, or controlled fallback rather than only scoring |
 
 Two implementation boundaries are important:
 
 1. **DC API is not just a UX preference.** In a high-assurance profile it is a channel-hardening choice because same-device browser mediation reduces QR / URI relay exposure and adds origin-bound invocation semantics.
 2. **Device binding is not universally enforceable at RP query time.** For credentials issued by third parties, the RP may not be able to force device binding through DCQL alone. In those cases, the policy engine should express the assurance consequence of missing binding, not pretend the verifier can mandate ecosystem behaviour retroactively.
+
+For onboarding-related profiles, one more rule should be explicit:
+
+- **Treat `portrait` as a policy-controlled input, not an unconditional always-take attribute.** If a high-assurance onboarding profile requires supplementary live-person binding, and the RP has validly registered `portrait` and the Wallet discloses it, the RP should use it rather than silently ignoring it. But the controlling rule is the **assurance profile**, not mere attribute presence. Where `portrait` is unavailable, restricted to proximity, poor quality, or disproportionate for the journey, the profile should specify the fallback stronger ceremony instead: supervised proximity, PAD-backed selfie/video-ident, comparison against an additional identity document, or manual review.
+- **If the stronger ceremony is remote video/selfie rather than supervised proximity, profile the whole capture/processing chain.** Define separately how the RP handles biometric genuineness, face matching, document authenticity, and capture-integrity threats. In practice that means specifying PAD, IAD, challenge-response / replay resistance, tamper detection, and whether additional document capture may rely on OCR alone or should prefer NFC chip reading when available.
 
 This framing also clarifies how §30 should be used. Verification signals do not only influence a final risk score; they can select the next required ceremony. A policy engine may decide that an otherwise valid presentation must be repeated through a stronger path, must be limited to low-risk operations, or must trigger an in-person or supervised follow-up depending on the RP's profile.
 
@@ -18977,7 +19107,7 @@ A refinement of the policy engine pattern separates the verification pipeline in
 | Stage | Question Answered | EUDI-Specific Checks |
 |:------|:-----------------|:---------------------|
 | **Validation** | "Does this credential conform to the expected format and come from a trusted issuer?" | Schema validation, DCQL compliance, Trusted List anchor check, credential type matching (`vct` / `doctype`), presentation structure |
-| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification (§12), expiry/not-before, TokenStatusList check (Appendix B), holder binding (`cnf.jwk`), device authentication (mdoc) |
+| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification (§12), expiry/not-before, TokenStatusList check (Appendix B), device/key binding (`cnf.jwk`, KB-JWT, `DeviceAuth`) |
 
 This maps directly to the structure of DR-0002 itself: §11 covers validation-level checks, §12 covers cryptographic verification. Separating these stages in the RP's architecture enables:
 
@@ -19001,7 +19131,7 @@ Every OpenID4VP verification interaction is a **stateful session** with a define
 
 ##### 26.5.2 Result Delivery: Polling vs. Callbacks
 
-Five result delivery modes exist for the RP to receive verification results from the wallet connector. Separately, the RP chooses a deployment topology — direct or reverse proxy (§26.7.1) — which determines whether the RP captures the wallet's HTTP context. These two decisions are independent (§26.7). The three most common delivery modes are:
+Across `DR-0002`, five delivery modes are distinguished in total: push, ping, poll, stream, and sync inline (§26.7.2). This subsection focuses only on the three most common **asynchronous server-side L2** patterns used when a verifier or intermediary must deliver results back to the RP backend: poll, webhook push, and webhook ping. **Synchronous inline** delivery is covered in §26.7.2 because it depends on proxy topology (§26.7.1) and occurs inside the Wallet's `direct_post` HTTP round-trip rather than as a later callback. Likewise, Models D and E (§26.6.1) bypass L2 delivery entirely because the RP receives the VP Token directly through the browser or OS credential API.
 
 | Pattern | Mechanism | When to Use |
 |:--------|:----------|:------------|
@@ -19009,7 +19139,7 @@ Five result delivery modes exist for the RP to receive verification results from
 | **Webhook push** | Verifier POSTs complete result to RP's `statusCallbackUri` when session transitions to Fulfilled/Failed | Production deployments; high-volume RPs; event-driven architectures |
 | **Webhook ping** | Verifier POSTs thin notification (session ID + status only); RP fetches full result via `GET /session/{id}` | High-PII environments where attributes should not traverse the webhook channel |
 
-> **Full delivery mode taxonomy**: For the complete comparison of all five delivery modes — push, ping, poll, stream (SSE/WebSocket), and sync inline — plus the orthogonal deployment topology decision (proxy vs. direct), see §26.7.
+> **If you are looking for synchronous delivery**: see **Sync Inline** in §26.7.2 and the selection decision in §26.7.3. Stream delivery (SSE/WebSocket) is also covered there; in this chapter it is treated primarily as a frontend/session-status transport rather than the main backend result-delivery pattern.
 
 The webhook push pattern is preferred for production because it eliminates polling latency and reduces API load. A typical callback configuration includes:
 - `statusCallbackUri` — the RP's webhook endpoint URL
@@ -19477,7 +19607,7 @@ The Wallet POSTs the `vp_token` (encrypted with the intermediary's ephemeral pub
 <details>
 <summary><strong>8. Intermediary executes full verification pipeline (AS-RP-51-012)</strong></summary>
 
-The intermediary performs the five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012: authenticity (issuer signature + LoTE chain), revocation (TokenStatusList), device binding (KB-JWT / DeviceAuth), user binding (WSCA-signed challenge), and Wallet Unit authenticity. The full specification of these verification gates — including the "As Agreed" qualification and conditional forwarding rules — is in §25.4.1.
+The intermediary performs the five-dimension verification pipeline mandated by ARF HLR AS-RP-51-012: authenticity (issuer signature + LoTE chain), revocation (TokenStatusList), device binding (KB-JWT / DeviceAuth), user binding (either a trust conclusion built on wallet-side user authentication after successful device binding, or an agreed stronger live-person check), and Wallet Unit authenticity. The full specification of these verification gates — including the "As Agreed" qualification and conditional forwarding rules — is in §25.4.1 and the underlying trust model is explained in §11.9.
 
 If any **agreed** verification dimension fails, the intermediary `SHALL NOT` forward any data to the end-RP (AS-RP-51-011). The intermediary logs the failure reason and sends a failure callback.
 
@@ -19755,7 +19885,7 @@ The enrichment service(s) can perform any RP-specific business logic. Common use
 - **Error code mapping** — translating verifier-specific error codes (e.g., `revoked_credential`, `expired_validity`) into the RP's internal error taxonomy before the response is constructed
 - **AML/sanctions screening** — checking disclosed name and nationality against sanctions lists in real-time
 - **Policy evaluation** — evaluating RP-specific acceptance policies (e.g., only accepting credentials issued by Member State X, or requiring a minimum LoA)
-- **Biometric portrait matching** — if the PID discloses the optional `portrait` attribute (a facial image stored in the credential), the gateway can forward it to a face matching service that compares it against a selfie captured during the RP's onboarding flow (e.g., via camera or video-ident). This provides a real-time liveness and identity-proofing signal that binds the credential presenter to the person who enrolled — particularly valuable for banking KYC, remote notarisation, and high-assurance scenarios where credential forwarding attacks (§29.2) are a concern
+- **Biometric portrait matching** — if the PID discloses the optional `portrait` attribute (a facial image stored in the credential), the gateway can forward it to a face matching service that compares it against a selfie captured during the RP's onboarding flow (e.g., via camera or video-ident). This is a **supplementary live-person signal**, not the baseline proof that the PID was validly issued. It is most valuable for banking KYC, remote notarisation, and other high-fraud scenarios where the RP wants an extra session-local check beyond upstream proofing and protocol-level holder binding (§29.2)
 
 This inline processing is **impossible** with asynchronous delivery modes — by the time a push webhook arrives, the Wallet's HTTP connection is already closed. The RP can still perform enrichment asynchronously post-webhook, but it cannot **act on the result in real-time** or modify the response to the Wallet.
 
@@ -20583,7 +20713,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 ## Security and Operations
 
-This group focuses on defending and operating the RP infrastructure in production. It catalogues 41 specific security threats against Relying Parties (§29) — each documented as a standardised threat card with STRIDE classification, CIR 2024/2981 Annex I risk register traceability, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry — classifies 62 verification signals into a structured intelligence taxonomy (§30 — Verification Signal Intelligence), and defines the observability metrics and alert triggers required to maintain continuous compliance (§31).
+This group focuses on defending and operating the RP infrastructure in production. It catalogues 44 specific security threats against Relying Parties (§29) — each documented as a standardised threat card with STRIDE classification, CIR 2024/2981 Annex I risk register traceability, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry — classifies 65 verification signals into a structured intelligence taxonomy (§30 — Verification Signal Intelligence), and defines the observability metrics and alert triggers required to maintain continuous compliance (§31).
 
 ---
 
@@ -20626,9 +20756,11 @@ Each threat in the catalogue below incorporates technical tagging in its title (
 - **SD-JWT VC Security Considerations**: The [SD-JWT-based Verifiable Credentials specification](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) (§10), covering `sd_hash` verification, Key Binding JWT validation, and algorithm enforcement.
 - **Cryptographic standards**: [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979) (deterministic ECDSA nonce generation) and [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700.html) for redirect URI validation and open redirector prevention.
 - **ETSI TS 119 602**: The [Lists of Trusted Entities data model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) for LoTE integrity verification and cache poisoning prevention.
+- **ANSSI / BSI remote identity proofing guidance**: The joint paper [Remote Identity Proofing for EUDI Wallet Onboarding: Strengthening Assurance Against Evolving Threats](https://cyber.gouv.fr/documents/329/ANSSI_BSI_Joint_Paper_remote_identity_proofing_for_EUDI.pdf) (July 2025), which separates biometric genuineness, document authenticity, face matching, and capture-integrity concerns, and distinguishes presentation attacks from capture-pipeline injection attacks in remote onboarding ceremonies.
+- **eIDAS onboarding implementing acts**: [Commission Implementing Regulation (EU) 2024/2977](https://eur-lex.europa.eu/eli/reg_impl/2024/2977/oj) (PID issuance, including optional `portrait`) and [Commission Implementing Regulation (EU) 2026/798](https://eur-lex.europa.eu/eli/reg_impl/2026/798/oj) (remote onboarding to LoA High using substantial eID + additional procedures), which together clarify the upstream/downstream responsibility boundary between PID providers / identity proofing service providers and ordinary wallet-relying parties.
 - **Vulnerability databases**: CVE-2015-9235 and related JWT algorithm confusion CVEs (CWE-345) informing JWT-specific implementation threats.
 
-The catalogue covers both verification-side threats (OID4VP presentation flow) and issuance-side threats (OID4VCI credential issuance flow where the RP acts as issuer per §15.4–§15.15).
+The catalogue covers both verification-side threats (OID4VP presentation flow), issuance-side threats (OID4VCI credential issuance flow where the RP acts as issuer per §15.4–§15.15), and RP-invoked **supplementary proofing / step-up** threats where the RP adds its own remote selfie, video, portrait, or document ceremony on top of upstream wallet assurances.
 
 Each threat's detection signals are systematically classified in the **Verification Signal Intelligence taxonomy (§30)**, which provides the structured signal IDs, severity levels (S0–S4), STRIDE classifications, and SIEM event schemas that operationalise this catalogue. The §30.9 cross-reference map closes the traceability loop: Threat (§29) → Signal (§30) → Alert (§31.2) → Regulatory Obligation.
 
@@ -28114,9 +28246,433 @@ The RP emits `WUA_INVALID` at severity **S0 (Critical)** — an invalid WUA indi
 - **Composite scoring**: Combine `WUA_INVALID` with other environmental signals (`SDJWT_IAT_FUTURE` from §29.2.40, `CTX_TLS_FINGERPRINT_ANOMALY`) for comprehensive environment risk assessment.
 - **Incident response**: An `WUA_INVALID` event on a credential that was previously presented successfully (same `sub` / `personal_identifier`) warrants user notification — their device may have been compromised.
 
+##### 29.2.42 Remote Live-Person Step-Up: Biometric Presentation Attack
+
+**Threat Summary**: The RP escalates a session into a supplementary remote selfie / video-ident / portrait ceremony and mistakenly treats that ceremony as stronger user binding than the upstream wallet presentation. The attacker then uses a **presentation attack instrument** — printed photo, mask, projected or screen-replayed face media, or a forged / screen-replayed identity document — to satisfy the RP's live-person check even though no genuine user is present.
+
+**Classification**:
+
+| Property | Value |
+|:---------|:------|
+| **ARF Reference** | — (supplementary RP-side proofing threat, not separately enumerated in CIR 2024/2981 Annex I) |
+| **CWE** | [CWE-290](https://cwe.mitre.org/data/definitions/290.html) — Authentication Bypass by Spoofing |
+| **STRIDE** | Spoofing (fake user accepted as genuine) |
+| **Severity** | S1 — High |
+
+**Attack Sequence**:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Server
+    participant A as ☠️ Attacker
+    participant CAP as 📷 Step-up Capture Channel
+    participant ENG as 🧪 Proofing Engine
+
+    rect rgba(148, 163, 184, 0.14)
+    RP->>CAP: Trigger remote selfie / portrait /<br/>document step-up for elevated-risk session
+    CAP->>A: Request face capture + optional<br/>document capture
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    A->>CAP: Present printed face / mask /<br/>screen replay / forged document ⚠️
+    CAP->>ENG: Upload face frames + document frames
+    ENG->>ENG: Weak PAD / weak document-liveness<br/>thresholds miss spoof ⚠️
+    ENG->>RP: Step-up marked PASS ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    RP->>RP: Upgrade assurance / accept onboarding<br/>based on false live-person result ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. RP Server triggers a supplementary remote proofing step-up</strong></summary>
+
+The RP receives a wallet presentation that is valid at the protocol layer but, under the RP's assurance profile (§26.1.2), still requires stronger user-binding evidence before onboarding, recovery, rebinding, or another higher-risk action proceeds. The RP therefore invokes a supplementary remote proofing path — typically selfie video, portrait comparison, or video capture of an identity document.
+
+**Artifact Produced:** Session routed from normal wallet verification into a supplementary remote proofing workflow.
+
+</details>
+<details>
+<summary><strong>2. Step-up Capture Channel requests face and optional document capture</strong></summary>
+
+The capture channel opens the RP-controlled step-up ceremony and prompts the presenter for live face capture plus any optional documentary evidence the profile requires. At this point the RP assumes the next capture will come from a genuine person and genuine live artefact.
+
+**Artifact Produced:** Active capture prompt awaiting live face and optional document input.
+
+</details>
+<details>
+<summary><strong>3. Attacker presents a biometric or document presentation attack instrument to the capture channel</strong></summary>
+
+Instead of presenting a genuine live face and genuine live document, the attacker uses a presentation attack instrument at the camera boundary: a printed photograph, silicone mask, projected face image, replayed screen video, or a forged / screen-replayed document shown during the capture ceremony.
+
+**Artifact Produced:** Face and/or document capture stream containing non-genuine but camera-visible artefacts.
+
+</details>
+<details>
+<summary><strong>4. Step-up Capture Channel uploads spoofed frames to the Proofing Engine</strong></summary>
+
+The capture stack forwards the face frames and any document frames to the proofing engine exactly as if they had come from a genuine live session. Once this handoff happens, the proofing engine is the only control left that can still detect the spoof before the RP upgrades assurance.
+
+**Artifact Produced:** Spoofed capture bundle delivered into the proofing engine evaluation path.
+
+</details>
+<details>
+<summary><strong>5. Proofing Engine evaluates PAD and document-liveness checks but misses the spoof</strong></summary>
+
+The proofing engine runs biometric genuineness checks, face comparison, and any basic document-liveness heuristics. If PAD is weak, thresholds are lenient, or the flow relies too heavily on a single face-match score, the attack instrument survives the check.
+
+**Failure Path:** A well-designed step-up path detects the spoof here, emits `STEPUP_PRESENTATION_ATTACK_DETECTED`, and stops the session before any assurance upgrade occurs.
+
+**Artifact Produced:** False-positive internal proofing state — spoofed capture treated as genuine.
+
+</details>
+<details>
+<summary><strong>6. Proofing Engine returns a PASS result to the RP Server</strong></summary>
+
+The proofing engine reports the supplementary ceremony as successful. From the RP's point of view, the remote step-up now appears to confirm that the presenter is the rightful user, even though the result was produced from a presentation attack instrument.
+
+**Audit Telemetry:** Remote proofing logs should preserve PAD outcomes, challenge-response traces, decision thresholds, model version, capture metadata, and whether a human reviewer participated.
+
+```json
+{
+  "signal": "STEPUP_PRESENTATION_ATTACK_DETECTED",
+  "severity": "S1",
+  "session_id": "stepup_sess_42a7",
+  "evidence": {
+    "pad_result": "FAIL",
+    "attack_class": "PHOTO_OR_SCREEN_REPLAY",
+    "face_match_score": 0.93,
+    "document_liveness": "FAIL",
+    "challenge_response": "INCONSISTENT"
+  },
+  "action": "BLOCK"
+}
+```
+
+**Artifact Produced:** PASS decision returned to the RP despite a spoofed input stream.
+
+</details>
+<details>
+<summary><strong>7. RP Server upgrades assurance and accepts the session on the false live-person result</strong></summary>
+
+Because the supplementary proofing output is marked PASS, the RP upgrades the session's effective assurance and treats the remote ceremony as successful user binding. The original wallet presentation plus the spoofed proofing result now appear to justify onboarding, recovery, rebinding, or another higher-risk approval.
+
+**Artifact Produced:** Fraudulent session accepted after a failed supplementary proofing control.
+
+</details>
+<br/>
+
+**Attack Vector**: The RP adds its own remote live-person step-up on top of a wallet presentation and then over-trusts that step-up result. The attacker does not need to break the wallet protocol or issuer signature. Instead, the attacker defeats the RP's camera-side ceremony with a physical or screen-based presentation attack instrument. This is precisely the attack family highlighted in the ANSSI/BSI remote identity proofing paper: biometric presentation attacks and document presentation attacks are distinct from ordinary face matching and must be evaluated separately.
+
+**Impact**: High — the RP may onboard or re-authenticate the wrong person despite having a valid upstream credential and a superficially "successful" local step-up. In banking or other regulated onboarding flows, this can lead directly to account takeover, mule-account creation, or defective CDD outcomes.
+
+**Responsibility boundary**: Under amended eIDAS ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?qid=1732470539738&uri=CELEX%3A02014R0910-20241018)), relying parties remain responsible for authenticating and validating the PID / EAA they request from the wallet. By contrast, [Implementing Regulation (EU) 2026/798](https://eur-lex.europa.eu/eli/reg_impl/2026/798/oj) governs **upstream** remote wallet-user onboarding by providers of person identification data / identity proofing service providers. It does not make the RP's own selfie or portrait step-up trustworthy by default. If the RP processes biometric data in that step-up, GDPR Article 9 special-category constraints and Article 35 DPIA expectations are engaged.
+
+**Mitigation**:
+
+- **Primary**: Do not default to portrait-based or selfie-based step-up where the RP can instead trust upstream user binding, device binding, and issuer proofing. Supplementary proofing should be profile-driven, not automatic.
+- **PAD discipline**: If the RP invokes remote proofing, require explicit biometric genuineness / PAD controls resistant to photos, masks, projections, and screen replays. Treat face matching, liveness, and document liveness as distinct controls rather than one blended score.
+- **Challenge-response**: Use randomised challenge-response and capture-integrity checks so pre-recorded media cannot satisfy the ceremony passively.
+- **Human-review backstop**: Route elevated-risk failures or borderline scores into supervised review rather than silently lowering thresholds to preserve conversion.
+- **Portrait optionality**: Because `portrait` is an optional PID attribute under [Implementing Regulation (EU) 2024/2977](https://eur-lex.europa.eu/eli/reg_impl/2024/2977/oj), the absence of `portrait` must not trigger an ad hoc weaker live-person control. If the profile requires stronger evidence, it must define the fallback ceremony explicitly.
+
+##### 29.2.43 Remote Live-Person Step-Up: Capture-Pipeline Injection Attack
+
+**Threat Summary**: The RP invokes a remote selfie / video-ident step-up, but the attacker bypasses the physical sensor entirely by injecting a pre-recorded, synthetically generated, or manipulated media stream into the capture pipeline. The RP's proofing engine receives plausible face or document video, yet it no longer has confidence that the stream came from the intended camera path.
+
+**Classification**:
+
+| Property | Value |
+|:---------|:------|
+| **ARF Reference** | — (supplementary RP-side proofing threat, not separately enumerated in CIR 2024/2981 Annex I) |
+| **CWE** | [CWE-345](https://cwe.mitre.org/data/definitions/345.html) — Insufficient Verification of Data Authenticity |
+| **STRIDE** | Spoofing (fake user accepted) · Tampering (capture stream substituted before evaluation) |
+| **Severity** | S1 — High |
+
+**Attack Sequence**:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Server
+    participant A as ☠️ Attacker
+    participant SDK as 📱 Capture SDK / Browser
+    participant ENG as 🧪 Proofing Engine
+
+    rect rgba(148, 163, 184, 0.14)
+    RP->>SDK: Trigger remote video-ident /<br/>selfie step-up
+    SDK->>A: Open camera / document capture path
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    A->>SDK: Inject deepfake / virtual camera /<br/>altered document stream ⚠️
+    SDK->>ENG: Forward injected capture as if<br/>it came from trusted sensor path
+    ENG->>ENG: No IAD / tamper detection /<br/>challenge integrity check ⚠️
+    ENG->>RP: Step-up marked PASS ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    RP->>RP: Accept session as strongly bound<br/>to the user ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. RP Server triggers a remote video-ident or selfie step-up</strong></summary>
+
+The RP starts a remote proofing ceremony assuming that face video and document capture will originate from a genuine camera path controlled by the wallet app, capture SDK, or browser. The entire assurance logic depends on that capture path being trustworthy.
+
+**Artifact Produced:** Remote proofing workflow opened with an expectation of live-sensor input.
+
+</details>
+<details>
+<summary><strong>2. Capture SDK or Browser opens the live camera and document path for the Attacker</strong></summary>
+
+The capture client requests camera or document input from the presenter's device and prepares to forward whatever media it receives into the RP's proofing stack. This is the point where the intended trusted sensor path is supposed to begin.
+
+**Artifact Produced:** Active device capture path awaiting live face or document media.
+
+</details>
+<details>
+<summary><strong>3. Attacker injects deepfake or substituted media into the capture path</strong></summary>
+
+Instead of presenting a spoof to the camera lens, the attacker inserts media into the pipeline: virtual camera devices, browser media-stream substitution, OS-level hooks, replayed screen capture, or deepfake-generated face video. The proofing engine no longer sees the physical world directly.
+
+**Artifact Produced:** Capture client receives attacker-controlled frames rather than genuine sensor frames.
+
+</details>
+<details>
+<summary><strong>4. Capture SDK or Browser forwards the injected stream to the Proofing Engine</strong></summary>
+
+The compromised capture path forwards the injected video or document stream as if it came from the intended trusted camera route. From this point onward, later controls are evaluating already-substituted media rather than trusted raw sensor input.
+
+**Artifact Produced:** Injected media stream delivered into the proofing engine evaluation path.
+
+</details>
+<details>
+<summary><strong>5. Proofing Engine evaluates the injected stream without reliable injection detection</strong></summary>
+
+If the RP or vendor capture stack lacks injection-attack detection, tamper detection, challenge integrity checks, or trusted media-path guarantees, the proofing engine accepts the injected stream as normal face or document input. Standard face matching can still succeed because the stream itself was tailored to pass it.
+
+**Failure Path:** A hardened capture path detects virtual camera use, tampered media pipeline state, impossible challenge timing, or stream-manipulation artefacts, emits `STEPUP_CAPTURE_INJECTION_DETECTED`, and blocks the session.
+
+**Artifact Produced:** False-positive internal proofing state based on a substituted capture stream.
+
+</details>
+<details>
+<summary><strong>6. Proofing Engine returns a PASS result to the RP Server</strong></summary>
+
+The proofing engine reports the supplementary ceremony as successful. Later review may misleadingly show "face match pass" and "challenge answered" even though the capture path itself was never genuine.
+
+**Audit Telemetry:** Preserve capture-SDK integrity signals, virtual-camera flags, challenge-response timing, tamper-detection outputs, device attestation, and vendor decision metadata.
+
+```json
+{
+  "signal": "STEPUP_CAPTURE_INJECTION_DETECTED",
+  "severity": "S1",
+  "session_id": "stepup_sess_b9d1",
+  "evidence": {
+    "virtual_camera_detected": true,
+    "sdk_integrity": "FAILED",
+    "challenge_timing_anomaly": true,
+    "tamper_score": 0.98
+  },
+  "action": "BLOCK"
+}
+```
+
+**Artifact Produced:** PASS decision returned to the RP despite a substituted media stream.
+
+</details>
+<details>
+<summary><strong>7. RP Server accepts the session as strongly bound to the user</strong></summary>
+
+The RP upgrades the session's assurance level and behaves as though the live user completed a stronger ceremony, even though the proofing outcome was grounded in an untrusted capture channel. This lets the attacker proceed through onboarding, recovery, or another high-risk flow under a false assumption of strong binding.
+
+**Artifact Produced:** High-assurance decision grounded in a compromised sensor path.
+
+</details>
+<br/>
+
+**Attack Vector**: The attacker targets the **capture path**, not just the face or document content. This is the ANSSI/BSI paper's injection-attack class: virtual cameras, deepfake stream insertion, manipulated document video, and other methods that bypass the intended camera or sensor channel. The RP sees a plausible stream, but cannot prove that it came from the expected device sensors.
+
+**Impact**: High — once the capture channel is compromised, downstream biometric and document checks lose much of their value. The RP may incorrectly believe it obtained stronger user binding or stronger onboarding evidence, when in reality it only validated an attacker-controlled media stream.
+
+**Responsibility boundary**: [Implementing Regulation (EU) 2026/798](https://eur-lex.europa.eu/eli/reg_impl/2026/798/oj) and ETSI TS 119 461 strengthen the **issuer-side** onboarding baseline for PID providers / IPSPs. They do not transfer responsibility for an RP's own supplementary capture ceremony to the issuer. Under eIDAS Article 5b, the RP still owns the correctness of the validation path it operates or outsources. Where the capture path is vendor-operated in a financial-sector deployment, ICT third-party and incident-management obligations under DORA also become relevant.
+
+**Mitigation**:
+
+- **Primary**: Treat injection-attack detection as a first-class control, not a sub-feature of face matching or ordinary liveness.
+- **Trusted capture path**: Prefer attested native capture SDKs or similarly hardened paths over generic browser upload flows for any ceremony the RP wants to treat as high assurance.
+- **Challenge integrity**: Require randomised challenge-response, stream tamper detection, and timing analysis so injected media cannot simply replay a precomputed answer set.
+- **Detection standards**: Test capture-path controls specifically against the injection-threat family described in CEN TS 18099 and referenced by ETSI TS 119 461, not only against ordinary face spoofs.
+- **Outsourcing boundary**: If a third-party proofing vendor runs the capture flow, contract for explicit IAD evidence, audit rights, incident handling, and model / rule-change traceability; do not accept a generic "passed KYC" boolean as sufficient assurance.
+
+##### 29.2.44 Fallback Document Proofing: OCR and Document Authenticity Failure
+
+**Threat Summary**: The RP asks for an additional physical document during onboarding or step-up because `portrait` is absent, risk is elevated, or the RP wants extra comfort beyond the upstream wallet presentation. The fallback flow then relies on OCR or ordinary image capture, or on a raw NFC chip read without the cryptographic checks that actually preserve document authenticity, allowing forged, altered, screen-replayed, or chip-cloned identity documents to be treated as trustworthy evidence.
+
+**Classification**:
+
+| Property | Value |
+|:---------|:------|
+| **ARF Reference** | — (supplementary RP-side proofing threat, not separately enumerated in CIR 2024/2981 Annex I) |
+| **CWE** | [CWE-345](https://cwe.mitre.org/data/definitions/345.html) — Insufficient Verification of Data Authenticity |
+| **STRIDE** | Spoofing (false identity evidence accepted) · Tampering (altered or replayed document content) |
+| **Severity** | S1 — High |
+
+**Attack Sequence**:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant RP as 🏦 RP Server
+    participant A as ☠️ Attacker
+    participant CAP as 📄 Document Capture Flow
+    participant ENG as 🧪 OCR / Document Engine
+
+    rect rgba(148, 163, 184, 0.14)
+    RP->>CAP: Request extra physical document<br/>for onboarding / step-up
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    A->>CAP: Submit forged / altered /<br/>screen-replayed document ⚠️
+    CAP->>ENG: OCR + image extraction only
+    ENG->>ENG: Data extraction succeeds but<br/>authenticity not truly verified ⚠️
+    ENG->>RP: Document check marked PASS ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+    RP->>RP: Treat fallback document as strong<br/>identity evidence / user-binding support ⚠️
+    Note right of ENG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. RP Server requests an extra physical document as fallback evidence</strong></summary>
+
+The RP decides that the session needs extra evidence beyond the wallet presentation. Typical triggers are absence of an optional `portrait`, heightened fraud score, or a policy choice that certain onboarding flows must collect additional documentary evidence.
+
+**Artifact Produced:** Session routed into an additional remote document-capture workflow.
+
+</details>
+<details>
+<summary><strong>2. Attacker submits a forged, altered, or screen-replayed document to the Document Capture Flow</strong></summary>
+
+The attacker provides a manipulated document image or video: edited graphics, a photographed counterfeit, or a screen-replayed image shown to the capture flow. The goal is not merely to extract readable text, but to convince the RP that the document itself is genuine and currently possessed.
+
+**Artifact Produced:** Document capture containing attacker-controlled document evidence.
+
+</details>
+<details>
+<summary><strong>3. Document Capture Flow forwards OCR and image extraction input to the Document Engine</strong></summary>
+
+The capture flow passes the submitted document images into the OCR or document-checking engine, often without an authenticity-preserving path such as NFC chip reading with cryptographic validation of the chip contents. For ICAO 9303 travel documents and similar eID chips, that means at least verifying the issuer-signed chip data and, where the document and verifier stack support it, enabling the optional anti-cloning checks (for example Active Authentication, Chip Authentication, or PACE-CAM) that prove the chip is genuine rather than merely readable. Without those checks, the engine is still being asked to make an evidential decision from weak inputs.
+
+**Artifact Produced:** OCR and image-extraction payload delivered to the document evaluation engine.
+
+</details>
+<details>
+<summary><strong>4. OCR or Document Engine extracts fields but does not truly verify authenticity</strong></summary>
+
+The document engine extracts names, dates, and document numbers successfully. Because OCR or visual parsing appears clean, the RP may treat the fallback as trustworthy even though OCR only proves that text was readable — not that the document was genuine, live, unaltered, or held by the presenter. Even a chip read is only stronger if the verifier actually checks the cryptographic result; merely pulling fields over NFC is still data extraction, not proof that the chip is genuine.
+
+**Failure Path:** A strong document-authenticity control rejects the artefact, prefers chip extraction where available, or marks the result as insufficient for assurance upgrade. Emit `STEPUP_DOCUMENT_AUTH_FAILED`.
+
+**Artifact Produced:** Structured identity data extracted from a document whose authenticity remains unproven.
+
+</details>
+<details>
+<summary><strong>5. OCR or Document Engine returns a PASS result to the RP Server</strong></summary>
+
+The document engine reports the fallback check as successful even though it never established real document authenticity or current possession. This creates a false sense that the extra document is strong corroborating evidence.
+
+**Audit Telemetry:** Log whether chip reading was attempted, whether issuer-signed chip data validation passed, whether anti-cloning checks (e.g. Active Authentication / Chip Authentication / PACE-CAM) were available and executed, OCR confidence, replay or screen-detection results, whether law or device capability prevented chip access, and whether the outcome was treated as merely supportive evidence or as a decisive assurance upgrade.
+
+```json
+{
+  "signal": "STEPUP_DOCUMENT_AUTH_FAILED",
+  "severity": "S2",
+  "session_id": "stepup_sess_f0a3",
+  "evidence": {
+    "ocr_extraction": "PASS",
+    "chip_read": "NOT_PERFORMED",
+    "document_authenticity": "FAIL",
+    "screen_replay_detected": true
+  },
+  "action": "STEP_UP_OR_BLOCK"
+}
+```
+
+**Artifact Produced:** Documentary PASS result returned without an authenticity-grounded evidential basis.
+
+</details>
+<details>
+<summary><strong>6. RP Server treats the fallback document as strong identity evidence</strong></summary>
+
+The RP treats the extra document as if it were strong corroborating evidence for the user's identity or for the user-binding question. Operationally, the fallback becomes a substitute for a better-defined ceremony, even though the document channel itself was weak. That lets the attacker complete onboarding or recovery with the benefit of a false documentary pass.
+
+**Artifact Produced:** Wrongful onboarding or recovery decision supported by weak documentary evidence.
+
+</details>
+<br/>
+
+**Attack Vector**: The RP relies on OCR or basic image parsing as though it were equivalent to genuine document-authenticity verification. Some implementations also over-credit any NFC read, even when they only extracted chip fields and did not validate the signed chip data or run the available anti-cloning checks. The ANSSI/BSI paper highlights this gap directly: OCR is fragile, easy to manipulate, and distinct from document authenticity. ICAO / BSI document standards likewise distinguish between reading chip data, validating that the data are issuer-authentic, and optionally proving that the chip itself is genuine rather than a clone. Chip reading is therefore materially stronger than OCR, but only if the validation stack actually performs and enforces those checks.
+
+**Impact**: High — the RP may accept false documentary evidence for a higher-risk decision, especially where the fallback is used to compensate for the absence of `portrait` or to strengthen a borderline session. Even if the upstream wallet credential is genuine, the RP's own extra-document decision can still be wrong.
+
+**Responsibility boundary**: [Implementing Regulation (EU) 2026/798](https://eur-lex.europa.eu/eli/reg_impl/2026/798/oj) places remote onboarding duties on the provider of person identification data / IPSP for wallet issuance, and [Implementing Regulation (EU) 2024/2977](https://eur-lex.europa.eu/eli/reg_impl/2024/2977/oj) treats `portrait` as optional PID data. If the RP nevertheless asks for an extra document, the quality of that extra documentary decision belongs to the RP under eIDAS Article 5b's validation duty. GDPR data-minimisation principles also matter here: collecting extra documents without a clearly defined evidential purpose creates both security and compliance risk.
+
+**Mitigation**:
+
+- **Primary**: Prefer NFC / chip reading with cryptographic document validation, or another authenticity-preserving path, over OCR-only extraction whenever the policy and local law allow it. At minimum, verify issuer-signed chip data; where the document and verifier stack support it, also enable the optional anti-cloning checks (e.g. Active Authentication, Chip Authentication, or PACE-CAM) instead of treating a raw chip read as sufficient.
+- **Authenticity ≠ extraction**: Treat OCR success as data extraction only. Likewise, treat a raw NFC chip read as data access, not as proof of genuineness, unless the corresponding cryptographic validation result is checked and enforced. Readable text or readable chip fields do not by themselves prove document genuineness, liveness, or current possession.
+- **Profile discipline**: If the assurance profile requires extra documentary evidence, define the exact control set: whether chip access is required, which cryptographic checks must pass, whether screen-replay detection is required, what happens when law or device capability prevents chip access, and when mandatory manual review or a stronger ceremony is required.
+- **Weighting discipline**: Where only OCR-heavy capture is available, downgrade the evidential weight. Do not treat OCR-only fallback as equivalent to upstream LoA High onboarding or to a stronger live-person binding ceremony.
+- **Minimisation**: Do not request an extra document merely because it is available. Collect it only where the profile can explain why the extra evidence changes the decision and how its authenticity is verified.
+
 #### 29.3 Consolidated Risk Assessment Matrix
 
-The following matrix consolidates the risk ratings for all 41 threat scenarios documented in §29.2. Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
+The following matrix consolidates the risk ratings for all 44 threat scenarios documented in §29.2. Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
 
 Before reading the matrix, keep one distinction in mind: an assurance profile does **not** "solve" a threat in the abstract. Instead, it can materially **reduce exposure by design** for certain attack classes. The most important design-level levers are summarised below:
 
@@ -28125,6 +28681,7 @@ Before reading the matrix, keep one distinction in mind: an assurance profile do
 | **DC API-first browser policy** | Reduces QR / out-of-band invocation abuse by making same-device origin-bound presentation the default path | §29.2.4 Relay Attack: Cross-Device; §29.2.5 Malicious RP Endpoint: Phishing; §29.2.18 Cross-Device QR Code Substitution | Does not eliminate all presentation abuse; fallback channels still require their own controls |
 | **Controlled proximity for selected lifecycle events** | Reduces relay opportunity and remote social-engineering exposure for issuance, recovery, rebinding, and other high-risk ceremonies | §29.2.4 Relay Attack: Cross-Device; §29.2.25 Credential Injection into Victim Wallet; §29.2.16 User Device Malware: Consent Manipulation | Applies only to the flows where the RP actually invokes proximity or supervised ceremony |
 | **Device-binding-required for RP-issued high-risk credentials** | Reduces forwarding, replay-adjacent reuse, and credential-sharing risk when the RP controls issuance policy | §29.2.2 Credential Replay; §29.2.39 Unbound Credential Forwarding; §29.2.41 Compromised Wallet Environment: WUA Verification Failure | Cannot be retroactively forced on third-party credentials that arrive without holder binding |
+| **Profile-defined supplementary binding ceremony** | Reduces spoofing and weak-evidence acceptance when the RP deliberately invokes selfie / portrait / extra-document proofing for onboarding, recovery, or rebinding | §29.2.42 Remote Live-Person Step-Up: Biometric Presentation Attack; §29.2.43 Remote Live-Person Step-Up: Capture-Pipeline Injection Attack; §29.2.44 Fallback Document Proofing: OCR / Document Authenticity Failure | Only works if the profile separately defines biometric genuineness, capture integrity, and document-authenticity controls; a generic "selfie check" is not enough |
 | **VSI-driven assurance escalation** | Reduces dwell time and repeated low-friction abuse by routing suspicious sessions into stronger channels or stronger review paths | §29.2.17 Browser-Side Session Hijacking: Post-Verification; §29.2.33 `request_uri` Endpoint Abuse; §29.2.40 Clock Manipulation / Environment Emulation | It is a runtime containment control, not a substitute for preventive protocol validation |
 
 | Scenario | Threat | Likelihood | Impact | Residual Risk |
@@ -28142,6 +28699,9 @@ Before reading the matrix, keep one distinction in mind: an assurance profile do
 | §29.2.17 | Browser-Side Session Hijacking: Post-Verification | High | High | 🟡 Medium — standard web session hardening mitigates but does not eliminate; high likelihood because MitB/extensions are common attack vectors |
 | §29.2.4 | Relay Attack: Cross-Device | Medium | High | 🟡 Medium — DC API with BLE proximity binding solves this for compliant implementations; residual risk is high for custom URI scheme fallbacks without proximity checks. Session timeouts (120s QR expiry) reduce but do not eliminate the window |
 | §29.2.10 | Verification SDK Vulnerability | Medium | High | 🟡 Medium — dependent on the maturity and security audit history of the chosen verification SDK (§26 vendor evaluation). Integration test suites with known-bad credentials provide a regression guard, but cannot catch novel parser bugs |
+| §29.2.42 | Remote Live-Person Step-Up: Biometric Presentation Attack | Medium | High | 🟡 Medium — presentation attacks remain practical against weak selfie / portrait flows; strong PAD, random challenge-response, and supervised review for borderline outcomes materially reduce exposure |
+| §29.2.43 | Remote Live-Person Step-Up: Capture-Pipeline Injection Attack | Medium | High | 🔴 High — if the RP treats browser or vendor capture as trustworthy without injection detection, trusted sensor-path controls, or tamper evidence; 🟡 Medium if IAD and challenge integrity are explicitly tested and enforced |
+| §29.2.44 | Fallback Document Proofing: OCR / Document Authenticity Failure | Medium | High | 🟡 Medium — OCR-heavy fallback is easy to over-trust; chip reading with signed-data validation, available anti-cloning checks, and explicit evidential downgrades reduce but do not eliminate the gap |
 | §29.2.14 | Identifier-Based Tracing | Medium | High | 🟡 Medium — mitigated by §11.10 anti-linkability practices and attestation rotation (Methods A/B), but structurally stable identifiers (Status List index, `cnf.jwk` thumbprint) are inherent to the protocol and cannot be fully eliminated without ZKP |
 | §29.2.16 | User Device Malware: Consent Manipulation | Medium | High | 🟡 Medium — WSCD prevents key extraction, but consent-layer manipulation bypasses it; RP has no visibility into device security posture |
 | §29.2.25 | Credential Injection into Victim Wallet | Low–Medium | High | 🟡 Medium — depends on wallet UX (whether it verifies the offered credential matches the holder's own PID) and on issuer session binding (wallet attestation or WUA enforcement during issuance) |
@@ -28177,10 +28737,12 @@ Treat VSI as the RP's decision layer, not optional telemetry. If verification ou
 
 This chapter defines **Verification Signal Intelligence (VSI)** — the practice of classifying every VP Token verification step result as a typed, severity-graded signal that feeds into fraud scoring engines, SIEM/SOAR pipelines, and continuous risk assessment. VSI fills the structural gap between two existing chapters:
 
-- **§29 Security Threat Catalogue** answers: *"What attacks exist?"* — 41 threats with STRIDE classifications, attack vectors, and mitigations.
+- **§29 Security Threat Catalogue** answers: *"What attacks exist?"* — 44 threats with STRIDE classifications, attack vectors, and mitigations.
 - **§31 Monitoring, Observability, and Operational Readiness** answers: *"How do you detect, alert, and respond?"* — metrics, alert triggers, audit trail structure.
 
 VSI is the **missing middle layer**: *"What signals do those attacks produce at the RP's verification pipeline, and how do you classify, score, and compose them into actionable decisions?"*
+
+For remote identity-proofing step-up paths, VSI should keep at least four signal families distinct: **biometric-genuineness** failures, **document-authenticity** failures, **face-matching** failures, and **capture-integrity** failures (presentation / injection / tamper). Collapsing all of these into a single opaque `liveness_failed` outcome throws away decision-making value and weakens auditability.
 
 ```mermaid
 ---
@@ -28191,7 +28753,7 @@ config:
 ---
 flowchart LR
     subgraph S29["§29 — Security Threat Catalogue"]
-        T1(["41 threats (STRIDE-classified)"])
+        T1(["44 threats (STRIDE-classified)"])
     end
 
     subgraph S30["§30 — Verification Signal Intelligence"]
@@ -28260,10 +28822,12 @@ flowchart TB
         V3["mdoc Signals"]
         V4["JWE/JARM Signals"]
         V5["Trust Infra Signals"]
+        V6["Remote Step-up Signals"]
         V1 --> V2
         V1 --> V3
         V1 --> V4
         V1 --> V5
+        V1 --> V6
     end
 
     subgraph L3["Layer 3 — Contextual & Behavioural"]
@@ -28283,7 +28847,7 @@ flowchart TB
 | Layer | Producer | When | Signal Source | Example Signals |
 |:------|:---------|:-----|:-------------|:----------------|
 | **Layer 1** — Protocol Errors | Wallet Response Handler | On receiving `direct_post` error response | OID4VP §6.3 error codes; mdoc ISO 18013-5 status codes | `access_denied`, `invalid_request`, `presentation_rejected` |
-| **Layer 2** — Verification Pipeline | RP's Verification Engine (§11.3/§11.4/§12) | During VP Token validation | SD-JWT VC signature, disclosure, temporal, revocation, KB-JWT checks; mdoc MSO, IACA, DeviceAuth checks; JWE decryption; trust infrastructure | `SDJWT_SIG_INVALID`, `KBJWT_NONCE_REUSE`, `MDOC_DEVICE_SIG_INVALID` |
+| **Layer 2** — Verification Pipeline | RP's Verification Engine (§11.3/§11.4/§12) | During VP Token validation | SD-JWT VC signature, disclosure, temporal, revocation, KB-JWT checks; mdoc MSO, IACA, DeviceAuth checks; JWE decryption; trust infrastructure; optional supplementary remote proofing checks | `SDJWT_SIG_INVALID`, `KBJWT_NONCE_REUSE`, `MDOC_DEVICE_SIG_INVALID`, `STEPUP_CAPTURE_INJECTION_DETECTED` |
 | **Layer 3** — Contextual & Behavioural | API Gateway (§26.6.4) | On receiving `direct_post` HTTP request | HTTP headers, TLS fingerprint, IP geolocation, device fingerprint, velocity counters, temporal patterns | `CTX_GEO_MISMATCH`, `CTX_VELOCITY_EXCEED`, `CTX_TLS_FINGERPRINT_ANOMALY` |
 
 **Layer 1 signals are wallet-emitted** — the RP receives them passively. **Layer 2 signals are RP-generated** — the RP's own verification engine produces them during VP Token validation. **Layer 3 signals are infrastructure-generated** — the RP's API gateway captures them from the HTTP context of the `direct_post` request.
@@ -28387,6 +28951,18 @@ These signals arise from failures in the trust infrastructure that underpins cre
 
 > **Qualified-status boundary**: The signals above are primarily about LoTE-backed issuer trust and wallet-environment integrity. Where the RP later needs to state a trusted-list-backed qualified conclusion, it should maintain a **separate** authenticated `LOTL` / national trusted-list state and treat outages in that path as loss of qualified-status evidence — not as something silently substituted by LoTE success. Under `ETSI TS 119 615`, the qualified-status leg may therefore degrade to unavailable or `Indeterminate` even when ordinary LoTE-backed issuer trust remains usable.
 
+##### 30.4.5 Remote Proofing Step-Up Signals
+
+These signals apply only when the RP deliberately invokes a **supplementary remote proofing ceremony** in addition to the wallet presentation — for example selfie / portrait comparison, video-ident, or extra-document capture during onboarding, recovery, or rebinding. They should be kept distinct from the main wallet verification pipeline so the RP can tell whether risk comes from the credential itself or from the RP's own extra ceremony.
+
+Routine **face-match mismatch** outcomes should also be logged separately in implementations, but the table below focuses on the attack-oriented step-up failures that map directly to the new threat cards in §29.2.42–§29.2.44.
+
+| Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | §29 Threat Ref |
+|:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
+| `STEPUP_PRESENTATION_ATTACK_DETECTED` | PAD / biometric-genuineness or document-liveness controls detect printed photos, masks, projected faces, screen replays, or other presentation attack instruments during remote step-up | Spoofing | **S1** | **Remote live-person spoof detected.** The RP's supplementary selfie / portrait / document ceremony observed a non-genuine presentation artefact. The session must not be treated as stronger user binding. | §29.2.42 |
+| `STEPUP_CAPTURE_INJECTION_DETECTED` | Injection-attack / capture-integrity controls detect virtual cameras, stream substitution, deepfake insertion, media-pipeline tampering, or challenge-response inconsistency | Spoofing / Tampering | **S1** | **Capture path compromised.** The proofing engine is no longer evaluating trusted live-sensor input. Treat as an active bypass attempt against the RP's supplementary proofing stack. | §29.2.43 |
+| `STEPUP_DOCUMENT_AUTH_FAILED` | Remote document fallback cannot establish document authenticity or current possession — e.g., OCR succeeded but chip read was absent, signed chip-data validation was not performed, optional anti-cloning checks were not run where required, or replay detection failed | Tampering | **S2** | **Weak documentary fallback.** The RP extracted fields from a document but did not obtain enough evidence to trust the document as genuine. Do not silently upgrade assurance on the basis of OCR-only success or a raw NFC read without enforced validation. | §29.2.44 |
+
 #### 30.5 Signal Inventory: Layer 3: Contextual and Behavioural
 
 Layer 3 signals are **not protocol errors** — they are contextual observations captured by the RP's API gateway (§26.6.4) from the HTTP request context of the `direct_post`. These signals are only available when the RP deploys a proxy architecture (§26.7) that intercepts the wallet's HTTP request before forwarding to the verifier.
@@ -28411,8 +28987,8 @@ Every VSI signal is assigned a severity level from S0 (Critical) through S4 (Noi
 | Severity | Label | Automated Response | Manual Follow-up | Example Signals |
 |:---------|:------|:-------------------|:-----------------|:----------------|
 | **S0** | **Critical — Active Attack** | **Block** presentation immediately. Quarantine source IP. Emit SIEM alert with `priority: critical`. Trigger SOAR playbook. | SOC investigation required within 1 hour. Preserve full request payload for forensic analysis. Evaluate DORA Art. 17 incident classification. | `KBJWT_NONCE_REUSE`, `SDJWT_SIG_ALG_NONE`, `LOTE_SIG_INVALID`, `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`, `JARM_STATE_MISMATCH` |
-| **S1** | **High — Probable Attack** | **Block** presentation. Increment source IP risk score. Emit SIEM alert with `priority: high`. | Security team review within 4 hours. Correlate with §29 threat model entry. Assess whether pattern constitutes a NIS2 Art. 23 reportable incident. | `PROTO_INVALID_CLIENT`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `WUA_INVALID`, `MDOC_CBOR_PARSE_ERROR` |
-| **S2** | **Medium — Suspicious** | **Allow** with elevated risk score in the verification result object (§31.3.1). Queue for batch review. Emit SIEM event with `priority: medium`. | Batch review within 24 hours. Look for patterns — isolated S2 signals are often configuration issues; clustered S2 signals indicate a coordinated probe. | `SDJWT_STATUS_REVOKED`, `SDJWT_IAT_FUTURE`, `CTX_TLS_FINGERPRINT_ANOMALY`, `CTX_VELOCITY_EXCEED`, `LOTE_FETCH_FAILED`, `MDOC_READER_AUTH_REJECTED` |
+| **S1** | **High — Probable Attack** | **Block** presentation. Increment source IP risk score. Emit SIEM alert with `priority: high`. | Security team review within 4 hours. Correlate with §29 threat model entry. Assess whether pattern constitutes a NIS2 Art. 23 reportable incident. | `PROTO_INVALID_CLIENT`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `WUA_INVALID`, `MDOC_CBOR_PARSE_ERROR`, `STEPUP_PRESENTATION_ATTACK_DETECTED`, `STEPUP_CAPTURE_INJECTION_DETECTED` |
+| **S2** | **Medium — Suspicious** | **Allow** with elevated risk score in the verification result object (§31.3.1). Queue for batch review. Emit SIEM event with `priority: medium`. | Batch review within 24 hours. Look for patterns — isolated S2 signals are often configuration issues; clustered S2 signals indicate a coordinated probe. | `SDJWT_STATUS_REVOKED`, `SDJWT_IAT_FUTURE`, `CTX_TLS_FINGERPRINT_ANOMALY`, `CTX_VELOCITY_EXCEED`, `LOTE_FETCH_FAILED`, `MDOC_READER_AUTH_REJECTED`, `STEPUP_DOCUMENT_AUTH_FAILED` |
 | **S3** | **Low — Informational** | **Allow** normally. Log signal in verification record. Update UEBA behavioural baseline. | No manual review required. Aggregate for weekly trend analysis. | `SDJWT_EXP_EXPIRED`, `CTX_DEVICE_UNKNOWN`, `CTX_GEO_MISMATCH`, `PROTO_PRESENTATION_REJECTED`, `MDOC_VALIDITY_EXPIRED`, `KBJWT_CLOCK_SKEW` |
 | **S4** | **Noise — Operational** | **Allow** normally. Log for diagnostics only. Do not feed into risk score. | No review. Use only for operational dashboards and debuggability. | `CTX_TIME_OF_DAY_ANOMALY`, `MDOC_NAMESPACE_NOT_FOUND`, `MDOC_DATA_REQUEST_DENIED`, `PROTO_ACCESS_DENIED`, `PROTO_TEMPORARILY_UNAVAILABLE` |
 
@@ -28422,8 +28998,8 @@ The intersection of severity level and STRIDE classification reveals the most da
 
 | STRIDE Category | S0 (Critical) | S1 (High) | S2 (Medium) | S3 (Low) |
 |:----------------|:--------------|:----------|:------------|:---------|
-| **Spoofing** | `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `SDJWT_ISSUER_CHAIN_INVALID`, `MDOC_IACA_CHAIN_INVALID`, `MDOC_DEVICE_SIG_INVALID` | `SDJWT_ISSUER_UNTRUSTED`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `MDOC_DEVICE_MAC_INVALID`, `WUA_INVALID` | `SDJWT_IAT_FUTURE`, `SDJWT_CNF_MISSING`, `CTX_TLS_FINGERPRINT_ANOMALY` | — |
-| **Tampering** | `SDJWT_SIG_INVALID`, `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`, `MDOC_MSO_SIG_INVALID` | `SDJWT_DISCLOSURE_HASH_MISMATCH`, `SDJWT_DISCLOSURE_DUPLICATE_SALT`, `SDJWT_JSON_PARSE_ERROR`, `JWE_DECRYPT_FAILED`, `JWE_ALG_UNEXPECTED`, `JARM_SIG_INVALID`, `MDOC_DIGEST_MISMATCH`, `MDOC_CBOR_PARSE_ERROR` | — | — |
+| **Spoofing** | `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `SDJWT_ISSUER_CHAIN_INVALID`, `MDOC_IACA_CHAIN_INVALID`, `MDOC_DEVICE_SIG_INVALID` | `SDJWT_ISSUER_UNTRUSTED`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `MDOC_DEVICE_MAC_INVALID`, `WUA_INVALID`, `STEPUP_PRESENTATION_ATTACK_DETECTED` | `SDJWT_IAT_FUTURE`, `SDJWT_CNF_MISSING`, `CTX_TLS_FINGERPRINT_ANOMALY` | — |
+| **Tampering** | `SDJWT_SIG_INVALID`, `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`, `MDOC_MSO_SIG_INVALID` | `SDJWT_DISCLOSURE_HASH_MISMATCH`, `SDJWT_DISCLOSURE_DUPLICATE_SALT`, `SDJWT_JSON_PARSE_ERROR`, `JWE_DECRYPT_FAILED`, `JWE_ALG_UNEXPECTED`, `JARM_SIG_INVALID`, `MDOC_DIGEST_MISMATCH`, `MDOC_CBOR_PARSE_ERROR`, `STEPUP_CAPTURE_INJECTION_DETECTED` | `STEPUP_DOCUMENT_AUTH_FAILED` | — |
 | **Replay** | `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `JARM_STATE_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH` | — | `KBJWT_EXPIRED` | `KBJWT_CLOCK_SKEW` |
 | **DoS** | — | — | `SDJWT_STATUS_FETCH_FAILED`, `LOTE_FETCH_FAILED`, `LOTE_EXPIRED` | — |
 
@@ -28657,7 +29233,7 @@ The gateway captures Layer 3 environmental context before forwarding: source IP 
 <details>
 <summary><strong>3. Verification engine emits signal array to composition engine</strong></summary>
 
-The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature (§29.2.36), disclosure hashes (§29.2.37), temporal validity (`iat`/`exp`), revocation status (§29.2.8), holder binding via KB-JWT (§29.2.2–§29.2.5), trust chain resolution via LoTE, and WUA validation (§29.2.41). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
+The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature (§29.2.36), disclosure hashes (§29.2.37), temporal validity (`iat`/`exp`), revocation status (§29.2.8), holder binding via KB-JWT (§29.2.2–§29.2.5), trust chain resolution via LoTE, WUA validation (§29.2.41), and, where the RP explicitly invokes it, supplementary remote proofing controls (§29.2.42–§29.2.44). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
 
 **Artifact Produced:** Signal array containing all Layer 1, Layer 2, and Layer 3 signals with severity classifications.
 
@@ -28929,6 +29505,9 @@ The following table closes the traceability loop, connecting each representative
 | `JWE_DECRYPT_FAILED` | Response encryption key mismatch | §29.2.7 Ephemeral Key Interception | §31.2.3 Threat detection | GDPR Art. 33 (data breach) | BLOCK |
 | `LOTE_SIG_INVALID` | LoTE cache poisoning — trust anchor compromise | §29.2.22 LoTE Cache Poisoning | §31.2.2 Trust anchor key rotation | NIS2 Art. 23 (24h early warning) | BLOCK |
 | `WUA_INVALID` | Wallet attestation failure — compromised device | §29.2.41 Compromised Wallet Environment | §31.2.3 Device attestation failure | eIDAS CIR 2024/2977 Art. 5 | BLOCK |
+| `STEPUP_PRESENTATION_ATTACK_DETECTED` | Remote proofing presentation attack detected during selfie / portrait / document step-up | §29.2.42 Remote Live-Person Step-Up: Biometric Presentation Attack | §31.2.5 Biometric presentation-attack spike in remote step-up | eIDAS Art. 5b(8); GDPR Arts. 9 & 35 | BLOCK |
+| `STEPUP_CAPTURE_INJECTION_DETECTED` | Remote proofing capture-pipeline injection or virtual-camera attack detected | §29.2.43 Remote Live-Person Step-Up: Capture-Pipeline Injection Attack | §31.2.3 Capture-pipeline injection detected | eIDAS Art. 5b(8); DORA ICT third-party / incident controls where applicable | BLOCK |
+| `STEPUP_DOCUMENT_AUTH_FAILED` | OCR / document fallback failed to establish document authenticity or current possession | §29.2.44 Fallback Document Proofing: OCR / Document Authenticity Failure | §31.2.5 Fallback document-authenticity anomaly | eIDAS Art. 5b(8); GDPR Art. 5(1)(c) | STEP-UP / BLOCK |
 | `CTX_VELOCITY_EXCEED` | High-velocity credential reuse | §29.2.13 Cross-RP Collusion | §31.2.5 Velocity anomaly | AML/6AMLD (SAR if patterned) | STEP-UP |
 | `SDJWT_ISSUER_CHAIN_INVALID` | Issuer X.509 chain doesn't validate to LoTE root | §29.2.27 Trust Chain Manipulation | §31.2.2 Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
 | `PROTO_INVALID_TRANSACTION_DATA` | Transaction data binding rejected by wallet | §29.2.1 Dynamic Linking Manipulation | §31.2.5 SCA integrity failure | PSD2 RTS (dynamic linking) | BLOCK |
@@ -29044,6 +29623,7 @@ Deep inspection of the EUDI cryptographic constructs. Alerts in this layer almos
 | Nonce / `state` replay detection | 🔴 Critical | > 0 duplicate nonces utilised across independent sessions | Active replay attack (§29.2.1). The exact same attestation payload is being replayed across distinct HTTP sessions. Invalidate all sessions sharing the nonce |
 | Audience (`aud`) mismatch | 🔴 Critical | > 0 instances | Relay attack detected (§29.2.4). The user is presenting a credential whose `aud` claim does not match the RP's registered `client_id`. Drop presentation and log all client metadata |
 | Wallet Unit Attestation (WUA) failure | 🟠 High | Spike > 1% of authentications | Compromised, rooted, or emulated devices are attempting presentations. Flag user sessions for high-risk manual review. Edge case: a Wallet Provider may delay WUA rotation causing temporary mass failures after a firmware update |
+| Capture-pipeline injection detected in remote step-up | 🔴 Critical | > 0 confirmed detections | Active bypass attempt against the RP's supplementary proofing stack — virtual camera, stream substitution, or tampered media pipeline. Block the session immediately. If the capture workflow is vendor-operated, review capture-SDK integrity, vendor incident handling, and DORA third-party processes where applicable |
 | Algorithmic downgrade attempt | 🟠 High | > 5% of presentations using unexpected algorithms | Attacker attempting to force weak cryptographic algorithms (e.g., RS256 instead of ES256, or non-standard ECDH curves). Deny presentation and log the attempted algorithm |
 | KB-JWT clock skew | ℹ️ Info | KB-JWT `iat` > 60 seconds from server receipt time | Indicator of extreme network lag, Wallet clock desynchronisation, or potential replay delay. Log for pattern analysis |
 | Selective Disclosure salt collision | 🟠 High | > 0 instances of duplicate salts within a single disclosure array | Malformed SD-JWT structure. Edge case: attacker fuzzing the disclosure array to manipulate hash verification logic. Reject payload and log the raw structure for forensic analysis |
@@ -29069,6 +29649,8 @@ Application-layer heuristics applied to cryptographically valid presentations, d
 |:------|:---------|:----------|:--------------------|
 | Presentation velocity anomaly | 🟠 High | > 5 presentations from the same PID or pseudonym within 10 minutes | Bot activity, shared credential abuse, or aggressive account enumeration. Implement temporary soft-lock or step-up re-authentication challenge |
 | Revoked credential submission spike | 🟠 High | > 3 presentations with revoked status within 1 hour | Attacker testing a purchased or leaked database of extracted credentials. Route signals to fraud intelligence team and consider IP-level blocking |
+| Biometric presentation-attack spike in remote step-up | 🟠 High | > 1% of remote step-up attempts or > 3 attempts from the same account / IP within 1 hour | Printed-photo, mask, or screen-replay pressure against the RP's selfie / portrait ceremony. Escalate the affected flow to a stronger supervised path or manual review; review PAD thresholds and challenge randomness |
+| Fallback document-authenticity anomaly | 🟠 High | > 3 failures from the same account / IP within 1 hour or > 2% of fallback document flows | Indicates forged, altered, or screen-replayed documents, or an OCR-heavy fallback that is being over-trusted. Prefer NFC chip reading with cryptographic validation where possible; do not treat OCR-only success or a raw NFC extraction as equivalent to upstream LoA High proofing |
 | Data minimisation / oversharing violation | 🟡 Warning | Wallet returns claims not present in the RP's DCQL query | The Wallet implementation has a privacy bug (e.g., returning `address` when only `age_over_18` was requested), or a compromised Wallet is dumping all available data. Discard unrequested data immediately per GDPR Art. 5(1)(c) and log the incident |
 | Test environment credential leakage | 🔴 Critical | Presentation of credentials issued by staging or test Issuers to the production RP endpoint | Reject immediately. Edge case: a Wallet Provider may deploy test credentials with production-like `iss` URIs during pilot programmes — maintain an explicit blocklist of known test Issuer identifiers |
 | Continuous access evaluation — mid-session revocation | 🟠 High | Status List check reveals revocation for a credential backing an active session | A previously authenticated user's credential has been revoked while their web session remains active. Sever the session token immediately and redirect to re-authentication. This is critical for financial RPs where DORA Art. 9 mandates continuous access controls |
@@ -33308,7 +33890,8 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [ETSI TS 119 472-3 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA issuance and disclosure policies](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947203/01.01.01_60/ts_11947203v010101p.pdf) — Issuance-side disclosure-policy companion to the 472 series; included as context for RP understanding but not as a primary RP integration target in this document (§1.4)
 - [ETSI TS 119 411-8 V1.1.1 (2025-10) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for Trust Service Providers issuing certificates; Part 8: Access Certificate Policy for EUDI Wallet Relying Parties](https://www.etsi.org/deliver/etsi_ts/119400_119499/11941108/01.01.01_60/ts_11941108v010101p.pdf) — Policy and profile requirements for providers issuing WRPACs, including RP-visible status and transparency obligations (§5.2)
 - [ETSI TR 119 411-9 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Analysis of Certificate Transparency in the WebPKI and recommendations for use under Regulation (EU) No 910/2014](https://www.etsi.org/deliver/etsi_tr/119400_119499/11941109/01.01.01_60/tr_11941109v010101p.pdf) — CT ecosystem, role taxonomy, incident classes, and governance framing used to sharpen WRPAC transparency, monitoring, and response interpretation (§5, §29, §31)
-- [ETSI TS 119 461 V2.1.1 (2025-02) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for trust service components providing identity proofing of trust service subjects](https://www.etsi.org/deliver/etsi_ts/119400_119499/119461/02.01.01_60/ts_119461v020101p.pdf) — Identity-proofing and PAD reference standard cited for QEAA issuance and higher-assurance onboarding checks (§6, §24)
+- [ETSI TS 119 461 V2.1.1 (2025-02) — Electronic Signatures and Trust Infrastructures (ESI); Policy and security requirements for trust service components providing identity proofing of trust service subjects](https://www.etsi.org/deliver/etsi_ts/119400_119499/119461/02.01.01_60/ts_119461v020101p.pdf) — Identity-proofing and PAD reference standard cited by CIR 2025/1566 for QEAA issuance and by CIR 2026/798 for remote Wallet-user onboarding, and also used in `DR-0002` as the supplementary PAD benchmark for selected RP onboarding flows (§6, §24)
+- [ANSSI / BSI — Remote Identity Proofing for EUDI Wallet Onboarding: Strengthening Assurance Against Evolving Threats (July 2025)](https://cyber.gouv.fr/documents/329/ANSSI_BSI_Joint_Paper_remote_identity_proofing_for_EUDI.pdf) — Joint security position paper decomposing remote proofing into biometric genuineness, document authenticity, and face matching; distinguishes presentation vs injection attacks; highlights OCR vs chip-reading trade-offs; and argues for harmonised testing and clearer LoA High mapping around ETSI TS 119 461, CEN TS 18099, and ISO/IEC 19989-3 (§11, §24, §26, §30)
 - [ETSI TS 119 495 V1.8.1 (2026-04) — Electronic Signatures and Trust Infrastructures (ESI); Sector Specific Requirements; Certificate Profiles and TSP Policy Requirements for Open Banking](https://www.etsi.org/deliver/etsi_ts/119400_119499/119495/01.08.01_60/ts_119495v010801p.pdf) — PSD2/open-banking certificate-profile layer for bank/PSP personas, covering `QWAC` / `QSealC`, open-banking `QCStatement`, `rolesOfPSP`, `organizationIdentifier`, `NCAName` / `NCAId`, register-backed interpretation/revocation, and `VoP` role additions (§21, §24)
 - [ETSI TS 119 612 — Trusted Lists](https://www.etsi.org/deliver/etsi_ts/119600_119699/119612/) — Specification for EU Trusted Lists of Trust Service Providers; source format authenticated and interpreted via `ETSI TS 119 615` when RPs need trusted-list-backed qualified-status conclusions (§5)
 - [ETSI TS 119 615 V1.3.1 (2026-01) — Electronic Signatures and Trust Infrastructures (ESI); Procedures for using EU Trusted Lists to determine qualified status](https://www.etsi.org/deliver/etsi_ts/119600_119699/119615/01.03.01_60/ts_119615v010301p.pdf) — Trusted-list interpretation procedure layer for authenticating the `LOTL` / national trusted lists, matching services to certificates, and deriving time-specific qualified / `Indeterminate` outcomes for certificates, `QWAC`s, `QSCD`s, qualified validation services, and `QEAAs` (§5, §11, §12, §33)
