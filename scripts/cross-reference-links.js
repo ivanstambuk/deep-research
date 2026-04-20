@@ -1,8 +1,11 @@
 import GithubSlugger from 'github-slugger';
+import arfMainReference from './data/arf-main-v2.8.0-sections.js';
+import arfTopicReference from './data/arf-topics-v2.8.0.js';
 
 const LOOKBACK_LIMIT = 96;
 const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
 const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
+const ARF_TOPIC_TOKEN_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)\b/g;
 const LABEL_TOKEN_RE = /\b(?:Key Finding \d+|KF \d+|Finding F-?\d+|Finding \d+|OQ(?:\d+|-\d+|\s+#\d+|\s+\d+)|Open Question(?:\s+#\d+|\s+\d+))\b/g;
 const HAST_ELIGIBLE_CONTAINER_TAGS = new Set(['blockquote', 'li', 'p', 'summary', 'td', 'th']);
 const HAST_FORBIDDEN_TAGS = new Set(['a', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'script', 'style']);
@@ -60,6 +63,10 @@ const EXTERNAL_CITATION_PATTERNS = [
 const INTERNAL_REFERENCE_PREFIX_RE = /\b(?:see|from|in|under|via|within|cross[- ]reference:?|described\s+in|documented\s+in|discussed\s+in|covered\s+(?:in\s+detail\s+)?in|referenced\s+in|mapped\s+in|detailed\s+in|analysed\s+in|analyzed\s+in)\s*$/i;
 const INTERNAL_REFERENCE_SUFFIX_RE = /^\s*(?:\)|\]|\.)?\s*(?:covers?|covered|describes?|described|discusses?|documented|details?|maps?|mapped|explains?|analyses?|analyzes?|provides?|traces?|shows?)\b/i;
 const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
+const ARF_MAIN_EXPLICIT_PREFIX_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*$/i;
+const ARF_MAIN_EXPLICIT_SUFFIX_RE = /^\s+of\s+the\s+ARF(?:\s+Main\s+Document)?\b/i;
+const ARF_MAIN_PRIOR_SECTION_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*§\d+(?:\.\d+)*/i;
+const ARF_TOPIC_EXPLICIT_PREFIX_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)(?:\s*,\s*)?$/i;
 
 function stripMarkdownFormatting(value) {
   return value
@@ -362,6 +369,125 @@ function isExternalCitationByTrailingText(trailingText) {
   return /^\s+of\s+the\s+(?:draft|spec|specification)\b/i.test(trailingText);
 }
 
+function hasExplicitArfMainReferenceCue({ lookback, trailingText }) {
+  return ARF_MAIN_EXPLICIT_PREFIX_RE.test(lookback) || ARF_MAIN_EXPLICIT_SUFFIX_RE.test(trailingText);
+}
+
+function hasPriorExplicitArfSectionReference(lookback) {
+  return ARF_MAIN_PRIOR_SECTION_RE.test(lookback);
+}
+
+function hasPriorExplicitArfTopicReference(lookback) {
+  return ARF_TOPIC_EXPLICIT_PREFIX_RE.test(lookback);
+}
+
+function normalizeArfTopicReferenceToken(tokenText) {
+  const normalizedToken = normalizeWhitespace(tokenText);
+  const identifierMatch = normalizedToken.match(/\bTopic\s+([A-Z]{1,2}|\d+)\b/i);
+  if (!identifierMatch) {
+    return null;
+  }
+
+  const topicId = identifierMatch[1].toUpperCase();
+  const isDiscussionOnly = /\bDiscussion(?:\s+Paper)?\b/i.test(normalizedToken);
+  const isAnnexOnly = /\bAnnex\s+2\b/i.test(normalizedToken);
+
+  if (isDiscussionOnly && isAnnexOnly) {
+    return null;
+  }
+
+  if (isDiscussionOnly) {
+    return {
+      topicId,
+      topicKind: 'discussion',
+    };
+  }
+
+  if (isAnnexOnly) {
+    return {
+      topicId,
+      topicKind: 'annex',
+    };
+  }
+
+  return {
+    topicId,
+    topicKind: /^\d+$/.test(topicId) ? 'annex' : 'discussion',
+  };
+}
+
+function resolveArfTopicTarget(tokenText) {
+  const topicInfo = normalizeArfTopicReferenceToken(tokenText);
+  if (!topicInfo) {
+    return null;
+  }
+
+  if (topicInfo.topicKind === 'annex') {
+    const topic = arfTopicReference.annexTopics?.[topicInfo.topicId];
+    if (!topic) {
+      return null;
+    }
+
+    return {
+      ...topic,
+      linkKind: 'external',
+      sourceDocument: 'arf-topic-annex-2',
+      topicId: topicInfo.topicId,
+      topicKind: 'annex',
+    };
+  }
+
+  const topic = arfTopicReference.discussionTopics?.[topicInfo.topicId];
+  if (!topic) {
+    return null;
+  }
+
+  return {
+    ...topic,
+    linkKind: 'external',
+    sourceDocument: 'arf-topic-discussion',
+    topicId: topicInfo.topicId,
+    topicKind: 'discussion',
+  };
+}
+
+function buildArfTopicHref(tokenText) {
+  const target = resolveArfTopicTarget(tokenText);
+  if (!target) {
+    return null;
+  }
+
+  if (target.topicKind === 'annex') {
+    return new URL(`#${target.headingId}`, arfTopicReference.annexTopicsBaseUrl).toString();
+  }
+
+  return new URL(`${target.path}/`, arfTopicReference.discussionTopicsBaseUrl).toString();
+}
+
+function resolveArfMainTarget(sectionNumber) {
+  const section = arfMainReference.sections?.[sectionNumber];
+  if (!section) {
+    return null;
+  }
+
+  return {
+    ...section,
+    headingText: section.text,
+    linkKind: 'external',
+    sourceDocument: 'arf-main',
+    sectionNumber,
+  };
+}
+
+function buildArfMainHref(sectionNumber) {
+  const target = resolveArfMainTarget(sectionNumber);
+  if (!target) {
+    return null;
+  }
+
+  return new URL(`#${target.headingId}`, arfMainReference.baseUrl).toString();
+}
+
 function splitDiagnosticSnippet(diagnostic) {
   const snippet = diagnostic?.snippet ?? '';
   const tokenText = diagnostic?.tokenText ?? '';
@@ -437,45 +563,36 @@ function findNextRegexMatch(regex, value, cursor) {
 
 function findNextReferenceToken(value, cursor) {
   const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
+  const topicMatch = findNextRegexMatch(ARF_TOPIC_TOKEN_RE, value, cursor);
   const labelMatch = findNextRegexMatch(LABEL_TOKEN_RE, value, cursor);
 
-  if (!sectionMatch && !labelMatch) {
-    return null;
-  }
-
-  if (!labelMatch) {
-    return {
+  const matches = [
+    sectionMatch ? {
       kind: 'section',
       tokenText: sectionMatch.match[0],
       start: sectionMatch.start,
       end: sectionMatch.end,
-    };
-  }
-
-  if (!sectionMatch) {
-    return {
+    } : null,
+    topicMatch ? {
+      kind: 'topic',
+      tokenText: topicMatch.match[0],
+      start: topicMatch.start,
+      end: topicMatch.end,
+    } : null,
+    labelMatch ? {
       kind: 'label',
       tokenText: labelMatch.match[0],
       start: labelMatch.start,
       end: labelMatch.end,
-    };
+    } : null,
+  ].filter(Boolean);
+
+  if (matches.length === 0) {
+    return null;
   }
 
-  if (labelMatch.start < sectionMatch.start) {
-    return {
-      kind: 'label',
-      tokenText: labelMatch.match[0],
-      start: labelMatch.start,
-      end: labelMatch.end,
-    };
-  }
-
-  return {
-    kind: 'section',
-    tokenText: sectionMatch.match[0],
-    start: sectionMatch.start,
-    end: sectionMatch.end,
-  };
+  matches.sort((left, right) => left.start - right.start);
+  return matches[0];
 }
 
 export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookback = '', targetIndex, labelTargetIndex }) {
@@ -500,8 +617,116 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       parts.push({ type: 'text', value: plainTextBefore });
     }
 
+    if (kind === 'topic') {
+      const arfTopicTarget = resolveArfTopicTarget(tokenText);
+      const arfTopicHref = buildArfTopicHref(tokenText);
+
+      if (!arfTopicTarget || !arfTopicHref) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'unresolved_external_arf_topic',
+          diagnosticBase,
+          tokenText,
+          tokenText,
+          lookbackBeforeToken,
+          trailingText,
+          {
+            sourceDocument: 'arf-topic',
+            sourceVersion: arfTopicReference.version,
+          },
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      parts.push({
+        type: 'link',
+        href: arfTopicHref,
+        text: tokenText,
+        target: arfTopicTarget,
+      });
+      hasLinks = true;
+      rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+      cursor = end;
+      continue;
+    }
+
     if (kind === 'section') {
       const sectionNumber = tokenText.slice(1);
+
+      if (hasExplicitArfMainReferenceCue({ lookback: lookbackBeforeToken, trailingText })) {
+        const arfTarget = resolveArfMainTarget(sectionNumber);
+        const arfHref = buildArfMainHref(sectionNumber);
+
+        if (!arfTarget || !arfHref) {
+          parts.push({ type: 'text', value: tokenText });
+          diagnostics.push(createDiagnostic(
+            'unresolved_external_arf_section',
+            diagnosticBase,
+            tokenText,
+            sectionNumber,
+            lookbackBeforeToken,
+            trailingText,
+            {
+              sourceDocument: 'arf-main',
+              sourceVersion: arfMainReference.version,
+            },
+          ));
+          rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+          cursor = end;
+          continue;
+        }
+
+        parts.push({
+          type: 'link',
+          href: arfHref,
+          text: tokenText,
+          target: arfTarget,
+        });
+        hasLinks = true;
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      if (hasPriorExplicitArfSectionReference(lookbackBeforeToken)) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'skipped_implicit_arf_reference',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+          {
+            sourceDocument: 'arf-main',
+            sourceVersion: arfMainReference.version,
+          },
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
+
+      if (hasPriorExplicitArfTopicReference(lookbackBeforeToken)) {
+        parts.push({ type: 'text', value: tokenText });
+        diagnostics.push(createDiagnostic(
+          'skipped_implicit_arf_topic_section_reference',
+          diagnosticBase,
+          tokenText,
+          sectionNumber,
+          lookbackBeforeToken,
+          trailingText,
+          {
+            sourceDocument: 'arf-topic',
+            sourceVersion: arfTopicReference.version,
+          },
+        ));
+        rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
+        cursor = end;
+        continue;
+      }
 
       if (isUnsupportedShape({ lookback: lookbackBeforeToken, trailingText })) {
         parts.push({ type: 'text', value: tokenText });
@@ -709,16 +934,23 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
 }
 
 function createHastLinkNode(part) {
+  const isExternalLink = part.target?.linkKind === 'external';
+  const properties = isExternalLink
+    ? {
+        href: part.href,
+      }
+    : {
+        href: part.href,
+        'data-doc-xref': 'true',
+        'data-doc-slug': part.target.slug ?? '',
+        'data-doc-chapter-id': part.target.chapterId ?? '',
+        'data-doc-heading-id': part.target.headingId ?? '',
+      };
+
   return {
     type: 'element',
     tagName: 'a',
-    properties: {
-      href: part.href,
-      'data-doc-xref': 'true',
-      'data-doc-slug': part.target.slug ?? '',
-      'data-doc-chapter-id': part.target.chapterId ?? '',
-      'data-doc-heading-id': part.target.headingId ?? '',
-    },
+    properties,
     children: [
       {
         type: 'text',

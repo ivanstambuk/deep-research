@@ -772,17 +772,17 @@ Key ARF sections relevant to RPs:
 
 | ARF Section | Content |
 |:------------|:--------|
-| [§3.11](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#321-relying-parties-relying-party-instances-and-intermediaries) | Relying Parties, RP Instances, Intermediaries — role definitions |
-| [§3.17](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#327-registrars) | Registrars — registration process |
-| [§3.18](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#328-access-certificate-authorities) | Access Certificate Authorities — certificate issuance |
-| [§3.19](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#329-providers-of-registration-certificates) | Providers of Registration Certificates — WRPRC issuance |
-| [§5.4](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#44-data-presentation-flows) | Data presentation flows — proximity and remote |
-| [§6.5](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#55-catalogue-of-attributes-and-catalogue-of-attestation-schemes) | Catalogue of attributes and attestation schemes |
-| [§6.6.2](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#562-transactional-data-using-isoiec-18013-5-and-openid4vp) | Transactional data — SCA/dynamic linking |
-| [§7.4.2](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#642-relying-party-registration) | RP registration process |
-| [§7.6](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#66-trust-throughout-a-pid-or-an-attestation-lifecycle) | Attestation presentation and verification |
-| [§7.6.3](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#663-pid-or-attestation-presentation-to-a-relying-party) | RP authentication, disclosure policy, attribute verification |
-| [§7.6.5](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/architecture-and-reference-framework-main.md#665-pid-or-attestation-presentation-to-an-intermediary) | Presentation to intermediaries |
+| ARF §3.11 | Relying Parties, RP Instances, Intermediaries — role definitions |
+| ARF §3.17 | Registrars — registration process |
+| ARF §3.18 | Access Certificate Authorities — certificate issuance |
+| ARF §3.19 | Providers of Registration Certificates — WRPRC issuance |
+| ARF §4.4 | Data presentation flows — proximity and remote |
+| ARF §5.5 | Catalogue of attributes and attestation schemes |
+| ARF §5.6.2 | Transactional data — SCA/dynamic linking |
+| ARF §6.4.2 | RP registration process |
+| ARF §6.6 | PID / attestation lifecycle and verification context |
+| ARF §6.6.3 | RP authentication, disclosure policy, attribute verification |
+| ARF §6.6.5 | Presentation to intermediaries |
 
 #### 1.4 Technical Specifications and Standards (STS)
 
@@ -924,7 +924,7 @@ Legal-person flows are not the main implementation driver for the first EUDI Wal
 
 #### 3.1 The European Business Wallet (EBW)
 
-ARF v2.8.0 (Topic 28) explicitly descoped wallet units for legal persons from the current EUDI framework. All three high-level requirements for legal person wallets (LP_01, LP_02, LP_03) are marked "Empty" in ARF v2.8.0, confirming complete descoping in favour of a separate regulation.
+ARF Topic 28 explicitly descoped wallet units for legal persons from the current EUDI framework. All three high-level requirements for legal person wallets (LP_01, LP_02, LP_03) are marked "Empty" in ARF v2.8.0, confirming complete descoping in favour of a separate regulation.
 
 The European Commission published **COM(2025) 838** proposing a dedicated **European Business Wallet (EBW)** regulation to complement the EUDI Wallet. The EBW will provide a separate digital wallet and identity solution for legal persons — companies, SMEs, sole traders, and public sector bodies.
 
@@ -5248,7 +5248,7 @@ A common question for RP integration architects is: **does the EUDI Wallet ecosy
 
 This chapter provides a definitive answer by examining:
 
-- The ARF's official position on X.509 vs. DIDs, including the authoritative clarification from the ARF team (§7.2)
+- The ARF's official position on X.509 vs. DIDs, including the authoritative clarification from the ARF team (see §7.2)
 - The DID methods that exist in the European identity landscape and their relevance to the EUDI ecosystem (§7.3)
 - The trust model used by every category of wallet an RP may encounter: platform wallets like Apple Wallet and Google Wallet (§7.4), national EUDI wallets (§7.5), and commercial/SSI wallets (§7.6)
 - The W3C Digital Credentials API browser mediation layer that connects RPs to wallets (§7.7)
@@ -5262,12 +5262,12 @@ This chapter provides a definitive answer by examining:
 
 ##### 7.2.1 The Core Rule
 
-The ARF Trust Model (§6.1) establishes the foundational rule:
+The ARF Trust Model (ARF §6.1) establishes the foundational rule:
 
 > *"For PIDs, qualified EAAs, PuB-EAAs, access certificates, and registration certificates, interoperability is essential (ARF §4.2.3). Interoperability is achieved by using a PKI following X.509 certificate standards ([RFC5280], [RFC3647]). **Non-qualified EAAs may adopt alternative trust models and verification mechanisms.**"*
 > — ARF Main Document, §6.1
 
-This rule is reinforced by the high-level requirement **RPA_02** (Annex 2, Topic 6): Wallet Units and Relying Party Instances must support X.509 certificates for authentication.
+This rule is reinforced by the high-level requirement **RPA_02** (ARF Topic 6): Wallet Units and Relying Party Instances must support X.509 certificates for authentication.
 
 ##### 7.2.2 Official Clarification: GitHub Issue #288
 
@@ -5352,9 +5352,9 @@ flowchart TD
 
 ##### 7.2.6 Why the Mandatory Core Uses X.509
 
-The rationale, as documented in ARF §5.2.3, §7.1, and the GitHub Issue #288 discussion:
+The rationale, as documented in ARF §5.2.3 and ARF §7.1, and the GitHub Issue #288 discussion:
 
-1. **Interoperability mandate**: eIDAS 2.0 and ARF §5.1.3 require a *single* trust model for PIDs, QEAAs, and PuB-EAAs that all 30 participating countries (27 EU + 3 EEA/EFTA) can implement uniformly. A single trust model eliminates the combinatorial explosion of method-specific resolution, verification, and key management that would arise from supporting multiple DID methods.
+1. **Interoperability mandate**: eIDAS 2.0 interoperability requirements, reinforced by ARF §4.2.3, require a *single* trust model for PIDs, QEAAs, and PuB-EAAs that all 30 participating countries (27 EU + 3 EEA/EFTA) can implement uniformly. A single trust model eliminates the combinatorial explosion of method-specific resolution, verification, and key management that would arise from supporting multiple DID methods.
 
 2. **Existing PKI infrastructure**: EU Member States already operate qualified trust service provider (QTSP) PKI infrastructure under eIDAS 1.0. X.509 builds on this existing investment — the trust anchors (Trusted Lists, LoTEs) described in §5.5 are inherently X.509-based.
 
@@ -8783,13 +8783,13 @@ The July 2025 **ANSSI/BSI joint paper on remote identity proofing for EUDI Walle
 
 The Wallet Unit Attestation (WUA, specified in TS3) proves that a Wallet Unit is genuine — certified by a Wallet Provider and running on a properly secured WSCA/WSCD. Under the current in-force `CIR 2024/2982` model, wallets support RP-requested WUAs for wallet authentication. At the same time, many core credential-verification flows still infer wallet health *indirectly* from PID / attestation validity and cascading revocation, and a draft amendment would narrow the RP-facing artifact from `WUA` to `WIA`.
 
-ARF §6.6.3.11 and §6.6.3.12 sharpen the trust boundary here: the RP does **not** directly verify that the Wallet Provider authenticated the Wallet Unit at issuance time. Instead, the RP often **trusts the issuer** to have done so when issuing the PID or attestation. For PIDs specifically, revocation status also carries an indirect wallet-health signal because the PID Provider must cascade-revoke when the underlying Wallet Unit is revoked.
+ARF §6.6.3.11 and ARF §6.6.3.12 sharpen the trust boundary here: the RP does **not** directly verify that the Wallet Provider authenticated the Wallet Unit at issuance time. Instead, the RP often **trusts the issuer** to have done so when issuing the PID or attestation. For PIDs specifically, revocation status also carries an indirect wallet-health signal because the PID Provider must cascade-revoke when the underlying Wallet Unit is revoked.
 
 > **RP implication**: Design verification pipelines to support today's explicit WUA path where exposed, while still treating PID / attestation validity as a key indirect trust signal. Do not hard-code the assumption that WUA will remain the long-term RP-facing artifact — `WIA` may replace it. Also distinguish clearly between **direct wallet-authentication evidence** (WUA/WIA) and **issuer-mediated wallet trust** (PID validity + cascade revocation).
 
 ##### 11.9.3 Device Binding Is Recommended, Not Mandatory
 
-ARF v2.6.0 integrated Discussion Paper Topic Z on device-bound attestations, which changed device binding from **mandatory** to **recommended**. This means some attestations may not have a `cnf` (confirmation) claim binding the credential to a specific device key. RPs should handle both cases:
+ARF Topic Z, integrated into ARF v2.6.0, changed device binding from **mandatory** to **recommended**. This means some attestations may not have a `cnf` (confirmation) claim binding the credential to a specific device key. RPs should handle both cases:
 
 | Scenario | RP Verification | User-binding consequence | Assurance Level |
 |:---------|:----------------|:-------------------------|:----------------|
@@ -8839,7 +8839,7 @@ The introduction of TS14-compliant ZKP proofs (likely based on BBS+ Signatures �
 
 #### 11.10 Linkability-Resistant Verification Practices
 
-The EUDI Wallet architecture includes deliberate mechanisms to prevent Relying Parties (and colluding parties) from tracking users across transactions. ARF Discussion Paper Topic A (v1.0, Jan 2025) and Topic B (v0.9, Feb 2025) establish the privacy threat model and mitigation framework. This section translates those architectural decisions into concrete RP verification practices.
+The EUDI Wallet architecture includes deliberate mechanisms to prevent Relying Parties (and colluding parties) from tracking users across transactions. ARF Discussion Paper Topic A (v1.0, Jan 2025) and ARF Topic B (v0.9, Feb 2025) establish the privacy threat model and mitigation framework. This section translates those architectural decisions into concrete RP verification practices.
 
 ##### 11.10.1 The Linkability Problem for RPs
 
@@ -11946,7 +11946,7 @@ Treat the pseudonym as the persistent authentication handle, not as identity pro
 
 The EUDI Wallet supports pseudonyms as an alternative to attribute-based identification. This is a fundamental privacy feature: Users can interact with services without revealing their legal identity, yet still authenticate persistently across sessions. For RPs, pseudonym support is not optional — Art. 5b(9) of eIDAS 2.0 mandates that RPs **shall not refuse** pseudonyms where identification is not required by Union or national law.
 
-The pseudonym functionality is defined in [CIR 2024/2979], Art. 14, which references [W3C WebAuthn] Level 2 (Annex V) as the technical specification. ARF v2.8.0 (incorporating Discussion Paper Topic E) further elaborates four use cases, three pseudonym types, and associated High-Level Requirements (PA_01–PA_22).
+The pseudonym functionality is defined in [CIR 2024/2979], Art. 14, which references [W3C WebAuthn] Level 2 (Annex V) as the technical specification. ARF Topic E further elaborates four use cases, three pseudonym types, and associated High-Level Requirements (PA_01–PA_22).
 
 #### 16.2 Pseudonym Types
 
@@ -12009,7 +12009,7 @@ Art. 5b(9) creates a **default-accept** rule for pseudonyms, with identification
 
 [CIR 2024/2979] Art. 14 and Annex V mandate [W3C WebAuthn] Level 2 as the technical specification for pseudonym generation. The Wallet Unit acts as the **WebAuthn Authenticator**; the User's browser is the **Client**; the RP is the **Relying Party Server**.
 
-> **ARF v2.8.0 change**: ARF v2.8.0 (incorporating the final Discussion Paper for Topic E) makes WebAuthn implementation *optional* for Wallet Units (PA_22 change). Wallet Providers MAY implement alternative pseudonym technologies, provided they meet the HLRs. However, WebAuthn remains the only currently standardised approach.
+> **ARF v2.8.0 change**: ARF Topic E makes WebAuthn implementation *optional* for Wallet Units (PA_22 change). Wallet Providers MAY implement alternative pseudonym technologies, provided they meet the HLRs. However, WebAuthn remains the only currently standardised approach.
 
 ##### 16.5.1 Registration: `navigator.credentials.create()`
 
@@ -16294,7 +16294,7 @@ The **European Accessibility Act (EAA)** — Directive (EU) 2019/882 — became 
 
 **EN 301 549** v3.2.1 is the harmonised European standard for ICT accessibility. Compliance with EN 301 549 provides a **presumption of conformity** with the EAA (recital 73 of Directive 2019/882). For web content, EN 301 549 §10 (Clauses 9.1–9.6) directly incorporates **WCAG 2.1 Level AA** success criteria. For native mobile apps integrating EUDI Wallet, EN 301 549 §12 (Software) applies, adapting the same WCAG principles to native software.
 
-The ARF Annex 2 (Topic 54) defines two accessibility HLRs — **ACC_01** and **ACC_02** — but both target **Wallet Providers**, not Relying Parties. There are no RP-specific accessibility HLRs in the ARF. The EAA fills this gap at the legal level: RPs in covered sectors must comply regardless of ARF coverage. DR-0002 bridges this gap with RP-specific implementation guidance below.
+ARF Topic 54 defines two accessibility HLRs — **ACC_01** and **ACC_02** — but both target **Wallet Providers**, not Relying Parties. There are no RP-specific accessibility HLRs in the ARF. The EAA fills this gap at the legal level: RPs in covered sectors must comply regardless of ARF coverage. DR-0002 bridges this gap with RP-specific implementation guidance below.
 
 > **⚠️ Legal obligation, not optional enhancement**: For RPs in EAA-covered sectors, ensuring EUDI Wallet integration UI accessibility is an enforceable legal requirement. National enforcement authorities can impose fines (varying by Member State, up to €500,000 or a percentage of turnover), product/service suspension, and legal action by consumers or representative groups.
 
@@ -33219,7 +33219,7 @@ Treat these as active design dependencies, not academic leftovers. Several of th
 | 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. (§6.15.3) |
 | 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, ARF Topic 18 | Unclear — EBW designed as a separate wallet; ACP_01–ACP_15 assume single Wallet Unit (§18.1.3) |
 | 33 | What is the mandate Attestation Rulebook timeline? ARF Topic 29 RP_01 mandates the Commission SHALL create a Rulebook for representation attestations — when will it cover natural-person-to-legal-person mandates? | ARF Topic 29 | Commission SHALL create — no published date. Only natural-to-natural representation currently scoped. (§18, §11.12.3) |
-| 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, Topic 29 | Not addressed. LoA inference model from §11.11 may apply, but mandate-specific guidance is absent. (§18.2.2) |
+| 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | ARF Topic I, ARF Topic 29 | Not addressed. LoA inference model from §11.11 may apply, but mandate-specific guidance is absent. (§18.2.2) |
 | 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | ARF Topic I RP_02 | SHALL requirement exists (all entitled parties can revoke), but no implementation specification for the access layer. (§18.2.7) |
 | 36 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | ARF Topic 29 RP_01 | Rulebook mandated but not published. No vocabulary standard exists. (§11.12.3, §18.2.8) |
 | 37 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, ARF Topic I | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. (§18.1) |
@@ -33492,7 +33492,7 @@ Before examining the technical mechanics of Status Lists, RPs must understand th
 
 5. **Integrity and authenticity of status information** (Art. 4(5)): Providers must make validity/revocation status available to RPs in a manner that ensures integrity and authenticity — operationalised as a signed Status List Token (see B.2 below). The status information must be accessible without requiring RP authentication (open retrieval), consistent with the data-minimisation principle.
 
-**Three revocation models in the ARF**: Building on this legal framework, ARF v2.8.0 (Topic A) defines three operational patterns for attestation validity management:
+**Three revocation models in the ARF**: Building on this legal framework, ARF Topic A defines three operational patterns for attestation validity management:
 
 | Model | Mechanism | When to Use | CIR 2025/1569 Interaction |
 |:------|:----------|:------------|:--------------------------|

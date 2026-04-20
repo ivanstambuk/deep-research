@@ -26,6 +26,8 @@ const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
 const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
 const DR2_MULTI_MERMAID_CHAPTER_ID = '13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
 const DR2_MULTI_MERMAID_HEADING_ID = '134-supervised-flow-sequence-diagram-direct-rp-model';
+const DR2_ARF_CHAPTER_ID = '7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape';
+const DR2_ARF_HEADING_ID = '72-the-arf-mandate-x509-for-the-core-dids-optional-for-non-qualified-eaas';
 const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-selection';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
@@ -419,6 +421,91 @@ async function assertExternalLinksOpenInNewTab(page) {
   const internalTarget = await internalLink.getAttribute('target');
   if (internalTarget !== null) {
     throw new Error(`internal cross-reference unexpectedly opens in a new tab: target=${internalTarget}`);
+  }
+}
+
+async function assertArfLinksResolveAsExternalLinks(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_ARF_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking ARF external links in viewer: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  const qualifiedEaaLink = page.locator('a[href="https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#523-qualified-electronic-attestation-of-attributes-qeaa"]').first();
+  await qualifiedEaaLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const qualifiedEaaTarget = await qualifiedEaaLink.getAttribute('target');
+  const qualifiedEaaRel = await qualifiedEaaLink.getAttribute('rel');
+  const qualifiedEaaXref = await qualifiedEaaLink.getAttribute('data-doc-xref');
+  if (qualifiedEaaTarget !== '_blank' || !qualifiedEaaRel?.includes('noopener') || !qualifiedEaaRel?.includes('noreferrer')) {
+    throw new Error(`ARF link missing new-tab safety attrs: target=${qualifiedEaaTarget}, rel=${qualifiedEaaRel}`);
+  }
+  if (qualifiedEaaXref !== null) {
+    throw new Error(`ARF link was incorrectly marked as an internal cross-reference: data-doc-xref=${qualifiedEaaXref}`);
+  }
+
+  const carryForwardLink = page.locator('a[href="https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#71-introduction"]').first();
+  await carryForwardLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const carryForwardText = await carryForwardLink.textContent();
+  const carryForwardXref = await carryForwardLink.getAttribute('data-doc-xref');
+  if (carryForwardText?.trim() !== '§7.1') {
+    throw new Error(`ARF carry-forward link rendered unexpected text: ${JSON.stringify(carryForwardText)}`);
+  }
+  if (carryForwardXref !== null) {
+    throw new Error(`ARF carry-forward link was incorrectly marked as an internal cross-reference: data-doc-xref=${carryForwardXref}`);
+  }
+
+  const chapterSummaryItem = page.locator('li', { hasText: 'authoritative clarification from the ARF team' }).first();
+  const chapterSummaryLink = chapterSummaryItem.locator(`a[data-doc-xref="true"][data-doc-chapter-id="${DR2_ARF_CHAPTER_ID}"][data-doc-heading-id="${DR2_ARF_HEADING_ID}"]`).first();
+  await chapterSummaryLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const chapterSummaryHref = await chapterSummaryLink.getAttribute('href');
+  const chapterSummaryText = await chapterSummaryLink.textContent();
+  if (chapterSummaryText?.trim() !== '§7.2') {
+    throw new Error(`chapter-summary internal link rendered unexpected text: ${JSON.stringify(chapterSummaryText)}`);
+  }
+  if (chapterSummaryHref !== `/${DR2_SLUG}/${DR2_ARF_CHAPTER_ID}#${DR2_ARF_HEADING_ID}`) {
+    throw new Error(`chapter-summary internal link rendered unexpected href: ${chapterSummaryHref}`);
+  }
+
+  const interoperabilityItem = page.locator('li', { hasText: 'Interoperability mandate' }).first();
+  const interoperabilityLink = interoperabilityItem.locator('a[href="https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#423-interoperability"]').first();
+  await interoperabilityLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const interoperabilityText = await interoperabilityLink.textContent();
+  const interoperabilityTarget = await interoperabilityLink.getAttribute('target');
+  const interoperabilityRel = await interoperabilityLink.getAttribute('rel');
+  const interoperabilityXref = await interoperabilityLink.getAttribute('data-doc-xref');
+  if (interoperabilityText?.trim() !== '§4.2.3') {
+    throw new Error(`ARF interoperability link rendered unexpected text: ${JSON.stringify(interoperabilityText)}`);
+  }
+  if (interoperabilityTarget !== '_blank' || !interoperabilityRel?.includes('noopener') || !interoperabilityRel?.includes('noreferrer')) {
+    throw new Error(`ARF interoperability link missing new-tab safety attrs: target=${interoperabilityTarget}, rel=${interoperabilityRel}`);
+  }
+  if (interoperabilityXref !== null) {
+    throw new Error(`ARF interoperability link was incorrectly marked as an internal cross-reference: data-doc-xref=${interoperabilityXref}`);
+  }
+}
+
+async function assertArfTopicLinksResolveAsExternalLinks(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/${DR2_MERMAID_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking ARF topic links in viewer: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  const topicLink = page.locator('a[href="https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2330-topic-52-relying-party-intermediaries"]').first();
+  await topicLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const topicText = await topicLink.textContent();
+  const topicTarget = await topicLink.getAttribute('target');
+  const topicRel = await topicLink.getAttribute('rel');
+  const topicXref = await topicLink.getAttribute('data-doc-xref');
+  if (topicText?.trim() !== 'ARF Topic 52') {
+    throw new Error(`ARF topic link rendered unexpected text: ${JSON.stringify(topicText)}`);
+  }
+  if (topicTarget !== '_blank' || !topicRel?.includes('noopener') || !topicRel?.includes('noreferrer')) {
+    throw new Error(`ARF topic link missing new-tab safety attrs: target=${topicTarget}, rel=${topicRel}`);
+  }
+  if (topicXref !== null) {
+    throw new Error(`ARF topic link was incorrectly marked as an internal cross-reference: data-doc-xref=${topicXref}`);
   }
 }
 
@@ -881,6 +968,7 @@ async function assertExpandedMermaidViewer(page) {
     return Boolean(modal) &&
       Boolean(svg) &&
       diagram?.dataset.mermaidTheme === 'dark' &&
+      typeof diagram?.dataset.mermaidPannable === 'string' &&
       !(diagram?.textContent ?? '').includes('sequenceDiagram');
   }, null, { timeout: 20_000 });
 
@@ -1148,6 +1236,8 @@ async function main() {
     await assertGeneratedCrossReferenceNavigation(page);
     await assertGeneratedLabelCrossReferenceNavigation(page);
     await assertExternalLinksOpenInNewTab(page);
+    await assertArfLinksResolveAsExternalLinks(page);
+    await assertArfTopicLinksResolveAsExternalLinks(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
     await assertViewerSuppressesStandaloneBreakSpacers(page);
     await assertMermaidThemeToggle(page);

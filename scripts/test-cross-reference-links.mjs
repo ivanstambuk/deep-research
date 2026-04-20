@@ -122,6 +122,183 @@ function testExternalCitationIsSkipped() {
   assert.equal(parentheticalRfcResult.diagnostics[0].category, 'skipped_external_citation');
 }
 
+function testArfReferencesResolveAsExternalLinks() {
+  const result = linkifyTextValue('ARF §6.6.3.11 and ARF §6.6.3.12 sharpen the trust boundary.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '66311-internal', text: '6.6.3.11 Internal section' },
+      { headingId: '66312-internal', text: '6.6.3.12 Internal section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(links.length, 2);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#66311-relying-party-instance-trusts-issuer-to-have-authenticated-the-wallet-unit-and-the-wallet-provider',
+  );
+  assert.equal(
+    links[1].href,
+    'https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#66312-relying-party-optionally-trusts-issuer-to-regularly-verify-that-wallet-unit-is-not-revoked',
+  );
+  assert.equal(links[0].target.linkKind, 'external');
+  assert.equal(links[1].target.linkKind, 'external');
+}
+
+function testArfSuffixCueResolvesExternalLinks() {
+  const result = linkifyTextValue('This will be clarified in §6.1 of the ARF.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '61-local', text: '6.1 Local section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#61-scope',
+  );
+  assert.equal(links[0].target.linkKind, 'external');
+}
+
+function testArfAnnexTopicReferencesResolveAsExternalLinks() {
+  const result = linkifyTextValue('ARF Topic 52 constrains intermediary layering.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '52-local', text: '52 Local section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2330-topic-52-relying-party-intermediaries',
+  );
+  assert.equal(links[0].text, 'ARF Topic 52');
+  assert.equal(links[0].target.linkKind, 'external');
+  assert.equal(links[0].target.topicKind, 'annex');
+}
+
+function testArfDiscussionTopicReferencesResolveAsExternalLinks() {
+  const result = linkifyTextValue('ARF Topic K defines cryptographic binding guidance.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: 'k-local', text: 'Topic K Local section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/discussion-topics/k-combined-presentation-of-attestations/',
+  );
+  assert.equal(links[0].text, 'ARF Topic K');
+  assert.equal(links[0].target.linkKind, 'external');
+  assert.equal(links[0].target.topicKind, 'discussion');
+}
+
+function testArfTopicSubsectionsDoNotResolveImplicitly() {
+  const result = linkifyTextValue('ARF Topic A §5.3 recommends herd-privacy protections.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '53-local', text: '5.3 Local section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 1);
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/discussion-topics/a-privacy-risks-and-mitigations/',
+  );
+  assert.equal(links[0].text, 'ARF Topic A');
+  assert.equal(result.parts.some((part) => part.type === 'text' && part.value.includes('§5.3')), true);
+}
+
+function testArfTopicMentionsDoNotBlockLaterInternalSections() {
+  const result = linkifyTextValue('The ARF Topic A analysis matters; see §11.9 for the trust model.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '119-trust-model', text: '11.9 Trust model' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(links.length, 2);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/discussion-topics/a-privacy-risks-and-mitigations/',
+  );
+  assert.equal(links[0].text, 'ARF Topic A');
+  assert.equal(links[1].href, '#119-trust-model');
+  assert.equal(links[1].text, '§11.9');
+}
+
+function testArfCarryForwardDoesNotResolveBareSections() {
+  const result = linkifyTextValue('The rationale, as documented in ARF §5.2.3, §7.1, and the GitHub issue.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '523-local', text: '5.2.3 Local section' },
+      { headingId: '71-local', text: '7.1 Local section' },
+    ]),
+  });
+
+  const links = result.parts.filter((part) => part.type === 'link');
+
+  assert.equal(result.changed, true);
+  assert.equal(result.diagnostics.length, 1);
+  assert.equal(result.diagnostics[0].category, 'skipped_implicit_arf_reference');
+  assert.equal(links.length, 1);
+  assert.equal(
+    links[0].href,
+    'https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#523-qualified-electronic-attestation-of-attributes-qeaa',
+  );
+  assert.equal(links[0].text, '§5.2.3');
+  assert.equal(result.parts.some((part) => part.type === 'text' && part.value.includes('§7.1')), true);
+}
+
 function testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks() {
   const targetIndex = buildIndex([
     {
@@ -376,6 +553,45 @@ function testHastRewriteOnlyLinksInternalReferences() {
   assert.equal(diagnostics.some((entry) => entry.category === 'skipped_external_citation'), true);
 }
 
+function testHastRewriteSupportsArfExternalReferences() {
+  const tree = {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'p',
+        children: [
+          { type: 'text', value: 'See ARF §2.6.6.2 for the use case description.' },
+        ],
+      },
+    ],
+  };
+
+  const diagnostics = rewriteHastCrossReferences(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    slug: 'DR-0002-eudi-wallet-relying-party-integration',
+    targetIndex: buildIndex([
+      {
+        chapterId: '2-internal',
+        headingId: '2662-local',
+        slug: 'DR-0002-eudi-wallet-relying-party-integration',
+        text: '2.6.6.2 Local section',
+      },
+    ]),
+  });
+
+  const paragraphChildren = tree.children[0].children;
+  assert.equal(diagnostics.length, 0);
+  assert.equal(paragraphChildren[1].tagName, 'a');
+  assert.equal(
+    paragraphChildren[1].properties.href,
+    'https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#2662-educational-attestations-and-professional-qualifications',
+  );
+  assert.equal(paragraphChildren[1].properties['data-doc-xref'], undefined);
+}
+
 function testMarkdownRewritesRespectExistingFormatting() {
   const source = 'See **§5.2.2** and `§31.2`.\n';
   const parser = unified().use(remarkParse).use(remarkGfm);
@@ -516,6 +732,47 @@ function testMarkdownCrossReferencesSupportLabels() {
   assert.equal(linked, 'See [Finding 2](#finding-2) and [OQ-9](#oq-9), but keep `OQ1` plain in code.\n');
 }
 
+function testMarkdownRewritesSupportExplicitArfReferences() {
+  const source = 'The rationale, as documented in ARF §5.2.3 and ARF §7.1, and the GitHub issue.\n';
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const tree = parser.parse(source);
+  const result = collectMarkdownCrossReferenceReplacements(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '523-local', text: '5.2.3 Local section' },
+      { headingId: '71-local', text: '7.1 Local section' },
+    ]),
+  });
+  const linked = applyTextReplacements(source, result.replacements);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(
+    linked,
+    'The rationale, as documented in ARF [§5.2.3](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#523-qualified-electronic-attestation-of-attributes-qeaa) and ARF [§7.1](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#71-introduction), and the GitHub issue.\n',
+  );
+}
+
+function testMarkdownRewritesSupportExplicitArfTopicReferences() {
+  const source = 'The intermediary rules are defined in ARF Topic 52, while binding guidance lives in ARF Topic K.\n';
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const tree = parser.parse(source);
+  const result = collectMarkdownCrossReferenceReplacements(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const linked = applyTextReplacements(source, result.replacements);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(
+    linked,
+    'The intermediary rules are defined in [ARF Topic 52](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2330-topic-52-relying-party-intermediaries), while binding guidance lives in [ARF Topic K](https://eudi.dev/2.8.0/discussion-topics/k-combined-presentation-of-attestations/).\n',
+  );
+}
+
 function testLikelyFalsePositiveExternalSkipReport() {
   const targetIndex = buildIndex([
     { headingId: '2110-identity-chaining', text: '21.10 Identity Chaining' },
@@ -559,13 +816,23 @@ function testLikelyFalsePositiveExternalSkipReport() {
 
 testLinkifySupportedInternalReference();
 testExternalCitationIsSkipped();
+testArfReferencesResolveAsExternalLinks();
+testArfSuffixCueResolvesExternalLinks();
+testArfAnnexTopicReferencesResolveAsExternalLinks();
+testArfDiscussionTopicReferencesResolveAsExternalLinks();
+testArfTopicSubsectionsDoNotResolveImplicitly();
+testArfTopicMentionsDoNotBlockLaterInternalSections();
+testArfCarryForwardDoesNotResolveBareSections();
 testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks();
 testInternalCueOverridesExternalCitationSkip();
 testUnsupportedShapesStayPlain();
 testExactMatchDoesNotGuessDescendants();
 testDashPunctuationReferencesLinkNormally();
 testHastRewriteOnlyLinksInternalReferences();
+testHastRewriteSupportsArfExternalReferences();
 testMarkdownRewritesRespectExistingFormatting();
+testMarkdownRewritesSupportExplicitArfReferences();
+testMarkdownRewritesSupportExplicitArfTopicReferences();
 testLabelLinkifySupportsFindingAndOqReferences();
 testMarkdownLabelTargetsCoverListsTablesAndParagraphs();
 testHeadingBackedLabelAnchorsStayAfterHeadingLine();
