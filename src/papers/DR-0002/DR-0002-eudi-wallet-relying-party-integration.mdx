@@ -303,6 +303,7 @@ related: []
     - [26.5 Session Management and Result Delivery](#265-session-management-and-result-delivery)
     - [26.6 Callback Integration Architecture](#266-callback-integration-architecture)
     - [26.7 Integration Delivery Modes](#267-integration-delivery-modes)
+    - [26.8 URL Surface Ownership, Facade Deployment, and RP-Bindability](#268-url-surface-ownership-facade-deployment-and-rp-bindability)
   </details>
   - <details><summary><a href="#27-vendor-evaluation">27. Vendor Evaluation</a></summary>
 
@@ -6351,6 +6352,8 @@ OpenID4VP 1.0 defines a metadata discovery mechanism for RPs. RPs SHOULD publish
 ```
 
 > **Implementation note**: While Wallet Units in the EUDI ecosystem primarily rely on the JAR itself for capability negotiation (since all parameters are in the signed request), publishing RP metadata enables Wallet Providers to pre-validate RP compatibility during testing and certification.
+
+> **URL-surface control note**: In white-label, façade, or RP-owned-edge deployments, the metadata document itself — and any related `jwks_uri`, `did:web`, or `/.well-known/openid-federation` identity material — is not merely convenience metadata. It is part of the verifier's externally visible trust surface. See §26.8 for the decomposed control model and §27.6.1 for vendor scoring.
 
 #### 8.6 SIOPv2: Relationship to OpenID4VP
 
@@ -20285,6 +20288,50 @@ The push model (full-payload webhook) is the dominant integration delivery mode 
 
 No vendor natively offers SSE or WebSocket as a server-to-server L2 delivery mechanism — these remain RP-side frontend technologies for cross-device session status (via SDKs like MATTR's Verifier Web SDK). Polling is universally available as a fallback. See §27.8.1 for the full vendor-by-vendor delivery mode matrix.
 
+#### 26.8 URL Surface Ownership, Facade Deployment, and RP-Bindability
+
+The preceding sections document **where messages move**. This subsection documents a different but equally important architectural question: **which party owns the URLs that define those movements**. For verifier products claiming white-label, façade, proxy, or RP-owned-edge deployment, URL ownership is a first-class capability domain rather than a branding afterthought.
+
+In `DR-0002`, a URL surface counts as **RP-bindable** only if all three conditions are true:
+
+1. The RP can choose or constrain the host / origin at product-configuration time.
+2. The chosen value is the one actually emitted in the protocol artefact, trust document, callback, or follow-up API response seen by wallets, browsers, or the RP backend.
+3. The emitted value remains consistent with the verifier's authenticated identity model — for example `x509_san_dns`, `verifier_attestation`, `openid_federation`, or DID-based trust resolution.
+
+This is stricter than a generic “custom domain” checkbox. A product is not meaningfully façade-deployable if it offers a branded callback or landing page but still exposes vendor-owned `request_uri`, verifier metadata, JWKS, polling, audit, or export URLs.
+
+| ID | Surface | Representative parameters / endpoints | Why it matters |
+|:---|:--------|:-------------------------------------|:---------------|
+| **URL-01** | **Wallet submission target control** | `response_uri`, wallet POST target, verifier `direct_post` endpoint | Determines where the Wallet sends the VP Token or signing artefact. This is the first RP-visible receiving edge in remote presentation. |
+| **URL-02** | **Post-wallet return target control** | `redirect_uri`, `wallet_response_redirect_uri_template`, native-app return URL, app link / universal link | Controls where the browser or native app lands after Wallet completion and whether the user returns to RP-owned navigation surfaces. |
+| **URL-03** | **Callback / webhook target control** | `statusCallbackUri`, `callBackUrl`, `callbackUrl`, approval/completion callback URL | Determines whether asynchronous vendor-to-RP notifications terminate on RP-controlled infrastructure. |
+| **URL-04** | **Request-object host control** | `request_uri`, QR / deep-link host, authorization-request fetch host | Controls where the Wallet retrieves the Request Object or invitation payload. This is a distinct surface from the final `response_uri`. |
+| **URL-05** | **Verifier identity URL control** | `did:web`, DID Document URL, `jwks_uri`, `signed_jwks_uri`, `/.well-known/openid-credential-verifier`, `/.well-known/openid-federation` | Defines where verifier identity and trust material resolves. In façade claims, these URLs must align with the claimed verifier identity rather than leak vendor hosting. |
+| **URL-06** | **Follow-up URL control** | session polling URL, result retrieval API, audit / event retrieval, export / download endpoints | Determines whether post-verification data access stays on RP-owned surfaces or shifts to vendor APIs after the initial exchange. |
+| **URL-07** | **Document fetch origin control** | `documents[].uri`, document download host, remote-signing document retrieval URL | Relevant in QES / document-retrieval flows where the Wallet fetches unsigned source documents from RP-controlled infrastructure before signing. |
+| **URL-08** | **Front-channel authorization host control** | `/authorize`, PAR/browser-facing authorization host, approval / consent host | Relevant where the product exposes browser-visible or wallet-visible authorization pages and claims a branded or RP-owned front channel. |
+
+The standards base supports treating these as separate control surfaces rather than a single roll-up:
+
+- In OpenID4VP, `redirect_uri` / `response_uri` values are part of the Authorization Request state and, for signed requests, come from the signed Request Object rather than from an out-of-band console setting.
+- For `x509_san_dns`, the host binding rules are stricter than pure cosmetic customization: unless the Wallet has stronger pre-established trust, the FQDN of the `redirect_uri` must match the authenticated verifier identity.
+- For `openid_federation`, verifier identity is not whatever the platform happens to render in `client_metadata`; it is the metadata obtained from the trust chain, including entity configuration and key-discovery URLs.
+- Under RFC `9101`, `request_uri` is a security-sensitive capability URL surface: it must be `https` when client-hosted, should have high entropy, and carries its own anti-rewrite / anti-DoS considerations.
+
+This yields a practical procurement rule: **do not score “custom domain support” as a single capability**. Score the relevant URL classes separately.
+
+| Deployment claim | Minimum URL surfaces that must bind to the RP-owned edge | What breaks if they do not |
+|:-----------------|:---------------------------------------------------------|:---------------------------|
+| **RP-owned verifier edge** | `URL-01`, `URL-04`, `URL-05`, `URL-06` | Wallets still talk to vendor infrastructure even though the product is presented as RP-hosted. |
+| **Reverse-proxy / synchronous-inline model** | `URL-01`, `URL-04`, plus any `URL-06` result endpoints surfaced to operators | A proxy in front of one callback path does not by itself make the verifier identity or result surface RP-owned. |
+| **White-label / façade SaaS** | At minimum `URL-01`, `URL-02`, `URL-04`, `URL-05`; add `URL-08` if browser-visible auth pages are in scope | The user may see RP branding, while wallets and operators still resolve trust or fetch results on vendor domains. |
+| **RP-channelled QES / document retrieval** | `URL-01`, `URL-04`, `URL-07`, and any applicable `URL-08` | The RP may own the signing journey superficially, but the Wallet still fetches documents or request objects from vendor infrastructure. |
+
+Two implementation cautions follow from this model:
+
+- **A proxy is not proof of identity ownership.** Routing `response_uri` through the RP's gateway is valuable for telemetry and inline controls, but it does not prove RP ownership if the verifier metadata, request-object host, or result APIs still terminate on vendor infrastructure.
+- **Self-hosted / in-process products differ structurally from SaaS connectors.** For self-hosted or embedded products, many URL surfaces are RP-owned by construction. For SaaS connectors, the RP must verify that the emitted artefacts — not just the admin console — actually carry RP-owned hosts.
+
 ---
 
 ### 27. Vendor Evaluation
@@ -20500,6 +20547,39 @@ The following matrix consolidates all vendor evaluation criteria — both core p
 > **Vendors scored ❓**: Query via structured RFI/RFP. Each row label in this matrix maps directly to an RFI question item. The scoring definitions and evaluation methodology for each criterion are documented in §26.1 (policy patterns) and §31.3.1 (result structure).
 >
 > **Multi-RP platform isolation — additional evaluation dimension**: RPs selecting a SaaS connector or intermediary that serves multiple legal entities should assess the vendor's tenant isolation guarantees. eIDAS Art. 5a(16a) mandates cross-RP unlinkability, and Art. 5b(10) imposes a no-storage mandate on intermediaries — but these are legal requirements on the intermediary, not architectural guarantees. In practice, RPs should ask: (a) are sessions, transaction logs, and compliance evidence isolated per RP entity? (b) does the platform maintain separate RPAC/RPRC key material per entity in isolated key containers? (c) can one RP's administrative actions, database queries, or log searches inadvertently access another entity's data? (d) can each RP independently export its own audit trail for regulatory compliance without gaining visibility into other entities' data? These questions are particularly important for corporate groups where multiple subsidiaries, each a separate legal entity with its own RP registration, share a single platform instance. The isolation model should align with the GDPR controller boundaries — each RP entity is typically an independent data controller (Art. 4(7) GDPR), and the platform's data processing boundaries must match.
+
+> **Decomposition note**: URL surface control is intentionally **not** collapsed into a single “custom domain” row here. A product that offers a branded callback or landing page but still emits vendor-owned `request_uri`, metadata, JWKS, or result-retrieval URLs should not be treated as fully façade-deployable. The decomposed view is in §27.6.1.
+
+##### 27.6.1 URL Surface Control Matrix
+
+This submatrix applies the `§26.8` model to the vendor landscape. The goal is not to ask whether a vendor has “custom domains” in the abstract, but whether the relevant URL surfaces can be bound to the RP and are emitted that way in actual product flows.
+
+**Scoring**: `✅` = publicly documented or structurally RP-controlled in the documented deployment model — `🟡` = partial / qualified support — `❌` = vendor-hosted in the documented default flow — `❓` = insufficient public technical evidence — `N/A` = surface not exposed by the documented product flow.
+
+> **Checked against public documentation on 2026-04-20**: The vendors below are the subset for which the public documentation reviewed for this refresh exposed enough URL-surface detail to score more than pure speculation. For other vendors in `§27`, treat this capability area as an RFI item until emitted artefacts are inspected.
+
+| URL Surface | walt.id | Procivis | Paradym | MATTR | Signicat |
+|:------------|:--------|:---------|:--------|:------|:---------|
+| **URL-01 Wallet submission target control** | ✅ | ✅ | ❓ | ❓ | ❓ |
+| **URL-02 Post-wallet return target control** | ✅ | ✅ | N/A | N/A | ✅ |
+| **URL-03 Callback / webhook target control** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **URL-04 Request-object host control** | ✅ | ✅ | ❌ | ❓ | ❓ |
+| **URL-05 Verifier identity URL control** | 🟡 | 🟡 | ❓ | ❓ | 🟡 |
+| **URL-06 Follow-up URL control** | ✅ | ✅ | ❌ | ❓ | ❌ |
+| **URL-07 Document fetch origin control** | N/A | N/A | N/A | N/A | N/A |
+| **URL-08 Front-channel authorization host control** | N/A | N/A | N/A | N/A | ✅ |
+
+**How to read this matrix**
+
+- **walt.id / Procivis** score strongly on most verifier URL surfaces because the documented deployment model is self-hosted / on-prem or otherwise RP-controlled, and the public docs expose configurable request, redirect, callback, or metadata surfaces. The `URL-05` score remains `🟡` rather than `✅` because the public docs reviewed here do not provide a full, verifier-specific proof set for every trust-material variant (`did:web`, OID-FED entity configuration, explicit `jwks_uri` emission) even though the deployment model is favorable.
+- **Paradym** exposes strong webhook control but clearly vendor-hosted request-object and result-retrieval surfaces in the default SaaS model documented publicly: `authorizationRequestUri` is emitted on `paradym.id`, while follow-up retrieval is performed via `api.paradym.id`.
+- **MATTR** clearly documents webhook targets and public webhook-JWK retrieval, but the public verifier-facing materials reviewed for this refresh do not expose enough evidence to score request-object, identity, or follow-up surfaces strongly.
+- **Signicat** documents custom domains for user-visible / OIDC-style front-channel flows and self-service webhooks, but also states that backend API communication must use `api.signicat.com`. That is why front-channel and post-return control can score strongly while follow-up URL control does not.
+
+**Vendors requiring direct RFI / emitted-artefact review**
+
+- **Hosted / connector vendors with insufficient public URL-surface detail as of 2026-04-20**: Vidos, iGrant.io, Lissi, Indicio, Namirial, Cleverbase, youniqx, Gataca, Thales.
+- **Library / SDK embed models**: Spruce ID and Scytáles are not scored in this submatrix because many of these surfaces are RP-owned by construction when verification runs in-process. For those products, the more relevant procurement question is not “can the vendor expose an RP-owned URL?” but “which URL surfaces does the RP need to implement itself?”.
 
 #### 27.7 Embedded Wallet SDK Capability Assessment
 
@@ -32403,6 +32483,8 @@ The protocol uses an **OpenID4VP/JAR-based** request/response wrapper around the
 2. The Wallet resolves the URI to a JAR-signed request object
 3. The request object contains document locations, hashes, and access methods
 4. After signing, the Wallet dispatches results back to the RP
+
+This flow should be read as a **multi-surface URL-control problem**, not as a single monolithic “signing callback”. At minimum it exposes distinct control surfaces for the request-object host (`request_uri`), the wallet submission target (`response_uri`), and the document fetch origin (`documents[].uri`). Where a product claims an RP-owned façade or signing edge, those surfaces should be evaluated separately rather than rolled up into one capability. See §26.8 and the vendor treatment in §27.6.1.
 
 ##### 33.2.2 Document Retrieval and Signing Sequence
 
