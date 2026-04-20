@@ -535,6 +535,47 @@ function createChapterPayloads({ slug, drId, documentTitle, sections, outline, d
   });
 }
 
+function buildShellChapterEntries({ chapters, outline, docVersion, slug }) {
+  const outlineLevelById = new Map(outline.map((entry) => [entry.id, entry.level]));
+  const shellEntries = chapters.map((chapter) => ({
+    chapterId: chapter.chapterId,
+    title: chapter.title,
+    order: chapter.order,
+    primaryHeadingId: chapter.primaryHeadingId,
+    headingIds: chapter.headingIds,
+    prevChapterId: chapter.prevChapterId,
+    nextChapterId: chapter.nextChapterId,
+    outlineLevel: outlineLevelById.get(chapter.primaryHeadingId) ?? 3,
+    groupParentChapterId: null,
+    groupChildren: [],
+    modulePath: `./generated/chapters/${slug}/${docVersion}/${chapter.chapterId}.json`,
+  }));
+
+  let activeGroupEntry = null;
+
+  shellEntries.forEach((entry) => {
+    if (entry.outlineLevel <= 2) {
+      activeGroupEntry = entry.outlineLevel === 2 ? entry : null;
+      return;
+    }
+
+    if (entry.outlineLevel === 3 && activeGroupEntry) {
+      activeGroupEntry.groupChildren.push({
+        chapterId: entry.chapterId,
+        title: entry.title,
+        order: entry.order,
+        primaryHeadingId: entry.primaryHeadingId,
+      });
+      entry.groupParentChapterId = activeGroupEntry.chapterId;
+    }
+  });
+
+  return shellEntries.map((entry) => ({
+    ...entry,
+    groupChildren: entry.groupChildren.length >= 2 ? entry.groupChildren : [],
+  }));
+}
+
 function assertTopology({ sections, outline, slug }) {
   const seenHeadings = new Map();
   const emittedHeadingIds = new Set();
@@ -651,6 +692,12 @@ async function build() {
       outline: cleaned.outline,
       docVersion,
     });
+    const shellChapters = buildShellChapterEntries({
+      chapters: chapterPayloads,
+      outline: cleaned.outline,
+      docVersion,
+      slug: filename,
+    });
 
     assertTopology({
       sections,
@@ -679,16 +726,7 @@ async function build() {
       authors: cleaned.frontmatter.authors ?? [],
       firstChapterId: chapterPayloads[0]?.chapterId ?? null,
       chapterCount: chapterPayloads.length,
-      chapters: chapterPayloads.map((chapter) => ({
-        chapterId: chapter.chapterId,
-        title: chapter.title,
-        order: chapter.order,
-        primaryHeadingId: chapter.primaryHeadingId,
-        headingIds: chapter.headingIds,
-        prevChapterId: chapter.prevChapterId,
-        nextChapterId: chapter.nextChapterId,
-        modulePath: `./generated/chapters/${filename}/${docVersion}/${chapter.chapterId}.json`,
-      })),
+      chapters: shellChapters,
     };
 
     await fs.writeFile(

@@ -959,6 +959,8 @@ img {
 }
 
 .chapter-outline-link {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
   border: 0;
   border-radius: 8px;
@@ -966,6 +968,7 @@ img {
   background: transparent;
   color: var(--text-secondary);
   text-align: left;
+  text-decoration: none;
   font: inherit;
   font-size: var(--reader-outline-link-size);
   line-height: var(--reader-outline-link-line);
@@ -997,6 +1000,54 @@ img {
   color: var(--text-muted);
   font-size: 0.79rem;
   line-height: 1.4;
+}
+
+.chapter-group-card {
+  width: min(100%, var(--reader-content-max-width));
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-panel-strong) 88%, transparent);
+  box-shadow: var(--shadow-card);
+}
+
+.chapter-group-card-heading {
+  margin-bottom: 12px;
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapter-group-list {
+  display: grid;
+  gap: 10px;
+}
+
+.chapter-group-link {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-soft) 55%, transparent);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, color 160ms ease;
+}
+
+.chapter-group-link:hover {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent-soft) 78%, transparent);
+  color: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.chapter-group-link-title {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.38;
 }
 
 .chapter-pager {

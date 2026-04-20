@@ -85,9 +85,11 @@ function buildChapterNavEntries(shellDocument) {
   const outlineLevelById = new Map((shellDocument?.outline ?? []).map((entry) => [entry.id, entry.level]));
 
   return chapters.map((entry, index) => {
-    const level = outlineLevelById.get(entry.primaryHeadingId) ?? 3;
+    const level = entry.outlineLevel ?? outlineLevelById.get(entry.primaryHeadingId) ?? 3;
     const nextEntry = chapters[index + 1] ?? null;
-    const nextLevel = nextEntry ? (outlineLevelById.get(nextEntry.primaryHeadingId) ?? 3) : null;
+    const nextLevel = nextEntry
+      ? (nextEntry.outlineLevel ?? outlineLevelById.get(nextEntry.primaryHeadingId) ?? 3)
+      : null;
 
     const isGroupHeading = level === 2 && nextLevel === 3;
 
@@ -251,6 +253,7 @@ export default function ChapterPage({
     () => findChapter(shellDocument, chapterId),
     [chapterId, shellDocument],
   );
+  const activeChapterEntry = requestedChapterEntry ?? chapterMeta;
 
   useEffect(() => {
     let cancelled = false;
@@ -295,6 +298,19 @@ export default function ChapterPage({
   );
   const chapterHeadings = isCurrentChapterReady ? (chapter?.headings ?? []) : [];
   const activeHeadingId = useActiveHeading(headingIds);
+  const groupOutlineEntries = useMemo(
+    () => (
+      Array.isArray(activeChapterEntry?.groupChildren)
+        ? activeChapterEntry.groupChildren.filter((entry) => entry?.chapterId && entry?.title)
+        : []
+    ),
+    [activeChapterEntry],
+  );
+  const showGroupChapterToc = isGroupChapter && groupOutlineEntries.length >= 2;
+  const outlineHeadingLabel = showGroupChapterToc ? 'Chapters in this group' : 'Table of contents';
+  const outlineAriaLabel = showGroupChapterToc
+    ? `Chapters in ${activeChapterEntry?.title ?? 'this group'}`
+    : 'Chapter headings';
 
   function clearMermaidFeedbackTimeouts() {
     Object.values(mermaidFeedbackTimeoutsRef.current).forEach((timeoutId) => {
@@ -840,7 +856,6 @@ export default function ChapterPage({
     );
   }
 
-  const activeChapterEntry = requestedChapterEntry ?? chapterMeta;
   const previousChapterTitle = findChapterTitle(shellDocument, activeChapterEntry?.prevChapterId);
   const nextChapterTitle = findChapterTitle(shellDocument, activeChapterEntry?.nextChapterId);
 
@@ -909,11 +924,31 @@ export default function ChapterPage({
             <p>{String(chapterError)}</p>
           </div>
         ) : shouldRenderArticle ? (
-          <article
-            ref={articleRef}
-            className={`doc-article chapter-article${isGroupChapter ? ' is-group-chapter' : ''}`}
-            dangerouslySetInnerHTML={{ __html: chapter.html }}
-          />
+          <>
+            <article
+              ref={articleRef}
+              className={`doc-article chapter-article${isGroupChapter ? ' is-group-chapter' : ''}`}
+              dangerouslySetInnerHTML={{ __html: chapter.html }}
+            />
+            {showGroupChapterToc ? (
+              <section className="chapter-group-card" aria-labelledby="chapter-group-card-heading">
+                <div id="chapter-group-card-heading" className="chapter-group-card-heading">
+                  Chapters in this group
+                </div>
+                <nav className="chapter-group-list" aria-label={outlineAriaLabel}>
+                  {groupOutlineEntries.map((entry) => (
+                    <Link
+                      key={entry.chapterId}
+                      to={`/${readerDocumentMeta.slug}/${entry.chapterId}`}
+                      className="chapter-group-link"
+                    >
+                      <span className="chapter-group-link-title">{entry.title}</span>
+                    </Link>
+                  ))}
+                </nav>
+              </section>
+            ) : null}
+          </>
         ) : (
           <div className="loading-card chapter-loading-card">
             <span className="hero-kicker">{readerDocumentMeta.drId}</span>
@@ -938,19 +973,31 @@ export default function ChapterPage({
 
       <aside className="chapter-outline-sidebar">
         <div className="chapter-outline-card">
-          <div className="chapter-outline-heading">Table of contents</div>
-          <nav className="chapter-outline-list" aria-label="Chapter headings">
-            {chapterHeadings.map((heading) => (
-              <button
-                key={heading.id}
-                type="button"
-                className={`chapter-outline-link level-${heading.level ?? 3}${activeHeadingId === heading.id ? ' is-active' : ''}`}
-                onClick={() => handleHeadingNavigation(heading.id)}
-              >
-                {heading.text}
-              </button>
-            ))}
-            {!chapterHeadings.length && (
+          <div className="chapter-outline-heading">{outlineHeadingLabel}</div>
+          <nav className="chapter-outline-list" aria-label={outlineAriaLabel}>
+            {showGroupChapterToc ? (
+              groupOutlineEntries.map((entry) => (
+                <Link
+                  key={entry.chapterId}
+                  to={`/${readerDocumentMeta.slug}/${entry.chapterId}`}
+                  className="chapter-outline-link level-3"
+                >
+                  {entry.title}
+                </Link>
+              ))
+            ) : (
+              chapterHeadings.map((heading) => (
+                <button
+                  key={heading.id}
+                  type="button"
+                  className={`chapter-outline-link level-${heading.level ?? 3}${activeHeadingId === heading.id ? ' is-active' : ''}`}
+                  onClick={() => handleHeadingNavigation(heading.id)}
+                >
+                  {heading.text}
+                </button>
+              ))
+            )}
+            {!showGroupChapterToc && !chapterHeadings.length && (
               <div className="chapter-outline-empty">
                 {chapterLoading ? 'Loading chapter headings…' : 'No headings available.'}
               </div>

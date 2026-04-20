@@ -98,6 +98,38 @@ async function assertGroupHeadingRoute(page) {
     slug: DOC_SLUG,
     chapterId: GROUP_CHAPTER_ID,
   }, { timeout: 20_000 });
+
+  const groupOverview = await page.evaluate(() => ({
+    outlineHeading: document.querySelector('.chapter-outline-heading')?.textContent?.trim() ?? '',
+    outlineLinks: [...document.querySelectorAll('.chapter-outline-sidebar .chapter-outline-link')].map((node) => ({
+      text: node.textContent?.trim() ?? '',
+      href: node.getAttribute('href') ?? '',
+    })),
+    inlineLinks: [...document.querySelectorAll('.chapter-group-link')].map((node) => ({
+      text: node.textContent?.trim() ?? '',
+      href: node.getAttribute('href') ?? '',
+    })),
+  }));
+
+  if (
+    groupOverview.outlineHeading !== 'Chapters in this group' ||
+    groupOverview.outlineLinks.length < 2 ||
+    groupOverview.inlineLinks.length !== groupOverview.outlineLinks.length
+  ) {
+    throw new Error(`group chapter overview missing chapter links: ${JSON.stringify(groupOverview)}`);
+  }
+
+  await page.locator(`.chapter-outline-sidebar a.chapter-outline-link[href='/${DOC_SLUG}/${FIRST_CHAPTER_ID}']`).click();
+
+  await page.waitForFunction(({ slug, chapterId }) => (
+    window.location.pathname === `/${slug}/${chapterId}` &&
+    window.location.hash === '' &&
+    document.querySelector('.chapter-nav-link.is-active')?.getAttribute('href') === `/${slug}/${chapterId}` &&
+    document.querySelector('.chapter-outline-heading')?.textContent?.trim() === 'Table of contents'
+  ), {
+    slug: DOC_SLUG,
+    chapterId: FIRST_CHAPTER_ID,
+  }, { timeout: 20_000 });
 }
 
 async function assertChapterNavTransition(page) {
