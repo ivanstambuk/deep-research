@@ -20730,7 +20730,7 @@ This group focuses on defending and operating the RP infrastructure in productio
 
 This section presents a systematic security threat model for RPs integrating with the EUDI Wallet ecosystem. It focuses on RP-side threats — attacks targeting the RP's infrastructure, implementation, or operational practices.
 
-The catalogue intentionally stays separate from the RP's **assurance-profile** design choices in [§26.1.2](#2612-assurance-profiles-and-channel-policy). Threat cards describe what can go wrong and how it manifests; assurance profiles describe which attack surfaces the RP reduces **by design** through channel choice, ceremony strength, device-binding posture, and signal-triggered escalation. Where relevant, this chapter therefore calls out not only direct mitigations, but also structural exposure reductions produced by profile choices.
+The catalogue intentionally stays separate from the RP's **assurance-profile** design choices in [§26.1.2](#2612-assurance-profiles-and-channel-policy) and, for banks/PSPs, the financial-sector high-assurance instantiation in [§24.6.1](#2461-financial-sector-high-assurance-wallet-profile). Threat cards describe what can go wrong and how it manifests; assurance profiles describe which attack surfaces the RP reduces **by design** through channel choice, ceremony strength, device-binding posture, and signal-triggered escalation. Where relevant, this chapter therefore calls out not only direct mitigations, but also structural exposure reductions produced by profile choices.
 
 **Nomenclature & Threat Tagging**: 
 Each threat in the catalogue below incorporates technical tagging in its title (e.g., `TT5.3, CWE-294`). Three identifier systems are used:
@@ -28675,7 +28675,7 @@ The RP treats the extra document as if it were strong corroborating evidence for
 
 The following matrix consolidates the risk ratings for all 44 threat scenarios documented in [§29.2](#292-threat-catalogue). Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
 
-Before reading the matrix, keep one distinction in mind: an assurance profile does **not** "solve" a threat in the abstract. Instead, it can materially **reduce exposure by design** for certain attack classes. The most important design-level levers are summarised below:
+Before reading the matrix, keep one distinction in mind: an assurance profile does **not** "solve" a threat in the abstract. Instead, it can materially **reduce exposure by design** for certain attack classes. For the generic policy model, see [§26.1.2](#2612-assurance-profiles-and-channel-policy); for the financial-sector profile that applies the same model to banks and PSPs, see [§24.6.1](#2461-financial-sector-high-assurance-wallet-profile). The most important design-level levers are summarised below:
 
 | Profile Lever ([§26.1.2](#2612-assurance-profiles-and-channel-policy)) | Exposure Reduced by Design | Representative Threats | Boundary |
 |:------------------------|:---------------------------|:-----------------------|:---------|
