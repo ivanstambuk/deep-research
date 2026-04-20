@@ -5230,7 +5230,7 @@ The critical first-order decision is not about credential formats or technical a
 
 > **RP impact**: For RPs that also operate as QEAAs issuers (dual-role organisations), these identity verification hardening requirements directly affect onboarding flows. Where the user already holds a PID in the EUDI Wallet, the QTSP can perform identification at LoA high by requesting and verifying PID attributes — a practical design pattern documented in ARF v2.8.0, though not an independent legal exemption from Art. 24.
 
-**Adjacent upstream onboarding act — CIR 2026/798**: Commission Implementing Regulation (EU) 2026/798 performs a related but distinct function for the Wallet ecosystem: it also designates **ETSI TS 119 461 V2.1.1 (2025-02)** as the conformance baseline, but for **remote onboarding of wallet users** where an eID means at **LoA substantial** is combined with additional remote onboarding procedures that together satisfy **LoA high**. For `DR-0002`, this matters mainly as an **upstream trust enabler** rather than a new RP-duty source: it strengthens the legal basis for trusting that PID issuance and wallet-user binding may have been achieved through a harmonised, high-assurance remote proofing process before the RP ever receives a presentation.
+**Adjacent upstream onboarding act — CIR 2026/798**: Commission Implementing Regulation (EU) 2026/798 performs a related but distinct function for the Wallet ecosystem: it also designates **ETSI TS 119 461 V2.1.1 (2025-02)** as the conformance baseline, but for **remote onboarding of wallet users** where an eID means at **LoA substantial** is combined with additional remote onboarding procedures that together satisfy **LoA high**. For RPs, this matters mainly as an **upstream trust enabler** rather than a new RP-duty source: it strengthens the legal basis for trusting that PID issuance and wallet-user binding may have been achieved through a harmonised, high-assurance remote proofing process before the RP ever receives a presentation.
 
 **Recommended sequencing**: Since downstream requirements cascade from upstream decisions, the design considerations above should be addressed in roughly this order: (1) determine the regulatory regime, (2) decide EUDI Wallet scope and applicable CIRs, (3) define the attribute model and source verification chain, (4) design the Rulebook and register the attestation scheme, (5) select the validity/revocation model, and — for QEAAs specifically — design the issuance flow against Art. 24 + CIR 2025/1566 from the outset rather than treating identity verification as an afterthought.
 
@@ -8777,7 +8777,7 @@ The key ARF insight is that **portrait is not the default definition of User bin
 
 The July 2025 **ANSSI/BSI joint paper on remote identity proofing for EUDI Wallet onboarding** sharpens this distinction further by decomposing remote proofing into **biometric genuineness**, **document authenticity**, and **face matching**. In that model, portrait/selfie comparison mainly strengthens the **face matching** side and part of the biometric-genuineness side; it is **not** the whole onboarding assurance story. That is a useful check against overstating `portrait` as if it were equivalent to full User binding or to the issuer's upstream document-proofing process.
 
-> **RP implication**: In `DR-0002`, treat **User binding** as the broader assurance conclusion and **device binding** as one important enabling proof for device-bound credentials. Use portrait/PAD as a supplementary control, not as the universal baseline. This is why §24.3.8 now frames portrait as conditional/risk-based rather than mandatory by default.
+> **RP implication**: Treat **User binding** as the broader assurance conclusion and **device binding** as one important enabling proof for device-bound credentials. Use portrait/PAD as a supplementary control, not as the universal baseline. This is why §24.3.8 now frames portrait as conditional/risk-based rather than mandatory by default.
 
 ##### 11.9.2 Wallet Unit Attestation (WUA) and Wallet Trust
 
@@ -16294,7 +16294,7 @@ The **European Accessibility Act (EAA)** — Directive (EU) 2019/882 — became 
 
 **EN 301 549** v3.2.1 is the harmonised European standard for ICT accessibility. Compliance with EN 301 549 provides a **presumption of conformity** with the EAA (recital 73 of Directive 2019/882). For web content, EN 301 549 §10 (Clauses 9.1–9.6) directly incorporates **WCAG 2.1 Level AA** success criteria. For native mobile apps integrating EUDI Wallet, EN 301 549 §12 (Software) applies, adapting the same WCAG principles to native software.
 
-ARF Topic 54 defines two accessibility HLRs — **ACC_01** and **ACC_02** — but both target **Wallet Providers**, not Relying Parties. There are no RP-specific accessibility HLRs in the ARF. The EAA fills this gap at the legal level: RPs in covered sectors must comply regardless of ARF coverage. DR-0002 bridges this gap with RP-specific implementation guidance below.
+ARF Topic 54 defines two accessibility HLRs — **ACC_01** and **ACC_02** — but both target **Wallet Providers**, not Relying Parties. There are no RP-specific accessibility HLRs in the ARF. The EAA fills this gap at the legal level: RPs in covered sectors must comply regardless of ARF coverage. The sections below bridge this gap with RP-specific implementation guidance.
 
 > **⚠️ Legal obligation, not optional enhancement**: For RPs in EAA-covered sectors, ensuring EUDI Wallet integration UI accessibility is an enforceable legal requirement. National enforcement authorities can impose fines (varying by Member State, up to €500,000 or a percentage of turnover), product/service suspension, and legal action by consumers or representative groups.
 
@@ -17852,7 +17852,7 @@ flowchart LR
 
 The flow above is a better mental model for RP architects than "selfie check" alone. It shows why a supplementary remote-proofing ceremony is really a **pipeline of separate control objectives** rather than one biometric yes/no decision.
 
-That same control model also needs a hard distinction between **presentation attacks** and **injection attacks** in the capture pipeline. Presentation attacks involve artefacts shown to the sensor (printed photos, masks, replayed documents on a screen); injection attacks bypass the sensor path entirely via virtual cameras, deepfakes, or modified video streams. For `DR-0002`, the practical consequence is simple: if the RP invokes remote selfie/video-ident as a stronger ceremony, the control set should cover **both** PAD and IAD / capture-integrity checks rather than treating a face-match score as sufficient.
+That same control model also needs a hard distinction between **presentation attacks** and **injection attacks** in the capture pipeline. Presentation attacks involve artefacts shown to the sensor (printed photos, masks, replayed documents on a screen); injection attacks bypass the sensor path entirely via virtual cameras, deepfakes, or modified video streams. For RPs, the practical consequence is simple: if the RP invokes remote selfie/video-ident as a stronger ceremony, the control set should cover **both** PAD and IAD / capture-integrity checks rather than treating a face-match score as sufficient.
 
 OCR-heavy document capture is also fragile and can itself become an integrity risk, whereas chip reading is materially stronger where legally and operationally possible. So if an RP's fallback ceremony asks for a physical identity document in addition to Wallet data, **NFC chip reading should be preferred over OCR-only extraction** when available; otherwise the RP should classify the ceremony accordingly and compensate with stronger supervision or manual review.
 
@@ -17868,7 +17868,7 @@ The current standards landscape is useful to summarise here in adapted form:
 | **EUDI Wallet onboarding** | `CEN TS 18098` (`CEN TC 224 WG20`) | Still evolving; lacks detailed conformance guidance |
 | **Biometric security** | `CEN TC 224 WG18` work on biometric product requirements | Still under development |
 
-For `DR-0002`, the practical RP reading of that matrix is:
+The practical RP reading of that matrix is:
 
 - `ETSI TS 119 461` is an important umbrella baseline, but RPs should not treat it as meaning that every live-person step-up path is already fully harmonised or equally testable across Europe.
 - `CEN TS 18099` matters because a strong selfie/video-ident ceremony must address **injection attacks** and capture-integrity threats, not just presentation attacks or passive liveness.

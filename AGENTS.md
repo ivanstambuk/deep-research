@@ -611,3 +611,19 @@ The resource server validates the DPoP proof (RFC 9449) against the token's `cnf
 When the exact standard is known, **name the document, not just the standards body**. For example, write `ETSI TS 119 475 clause 4.6.1`, `ETSI TS 119 475 Annex D`, or `ETSI TS 119 475 Table 7` — not bare formulations like `ETSI clause 4.6.1`, `ETSI Annex D`, `ETSI says`, or `ETSI explicitly ...`. Use the organization name alone only when the statement is genuinely about the organization rather than a specific published document.
 
 **Do not** use numbered citation styles like `[1]`, `[2]` or footnote references. **Do not** append a global reference list at the end of individual sections — references are woven into the narrative.
+
+### Document Self-Reference
+
+Within a DR document, prefer the **real subject** of the sentence — for example `the RP`, `the verifier`, `the wallet`, `this chapter`, `the guidance below`, or the specific protocol/actor — rather than treating the document identifier as an actor or analytical subject **when the sentence is really about the operational subject**.
+
+- Do **not** treat every body-text occurrence of `DR-000X` as a style error. Prose that genuinely discusses the document's own structure, scope, coverage, findings, update history, or navigation can and often should keep the document identifier.
+- ✅ `For RPs, treat user binding as the broader assurance conclusion...`
+- ✅ `The sections below bridge this gap with RP-specific guidance.`
+- ✅ `DR-0005 is structured as both a reference document and a decision tool.`
+- ✅ `This is the primary design problem addressed by DR-0005.`
+- ✅ `DR-0003's §22 covers authentication attacks comprehensively...`
+- ✅ `DR-0002 Reference`
+- ❌ `In DR-0002, treat user binding as the broader assurance conclusion...`
+- ❌ `DR-0002 bridges this gap...`
+
+Use `DR-000X` identifiers where the document identity itself genuinely matters: frontmatter/metadata, file paths, repo tooling/tests, explicit cross-document references like `(DR-0003, §29.3)`, navigation labels such as `DR-0002 Reference`, comparison tables, coverage matrices, internal coverage/structure statements, findings/update-history notes, or other places where the document is the actual thing being discussed.
