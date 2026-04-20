@@ -18944,13 +18944,64 @@ Five policy levers usually matter most:
 | **Live-person-binding policy** | Whether the RP relies on wallet-trusted User binding alone, or requires extra live-person / document-backed evidence | For this journey, is device-bound wallet presentation enough, or must the RP add `portrait` + PAD, supervised inspection, additional document comparison, or manual review? |
 | **Signal-escalation policy** | How VSI outcomes change the required ceremony | Does a suspicious session get blocked, stepped up, or re-routed to a stronger channel? |
 
-The resulting assurance profiles are typically coarse-grained rather than per-credential bespoke:
+The resulting assurance profiles are typically coarse-grained rather than per-credential bespoke. Read each profile as a package of default policy decisions:
 
-| Profile | Channel Default | Proximity Use | Device-Binding Posture | Live-Person / Document Rule | VSI Response |
-|:--------|:----------------|:--------------|:------------------------|:----------------------------|:-------------|
-| **Baseline RP** | Accept same-device and cross-device remote flows | Rare; reserved for niche operational contexts | Accept bound and unbound credentials where ecosystem-compatible | Normally rely on wallet-trusted User binding; do not request `portrait` by default | Allow / flag / block based on risk score |
-| **Elevated / Regulated** | Prefer same-device DC API where available; cross-device is fallback | Use proximity for selected issuance, recovery, or rebinding events | Prefer device-bound credentials; downgrade assurance when binding is absent | Define explicit exception journeys where extra live-person evidence is required; `portrait` + PAD is one option, but supervised or document-backed fallback must exist | Step-up into stronger channel for elevated-risk events |
-| **Financial / High-Fraud** | Make DC API-first the normal browser path; treat QR cross-device as fallback | Require stronger ceremony for issuance, recovery, rebinding, and selected high-risk events | Require device binding for RP-issued high-risk credentials; treat external unbound credentials as lower-assurance inputs | For first-time remote onboarding and other high-fraud journeys, define a mandatory **supplementary binding path**: if `portrait` is registered and disclosed, consume it with PAD; if not available, quality-insufficient, or policy-restricted, escalate to supervised proximity, additional document comparison, video-ident, or manual review | Use VSI to trigger channel escalation, re-verification, or controlled fallback rather than only scoring |
+```mermaid
+flowchart TB
+    subgraph baseline[" "]
+        direction LR
+        b["`**Baseline RP**`"]
+        subgraph baseline_stack[" "]
+            direction TB
+            b1["`Channel:<br/>same-device or cross-device remote`"]
+            b2["`Proximity:<br/>rare / exceptional`"]
+            b3["`Device binding:<br/>accept bound or unbound`"]
+            b4["`Live-person rule:<br/>wallet default; no portrait by default`"]
+            b5["`VSI:<br/>allow / flag / block`"]
+        end
+        b --> b1
+        b --> b2
+        b --> b3
+        b --> b4
+        b --> b5
+    end
+
+    subgraph elevated[" "]
+        direction LR
+        e["`**Elevated / Regulated**`"]
+        subgraph elevated_stack[" "]
+            direction TB
+            e1["`Channel:<br/>prefer same-device; QR fallback`"]
+            e2["`Proximity:<br/>selected issuance / recovery / rebinding events`"]
+            e3["`Device binding:<br/>prefer bound; downgrade if absent`"]
+            e4["`Live-person rule:<br/>explicit exception journeys`"]
+            e5["`VSI:<br/>step up into stronger channel on risk`"]
+        end
+        e --> e1
+        e --> e2
+        e --> e3
+        e --> e4
+        e --> e5
+    end
+
+    subgraph financial[" "]
+        direction LR
+        f["`**Financial / High-Fraud**`"]
+        subgraph financial_stack[" "]
+            direction TB
+            f1["`Channel:<br/>DC API first; QR fallback only`"]
+            f2["`Proximity:<br/>stronger ceremony for onboarding and lifecycle events`"]
+            f3["`Device binding:<br/>require it where RP controls issuance`"]
+            f4["`Live-person rule:<br/>mandatory supplementary binding path`"]
+            f5["`VSI:<br/>escalation, re-verification, controlled fallback`"]
+        end
+        f --> f1
+        f --> f2
+        f --> f3
+        f --> f4
+        f --> f5
+    end
+```
 
 Two implementation boundaries are important:
 
