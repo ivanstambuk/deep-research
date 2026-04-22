@@ -6392,6 +6392,8 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
         Note over WL: Phase 3: Wallet Presentation
+        WL->>TL: Resolve RP trust anchor
+        TL-->>WL: Return Access CA / RP registration evidence
         WL->>WL: Verify RP identity & User consent
         Note right of WL: JAR signature verified against<br/>Trusted List / LoTE
         WL-->>OS: Return encrypted VP response
@@ -6402,6 +6404,8 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
         Note over RP,TL: Phase 4: RP Verification
         OS-->>RP: Return JARM response
+        RP->>TL: Resolve issuer trust anchor
+        TL-->>RP: Return issuer trust metadata
         Note right of RP: Decrypt with ephemeral key,<br/>verify against Trusted List
         Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -6469,13 +6473,35 @@ Instead, the filtering logic is delegated to **WebAssembly (Wasm) Matchers**:
 </details>
 
 <details>
-<summary><strong>4. Wallet Instance verifies Relying Party identity and requests User consent</strong></summary>
+<summary><strong>4. Wallet Instance resolves Relying Party trust anchor</strong></summary>
 
-The selected Wallet Instance receives the OpenID4VP JAR from the OS. Before displaying anything to the User, the Wallet Instance performs strict identity verification on the Relying Party:
+The selected Wallet Instance receives the OpenID4VP JAR from the OS and extracts the WRPAC evidence referenced by the `x509_hash` client identifier. Before any user-facing consent screen is shown, it queries the applicable national Trusted List or LoTE for the Relying Party's registration and certificate-chain status.
+
+**Failure Path:** If the referenced trust anchor cannot be resolved, the wallet aborts before disclosure.
+
+**Audit Telemetry:** The Wallet Instance logs a `WRPAC_TRUST_ANCHOR_LOOKUP_STARTED` event.
+
+</details>
+
+<details>
+<summary><strong>5. Trusted List returns Relying Party registration evidence</strong></summary>
+
+The Trusted List / LoTE returns the Access CA chain, qualified status, revocation state, and RP registration evidence needed to decide whether the requester is authorized for the requested attributes.
+
+The wallet binds this evidence to the JAR validation context: the returned certificate material must match the hash in `client_id`, the RP role must cover the requested credential scope, and the evidence must be current enough for the relying-party policy.
+
+**Artifact Produced:** Relying Party trust validation context.
+
+</details>
+
+<details>
+<summary><strong>6. Wallet Instance verifies Relying Party identity and requests User consent</strong></summary>
+
+Using the Relying Party trust evidence returned by the Trusted List / LoTE, the Wallet Instance completes strict identity verification before displaying anything to the User:
 
 1. **JAR Signature Evaluation:** The Wallet Instance cryptographically verifies the JAR signature against the Relying Party's public key (WRPAC).
 2. **x509_hash Alignment:** The Wallet Instance ensures the `client_id` hash matches the actual SHA-256 hash of the presented WRPAC.
-3. **Trust Anchor Resolution:** *Crucially*, the Wallet Instance resolves the WRPAC against the national Trusted List or LoTE. If the certificate is revoked or not issued by an authorized QTSP, the flow halts immediately.
+3. **Registration and status checks:** The Wallet Instance confirms the Relying Party certificate is trusted, current, and authorized for the requested disclosure scope.
 
 **Failure Path:** If the signature is invalid, the certificate is revoked, or the `client_id` hash mismatches, the Wallet Instance aborts the presentation and warns the User that the request failed validation.
 
@@ -6486,14 +6512,14 @@ Once verified, the Wallet Instance displays a consent screen detailing exactly w
 </details>
 
 <details>
-<summary><strong>5. Wallet Instance returns encrypted Verifiable Presentation</strong></summary>
+<summary><strong>7. Wallet Instance returns encrypted Verifiable Presentation</strong></summary>
 
 After receiving User consent, the Wallet Instance constructs the Verifiable Presentation (VP) in the required format:
 
 - **For SD-JWT VC**: It applies the selective disclosure policies, picking only the user-approved `~` separated strings, and signs a new Key Binding JWT (KB-JWT) using the secure element's device key bound to the credential.
 - **For mdoc**: It generates a CBOR `DeviceResponse` containing the `DeviceMAC` or `DeviceSignature` over the session transcript.
 
-Because the Relying Party requested an encrypted API-mediated response, the entire presentation payload (`vp_token` and, where applicable, response metadata) is encrypted into a JWE utilizing the ephemeral public key the Relying Party provided in its original `response_encryption_jwk`. This encrypted JWE is securely passed from the Wallet Instance, back through the OS, and finally to the Browser; the Wallet does not POST directly to a `response_uri` in this browser DC API branch.
+Because the Relying Party requested an encrypted API-mediated response, the entire presentation payload (`vp_token` and, where applicable, response metadata) is encrypted into a JWE utilizing the ephemeral public key the Relying Party provided in its original `response_encryption_jwk`. This encrypted JWE is securely returned from the Wallet Instance to the OS Credential Manager; the Wallet does not POST directly to a `response_uri` in this browser DC API branch.
 
 ```json
 // Example JARM Response (JWE) returned to the Promise
@@ -6509,9 +6535,29 @@ Because the Relying Party requested an encrypted API-mediated response, the enti
 </details>
 
 <details>
-<summary><strong>6. Relying Party verifies JARM response</strong></summary>
+<summary><strong>8. OS Credential Manager returns JARM response to Relying Party</strong></summary>
 
-The Browser receives the encrypted JWE response from the OS and resolves the Javascript `navigator.credentials.get()` Promise. The Relying Party's front-end forwards this opaque string to its backend services for verification:
+The OS hands the encrypted JARM response back through the Browser, which resolves the original `navigator.credentials.get()` promise. The Relying Party front end treats the response as opaque and forwards it to backend verification services.
+
+**Failure Path:** If the wallet response is malformed or cancelled, the Browser rejects the promise and the RP records an abandoned or failed presentation.
+
+**Audit Telemetry:** The Relying Party logs a `DC_API_PRESENTATION_RESPONSE_RECEIVED` event.
+
+</details>
+
+<details>
+<summary><strong>9. Relying Party resolves issuer trust anchor</strong></summary>
+
+Before accepting the presented credential, the RP backend identifies the credential issuer and queries the applicable Trusted List / LoTE for issuer trust metadata. This keeps issuer validation in the X.509 trust-list model rather than DID resolution.
+
+**Failure Path:** If issuer trust metadata cannot be resolved, the RP rejects the presentation before applying business rules.
+
+</details>
+
+<details>
+<summary><strong>10. Trusted List returns issuer trust metadata to Relying Party</strong></summary>
+
+The Trusted List / LoTE returns issuer trust metadata to the RP backend. The Relying Party then verifies the encrypted JARM response and credential evidence:
 
 1. **Decryption:** The Relying Party uses its ephemeral private key to decrypt the JARM payload to extract the `vp_token`.
 2. **Trust Verification:** The Relying Party extracts the Issuer's signature from the credential and validates it against the Issuer's public key found on the national Trusted List/LoTE. **No DID resolution is performed.** The ecosystem relies entirely on X.509 PKI bounds.
@@ -18608,8 +18654,8 @@ That runtime flow sits inside a wider PSD2/RTS control wrapper. A PSP must also 
 > **RTS Art. 24(2)(b)** — PSC Association trigger (fourth SCA use case):
 >
 > *"the association by means of a remote channel of the payment service user's identity with the personalised security credentials and with authentication devices or software is performed using strong customer authentication."*
->
-> This covers authenticator binding / authenticator enrollment — when a customer registers a new phone, adds a FIDO key, or re-activates credentials after loss. The EUDI Wallet can serve as the SCA method for this ceremony: an existing customer presents their PID or SCA Attestation to bootstrap a new authenticator on a new device, replacing legacy re-enrollment methods (SMS OTP, branch visit, letter-based recovery). Art. 26 extends this requirement to **renewal and re-activation** of PSCs.
+
+This covers authenticator binding / authenticator enrollment — when a customer registers a new phone, adds a hardware authenticator, or re-activates credentials after loss. The EUDI Wallet can serve as the SCA method for this ceremony: an existing customer presents their PID or SCA Attestation to bootstrap a new authenticator on a new device, replacing legacy re-enrollment methods (SMS OTP, branch visit, letter-based recovery). Art. 26 extends this requirement to **renewal and re-activation** of PSCs.
 
 **PSD2 Dynamic Linking — Art. 97(2)**:
 

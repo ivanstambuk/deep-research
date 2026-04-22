@@ -239,6 +239,82 @@ function testArfDiscussionTopicReferencesResolveAsExternalLinks() {
   assert.equal(links[0].target.topicKind, 'discussion');
 }
 
+function testBareArfTopicReferencesResolveForDr0002Only() {
+  const annexResult = linkifyTextValue('Topic 1 `OIA_08` defines the DC API boundary.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const discussionResult = linkifyTextValue('CTAP-Hybrid is permitted only if Topic F expectations are met.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const annexPrefixResult = linkifyTextValue('Annex Topic 18 defines current HLRs.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const otherDocumentResult = linkifyTextValue('Topic 1 introduces the local subject.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0003-authentication-and-session-management',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const compoundResult = linkifyTextValue('Historical Topic A/B background remains useful.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+
+  const annexLinks = annexResult.parts.filter((part) => part.type === 'link');
+  assert.equal(annexResult.changed, true);
+  assert.equal(annexResult.diagnostics.length, 0);
+  assert.equal(annexLinks.length, 1);
+  assert.equal(annexLinks[0].text, 'Topic 1');
+  assert.equal(
+    annexLinks[0].href,
+    'https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a231-topic-1-accessing-online-services-with-a-wallet-unit',
+  );
+  assert.equal(annexLinks[0].target.topicKind, 'annex');
+
+  const discussionLinks = discussionResult.parts.filter((part) => part.type === 'link');
+  assert.equal(discussionResult.changed, true);
+  assert.equal(discussionResult.diagnostics.length, 0);
+  assert.equal(discussionLinks.length, 1);
+  assert.equal(discussionLinks[0].text, 'Topic F');
+  assert.equal(
+    discussionLinks[0].href,
+    'https://eudi.dev/2.8.0/discussion-topics/f-digital-credential-api/',
+  );
+  assert.equal(discussionLinks[0].target.topicKind, 'discussion');
+
+  const annexPrefixLinks = annexPrefixResult.parts.filter((part) => part.type === 'link');
+  assert.equal(annexPrefixResult.changed, true);
+  assert.equal(annexPrefixResult.diagnostics.length, 0);
+  assert.equal(annexPrefixLinks.length, 1);
+  assert.equal(annexPrefixLinks[0].text, 'Annex Topic 18');
+  assert.equal(
+    annexPrefixLinks[0].href,
+    'https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes',
+  );
+  assert.equal(annexPrefixLinks[0].target.topicKind, 'annex');
+
+  assert.equal(otherDocumentResult.changed, false);
+  assert.equal(otherDocumentResult.diagnostics.length, 0);
+  assert.equal(compoundResult.changed, false);
+  assert.equal(compoundResult.diagnostics.length, 0);
+}
+
 function testArfTopicSubsectionsDoNotResolveImplicitly() {
   const result = linkifyTextValue('ARF Topic A §5.3 recommends herd-privacy protections.', {
     buildHref: (target) => `#${target.headingId}`,
@@ -788,6 +864,25 @@ function testMarkdownRewritesSupportExplicitArfTopicReferences() {
   );
 }
 
+function testMarkdownRewritesSupportBareArfTopicReferencesForDr0002() {
+  const source = 'The boundary follows Topic 1 and Topic F, while Annex Topic 18 remains future work.\n';
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const tree = parser.parse(source);
+  const result = collectMarkdownCrossReferenceReplacements(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const linked = applyTextReplacements(source, result.replacements);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(
+    linked,
+    'The boundary follows [Topic 1](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a231-topic-1-accessing-online-services-with-a-wallet-unit) and [Topic F](https://eudi.dev/2.8.0/discussion-topics/f-digital-credential-api/), while [Annex Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) remains future work.\n',
+  );
+}
+
 function testLikelyFalsePositiveExternalSkipReport() {
   const targetIndex = buildIndex([
     { headingId: '2110-identity-chaining', text: '21.10 Identity Chaining' },
@@ -835,6 +930,7 @@ testArfReferencesResolveAsExternalLinks();
 testArfSuffixCueResolvesExternalLinks();
 testArfAnnexTopicReferencesResolveAsExternalLinks();
 testArfDiscussionTopicReferencesResolveAsExternalLinks();
+testBareArfTopicReferencesResolveForDr0002Only();
 testArfTopicSubsectionsDoNotResolveImplicitly();
 testArfTopicMentionsDoNotBlockLaterInternalSections();
 testArfCarryForwardDoesNotResolveBareSections();
@@ -848,6 +944,7 @@ testHastRewriteSupportsArfExternalReferences();
 testMarkdownRewritesRespectExistingFormatting();
 testMarkdownRewritesSupportExplicitArfReferences();
 testMarkdownRewritesSupportExplicitArfTopicReferences();
+testMarkdownRewritesSupportBareArfTopicReferencesForDr0002();
 testLabelLinkifySupportsFindingAndOqReferences();
 testMarkdownLabelTargetsCoverListsTablesAndParagraphs();
 testHeadingBackedLabelAnchorsStayAfterHeadingLine();

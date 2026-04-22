@@ -6,7 +6,11 @@ const LOOKBACK_LIMIT = 96;
 const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
 const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
 const ARF_TOPIC_TOKEN_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)\b/g;
+const BARE_ARF_TOPIC_TOKEN_RE = /\b(?:(?:Annex(?:\s+2)?|Discussion(?:\s+Paper)?)\s+)?Topic\s+(?:[A-Z]{1,2}|\d+)\b(?!\s*\/\s*(?:Topic\s+)?[A-Z]{1,2}\b)/g;
 const LABEL_TOKEN_RE = /\b(?:Key Finding \d+|KF \d+|Finding F-?\d+|Finding \d+|OQ(?:\d+|-\d+|\s+#\d+|\s+\d+)|Open Question(?:\s+#\d+|\s+\d+))\b/g;
+const BARE_ARF_TOPIC_DOCUMENT_SLUGS = new Set([
+  'DR-0002-eudi-wallet-relying-party-integration',
+]);
 const HAST_ELIGIBLE_CONTAINER_TAGS = new Set(['blockquote', 'li', 'p', 'summary', 'td', 'th']);
 const HAST_FORBIDDEN_TAGS = new Set(['a', 'code', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'script', 'style']);
 const MDAST_ELIGIBLE_CONTAINER_TYPES = new Set(['blockquote', 'listItem', 'paragraph', 'tableCell']);
@@ -381,6 +385,10 @@ function hasPriorExplicitArfTopicReference(lookback) {
   return ARF_TOPIC_EXPLICIT_PREFIX_RE.test(lookback);
 }
 
+function allowsBareArfTopicReferences(diagnosticBase) {
+  return BARE_ARF_TOPIC_DOCUMENT_SLUGS.has(diagnosticBase?.documentSlug ?? '');
+}
+
 function normalizeArfTopicReferenceToken(tokenText) {
   const normalizedToken = normalizeWhitespace(tokenText);
   const identifierMatch = normalizedToken.match(/\bTopic\s+([A-Z]{1,2}|\d+)\b/i);
@@ -390,7 +398,7 @@ function normalizeArfTopicReferenceToken(tokenText) {
 
   const topicId = identifierMatch[1].toUpperCase();
   const isDiscussionOnly = /\bDiscussion(?:\s+Paper)?\b/i.test(normalizedToken);
-  const isAnnexOnly = /\bAnnex\s+2\b/i.test(normalizedToken);
+  const isAnnexOnly = /\bAnnex(?:\s+2)?\b/i.test(normalizedToken);
 
   if (isDiscussionOnly && isAnnexOnly) {
     return null;
@@ -561,9 +569,12 @@ function findNextRegexMatch(regex, value, cursor) {
   };
 }
 
-function findNextReferenceToken(value, cursor) {
+function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = {}) {
   const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
   const topicMatch = findNextRegexMatch(ARF_TOPIC_TOKEN_RE, value, cursor);
+  const bareTopicMatch = allowBareArfTopics
+    ? findNextRegexMatch(BARE_ARF_TOPIC_TOKEN_RE, value, cursor)
+    : null;
   const labelMatch = findNextRegexMatch(LABEL_TOKEN_RE, value, cursor);
 
   const matches = [
@@ -578,6 +589,12 @@ function findNextReferenceToken(value, cursor) {
       tokenText: topicMatch.match[0],
       start: topicMatch.start,
       end: topicMatch.end,
+    } : null,
+    bareTopicMatch ? {
+      kind: 'topic',
+      tokenText: bareTopicMatch.match[0],
+      start: bareTopicMatch.start,
+      end: bareTopicMatch.end,
     } : null,
     labelMatch ? {
       kind: 'label',
@@ -603,7 +620,9 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
   let hasLinks = false;
 
   while (true) {
-    const nextToken = findNextReferenceToken(value, cursor);
+    const nextToken = findNextReferenceToken(value, cursor, {
+      allowBareArfTopics: allowsBareArfTopicReferences(diagnosticBase),
+    });
     if (!nextToken) {
       break;
     }
