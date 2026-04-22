@@ -272,7 +272,13 @@ This repository contains **Deep Research (DR)** documents — exhaustive, long-f
 
 ## Local Workflow Docs
 
-This repo may contain **local, gitignored workflow guides** for recurring DR maintenance tasks. When a user asks to **refresh an existing DR document, chapter, appendix, or subsection**, check for and follow:
+This repo may contain **local, gitignored workflow guides** for recurring DR maintenance tasks. Do **not** rely only on `rg --files` or `git ls-files` to discover them, because those commands can hide files ignored by `.gitignore`. Before any DR refresh, run an explicit filesystem search such as:
+
+```bash
+find . -maxdepth 3 \( -name 'DR_REFRESH_WORKFLOW.md' -o -name 'SEQUENCE_DIAGRAM_HOUSE_STYLE.md' -o -name 'DIRECTIVES.md' \) -print
+```
+
+When a user asks to **refresh an existing DR document, chapter, appendix, or subsection**, check for and follow:
 
 - `DR_REFRESH_WORKFLOW.md` — the default five-step workflow for refreshing existing DR content: research report + claim ledger, integration edits, cross-reference/matrix sweep, style-normalization sweep, then verification/commit.
 - `SEQUENCE_DIAGRAM_HOUSE_STYLE.md` — the editorial house style for Mermaid `sequenceDiagram` walkthroughs. Use it when the target scope includes diagrams or when walkthrough quality/style consistency matters.
@@ -553,6 +559,11 @@ This rule applies to any file that is not intended to be committed. If you are u
 **Never stage or commit `.scratch/` files.** `.scratch/` exists only for working artifacts, review drafts, plans, proposals, audits, and other gitignored intermediate material. Even if the user asks to commit "all changes" or "everything from this chat," `.scratch/` files must stay unstaged and uncommitted. If a `.scratch/` artifact has been incorporated into tracked files, commit only the tracked files and leave the `.scratch/` file alone for the user to keep or delete. If the user wants the content preserved in git history, move or rewrite it into a tracked location first; do not commit the `.scratch/` path itself.
 
 **.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. Never use `run_in_terminal` to write to, truncate, or modify `.scratch/` files — only `create_file` (for new files) and `replace_string_in_file` (for existing files) may touch `.scratch/` content. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
+
+**.scratch editing rules — same as DR documents.** All rules under "Editing Large Documents" that apply to DR documents also apply to `.scratch/` plan files, trackers, and analysis documents. Specifically:
+- **Never read-then-rewrite the whole `.scratch/` file.** Do not read the entire file, then attempt to overwrite it with `create_file` or a single massive `replace_string_in_file`. Use targeted, surgical edits — replace only the section that changed.
+- **No wholesale file replacement.** If a `.scratch/` plan or tracker needs updating, identify the specific paragraphs, table rows, or status values that changed and replace those individually. Do not delete the file and recreate it, and do not replace the entire file content in one operation.
+- **Incremental section updates.** When a tracker has 6 tier tables, update each tier table separately if the change is confined to that tier. When a status header changes, replace only the status line.
 
 **Spec / tracker refinement rule.** When the user asks to "refine", "improve", "make another pass", or otherwise iterate on an existing `.scratch/` specification, plan, tracker, or analysis document, you must update the existing file in place. Do **not** create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. The default behavior is one evolving canonical document.
 

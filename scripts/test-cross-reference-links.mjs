@@ -197,6 +197,21 @@ function testArfAnnexTopicReferencesResolveAsExternalLinks() {
   assert.equal(links[0].text, 'ARF Topic 52');
   assert.equal(links[0].target.linkKind, 'external');
   assert.equal(links[0].target.topicKind, 'annex');
+
+  const topic6Result = linkifyTextValue('ARF Topic 6 defines RP authentication.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([]),
+  });
+  const topic6Links = topic6Result.parts.filter((part) => part.type === 'link');
+  assert.equal(topic6Result.diagnostics.length, 0);
+  assert.equal(topic6Links.length, 1);
+  assert.equal(
+    topic6Links[0].href,
+    'https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a234-topic-6-relying-party-authentication-and-user-approval',
+  );
 }
 
 function testArfDiscussionTopicReferencesResolveAsExternalLinks() {

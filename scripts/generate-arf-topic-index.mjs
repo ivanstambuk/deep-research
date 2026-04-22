@@ -1,6 +1,5 @@
 import fs from 'fs/promises';
 import path from 'path';
-import GithubSlugger from 'github-slugger';
 
 const DEFAULT_DOCS_ROOT = '/home/ivan/dev/eIDAS20/03_arf/docs';
 const version = process.env.ARF_TOPIC_VERSION?.trim() || '2.8.0';
@@ -23,8 +22,15 @@ function stripMarkdownFormatting(value) {
     .trim();
 }
 
+function mkdocsMaterialAnchor(value) {
+  return stripMarkdownFormatting(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/[-\s]+/g, '-');
+}
+
 function collectAnnexTopics(source) {
-  const slugger = new GithubSlugger();
   const topics = {};
   let inCodeFence = false;
 
@@ -46,12 +52,11 @@ function collectAnnexTopics(source) {
     const text = stripMarkdownFormatting(match[2]);
     const topicMatch = text.match(/\bTopic\s+(\d+)\b/);
     if (!topicMatch) {
-      slugger.slug(text);
       return;
     }
 
     topics[topicMatch[1]] = {
-      headingId: slugger.slug(text),
+      headingId: mkdocsMaterialAnchor(text),
       text,
     };
   });

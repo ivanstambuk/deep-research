@@ -8,119 +8,119 @@ export const arfTopicReference = {
   discussionTopicCount: 24,
   annexTopics: {
   "1": {
-    "headingId": "a231-topic-1---accessing-online-services-with-a-wallet-unit",
+    "headingId": "a231-topic-1-accessing-online-services-with-a-wallet-unit",
     "text": "A.2.3.1 Topic 1 - Accessing Online Services with a Wallet Unit"
   },
   "3": {
-    "headingId": "a232-topic-3---pid-rulebook",
+    "headingId": "a232-topic-3-pid-rulebook",
     "text": "A.2.3.2 Topic 3 - PID Rulebook"
   },
   "4": {
-    "headingId": "a233-topic-4---mdl-rulebook",
+    "headingId": "a233-topic-4-mdl-rulebook",
     "text": "A.2.3.3 Topic 4 - mDL Rulebook"
   },
   "6": {
-    "headingId": "a234-topic-6---relying-party-authentication-and-user-approval",
+    "headingId": "a234-topic-6-relying-party-authentication-and-user-approval",
     "text": "A.2.3.4 Topic 6 - Relying Party authentication and User approval"
   },
   "7": {
-    "headingId": "a235-topic-7---attestation-revocation-and-revocation-checking",
+    "headingId": "a235-topic-7-attestation-revocation-and-revocation-checking",
     "text": "A.2.3.5 Topic 7 - Attestation revocation and revocation checking"
   },
   "9": {
-    "headingId": "a236-topic-9---wallet-unit-attestation-and-wallet-instance-attestation",
+    "headingId": "a236-topic-9-wallet-unit-attestation-and-wallet-instance-attestation",
     "text": "A.2.3.6 Topic 9 - Wallet Unit Attestation and Wallet Instance Attestation"
   },
   "10": {
-    "headingId": "a237-topic-10---issuing-a-pid-or-attestation-to-a-wallet-unit",
+    "headingId": "a237-topic-10-issuing-a-pid-or-attestation-to-a-wallet-unit",
     "text": "A.2.3.7 Topic 10 - Issuing a PID or attestation to a Wallet Unit"
   },
   "11": {
-    "headingId": "a238-topic-11---pseudonyms",
+    "headingId": "a238-topic-11-pseudonyms",
     "text": "A.2.3.8 Topic 11 - Pseudonyms"
   },
   "12": {
-    "headingId": "a239-topic-12---attestation-rulebooks",
+    "headingId": "a239-topic-12-attestation-rulebooks",
     "text": "A.2.3.9 Topic 12 - Attestation Rulebooks"
   },
   "16": {
-    "headingId": "a2310-topic-16---signing-documents-with-a-wallet-unit",
+    "headingId": "a2310-topic-16-signing-documents-with-a-wallet-unit",
     "text": "A.2.3.10 Topic 16 - Signing documents with a Wallet Unit"
   },
   "18": {
-    "headingId": "a2311-topic-18---combined-presentations-of-attributes",
+    "headingId": "a2311-topic-18-combined-presentations-of-attributes",
     "text": "A.2.3.11 Topic 18 - Combined presentations of attributes"
   },
   "19": {
-    "headingId": "a2312-topic-19---user-navigation-requirements-dashboard-logs-for-transparency",
+    "headingId": "a2312-topic-19-user-navigation-requirements-dashboard-logs-for-transparency",
     "text": "A.2.3.12 Topic 19 - User navigation requirements (Dashboard logs for transparency)"
   },
   "20": {
-    "headingId": "a2313-topic-20---strong-user-authentication-for-electronic-payments",
+    "headingId": "a2313-topic-20-strong-user-authentication-for-electronic-payments",
     "text": "A.2.3.13 Topic 20 - Strong User authentication for electronic payments"
   },
   "24": {
-    "headingId": "a2314-topic-24---user-identification-in-proximity-scenarios",
+    "headingId": "a2314-topic-24-user-identification-in-proximity-scenarios",
     "text": "A.2.3.14 Topic 24 - User identification in proximity scenarios"
   },
   "25": {
-    "headingId": "a2315-topic-25---unified-definition-and-controlled-vocabularies-for-attributes",
+    "headingId": "a2315-topic-25-unified-definition-and-controlled-vocabularies-for-attributes",
     "text": "A.2.3.15 Topic 25 - Unified definition and controlled vocabularies for attributes"
   },
   "27": {
-    "headingId": "a2316-topic-27---registration-of-pid-providers-providers-of-qeaas-pub-eaas-and-non-qualified-eaas-and-relying-parties",
+    "headingId": "a2316-topic-27-registration-of-pid-providers-providers-of-qeaas-pub-eaas-and-non-qualified-eaas-and-relying-parties",
     "text": "A.2.3.16 Topic 27 - Registration of PID Providers, Providers of QEAAs, PuB-EAAs, and non-qualified EAAs, and Relying Parties"
   },
   "28": {
-    "headingId": "a2317-topic-28---wallet-unit-for-legal-persons",
+    "headingId": "a2317-topic-28-wallet-unit-for-legal-persons",
     "text": "A.2.3.17 Topic 28 - Wallet Unit for legal persons"
   },
   "29": {
-    "headingId": "a2318-topic-29---representation-paradigm",
+    "headingId": "a2318-topic-29-representation-paradigm",
     "text": "A.2.3.18 Topic 29 - Representation paradigm"
   },
   "30": {
-    "headingId": "a2319-topic-30---interaction-between-wallet-units",
+    "headingId": "a2319-topic-30-interaction-between-wallet-units",
     "text": "A.2.3.19 Topic 30 - Interaction between Wallet Units"
   },
   "31": {
-    "headingId": "a2320-topic-31---notification-and-publication-of-pid-provider-wallet-provider-attestation-provider-access-certificate-authority-and-provider-of-registration-certificates",
+    "headingId": "a2320-topic-31-notification-and-publication-of-pid-provider-wallet-provider-attestation-provider-access-certificate-authority-and-provider-of-registration-certificates",
     "text": "A.2.3.20 Topic 31 - Notification and publication of PID Provider, Wallet Provider, Attestation Provider, Access Certificate Authority, and Provider of registration certificates"
   },
   "34": {
-    "headingId": "a2321-topic-34---migrate-to-a-different-wallet-solution",
+    "headingId": "a2321-topic-34-migrate-to-a-different-wallet-solution",
     "text": "A.2.3.21 Topic 34 - Migrate to a different Wallet Solution"
   },
   "38": {
-    "headingId": "a2322-topic-38---wallet-unit-revocation",
+    "headingId": "a2322-topic-38-wallet-unit-revocation",
     "text": "A.2.3.22 Topic 38 - Wallet Unit revocation"
   },
   "40": {
-    "headingId": "a2323-topic-40---wallet-instance-installation-and-wallet-unit-activation-and-management",
+    "headingId": "a2323-topic-40-wallet-instance-installation-and-wallet-unit-activation-and-management",
     "text": "A.2.3.23 Topic 40 - Wallet Instance installation and Wallet Unit activation and management"
   },
   "42": {
-    "headingId": "a2324-topic-42---requirements-for-qtsps-to-access-authentic-sources",
+    "headingId": "a2324-topic-42-requirements-for-qtsps-to-access-authentic-sources",
     "text": "A.2.3.24 Topic 42 - Requirements for QTSPs to access Authentic Sources"
   },
   "43": {
-    "headingId": "a2325-topic-43---embedded-disclosure-policies",
+    "headingId": "a2325-topic-43-embedded-disclosure-policies",
     "text": "A.2.3.25 Topic 43 - Embedded disclosure policies"
   },
   "44": {
-    "headingId": "a2326-topic-44---registration-certificates-for-pid-providers-providers-of-qeaas-pub-eaas-and-non-qualified-eaas-and-relying-parties",
+    "headingId": "a2326-topic-44-registration-certificates-for-pid-providers-providers-of-qeaas-pub-eaas-and-non-qualified-eaas-and-relying-parties",
     "text": "A.2.3.26 Topic 44 - Registration certificates for PID Providers, Providers of QEAAs, PuB-EAAs, and non-qualified EAAs, and Relying Parties"
   },
   "48": {
-    "headingId": "a2327-topic-48---blueprint-for-requesting-data-deletion-to-relying-parties",
+    "headingId": "a2327-topic-48-blueprint-for-requesting-data-deletion-to-relying-parties",
     "text": "A.2.3.27 Topic 48 - Blueprint for requesting data deletion to Relying Parties"
   },
   "50": {
-    "headingId": "a2328-topic-50---blueprint-to-report-unlawful-or-suspicious-request-of-data",
+    "headingId": "a2328-topic-50-blueprint-to-report-unlawful-or-suspicious-request-of-data",
     "text": "A.2.3.28 Topic 50 - Blueprint to report unlawful or suspicious request of data"
   },
   "51": {
-    "headingId": "a2329-topic-51---pid-or-attestation-deletion",
+    "headingId": "a2329-topic-51-pid-or-attestation-deletion",
     "text": "A.2.3.29 Topic 51 - PID or attestation deletion"
   },
   "52": {
@@ -132,15 +132,15 @@ export const arfTopicReference = {
     "text": "A.2.3.31 Topic 53 Zero-Knowledge Proofs"
   },
   "54": {
-    "headingId": "a2332-topic-54---accessibility",
+    "headingId": "a2332-topic-54-accessibility",
     "text": "A.2.3.32 Topic 54 - Accessibility"
   },
   "55": {
-    "headingId": "a2333-topic-55---certificate-transparency",
+    "headingId": "a2333-topic-55-certificate-transparency",
     "text": "A.2.3.33 Topic 55 - Certificate Transparency"
   },
   "56": {
-    "headingId": "a2334-topic-56---wallet-provider-support-and-maintenance",
+    "headingId": "a2334-topic-56-wallet-provider-support-and-maintenance",
     "text": "A.2.3.34 Topic 56 - Wallet Provider Support and Maintenance"
   }
 },
