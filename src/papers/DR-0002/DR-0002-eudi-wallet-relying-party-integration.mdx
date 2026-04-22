@@ -443,8 +443,9 @@ related: []
 > | **Public Sector RP** | §1 (Regulatory) → §21 (Compliance) | §2 (Roles) → §9–§10 (Remote Flows) | §16 (Pseudonyms) → §21.3 (GDPR) |
 > | **Intermediary/Vendor** | §25 (Intermediary) → §4 (Registration) | §5 (Trust) → §11 (RP Auth) | §20 (RP Obligations) → §34–§35 (Findings) |
 > | **Mobile Developer** | §6 (Formats) → §13 (Proximity) | §8–§11 (Remote) → §14 (W2W) | §17 (DCQL) → §11 (Verification) |
-> | **Security Engineer** | §29 (Threat Model) → §5 (Trust) | §11 (Verification) → §31 (Monitoring) | §23 (Cross-Border) → §16.12 (Pseudonym Security) |
-> | **QA / Test Engineer** | §11 (Verification Checklist) → §31 (Monitoring) | §17 (DCQL queries) → Appendix A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
+> | **Security Engineer** | §29 (Threat Model) → §30 (Verification Signals) | §5 (Trust) → §11 (Verification) → §31 (Monitoring) | §23 (Cross-Border) → §16.12 (Pseudonym Security) |
+> | **DevOps / SRE** | §31 (Monitoring) → §30 (Verification Signals) | §26 (Verification Architecture) → §28 (Readiness) | §21.7 (Breach Response) → §29 (Threat Model) |
+> | **QA / Test Engineer** | §11 (Verification Checklist) → §30 (Verification Signals) | §31 (Monitoring) → §17 (DCQL queries) → Appendix A (Payloads) | §11.6 (Error Handling) → §23 (Cross-Border) |
 > | **Data Protection Officer** | §21.3 (GDPR) → §20 (RP Obligations) | §21.4 (DORA) → §4 (Registration Data) | §16 (Pseudonyms) → §22 (AML/KYC) |
 
 ---
@@ -609,7 +610,7 @@ Each quadrant implies a deployment model: **bottom-left** → SaaS Intermediary 
 
 #### How to Use This Document
 
-Start with the **Reading Guide** above to identify the sections most relevant to your role. The **persona-based reading paths** provide curated sequences for Bank RP Architects, Public Sector RPs, Intermediary/Vendors, Mobile Developers, Security Engineers, QA Engineers, and Data Protection Officers — each path builds understanding progressively from synthesis through to the protocol details that support it.
+Start with the **Reading Guide** above to identify the sections most relevant to your role. The **persona-based reading paths** provide curated sequences for Bank RP Architects, Public Sector RPs, Intermediary/Vendors, Mobile Developers, Security Engineers, DevOps/SRE teams, QA Engineers, and Data Protection Officers — each path builds understanding progressively from synthesis through to the protocol details that support it.
 
 ---
 
@@ -3558,7 +3559,7 @@ The signing certificate of the WRPRC provider is expected to be discoverable thr
 
 ##### 5.3.4 Base Payload and Role-Specific Fields
 
-The base payload surface from ETSI TS 119 475 Table 7 and clause `6.2.6.1` is broader than the earlier TS2/TS5/TS6 registration-side summary in chapter 4:
+The base payload surface from ETSI TS 119 475 Table 7 and clause `6.2.6.1` is broader than the earlier TS2/TS5/TS6 registration-side summary in §4:
 
 | Field | Meaning for RP integration |
 |:------|:---------------------------|
@@ -5797,7 +5798,7 @@ This chapter provides a definitive answer by examining:
 
 **A Decentralized Identifier (DID)** is a globally unique URI (e.g., `did:web:example.com`, `did:ebsi:z123...`) that resolves to a **DID Document** containing public keys, service endpoints, and authentication methods. Unlike X.509 certificates — which derive trust from a hierarchical Certificate Authority chain — DIDs derive trust from the DID method's resolution mechanism (DNS, blockchain, distributed hash table, etc.). The W3C DID Core v1.0 specification achieved Recommendation status in July 2022; v1.1 is a Candidate Recommendation (March 2026).
 
-> **Relationship to other chapters**: This chapter builds on §5 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §6 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §8 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see §5.5.5–§5.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
+> **Relationship to other sections**: This chapter builds on §5 (Trust Infrastructure — certificates, trusted lists, LoTEs) and §6 (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before §8 (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see §5.5.5–§5.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
 
 #### 7.2 The ARF Mandate: X.509 for the Core, DIDs Optional for Non-Qualified EAAs
 
@@ -18340,7 +18341,7 @@ This chapter is organised around the programme tracks a bank or PSP has to run i
 
 ```mermaid
 flowchart TB
-    CH24["`**Chapter 24**
+    CH24["`**§24**
     Bank / PSP EUDI Wallet Programme`"]
 
     BASE["`**Wallet Acceptance Baseline**
@@ -22298,7 +22299,7 @@ The catalogue intentionally stays separate from the RP's **assurance-profile** d
 |:----------------------|:---------------------------------------|
 | **Risk Register scope** | Use R/SR/TT/TR identifiers as the common vocabulary for harms, techniques, and scenarios. Treat the register as a taxonomy and certification input, not as a complete RP control catalogue. |
 | **Scheme owner / Wallet Provider / CAB refinement** | Certification actors refine the common register into scheme-specific and implementation-specific mitigations. RPs consume the resulting official status, certification, WUA/WIA, issuer-trust, and breach evidence rather than reviewing the CAB risk file directly. |
-| **Chapter 6 mitigation families** | Existing DR controls map to mutual authentication, encryption, authenticated messages, WSCA/WSCD / keystore protection, Wallet Provider and RP authorisation checks, selective disclosure, registered-attribute checks, and Embedded Disclosure Policy evaluation. |
+| **§6 mitigation families** | Existing DR controls map to mutual authentication, encryption, authenticated messages, WSCA/WSCD / keystore protection, Wallet Provider and RP authorisation checks, selective disclosure, registered-attribute checks, and Embedded Disclosure Policy evaluation. |
 | **Annex 6 TR clusters** | Some TRs are direct RP threats and get threat cards below; others are upstream trust assumptions, wallet/provider certification threats, logging/repudiation threats, QES-consent threats, or already covered by lifecycle/status controls. Do not create 133 duplicate RP alerts. |
 | **HSM/KMS nuance** | ARF treats HSM-like controls as typical for providers and trust infrastructure but not formally required for ordinary RPs/RP Instances. For RPs, HSM/KMS use remains a prudent WRPAC/JAR-signing key-management control, especially in DORA/NIS2-regulated environments. |
 
@@ -30306,7 +30307,7 @@ Treat VSI as the RP's decision layer, not optional telemetry. If verification ou
 
 #### 30.1 Overview
 
-This chapter defines **Verification Signal Intelligence (VSI)** — the practice of classifying every VP Token verification step result as a typed, severity-graded signal that feeds into fraud scoring engines, SIEM/SOAR pipelines, and continuous risk assessment. VSI fills the structural gap between two existing chapters:
+This chapter defines **Verification Signal Intelligence (VSI)** — the practice of classifying every VP Token verification step result as a typed, severity-graded signal that feeds into fraud scoring engines, SIEM/SOAR pipelines, and continuous risk assessment. VSI fills the structural gap between §29 and §31:
 
 - **§29 Security Threat Catalogue** answers: *"What attacks exist?"* — 44 threats with STRIDE classifications, attack vectors, and mitigations.
 - **§31 Monitoring, Observability, and Operational Readiness** answers: *"How do you detect, alert, and respond?"* — metrics, alert triggers, audit trail structure.
@@ -31361,7 +31362,7 @@ Treat the signing-flow choice as a control-boundary decision, not just an integr
 
 #### 32.1 Overview
 
-Document signing is one of three core capabilities of the EUDI Wallet — alongside identification (PID presentation) and attestation presentation (QEAA/PuB-EAA). While the previous chapters focus on how RPs verify identity and attributes, this chapter covers the RP's role when the Wallet creates **Qualified Electronic Signatures (QES)** — legally binding signatures equivalent to handwritten signatures under eIDAS 2.0.
+Document signing is one of three core capabilities of the EUDI Wallet — alongside identification (PID presentation) and attestation presentation (QEAA/PuB-EAA). While the earlier RP-verification sections focus on how RPs verify identity and attributes, this chapter covers the RP's role when the Wallet creates **Qualified Electronic Signatures (QES)** — legally binding signatures equivalent to handwritten signatures under eIDAS 2.0.
 
 The regulatory foundation for document signing is established across multiple instruments:
 
