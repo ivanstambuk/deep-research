@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-22
+date_updated: 2026-04-23
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-22 · ~35,600 lines
+**DR-0002** · Published · Last updated 2026-04-23 · ~35,800 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -3243,55 +3243,105 @@ sequenceDiagram
 <details>
 <summary><strong>1. Relying Party Instance registers and obtains an RP Instance certificate</strong></summary>
 
-The Relying Party completes the Member State registration path and obtains a WRPAC for the concrete RP Instance that will send presentation requests. This precondition gives the RP Instance the private key and certificate chain it needs to authenticate itself to Wallet Units.
+The Relying Party completes the Member State registration path and obtains a WRPAC for the concrete RP Instance that will sign presentation requests. This is not just administrative onboarding: it binds the deployed RP endpoint, the registered subject, and the RP Instance public key into material that a Wallet Unit can later validate without trusting the transport channel alone.
+
+**Artifact Produced:** WRPAC private key plus certificate chain for the RP Instance.
+
+**Audit Telemetry:** The RP records certificate issuance, key custody location, issuer, `notBefore` / `notAfter`, and the service or RP Instance that is allowed to use the key.
 
 </details>
 <details>
 <summary><strong>2. Wallet Unit obtains the Access CA trust anchor</strong></summary>
 
-The Wallet Unit obtains the relevant Access CA trust anchor through the Trusted List or LoTE path. Without this precondition, the Wallet can still parse a request, but it cannot anchor the RP Instance certificate chain in a trusted Member State publication.
+The Wallet Unit obtains the relevant Access CA trust anchor through the Trusted List or LoTE path before it can treat RP certificates as ecosystem-authenticated. Without this precondition, the Wallet can still parse a request, but it cannot distinguish a registered RP Instance from a syntactically valid certificate chain rooted in an unknown CA.
+
+**Failure Path:** If the Wallet cannot resolve a trusted Access CA anchor, it must treat the RP authentication result as indeterminate and stop before user disclosure.
 
 </details>
 <details>
 <summary><strong>3. Relying Party Instance prepares the attribute request with its certificate chain</strong></summary>
 
-For each presentation, the RP Instance constructs the attribute request and includes its access certificate plus the intermediate certificates needed for path validation. This makes the request self-contained enough for the Wallet Unit to authenticate the requesting system.
+For each presentation, the RP Instance constructs the request object and includes the access certificate plus any intermediate certificates needed for path validation. The important property is that the Wallet Unit receives enough certificate material to validate the RP identity and authorization context without doing a fragile online lookup during the live consent ceremony.
+
+```json
+{
+  "client_id_scheme": "x509_hash",
+  "client_id": "sha256:BASE64URL(wrpac_der)",
+  "x5c": [
+    "BASE64URL(DER WRPAC leaf)",
+    "BASE64URL(DER Access CA intermediate)"
+  ],
+  "authorization_details": [
+    {
+      "type": "openid_credential_presentation",
+      "credential_configuration_id": "eu.europa.ec.eudi.pid.1",
+      "claims": ["given_name", "family_name", "birth_date"]
+    }
+  ]
+}
+```
+
+This is a representative shape, not a second source of truth for the exact request profile. The key point is that the request carries both the RP authentication material and the disclosure request that will be covered by the signature in the next step.
 
 </details>
 <details>
 <summary><strong>4. Relying Party Instance signs the request with its private key</strong></summary>
 
-The RP Instance signs the request using the private key corresponding to its WRPAC. This proves possession of the certified key and binds the requested attributes, nonce, and session context to the authenticated RP Instance.
+The RP Instance signs the request using the private key corresponding to the WRPAC. This proves key possession and binds the requested attributes, nonce, redirect or response mode, and session context to the authenticated RP Instance instead of leaving those fields mutable in transit.
+
+**Artifact Produced:** Signed presentation request / JAR or proximity reader-authentication object.
+
+**Failure Path:** If signing fails or the key identifier does not correspond to the WRPAC being presented, the RP should abort locally and emit an operational alert instead of sending an unverifiable request to wallets.
 
 </details>
 <details>
 <summary><strong>5. Relying Party Instance sends the attribute request to the Wallet Unit</strong></summary>
 
-The request reaches the Wallet Unit through the active presentation channel: OpenID4VP for remote flows or ISO/IEC 18013-5 reader authentication for proximity flows. The transport changes by modality, but the RP-authentication decision remains certificate-chain based.
+The request reaches the Wallet Unit through the active presentation channel: OpenID4VP for remote flows or ISO/IEC 18013-5 reader authentication for proximity flows. The transport changes by modality, but the trust decision remains the same: the Wallet authenticates the RP Instance through the signed request and certificate chain, not by trusting the browser, QR code, BLE channel, or app link.
+
+**Audit Telemetry:** The RP logs request identifier, nonce, channel, certificate fingerprint, and requested claim set so failed or disputed presentations can be correlated without storing unnecessary disclosed attributes.
 
 </details>
 <details>
 <summary><strong>6. Wallet Unit verifies the request signature using the RP certificate</strong></summary>
 
-The Wallet Unit checks that the request signature validates against the public key in the RP Instance certificate. A signature failure means the request cannot be attributed to the certified RP Instance and must be rejected before any user-consent step.
+The Wallet Unit checks that the request signature validates against the public key in the RP Instance certificate. This is the first hard boundary: a request with a malformed signature, unsupported algorithm, mismatched key, or modified payload cannot be attributed to the certified RP Instance.
+
+**Failure Path:** On signature failure, the Wallet rejects the request before consent display and should record a local security event such as `RP_REQUEST_SIGNATURE_INVALID`.
 
 </details>
 <details>
 <summary><strong>7. Wallet Unit validates the RP certificate chain to the LoTE trust anchor</strong></summary>
 
-The Wallet Unit validates the certificate path from the RP Instance certificate through any intermediates to the trusted Access CA anchor obtained from the LoTE. This turns a syntactically valid signature into a trusted ecosystem authentication result.
+The Wallet Unit validates the certificate path from the RP Instance certificate through any intermediates to the trusted Access CA anchor obtained from the LoTE. This turns a syntactically valid signature into an ecosystem authentication result: the key signed the request, and the certificate path says that key belongs to a registered RP Instance under the Member State trust framework.
+
+```json
+{
+  "path_validation_input": {
+    "leaf_subject": "organizationIdentifier=EU.EUDI.RP.12345",
+    "leaf_fingerprint": "sha256:...",
+    "intermediates": ["Access CA intermediate"],
+    "trust_anchor": "Member State Access CA from LoTE"
+  },
+  "expected_result": "valid_path_to_authorized_access_ca"
+}
+```
 
 </details>
 <details>
 <summary><strong>8. Wallet Unit checks certificate-chain revocation status</strong></summary>
 
-The Wallet Unit checks whether the RP Instance certificate or any relevant certificate in the chain has been revoked. This is where suspension or cancellation of the RP registration becomes operationally visible to the Wallet Unit.
+The Wallet Unit checks whether the RP Instance certificate or any relevant certificate in the chain has been revoked or otherwise made unacceptable by the applicable status mechanism. This is where suspension, cancellation, key compromise, or registration withdrawal becomes operationally visible to the Wallet Unit.
+
+**Failure Path:** A revoked, suspended, expired, or status-unreachable RP certificate must prevent user disclosure unless the applicable policy explicitly defines a cached-good fallback. Wallet telemetry should distinguish revocation from temporary status unavailability because the user-facing and supervisory implications differ.
 
 </details>
 <details>
 <summary><strong>9. Wallet Unit asks the User to approve the presentation</strong></summary>
 
-Only after RP authentication succeeds does the Wallet Unit present the request to the User. The consent screen can then display the verified RP identity and requested attributes instead of asking the User to approve an unauthenticated request.
+Only after RP authentication succeeds does the Wallet Unit present the request to the User. The consent screen can then display the verified RP identity, requested attributes, and intended use instead of asking the User to approve an unauthenticated or unregistered requester.
+
+**Artifact Produced:** User-visible disclosure decision context derived from the authenticated RP request.
 
 </details>
 <details>
@@ -3299,11 +3349,15 @@ Only after RP authentication succeeds does the Wallet Unit present the request t
 
 The User approves the specific disclosure. This remains a separate decision from RP authentication: a valid RP certificate allows the request to be considered, but it does not remove the User's control over which attributes are presented.
 
+**Audit Telemetry:** The Wallet records a consent event bound to the authenticated RP identity, requested attribute set, and presentation session, subject to the Wallet's privacy and retention policy.
+
 </details>
 <details>
 <summary><strong>11. Wallet Unit sends approved attributes to the Relying Party Instance</strong></summary>
 
-The Wallet Unit returns only the approved attributes in the protocol-specific response format. The RP still has to verify the returned credentials, holder binding, issuer trust, and revocation status before accepting the presentation.
+The Wallet Unit returns only the approved attributes in the protocol-specific response format. RP authentication is therefore complete from the Wallet's perspective, but the RP still has to verify the returned credentials, holder binding, issuer trust, revocation state, and assurance context before accepting the presentation.
+
+**Artifact Produced:** Presentation response containing the approved credential disclosures.
 
 </details>
 
@@ -3653,62 +3707,129 @@ sequenceDiagram
 
 <details><summary><strong>1. WRPRC Provider verifies registration data and at least one valid WRPAC</strong></summary>
 
-ETSI TS 119 475 treats WRPRC issuance as register-backed. Before issuance, the provider confirms that the RP is still listed in the national register and that the RP holds at least one valid WRPAC. This keeps the transparency artifact anchored to the same identity and registration state that the wallet would otherwise have to query online.
+ETSI TS 119 475 treats WRPRC issuance as register-backed. Before issuance, the provider confirms that the RP is still listed in the national register and that the RP holds at least one valid WRPAC. This keeps the transparency artifact anchored to the same identity and registration state that the Wallet would otherwise have to query online.
+
+**Failure Path:** If the register record is missing, suspended, materially inconsistent, or has no valid WRPAC linkage, the provider must refuse issuance and record the failed issuance decision.
+
+**Audit Telemetry:** The provider logs the register record version, checked WRPAC fingerprint, decision, and reason code, without storing unnecessary registration payload copies outside its policy boundary.
 
 </details>
 <details><summary><strong>2. Registrar returns the authoritative WRP registration record</strong></summary>
 
 The registrar response is the authoritative input for WRPRC construction. The provider should use current register data for names, identifiers, entitlement set, intended-use scope, support/contact information, and any intermediary linkage instead of relying on stale RP-supplied copies.
 
+```json
+{
+  "registration_id": "EU-NL-WRP-12345",
+  "subject": "Example Bank N.V.",
+  "country": "NL",
+  "registered_attributes": ["given_name", "family_name", "birth_date"],
+  "intended_use": "remote_customer_onboarding",
+  "wrpac_fingerprints": ["sha256:..."],
+  "status": "active",
+  "record_version": "2026-04-23T09:15:00Z"
+}
+```
+
+This is the input the WRPRC Provider normalizes into the portable transparency artifact. The `record_version` or equivalent audit marker matters because later disputes often ask whether the WRPRC reflected the register state at issuance time.
+
 </details>
 <details><summary><strong>3. WRPRC Provider issues a JWT/CWT carrying `id`, `exp`, and `status` references</strong></summary>
 
-The issued WRPRC is a signed JWT or CWT, not an X.509 certificate. The important lifecycle fields here are the stable token identifier, bounded expiration time, and the `status.uri` / `status.idx` pair that points wallets to the public status list used for runtime validity checks.
+The issued WRPRC is a signed JWT or CWT, not an X.509 certificate. The important lifecycle fields here are the stable token identifier, bounded expiration time, and the `status.uri` / `status.idx` pair that points Wallets to the public status list used for runtime validity checks.
+
+```json
+{
+  "typ": "rc-wrp+jwt",
+  "id": "wrprc:EU-NL-WRP-12345:2026-04",
+  "sub": "EU-NL-WRP-12345",
+  "name": "Example Bank N.V.",
+  "exp": 1776906000,
+  "status": {
+    "uri": "https://wrprc-provider.example.eu/status/2026-04.lst",
+    "idx": 8742
+  }
+}
+```
+
+**Artifact Produced:** Signed WRPRC with register-backed identity, authorization, expiry, and status-list references.
 
 </details>
 <details><summary><strong>4. WRPRC Provider delivers the issued WRPRC to the RP or intermediary</strong></summary>
 
-The output of issuance is a portable artifact the RP can present to wallets together with its WRPAC. ETSI TS 119 475 is explicit that the WRPRC pertains to the final relying party, even when an intermediary is involved in the delivery path.
+The output of issuance is a portable artifact the RP can present to Wallets together with its WRPAC. ETSI TS 119 475 is explicit that the WRPRC pertains to the final relying party, even when an intermediary is involved in the delivery path.
+
+**Audit Telemetry:** Delivery logs should bind the WRPRC identifier, recipient, delivery channel, and acknowledgement state so later operations can distinguish an issued-but-undelivered artifact from one actively used by the RP.
 
 </details>
 <details><summary><strong>5. WRPRC Provider publishes the signed public status list</strong></summary>
 
-Unlike WRPAC validation, WRPRC validation does not use OCSP or CRL. The provider publishes a signed status list at a stable public endpoint so wallets and relying parties can resolve the current state of the WRPRC offline or with minimal online traffic.
+Unlike WRPAC validation, WRPRC validation does not use OCSP or CRL. The provider publishes a signed status list at a stable public endpoint so Wallets and relying parties can resolve the current state of the WRPRC offline or with minimal online traffic.
+
+```json
+{
+  "issuer": "https://wrprc-provider.example.eu",
+  "list_id": "2026-04",
+  "updated_at": "2026-04-23T09:20:00Z",
+  "signature": "BASE64URL(signature)",
+  "entries": {
+    "8742": "valid"
+  }
+}
+```
+
+**Failure Path:** If the provider cannot publish or sign the status list, newly issued WRPRCs should not be treated as operationally usable because Wallets cannot resolve their current lifecycle state.
 
 </details>
 <details><summary><strong>6. Registrar notifies the WRPRC Provider when registration state changes</strong></summary>
 
 Suspension, cancellation, or a material data update in the national register changes the validity of the transparency artifact. ETSI TS 119 475 allows national operating models to vary, but the key RP-visible consequence is that WRPRC correctness follows register state, not a separate independent lifecycle.
 
+**Audit Telemetry:** The provider records the notification source, register event type, affected registration identifier, and time-to-status-update so supervisory review can verify that revocation happened without undue delay.
+
 </details>
 <details><summary><strong>7. WRPRC Provider updates the status entry without undue delay</strong></summary>
 
-When the register changes in a way that affects the WRPRC, the provider updates the referenced status-list entry rather than relying on certificate-style revocation endpoints. That status update is what wallets and RPs consume during runtime validation.
+When the register changes in a way that affects the WRPRC, the provider updates the referenced status-list entry rather than relying on certificate-style revocation endpoints. That status update is what Wallets and RPs consume during runtime validation.
+
+**Failure Path:** If the provider misses or delays the update, Wallets may continue accepting stale transparency information. The provider's monitoring should alert on unprocessed register-change events and status-list publication lag.
 
 </details>
 <details><summary><strong>8. RP presents WRPAC together with WRPRC to the Wallet Unit</strong></summary>
 
 The practical model is to present both artifacts together. The WRPAC authenticates the RP or intermediary, while the WRPRC carries the portable authorization and transparency layer: entitlements, intended-use scope, credential/claim scope, support information, and related policy references.
 
+**Artifact Produced:** Wallet-facing RP authentication package: WRPAC chain plus WRPRC transparency artifact.
+
 </details>
 <details><summary><strong>9. Wallet Unit verifies the WRPAC and WRPRC signature chains</strong></summary>
 
-The wallet validates each artifact according to its own trust model. WRPAC validation follows the X.509 chain and status model; WRPRC validation checks the JWT/CWT signature and the certificate chain carried by the WRPRC provider.
+The Wallet validates each artifact according to its own trust model. WRPAC validation follows the X.509 chain and status model; WRPRC validation checks the JWT/CWT signature and the certificate chain carried by the WRPRC provider.
+
+**Failure Path:** A valid WRPAC with an invalid WRPRC is not enough to satisfy the transparency model, and a valid WRPRC with a failed WRPAC does not authenticate the live requester. Wallets should fail closed when either artifact fails its own validation path.
 
 </details>
 <details><summary><strong>10. Wallet Unit fetches the public status list at `status.uri`</strong></summary>
 
-The WRPRC itself points to the status-list resource. The wallet retrieves the signed list from that public endpoint, using the URI from the token rather than inventing a provider-specific revocation path.
+The WRPRC itself points to the status-list resource. The Wallet retrieves the signed list from that public endpoint, using the URI from the token rather than inventing a provider-specific revocation path.
+
+**Audit Telemetry:** Wallet-side telemetry should distinguish status-list fetch failure from a resolved `revoked` status, because the former is an availability or freshness issue while the latter is a direct lifecycle decision.
 
 </details>
 <details><summary><strong>11. Public Status List returns the signed list referenced by the WRPRC</strong></summary>
 
-The returned object is a signed status artifact published by the WRPRC provider. The wallet validates that returned list before trusting the lifecycle state of the WRPRC.
+The returned object is a signed status artifact published by the WRPRC provider. The Wallet validates that returned list before trusting the lifecycle state of the WRPRC.
+
+**Failure Path:** A bad signature, mismatched issuer, expired list, or missing `status.idx` entry must prevent acceptance of the WRPRC and should be surfaced as a status-validation failure rather than a generic presentation error.
 
 </details>
 <details><summary><strong>12. Wallet Unit resolves `status.idx` to a valid or revoked state</strong></summary>
 
-The wallet reads the issuer-unique position from the WRPRC and resolves it inside the signed status list. In operational terms, the WRPRC validity model is: token signature plus status-list lookup, not certificate-chain plus OCSP/CRL.
+The Wallet reads the issuer-unique position from the WRPRC and resolves it inside the signed status list. In operational terms, the WRPRC validity model is: token signature plus status-list lookup, not certificate-chain plus OCSP/CRL.
+
+**Artifact Produced:** WRPRC lifecycle decision: `valid`, `revoked`, or validation failure with an explicit reason code.
+
+**Audit Telemetry:** Wallets and RPs should log the decision category and status-list freshness metadata so support, incident response, and supervisory review can reconstruct why a presentation was accepted or rejected.
 
 </details>
 
@@ -13582,14 +13703,13 @@ config:
 ---
 sequenceDiagram
     autonumber
-    participant User as 👤 User
     participant Browser as 🖥️ Browser
     participant RP as 🏦 RP Server
 
     RP->>RP: Create session (session_id, challenge_R)
 
     rect rgba(52, 152, 219, 0.14)
-    Note right of User: Ceremony 1: WebAuthn Registration
+    Note right of Browser: Ceremony 1: WebAuthn Registration
     Browser->>RP: navigator.credentials.create()
     RP-->>Browser: PublicKeyCredential (credentialId, publicKey)
     RP->>RP: Store credential in session<br/>state: PSEUDONYM_REGISTERED<br/>phase: AWAITING_ATTRIBUTE
@@ -13597,7 +13717,7 @@ sequenceDiagram
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note right of User: Ceremony 2: OpenID4VP Presentation
+    Note right of Browser: Ceremony 2: OpenID4VP Presentation
     RP->>Browser: Authorization Request<br/>(nonce = challenge_R, dcql_query)
     Browser-->>RP: vp_token (age evidence)
     RP->>RP: Verify nonce matches challenge_R<br/>Verify same session_id<br/>→ age_verified: true ✅<br/>→ assurance_level: substantial
@@ -13663,8 +13783,6 @@ const credential = await navigator.credentials.create({
 The authenticator generates a new P-256 key pair in the Wallet profile's configured storage boundary, binds it to the RP's origin (`example-bank.de`), and returns a `PublicKeyCredential` containing the `credentialId` and the public key.
 
 > **`attestation: "none"`** follows [§16.9](#169-privacy-analysis-attestation-type-selection)'s privacy-first recommendation for low-risk pseudonym use cases. It is not Wallet-authenticity evidence; if an RP has a documented need to verify authenticator properties, it must handle the linkability trade-off explicitly.
-
-**Artifact Produced:** `PublicKeyCredentialCreationOptions` (Client-Side JS execution)
 
 </details>
 <details>
@@ -13956,6 +14074,27 @@ The RP detects that the User's session lacks a valid device-bound passkey. Inste
 <summary><strong>3. RP Server requests identity verification via DCQL</strong></summary>
 
 To recover the account safely, the RP launches an OpenID4VP DCQL query requesting the same PID attributes that were used for the original KYC step-up (if the account had a verified identity) or a broader set to ensure identity continuity.
+
+```json
+{
+  "purpose": "account_recovery_rebinding",
+  "credentials": [
+    {
+      "id": "recovery_pid",
+      "format": "dc+sd-jwt",
+      "meta": { "vct_values": ["urn:eudi:pid:1"] },
+      "claims": [
+        { "path": ["family_name"] },
+        { "path": ["given_name"] },
+        { "path": ["birthdate"] }
+      ]
+    }
+  ],
+  "intent_to_retain": false
+}
+```
+
+The claim set should match the RP's existing recovery policy and original verification evidence. The example shows a conservative identity-continuity query; a lower-risk RP should request fewer attributes or a dedicated recovery attestation where available.
 
 **Audit Telemetry:** The RP Server logs a `RECOVERY_DCQL_REQUEST_DISPATCHED` event.
 
@@ -15488,13 +15627,12 @@ sequenceDiagram
     autonumber
     participant RP as 🏦 RP Instance
     participant SL as 📋 Status List
-    participant REG as 🏛️ Business Register
 
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Phase 1: Response Parsing
     RP->>RP: Decrypt JWE, extract vp_token<br/>containing LPID + PID + mandate
     RP->>RP: Identify credential types<br/>from vct/docType values
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -15506,9 +15644,9 @@ sequenceDiagram
         RP->>RP: Verify device binding<br/>(KB-JWT / DeviceAuth)
         RP->>SL: Check revocation status
         SL-->>RP: Status (valid/revoked)
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -15516,7 +15654,7 @@ sequenceDiagram
     RP->>RP: Verify all credentials share<br/>same cnf.jwk (same Wallet Unit)
     RP->>RP: Verify mandate representative ID<br/>matches PID subject ID
     RP->>RP: Verify mandate.represented_entity_id<br/>== lpid.legal_person_id (EUID)
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
@@ -15526,11 +15664,11 @@ sequenceDiagram
     RP->>RP: Check scope limitations<br/>(max_amount, geographic, temporal)
     opt Joint representation required
         RP->>RP: Verify joint_representation flag<br/>and request additional mandate(s)
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     RP->>SL: Re-check mandate Status List<br/>(fresh/no-cache for high-value ops)
     SL-->>RP: Mandate status confirmed
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(231, 76, 60, 0.14)
@@ -15538,7 +15676,7 @@ sequenceDiagram
     RP->>RP: Apply RP policy engine<br/>(CDD, AML, sanctions screening)
     RP->>RP: Extract verified attributes<br/>into unified claim set
     RP->>RP: Log mandate verification<br/>for audit trail (§31.3)
-    Note right of REG: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of SL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -15630,6 +15768,20 @@ This is the mandate ↔ LPID binding check from [§18.1.3](#1813-identity-matchi
 <summary><strong>12. RP Instance extracts scope_of_authority from mandate credential</strong></summary>
 
 The RP reads the `scope_of_authority` object, which contains the `operations` array, `limitations` object, and `exclusions` array. This structured data defines exactly what the representative is authorised to do. See [§11.12.3](#11123-mandate-scope-verification-new-pipeline-step) for the detailed evaluation algorithm.
+
+```json
+{
+  "scope_of_authority": {
+    "operations": ["contract_signing", "procurement_bidding"],
+    "limitations": {
+      "max_transaction_value": { "amount": "10000.00", "currency": "EUR" },
+      "geographic_scope": ["DE", "NL", "BE"],
+      "valid_for": "single_transaction"
+    },
+    "exclusions": ["employment_contracts"]
+  }
+}
+```
 
 **Artifact Produced:** Decoded `scope_of_authority` claim JSON structure for mandate evaluation.
 
@@ -15920,7 +16072,6 @@ sequenceDiagram
     participant AVI as 📱 AV App
     participant eID as 🪪 National eID
     participant AP as 🏛️ Attestation Provider
-    participant TL as 🇪🇺 Commission Trusted List
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Identity Proofing
@@ -15929,7 +16080,7 @@ sequenceDiagram
     eID-->>AVI: Identity data<br/>(name, DOB, document number)
     AVI->>AP: OID4VCI Credential Request<br/>(identity proof, device key)
     AP->>AP: Verify age at<br/>LoA Substantial or High
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -15938,7 +16089,7 @@ sequenceDiagram
     AP->>AP: Sign each mDoc with<br/>AP ECDSA P-256 key
     AP-->>AVI: OID4VCI Credential Response<br/>(batch of N signed mDocs)
     AVI->>AVI: Store batch locally<br/>(each used once, then deleted)
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -15946,6 +16097,19 @@ sequenceDiagram
 <summary><strong>1. User opens AV App and requests age attestations</strong></summary>
 
 The user launches the Age Verification App and initiates the attestation issuance process. The app presents a screen explaining that age verification attestations will be obtained from an authorised Attestation Provider, requiring the user to prove their age using a government-issued identity document. The user selects their preferred Attestation Provider from the Commission's authorised list.
+
+```json
+{
+  "trusted_provider_entry": {
+    "provider_id": "https://ap.example.eu",
+    "credential_type": "eu.europa.ec.av.1",
+    "signing_key_id": "ap-age-p256-2026",
+    "status": "authorised"
+  }
+}
+```
+
+The trusted-list lookup is a prerequisite for provider selection and later RP verification, but it is not shown as a live issuance message because the AV App can cache the authorised-provider list before the user starts the issuance ceremony.
 
 </details>
 <details>
@@ -16568,7 +16732,6 @@ sequenceDiagram
     participant Bank as 🏦 Banking App
     participant AP as 🏛️ Attestation Provider
     participant AVI as 📱 AV App
-    participant TL as 🇪🇺 Commission Trusted List
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Identity Proofing (in-band, banking app)
@@ -16576,7 +16739,7 @@ sequenceDiagram
     Bank->>Bank: Verify customer identity<br/>from existing KYC data<br/>(DOB already on file, LoA High)
     Bank->>AP: Transmit identity proofing<br/>result (age > 18 confirmed,<br/>proofing method, LoA)
     AP->>AP: Validate proofing result<br/>(LoA >= Substantial)
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AVI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(52, 152, 219, 0.14)
@@ -16584,7 +16747,7 @@ sequenceDiagram
     AP->>AP: Generate pre-authorized_code<br/>+ tx_code (PIN/OTP)
     AP-->>Bank: Credential Offer<br/>(pre-authorized_code, tx_code)
     Bank->>User: Display QR code or<br/>deep link + PIN
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AVI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
@@ -16597,14 +16760,14 @@ sequenceDiagram
     AP->>AP: Sign each mDoc<br/>(AP ECDSA P-256 key)
     AP-->>AVI: Credential Response<br/>(batch of N signed mDocs)
     AVI->>AVI: Store batch locally<br/>(each used once, then deleted)
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AVI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of User: Phase 4: Presentation to any RP
     AVI->>AVI: Select one attestation<br/>from batch
     AVI->>User: Present age proof to<br/>any RP (standard mDoc<br/>or ZKP, see §19.1.4)
-    Note right of TL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of AVI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
@@ -16820,7 +16983,6 @@ sequenceDiagram
     autonumber
     participant User as 👤 User
     participant WU as 📱 Wallet Unit
-    participant Reg as 📖 Registrar
     participant RP as 🏦 Relying Party
 
     rect rgba(148, 163, 184, 0.14)
@@ -17039,7 +17201,9 @@ After identifying an unexpected data request, the User selects the specific susp
 <details>
 <summary><strong>3. User chooses "Report to DPA" in Wallet Unit</strong></summary>
 
-The User pro-actively chooses the "Report to Data Protection Authority" action provided within the Wallet UI.
+The User pro-actively chooses the "Report to Data Protection Authority" action provided within the Wallet UI. This action matters because the Wallet is converting a local transaction-log concern into a rights-enforcement workflow: the User is no longer merely reviewing what happened, but asking the Wallet to prepare evidence and route it to a competent supervisory contact. The Wallet should preserve user agency here by showing what evidence will be attached before it opens the external DPA channel.
+
+**Audit Telemetry:** The Wallet Unit logs a local `DPA_REPORT_USER_CONFIRMED` event for the selected transaction identifier.
 
 </details>
 <details>
@@ -17064,6 +17228,21 @@ The Wallet offers the available DPA contact channels: web form URL, email addres
 <summary><strong>6. Wallet Unit composes pre-filled report</strong></summary>
 
 The Wallet Unit prepares a report bundle that can identify the RP and substantiate the User's claim. [Topic 50](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2328-topic-50-blueprint-to-report-unlawful-or-suspicious-request-of-data) explicitly allows the User to attach relevant machine-readable information, and the standardised TS10 transaction log is machine-readable, so a log excerpt is the minimum portable evidence object. Additional request metadata, JAR/JWT material, or cryptographic evidence can be attached where available, but those are implementation choices beyond the Annex minimum.
+
+```json
+{
+  "report_type": "suspected_unlawful_wallet_data_request",
+  "transaction_log_excerpt": {
+    "transaction_id": "txn_2026-04-23_8f7c",
+    "rp_name": "Example Retailer",
+    "rp_identifier": "EU-DE-WRP-5299001GCLKH6FPVJW75",
+    "presentation_time": "2026-04-23T09:42:18Z",
+    "requested_attributes": ["family_name", "given_name", "birth_date", "address"],
+    "registered_purpose": "age_verification"
+  },
+  "user_description": "The request appeared to ask for address data even though the service only needed age verification."
+}
+```
 
 **Artifact Produced:** DPA report draft with transaction-log excerpt, requested/presented attribute identifiers, RP identity, date/time, and User annotations.
 
@@ -18186,6 +18365,21 @@ The RP infers the issuing Member State from the credential payload and queries t
 <summary><strong>3. Publication surfaces return the foreign LoTE endpoint and trusted-list bootstrap metadata</strong></summary>
 
 The publication surfaces return the concrete foreign PID Provider LoTE endpoint plus the related bootstrap inputs the RP may need later for the separate trusted-list leg. Where the RP also expects to consume foreign **qualified** outputs, this is the point where it should additionally prepare the `LOTL` location, the `LOTLSO` certificates, and the foreign national trusted-list endpoint needed for the later `ETSI TS 119 615` path. That is a separate evidence pipeline from the LoTE fetch itself.
+
+```json
+{
+  "issuing_member_state": "FR",
+  "pid_provider_lote": {
+    "url": "https://lote.example.fr/pid-providers.jwt",
+    "media_type": "application/entity-statement+jwt",
+    "cache_ttl": 86400
+  },
+  "qualified_status_bootstrap": {
+    "lotl_url": "https://ec.europa.eu/tools/lotl/eu-lotl.xml",
+    "national_trusted_list": "https://trusted-list.example.fr/tl.xml"
+  }
+}
+```
 
 **Artifact Produced:** Foreign LoTE endpoint metadata plus optional `LOTL` / foreign national trusted-list bootstrap inputs.
 
@@ -20528,6 +20722,27 @@ The third static check: the engine queries the Token Status List (draft-ietf-oau
 <summary><strong>5. Policy Engine delegates decision to External Service via webhook</strong></summary>
 
 If all static checks pass and the RP has configured a Dynamic policy ([§26.1.1](#2611-three-tier-policy-architecture) Tier 3) with a webhook target, the policy engine forwards the disclosed attributes to the external service — for example, the RP's AML screening endpoint. The request includes the `credential_type` and the specific attribute values (e.g., `family_name`, `given_name`, `birth_date`) needed for the screening decision. This decoupling allows RPs to inject business-specific rules (AML, age thresholds, jurisdiction restrictions) without modifying the verification platform itself.
+
+```json
+{
+  "verification_session_id": "vs_01HQ7Y4N8K",
+  "credential_type": "urn:eudi:pid:1",
+  "policy": "aml_screening_v3",
+  "attributes": {
+    "family_name": "Example",
+    "given_name": "Alex",
+    "birthdate": "1990-04-23",
+    "nationalities": ["DE"]
+  },
+  "verification_context": {
+    "issuer_trusted": true,
+    "status": "valid",
+    "device_binding": "verified"
+  }
+}
+```
+
+The payload should include only the attributes the external rule actually needs. For high-PII deployments, use the ping pattern in [§26.5.2](#2652-result-delivery-polling-vs-callbacks) and have the external service fetch the decision context through an authenticated back channel.
 
 **Artifact Produced:** Outbound JSON webhook payload containing `credential_type` and explicitly extracted plain-text attributes.
 
@@ -25806,12 +26021,11 @@ sequenceDiagram
     participant A as Attacker Infrastructure
     participant DNS as DNS / BGP Layer
     participant RP as 🏦 RP Server
-    participant LoTE as EU / MS LoTE Endpoint
     
     rect rgba(148, 163, 184, 0.14)
     Note right of RP: Scheduled LoTE refresh cycle<br/>triggered by TTL expiry
     RP->>DNS: Resolves LoTE endpoint hostname<br/>lote.ms-authority.eu
-    Note right of LoTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
@@ -25819,7 +26033,7 @@ sequenceDiagram
     DNS-->>RP: Returns attacker-controlled IP<br/>instead of legitimate LoTE
     RP->>A: TLS handshake completes<br/>(attacker has valid cert) ⚠️
     A->>RP: Serves poisoned LoTE JSON<br/>with rogue trust anchors injected
-    Note right of LoTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
@@ -25827,7 +26041,7 @@ sequenceDiagram
     RP->>RP: Deserialises LoTE — skips<br/>signature verification ⚠️
     RP->>RP: Updates local trust store<br/>with poisoned anchors
     Note right of RP: Rogue Access CA and PID Provider<br/>now in trusted set
-    Note right of LoTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     
     rect rgba(231, 76, 60, 0.14)
@@ -25835,12 +26049,12 @@ sequenceDiagram
     A->>RP: Submits VP with forged SD-JWT VC<br/>signed by rogue PID Provider
     RP->>RP: Validates issuer ✅ against<br/>poisoned LoTE — accepts forged PID ⚠️
     Note right of RP: ⚠️ Forged credential accepted<br/>as valid — identity impersonation
-    Note right of LoTE: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
 <details>
-<summary><strong>1. RP initiates scheduled LoTE refresh — DNS resolution</strong></summary>
+<summary><strong>1. RP Server initiates scheduled LoTE refresh — DNS resolution</strong></summary>
 
 The RP's trust management service triggers a periodic refresh of the List of Trusted Entities (LoTE) — the authoritative registry of Access CAs, PID Providers, and Attestation Providers maintained by each Member State ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities)). The refresh cycle is governed by the LoTE's TTL and the RP's caching policy ([§31.2.2](#3122-trust-management-and-pki-anchors)). The RP's resolver issues a DNS query for the LoTE endpoint hostname.
 
@@ -25856,11 +26070,9 @@ lote.ms-authority.eu.    300    IN    A    198.51.100.66
 ;; covering the entire LoTE fetch cycle.
 ```
 
-**Artifact Produced:** DNS query for `lote.ms-authority.eu` to resolve the LoTE endpoint IP address.
-
 </details>
 <details>
-<summary><strong>2. DNS hijack redirects to attacker-controlled IP</strong></summary>
+<summary><strong>2. DNS / BGP Layer redirects RP Server to attacker-controlled IP</strong></summary>
 
 The attacker has compromised the DNS resolution path between the RP and the legitimate LoTE endpoint — either through DNS cache poisoning (Kaminsky-style), BGP route manipulation to intercept traffic to the LoTE authority's IP range, or compromise of the RP's local DNS resolver. The DNS response returns the attacker's IP address instead of the legitimate LoTE server.
 
@@ -25899,8 +26111,6 @@ ServerHello ← 198.51.100.66
   via TLS alone. CAA records and CT monitoring are detective, not preventive.
 ```
 
-**Artifact Produced:** Established TLS session to attacker infrastructure with valid (misissued) certificate.
-
 </details>
 <details>
 <summary><strong>4. Attacker serves poisoned LoTE with injected trust anchors</strong></summary>
@@ -25931,7 +26141,7 @@ The attacker returns a modified LoTE JSON response that includes all legitimate 
 
 </details>
 <details>
-<summary><strong>5. RP deserialises LoTE without verifying signature</strong></summary>
+<summary><strong>5. RP Server deserialises LoTE without verifying signature</strong></summary>
 
 The RP's trust management service deserialises the LoTE response. If the RP does not verify the LoTE's cryptographic signature against a **pinned** Trust Anchor root key (distinct from the refreshable LoTE content), the poisoned entries are silently accepted. The RP treats LoTE freshness ([§31.2.2](#3122-trust-management-and-pki-anchors)) as the only validation — checking that the LoTE was fetched recently, but not verifying its integrity.
 
@@ -25941,7 +26151,7 @@ The RP's trust management service deserialises the LoTE response. If the RP does
 
 </details>
 <details>
-<summary><strong>6. RP updates local trust store with poisoned anchors</strong></summary>
+<summary><strong>6. RP Server updates local trust store with poisoned anchors</strong></summary>
 
 The rogue Access CA and PID Provider certificates are merged into the RP's local trust store. They are now indistinguishable from legitimate trust anchors in the RP's verification pipeline. The poisoning persists until the next legitimate LoTE refresh (which requires the DNS hijack to be resolved) or until a manual audit detects the extra entries.
 
@@ -25977,7 +26187,7 @@ vp_token=eyJhbGciOiJFUzI1NiIsInR5cCI6InZjK3NkLWp3dCIsImtpZCI6InJvZ3VlLXBp
 
 </details>
 <details>
-<summary><strong>8. RP validates forged credential against poisoned trust store</strong></summary>
+<summary><strong>8. RP Server validates forged credential against poisoned trust store</strong></summary>
 
 The RP's verification pipeline validates the issuer's signature against the trust store — and finds the rogue PID Provider's certificate in the poisoned LoTE. The cryptographic validation succeeds. The RP accepts the forged identity and creates an authenticated session.
 
