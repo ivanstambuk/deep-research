@@ -162,7 +162,7 @@ export default function ChapterPage({
   readerDocumentMeta,
   layoutWidthMode = 'standard',
   theme = 'dark',
-  globalMermaidZoomPercent = 100,
+  globalMermaidZoomPercent = 60,
   onGlobalMermaidZoomChange = () => {},
 }) {
   const { chapterId = '' } = useParams();
@@ -759,7 +759,7 @@ export default function ChapterPage({
     }
   };
 
-  const expandedMermaidResetZoom = 100;
+  const expandedMermaidResetZoom = 60;
 
   const adjustExpandedMermaidZoom = (delta) => {
     const nextZoom = clampMermaidZoom(expandedMermaidZoom + delta);

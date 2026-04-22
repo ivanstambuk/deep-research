@@ -13,7 +13,7 @@ const LAYOUT_WIDTH_STORAGE_KEY = 'dr-reader-layout-width';
 const MERMAID_GLOBAL_ZOOM_STORAGE_KEY = 'dr-reader-mermaid-global-zoom';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
 const LAYOUT_WIDTH_OPTIONS = ['standard', 'wide', 'comfort'];
-const DEFAULT_MERMAID_ZOOM_PERCENT = 100;
+const DEFAULT_MERMAID_ZOOM_PERCENT = 60;
 const MIN_MERMAID_ZOOM_PERCENT = 50;
 const MAX_MERMAID_ZOOM_PERCENT = 200;
 const ROUTER_BASENAME = import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '');

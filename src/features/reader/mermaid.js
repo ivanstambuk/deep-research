@@ -8,7 +8,7 @@ const MERMAID_EXPORT_PADDING = 24;
 const MERMAID_EXPORT_MIN_SCALE = 2;
 const MERMAID_EXPORT_MAX_SCALE = 3;
 const MERMAID_DEFAULT_FILE_STEM = 'mermaid-diagram';
-const MERMAID_DEFAULT_ZOOM_PERCENT = 100;
+const MERMAID_DEFAULT_ZOOM_PERCENT = 60;
 const MERMAID_MIN_ZOOM_PERCENT = 50;
 const MERMAID_MAX_ZOOM_PERCENT = 200;
 
@@ -71,7 +71,7 @@ function stabilizeRenderedSvg(svgElement) {
   svgElement.style.height = 'auto';
 }
 
-export function setRenderedMermaidZoom(container, zoomPercent = 100) {
+export function setRenderedMermaidZoom(container, zoomPercent = MERMAID_DEFAULT_ZOOM_PERCENT) {
   if (!(container instanceof HTMLElement)) {
     return 100;
   }
