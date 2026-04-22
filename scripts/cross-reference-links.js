@@ -4,6 +4,7 @@ import arfTopicReference from './data/arf-topics-v2.8.0.js';
 
 const LOOKBACK_LIMIT = 96;
 const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
+const XREF_RANGE_TOKEN_RE = /(§\d+(?:\.\d+)*)(\s*[-–—]\s*(?:§\s*)?\d+(?:\.\d+)*)/g;
 const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
 const ARF_TOPIC_TOKEN_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)\b/g;
 const BARE_ARF_TOPIC_TOKEN_RE = /\b(?:(?:Annex(?:\s+2)?|Discussion(?:\s+Paper)?)\s+)?Topic\s+(?:[A-Z]{1,2}|\d+)\b(?!\s*\/\s*(?:Topic\s+)?[A-Z]{1,2}\b)/g;
@@ -46,6 +47,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bPCI\s+DSS\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bOWASP\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\b(?:OID4VP|OID4VCI|OAuth|OpenID|FAPI)\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
+  /\bCIBA(?:\s+Core)?\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOIDC\s+Core\b(?:[\s,./():'’-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOpenID4VP\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOpenID\s+Connect\s+Core\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
@@ -66,7 +68,7 @@ const EXTERNAL_CITATION_PATTERNS = [
 ];
 const INTERNAL_REFERENCE_PREFIX_RE = /\b(?:see|from|in|under|via|within|cross[- ]reference:?|described\s+in|documented\s+in|discussed\s+in|covered\s+(?:in\s+detail\s+)?in|referenced\s+in|mapped\s+in|detailed\s+in|analysed\s+in|analyzed\s+in)\s*$/i;
 const INTERNAL_REFERENCE_SUFFIX_RE = /^\s*(?:\)|\]|\.)?\s*(?:covers?|covered|describes?|described|discusses?|documented|details?|maps?|mapped|explains?|analyses?|analyzes?|provides?|traces?|shows?)\b/i;
-const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
+const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|CIBA(?:\s+Core)?|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
 const ARF_MAIN_EXPLICIT_PREFIX_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*$/i;
 const ARF_MAIN_EXPLICIT_SUFFIX_RE = /^\s+of\s+the\s+ARF(?:\s+Main\s+Document)?\b/i;
 const ARF_MAIN_PRIOR_SECTION_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*§\d+(?:\.\d+)*/i;
@@ -570,6 +572,7 @@ function findNextRegexMatch(regex, value, cursor) {
 }
 
 function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = {}) {
+  const sectionRangeMatch = findNextRegexMatch(XREF_RANGE_TOKEN_RE, value, cursor);
   const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
   const topicMatch = findNextRegexMatch(ARF_TOPIC_TOKEN_RE, value, cursor);
   const bareTopicMatch = allowBareArfTopics
@@ -578,6 +581,14 @@ function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = 
   const labelMatch = findNextRegexMatch(LABEL_TOKEN_RE, value, cursor);
 
   const matches = [
+    sectionRangeMatch ? {
+      kind: 'sectionRange',
+      tokenText: sectionRangeMatch.match[0],
+      firstTokenText: sectionRangeMatch.match[1],
+      rangeTailText: sectionRangeMatch.match[2],
+      start: sectionRangeMatch.start,
+      end: sectionRangeMatch.end,
+    } : null,
     sectionMatch ? {
       kind: 'section',
       tokenText: sectionMatch.match[0],
@@ -608,7 +619,7 @@ function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = 
     return null;
   }
 
-  matches.sort((left, right) => left.start - right.start);
+  matches.sort((left, right) => left.start - right.start || (right.end - right.start) - (left.end - left.start));
   return matches[0];
 }
 
@@ -671,10 +682,13 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       continue;
     }
 
-    if (kind === 'section') {
-      const sectionNumber = tokenText.slice(1);
+    if (kind === 'section' || kind === 'sectionRange') {
+      const firstTokenText = nextToken.firstTokenText ?? tokenText;
+      const rangeTailText = nextToken.rangeTailText ?? '';
+      const sectionNumber = firstTokenText.slice(1);
+      const trailingTextForReference = kind === 'sectionRange' ? value.slice(end) : trailingText;
 
-      if (hasExplicitArfMainReferenceCue({ lookback: lookbackBeforeToken, trailingText })) {
+      if (hasExplicitArfMainReferenceCue({ lookback: lookbackBeforeToken, trailingText: trailingTextForReference })) {
         const arfTarget = resolveArfMainTarget(sectionNumber);
         const arfHref = buildArfMainHref(sectionNumber);
 
@@ -686,7 +700,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
             tokenText,
             sectionNumber,
             lookbackBeforeToken,
-            trailingText,
+            trailingTextForReference,
             {
               sourceDocument: 'arf-main',
               sourceVersion: arfMainReference.version,
@@ -700,9 +714,12 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         parts.push({
           type: 'link',
           href: arfHref,
-          text: tokenText,
+          text: firstTokenText,
           target: arfTarget,
         });
+        if (rangeTailText) {
+          parts.push({ type: 'text', value: rangeTailText });
+        }
         hasLinks = true;
         rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
         cursor = end;
@@ -717,7 +734,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
           {
             sourceDocument: 'arf-main',
             sourceVersion: arfMainReference.version,
@@ -736,7 +753,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
           {
             sourceDocument: 'arf-topic',
             sourceVersion: arfTopicReference.version,
@@ -747,7 +764,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         continue;
       }
 
-      if (isUnsupportedShape({ lookback: lookbackBeforeToken, trailingText })) {
+      if (isUnsupportedShape({ lookback: lookbackBeforeToken, trailingText: trailingTextForReference })) {
         parts.push({ type: 'text', value: tokenText });
         diagnostics.push(createDiagnostic(
           'skipped_unsupported_xref_shape',
@@ -755,7 +772,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
         ));
         rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
         cursor = end;
@@ -765,11 +782,11 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       const resolution = resolveTarget(targetIndex ?? new Map(), sectionNumber);
       const hasInternalCue = hasInternalReferenceCue({
         lookback: lookbackBeforeToken,
-        trailingText,
+        trailingText: trailingTextForReference,
         target: resolution.status === 'resolved' ? resolution.target : null,
       });
 
-      if (!hasInternalCue && (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingText))) {
+      if (!hasInternalCue && (isExternalCitation(lookbackBeforeToken) || isExternalCitationByTrailingText(trailingTextForReference))) {
         parts.push({ type: 'text', value: tokenText });
         diagnostics.push(createDiagnostic(
           'skipped_external_citation',
@@ -777,7 +794,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
         ));
         rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
         cursor = end;
@@ -791,7 +808,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
         ));
         rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
         cursor = end;
@@ -806,7 +823,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
           {
             candidateTargets: resolution.matches.map((item) => ({
               chapterId: item.chapterId ?? null,
@@ -829,7 +846,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           tokenText,
           sectionNumber,
           lookbackBeforeToken,
-          trailingText,
+          trailingTextForReference,
         ));
         rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
         cursor = end;
@@ -839,9 +856,12 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
       parts.push({
         type: 'link',
         href,
-        text: tokenText,
+        text: firstTokenText,
         target: resolution.target,
       });
+      if (rangeTailText) {
+        parts.push({ type: 'text', value: rangeTailText });
+      }
       hasLinks = true;
       rollingLookback = appendLookback(lookbackBeforeToken, tokenText);
       cursor = end;

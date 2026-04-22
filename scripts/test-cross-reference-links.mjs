@@ -515,7 +515,7 @@ function testInternalCueOverridesExternalCitationSkip() {
   assert.equal(documentSlugCue.parts.some((part) => part.type === 'link' && part.href === '#16-pseudonym-based-authentication-and-webauthn'), true);
 }
 
-function testUnsupportedShapesStayPlain() {
+function testSectionRangesLinkFirstEndpointOnly() {
   const targetIndex = buildIndex([
     { headingId: '5-section', text: '5 Section' },
     { headingId: '6-section', text: '6 Section' },
@@ -538,6 +538,13 @@ function testUnsupportedShapesStayPlain() {
     },
     targetIndex,
   });
+  const externalRangeResult = linkifyTextValue('OpenID Connect Client-Initiated Backchannel Authentication (CIBA) Core 1.0 (§10–12):', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
   const legalResult = linkifyTextValue('HIPAA §164.312(b) applies here.', {
     buildHref: (target) => `#${target.headingId}`,
     diagnosticBase: {
@@ -546,12 +553,23 @@ function testUnsupportedShapesStayPlain() {
     targetIndex,
   });
 
-  assert.equal(rangeResult.changed, false);
-  assert.equal(rangeResult.diagnostics.length, 2);
-  assert.equal(rangeResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
-  assert.equal(shorthandRangeResult.changed, false);
-  assert.equal(shorthandRangeResult.diagnostics.length, 2);
-  assert.equal(shorthandRangeResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
+  assert.equal(rangeResult.changed, true);
+  assert.equal(rangeResult.diagnostics.length, 0);
+  assert.deepEqual(
+    rangeResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
+    ['See ', '[§5](#5-section)', '–§6', '.'],
+  );
+
+  assert.equal(shorthandRangeResult.changed, true);
+  assert.equal(shorthandRangeResult.diagnostics.length, 0);
+  assert.deepEqual(
+    shorthandRangeResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
+    ['See ', '[§23.1](#231-section)', '–24.4', ' and ', '[§10](#10-section)', '–12', '.'],
+  );
+
+  assert.equal(externalRangeResult.changed, false);
+  assert.equal(externalRangeResult.diagnostics.length, 1);
+  assert.equal(externalRangeResult.diagnostics[0].category, 'skipped_external_citation');
   assert.equal(legalResult.changed, false);
   assert.equal(legalResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
 }
@@ -883,6 +901,28 @@ function testMarkdownRewritesSupportBareArfTopicReferencesForDr0002() {
   );
 }
 
+function testMarkdownRewritesSupportSectionRanges() {
+  const source = 'Use **§8–§11** for remote flows and §34–§35 for conclusions.\n';
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const tree = parser.parse(source);
+  const result = collectMarkdownCrossReferenceReplacements(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([
+      { headingId: '8-openid4vp', text: '8 OpenID4VP' },
+      { headingId: '34-findings', text: '34 Findings' },
+    ]),
+  });
+  const linked = applyTextReplacements(source, result.replacements);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(
+    linked,
+    'Use **[§8](#8-openid4vp)–§11** for remote flows and [§34](#34-findings)–§35 for conclusions.\n',
+  );
+}
+
 function testLikelyFalsePositiveExternalSkipReport() {
   const targetIndex = buildIndex([
     { headingId: '2110-identity-chaining', text: '21.10 Identity Chaining' },
@@ -936,7 +976,7 @@ testArfTopicMentionsDoNotBlockLaterInternalSections();
 testArfCarryForwardDoesNotResolveBareSections();
 testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks();
 testInternalCueOverridesExternalCitationSkip();
-testUnsupportedShapesStayPlain();
+testSectionRangesLinkFirstEndpointOnly();
 testExactMatchDoesNotGuessDescendants();
 testDashPunctuationReferencesLinkNormally();
 testHastRewriteOnlyLinksInternalReferences();
@@ -945,6 +985,7 @@ testMarkdownRewritesRespectExistingFormatting();
 testMarkdownRewritesSupportExplicitArfReferences();
 testMarkdownRewritesSupportExplicitArfTopicReferences();
 testMarkdownRewritesSupportBareArfTopicReferencesForDr0002();
+testMarkdownRewritesSupportSectionRanges();
 testLabelLinkifySupportsFindingAndOqReferences();
 testMarkdownLabelTargetsCoverListsTablesAndParagraphs();
 testHeadingBackedLabelAnchorsStayAfterHeadingLine();
