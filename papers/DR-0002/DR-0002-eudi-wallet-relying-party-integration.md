@@ -15,12 +15,12 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-23 · ~35,800 lines
+**DR-0002** · Published · Last updated 2026-04-23 · ~36,100 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
 
-> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, the ETSI TR 119 411-9 CT ecosystem/governance layer, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance, and the adjacent bank/PSP certificate-profile layer for PSD2/open-banking `QWAC` / `QSealC` semantics via ETSI TS 119 495), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, device binding, user binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 44-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 65-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 43-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
+> Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, the ETSI TR 119 411-9 CT ecosystem/governance layer, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance, and the adjacent bank/PSP certificate-profile layer for PSD2/open-banking `QWAC` / `QSealC` semantics via ETSI TS 119 495), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, device binding, user binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 45-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 65-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 43-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
 ---
 
@@ -19830,6 +19830,8 @@ This profile matters because the main hardening levers operate at different laye
 
 For financial-sector RPs, the practical rule is: **do not require proximity for routine presentation by default, but do require stronger ceremony for credential issuance, recovery, re-binding, and signal-triggered escalation paths.** For the abstract policy model, see [§26.1.2](#2612-assurance-profiles-and-channel-policy); for the prioritised financial-sector action list, see [§35.2](#352-for-financial-sector-rps-banks-psps).
 
+For financial-sector deployments, this should be treated as a **banking-grade baseline expectation**: front the wallet journey with a **stateful first-party orchestrator** rather than exposing wallet-verifier mechanics directly to product frontends or internal systems. This boundary is also operationally necessary because wallet connectors commonly authenticate RP-to-connector traffic with backend credentials or client certificates that must remain inside the RP security domain rather than in browser or mobile frontend code. At the internet-facing edge, a synchronous RP-owned boundary is usually preferable where the chosen topology supports it; if a wallet connector internally uses push, ping, polling, or callback-style result delivery, those mechanics should remain **behind** the orchestrator as connector-integration details rather than leaking into the public channel. In practice this also means keeping the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces first-party and RP-bindable, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see [§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)). A vendor-owned `direct_post` domain is therefore not acceptable for this profile: the RP would lose first-receiving-edge HTTP context such as source IP, User-Agent, TLS fingerprint, and request timing, and would no longer control the wallet-facing trust and result surfaces. See [§26.7.1.1](#26711-why-a-stateful-rp-orchestrator-is-needed-for-identification-and-authentication) for the general architecture rationale.
+
 
 #### 24.9 Industry Interpretation Disputes and Open Questions
 
@@ -21776,11 +21778,172 @@ These dimensions are **independent**. An RP deploying a reverse proxy in front o
 
 > **Key insight**: Proxy deployment is a **prerequisite** for HTTP context capture and VSI Layer 3 signal extraction ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) — regardless of whether the RP processes the verification result synchronously or asynchronously. An RP can deploy a proxy to capture HTTP context for VSI evaluation and *still* receive verification results via push webhook. The proxy and the delivery mode are independent decisions.
 >
-> **SaaS compatibility**: Proxy topology is **straightforward** with self-hosted or on-prem verifiers — the RP controls the deployment and can route `response_uri` through any gateway. With SaaS verifiers, proxy topology is **still achievable**: the RP configures the `response_uri` to point to its own gateway domain ([§26.6.4](#2664-reverse-proxy-integration-pattern)), which captures HTTP context and forwards traffic to the SaaS backend. This requires the SaaS vendor to support custom domain configuration for the `response_uri`, or the RP to handle DNS-level routing. Even without intercepting the `direct_post`, the RP can wrap the SaaS verifier's session API (creation, polling, webhook ingestion) behind its own API gateway for internal traffic control. No vendor in the EUDI ecosystem provides a dedicated "synchronous verify" API endpoint (POST VP token → receive result in response body) — the OpenID4VP `direct_post` flow places the *wallet* as the HTTP client, and the RP is always a third party. Library/SDK embeds (Spruce ID, Scytáles) are inherently synchronous since verification executes in-process.
+> **SaaS compatibility**: Proxy topology is **straightforward** with self-hosted or on-prem verifiers — the RP controls the deployment and can route `response_uri` through any gateway. With SaaS verifiers, proxy topology is **still achievable**: the RP configures the `response_uri` to point to its own gateway domain ([§26.6.4](#2664-reverse-proxy-integration-pattern)), which captures HTTP context and forwards traffic to the SaaS backend. This requires the SaaS vendor to support custom domain configuration for the `response_uri`, or the RP to handle DNS-level routing. For the orchestrator pattern described below, wrapping only the SaaS verifier's session API (creation, polling, webhook ingestion) is **not sufficient** if the wallet-facing `direct_post` still lands on a vendor-owned domain: the RP would still lose first-receiving-edge HTTP context and first-party control of the wallet-facing URL surfaces in [§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability). No vendor in the EUDI ecosystem provides a dedicated "synchronous verify" API endpoint (POST VP token → receive result in response body) — the OpenID4VP `direct_post` flow places the *wallet* as the HTTP client, and the RP is always a third party. Library/SDK embeds (Spruce ID, Scytáles) are inherently synchronous since verification executes in-process.
 >
-> **Security recommendation**: The verifier's `response_uri` should never be directly internet-facing in banking-grade deployments. Routing through the RP's API gateway enables rate limiting (per-IP, per-session), WAF rules, DDoS mitigation (e.g., Cloudflare, AWS Shield), request size limits, and TLS termination with the RP's own certificates. Without a proxy, the verifier's endpoint is exposed to the open internet with whatever protection the vendor provides — which may be insufficient for high-assurance RPs.
+> **Security recommendation**: The verifier's `response_uri` should never be directly internet-facing on a vendor-owned domain in banking-grade deployments. The minimum expectation is that the RP owns the wallet-facing receiving edge and the relevant RP-bindable URL surfaces in [§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability), so that `direct_post` traffic, request-object fetches, verifier identity material, and result retrieval remain first-party. Routing through the RP's API gateway enables rate limiting (per-IP, per-session), WAF rules, DDoS mitigation (e.g., Cloudflare, AWS Shield), request size limits, TLS termination with the RP's own certificates, and capture of source IP / User-Agent / TLS context for VSI. Without that RP-owned edge, the verifier's endpoint is exposed to the open internet with whatever protection the vendor provides, and the RP loses the HTTP context needed for high-assurance fraud and audit handling.
 >
 > See [§26.6.4](#2664-reverse-proxy-integration-pattern) for the full reverse proxy integration pattern, architecture diagram, and security considerations.
+
+###### 26.7.1.1 Why a Stateful RP Orchestrator Is Needed for Identification and Authentication
+
+The architectural question is not whether the RP should add a generic "workflow engine" on top of wallet verification. The question is whether **identification and authentication should terminate at a stateful RP-owned control boundary before any internal product relies on the result**. In production systems the answer is usually yes: wallet-based PID identification, pseudonym authentication, SCA, recovery, credential re-binding, RP-controlled attestation issuance, and later attestation presentation / verification are not single stateless API calls. They are multi-step security ceremonies that bind product context, session state, nonce / `state`, response-encryption state, intended-use scope, HTTP context, policy evaluation, and audit evidence into one decision surface.
+
+For internet-facing application channels, the preferred external shape is often **synchronous at the RP-owned edge**, even when the wallet connector or verifier uses asynchronous mechanics internally. Public frontends should not poll a wallet connector directly, and push / ping / callback semantics should usually be absorbed behind the orchestrator as implementation detail. In banking-grade deployments this also implies first-party ownership of the wallet-facing URL surfaces that actually define the ceremony: the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see [§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)). A `direct_post` to a vendor-owned domain may be architecturally possible under the base protocol model, but it is not acceptable for this pattern because the RP would lose source IP, User-Agent, TLS, timing, and related HTTP context at the first receiving edge. The orchestrator keeps the public contract stable while letting the RP decide whether the downstream connector uses synchronous inline processing ([§26.6.4](#2664-reverse-proxy-integration-pattern), [§26.7.2](#2672-result-delivery-mode-taxonomy)), asynchronous push or ping ([§26.5.2](#2652-result-delivery-polling-vs-callbacks), [§26.6.5](#2665-callback-payload-requirements)), or fallback polling ([§26.6.7](#2667-callback-security-and-error-handling)).
+
+The orchestrator also acts as the **error-abstraction boundary**. Detailed protocol and connector outcomes such as replay detection, duplicate `state`, nonce mismatch, expired session, or malformed wallet-facing submissions may be detected inside the wallet connector rather than inside the orchestrator itself. That is still useful to the RP: the orchestrator can hide those low-level distinctions from a potential fraudster by returning a generic external failure, while routing the precise internal reason into the Verification Signal Intelligence pipeline ([§30.7](#307-signal-composition-and-risk-scoring)) and audit / monitoring records ([§31.3](#313-audit-trail-requirements), [§31.4](#314-breach-notification-monitoring-cir-2025847)).
+
+The main architecture arguments are summarised below:
+
+| # | Why the orchestrator exists | Further discussion |
+|:-:|:----------------------------|:---------------------------------|
+| 1 | **Wallet ceremonies are stateful, even when the connector already orchestrates them internally** — the RP should not leak connector workflow state outside its own security domain. The first-party orchestrator wraps connector sessions inside an RP-specific workflow ID, product-session correlation, and business journey state before internal identity, authentication, fraud, KYC, or SCA products consume the result. | Financial-sector wallet profile ([§24.8.3](#2483-financial-sector-high-assurance-wallet-profile)); session lifecycle states ([§26.5.1](#2651-session-lifecycle-states)); concurrent session management ([§26.5.3](#2653-concurrent-session-management)); URL surface ownership and RP bindability ([§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)) |
+| 2 | **PID and authentication results must bind to the same product journey** — a valid presentation is only useful if it is tied to the correct user session, account, transaction, or recovery flow. The orchestrator preserves that RP-side binding across identification, step-up, and downstream decisioning. | Pseudonym and attribute flow ([§16.7](#167-use-case-b-pseudonym-and-attributes-age-verification)); progressive assurance journey ([§16.13](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)); payment-SCA evidence ([§24.4](#244-sca-programme-issuance-presentation-dynamic-linking-and-rts-evidence)); CDD / KYC and identity assurance ([§24.5](#245-cddkyc-and-identity-assurance)) |
+| 3 | **The RP needs HTTP context for fraud scoring** — source IP, TLS fingerprint, device / browser context, and timing signals are only available when the RP owns the wallet-facing edge. That context lets the RP enrich wallet outcomes with first-party fraud, anomaly, and abuse signals before any internal product acts on them. | Reverse-proxy integration pattern ([§26.6.4](#2664-reverse-proxy-integration-pattern)); deployment topology ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)); contextual and behavioural signals ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) |
+| 4 | **Internal identity and authentication products should not be externally exposed** — the orchestrator keeps the wallet-facing URL surface first-party while translating wallet outcomes into internal product contracts. This preserves a stable RP-owned facade while allowing internal security products to remain private and independently evolvable. Many wallet connectors also require backend application authentication such as API keys, OAuth client credentials or access tokens, or mutual TLS / client certificates, which are not appropriate to distribute to frontend applications. | Financial-sector high-assurance profile ([§24.8.3](#2483-financial-sector-high-assurance-wallet-profile)); reverse-proxy backend connection and mTLS ([§26.6.4](#2664-reverse-proxy-integration-pattern)); callback authentication patterns ([§26.6.5](#2665-callback-payload-requirements)); URL surface ownership and RP bindability ([§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)) |
+| 5 | **The wallet does more than one exchange** — request-object retrieval, wallet submission, response processing, and status progression must be mediated without forcing each internal product to speak OID4VP / OID4VCI / SD-JWT VC / mdoc directly. The orchestrator absorbs that ceremony and presents one RP-specific workflow instead of protocol-specific handoffs. | OpenID4VP and HAIP protocol foundations ([§8](#8-openid4vp-and-haip-protocol-foundations)); response unwrapping and credential parsing ([§12.1](#121-direct_postjwt-jarm-response-unwrapping)–[§12.3](#123-mdoc-iso-18013-5-cbor-parsing-mac-vs-signature)); payment-SCA lifecycle flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); session management and result delivery ([§26.5](#265-session-management-and-result-delivery)) |
+| 6 | **Request scope and intended use need a control point** — the RP needs one place to reconcile registered scope, WRPRC / Registrar evidence, product purpose, and requested attributes before the wallet request is built. The same control point keeps disclosure minimised and ensures the request matches the RP's authorised purpose. | RP registration data model ([§4](#4-rp-registration-data-model-and-registrar-api)); HAIP request profile ([§17.2.2](#1722-etsi-ts-119-472-2-openid4vc-haip-request-profile)); verification gates and forwarding requirements ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-rpi_08rpi_09)) |
+| 7 | **The public edge should be sync-first, while async connector modes stay internal** — push, ping, callback, or polling may exist behind the orchestrator, but they should usually not define the public frontend contract. The orchestrator can hide those delivery mechanics while still supporting connector-specific completion modes internally. | Result-delivery modes ([§26.5.2](#2652-result-delivery-polling-vs-callbacks)); callback payload requirements ([§26.6.5](#2665-callback-payload-requirements)); delivery-mode taxonomy ([§26.7.2](#2672-result-delivery-mode-taxonomy)); mode deep dives ([§26.7.4](#2674-mode-deep-dives)) |
+| 8 | **Connector internals should not leak to attackers** — replay, duplicate-state, or malformed-submission reasons can be translated into generic user-facing failure while the precise signal is escalated internally. This reduces attacker feedback while preserving detailed telemetry for fraud, monitoring, and investigation. | OpenID4VP error responses ([§11.6](#116-openid4vp-error-responses)); callback security and error handling ([§26.6.7](#2667-callback-security-and-error-handling)); security error discrepancy oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)); signal severity classification ([§30.6](#306-signal-severity-classification)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
+| 9 | **Audit and compliance evidence must be assembled in one place** — request purpose, verification result, HTTP context, fraud score, and final decision need one correlated evidence trail. The orchestrator is the natural point to stamp that evidence with one RP-side workflow and decision record. | Regulatory compliance mapping ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)); bank and PSP integration blueprint ([§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub)); SIEM integration event schema ([§30.8](#308-siem-integration-event-schema)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
+| 10 | **It separates first-party orchestration from a legal intermediary model** — an RP-owned orchestrator in the direct model is not the same thing as an Article 5b(10) intermediary with its own Wallet-facing identity. That distinction matters because the RP remains the first-party relying party, not a separate external actor interposed in the trust chain. | Intermediary role versus direct integration ([§25.1](#251-intermediary-role-vs-direct-integration)); forwarding obligations ([§25.4](#254-intermediary-to-intermediated-rp-attribute-forwarding)) |
+
+Read this as a **first-party control boundary**, not as a claim that every check must run inside the orchestrator. In many deployments the wallet connector still performs the protocol-heavy work: request construction, nonce validation, JWE processing, signature checks, holder binding, duplicate-session protection, connector-internal workflow progression, and connector-specific error classification. The orchestrator's job is to own the RP-facing boundary around that machinery: keep the public channel stable, prevent connector topology and state from leaking outside the RP security domain, bind connector sessions to an RP-specific workflow ID, preserve product context, enrich results with first-party HTTP context and policy, and decide what the caller should learn versus what should remain internal telemetry.
+
+###### 26.7.1.2 RP-Owned Orchestrator Pattern (Agnostic: Applies to Direct RP and SaaS-Backed Direct RP)
+
+The sequence below keeps OID4VP / OID4VCI and SD-JWT VC / mdoc internals deliberately abstract. The point is the orchestration boundary: multiple wallet interactions may occur, but the RP-owned orchestrator mediates them as one stateful process before any internal product consumes the outcome.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 End User
+    participant W as 📱 Wallet
+    participant App as 🌐 First-Party Browser / Native App
+    participant Orch as 🔁 RP Orchestrator
+    participant Conn as ⚙️ Wallet Connector / Protocol Service
+    participant Risk as 🛡️ Policy / Fraud / Audit
+
+    User->>App: Start onboarding, authentication,<br/>or attestation journey
+    App->>Orch: Start first-party wallet-backed journey
+    Orch->>Orch: Allocate session state<br/>(nonce, TTL, correlation, purpose)
+    alt Presentation / verification path
+        Note over Orch,Conn: Connector prepares presentation session<br/>and verifier-side wallet entry artefact
+    else RP-controlled issuance path
+        Note over Orch,Conn: Connector prepares issuance session<br/>and issuer-side wallet entry artefact
+        Note right of Risk: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Orch->>Conn: Create journey-specific connector session
+    Conn-->>Orch: Return request handle / wallet entry artefact
+    Orch-->>App: Return first-party wallet entry point
+    User->>W: Review and approve wallet action
+    W->>Orch: Send wallet-facing protocol message
+    Orch->>Conn: Mediate protocol step
+    Conn-->>Orch: Return protocol result or internal failure
+    Orch-->>W: Continue or complete wallet step
+    Orch->>Risk: Send verified result + HTTP context + product state
+    Risk-->>Orch: Return decision + internal reason
+    Orch-->>App: Return generic success or generic failure
+    Note right of Risk: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+<details>
+<summary><strong>1. End User starts the journey in the first-party browser or native app</strong></summary>
+
+The user starts a first-party journey such as onboarding, PID identification, pseudonym sign-in, SCA, recovery, credential re-binding, RP-controlled attestation issuance, or later attestation presentation / verification. The initiating channel may be a browser frontend or a native app, but in either case it remains the RP's own first-party experience rather than a direct handoff to a verifier or issuer console.
+
+</details>
+<details>
+<summary><strong>2. First-party browser or native app starts the wallet-backed journey at the orchestrator</strong></summary>
+
+The first-party channel calls the RP's own orchestration boundary rather than talking directly to a verifier or issuer API. This keeps the public contract stable even if the downstream wallet connector changes delivery mode, protocol role, or vendor.
+
+</details>
+<details>
+<summary><strong>3. RP Orchestrator allocates session state</strong></summary>
+
+The orchestrator creates the stateful envelope for the ceremony: correlation ID, product session linkage, nonce, timeout window, intended use, and policy context. This is where the RP binds the wallet operation to its own business journey before any protocol message is emitted. Without this state envelope, a later wallet result cannot be safely attached to the correct user, account, or transaction.
+
+</details>
+<details>
+<summary><strong>4. RP Orchestrator creates a journey-specific connector session</strong></summary>
+
+The orchestrator asks the wallet connector / protocol service to create the protocol session for the journey branch that applies. In the **presentation / verification** branch, this means request construction, response-encryption setup, verifier-side handle creation, and preparation of the wallet entry artefact. In the **RP-controlled issuance** branch, it means issuer-side session preparation, offer / handle creation, and any issuance-specific setup needed before the wallet enters the ceremony. In a direct RP design the connector may run on RP infrastructure; in a SaaS-backed direct RP design the same call goes to a provider. The orchestrator does not need to expose that difference to the public-facing app.
+
+</details>
+<details>
+<summary><strong>5. Wallet Connector returns request handle or wallet entry artefact</strong></summary>
+
+The connector returns the material needed to reach the wallet, and that artefact depends on the branch. In the **presentation / verification** case this might be a request URI, QR payload, deep link target, or other verifier-side entry artefact. In the **issuance** case it may be an offer handle, issuance entry handle, or other issuer-side wallet entry material. The orchestrator receives this as an internal result and can still apply RP policy before handing anything back to the caller.
+
+</details>
+<details>
+<summary><strong>6. RP Orchestrator returns a first-party wallet entry point to the browser or native app</strong></summary>
+
+The orchestrator gives the first-party channel a first-party wallet entry point, not a raw exposure of connector-internal mechanics. This is the point where the RP can preserve first-party URL ownership ([§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)), keep internal services off the public internet, and avoid teaching attackers unnecessary details about connector topology.
+
+</details>
+<details>
+<summary><strong>7. End User reviews and approves the wallet action</strong></summary>
+
+The user reviews the wallet prompt and explicitly approves the action that the journey requires: for example attribute disclosure, authentication, RP-controlled issuance acceptance, or another wallet-mediated authorization step. Making this approval explicit in the sequence matters because the wallet ceremony is not just a backend exchange; there is a user-consent or user-authorization moment inside the wallet before the next protocol message is sent.
+
+</details>
+<details>
+<summary><strong>8. Wallet sends a wallet-facing protocol message to the orchestrator edge</strong></summary>
+
+This arrow stands in for the repeated wallet-facing interactions that may occur during the ceremony: request-object retrieval, protocol submission, token / credential retrieval, status advancement, or other wallet-facing steps. The internal OID4VP / OID4VCI and SD-JWT VC / mdoc details are abstracted away here on purpose. What matters architecturally is that the RP-owned edge remains the first receiving boundary for those interactions when the chosen topology allows it.
+
+</details>
+<details>
+<summary><strong>9. RP Orchestrator mediates the protocol step to the connector</strong></summary>
+
+The orchestrator forwards the wallet-facing step to the connector. In a sync-inline topology ([§26.6.4](#2664-reverse-proxy-integration-pattern), [§26.7.2](#2672-result-delivery-mode-taxonomy)) this can occur inside the same HTTP round-trip. In other topologies the connector may complete part of the work asynchronously, but from the first-party browser or native app's point of view that complexity is still hidden behind the orchestrator boundary.
+
+</details>
+<details>
+<summary><strong>10. Wallet Connector returns a protocol result or internal failure</strong></summary>
+
+The connector returns either a verified protocol outcome or a connector-internal failure such as duplicate `state`, nonce mismatch, malformed submission, expired session, or replay detection. Some of these protections may be implemented fully inside the connector rather than inside the orchestrator, and that is fine. The architectural value is that the RP receives a structured internal outcome without exposing the low-level reason directly to the external caller.
+
+</details>
+<details>
+<summary><strong>11. RP Orchestrator continues or completes the wallet step</strong></summary>
+
+If another wallet-facing interaction is needed, the orchestrator returns the next step to the wallet. If the protocol is complete, the orchestrator closes the wallet-facing leg. This is the mediation point that lets one logical product journey span several protocol interactions without making the frontend manage connector state itself.
+
+</details>
+<details>
+<summary><strong>12. RP Orchestrator sends verified result, HTTP context, and product state to policy / fraud / audit services</strong></summary>
+
+Once the protocol result is available, the orchestrator enriches it with first-party context: product journey state, HTTP-layer observations, and any required compliance metadata. This is where the RP combines connector output with VSI Layer 3 context ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)), product policy, AML / KYC / SCA logic, or other fraud controls. That enrichment is what turns a cryptographically valid wallet result into an RP decision.
+
+</details>
+<details>
+<summary><strong>13. Policy / Fraud / Audit services return a decision and internal reason</strong></summary>
+
+The downstream policy stack returns the business decision plus the detailed internal reason. That reason may incorporate connector outcomes, replay / duplicate-state handling, HTTP-context anomalies, sanctions or fraud hits, and risk-scoring results. The precise reason should be preserved for VSI, SIEM, and audit trails ([§30.7](#307-signal-composition-and-risk-scoring), [§31.3](#313-audit-trail-requirements)), even when the orchestrator intentionally suppresses it from the public response.
+
+</details>
+<details>
+<summary><strong>14. RP Orchestrator returns generic success or generic failure to the first-party browser or native app</strong></summary>
+
+The orchestrator returns the external outcome to the first-party browser or native app. The response can be generic by design: the RP does not need to tell a potential attacker whether the failure came from replay detection, nonce mismatch, malformed wallet-facing traffic, or a sanctions screening rule. The caller gets the minimal result needed for the user journey, while the detailed reason remains internal telemetry for monitoring, response, and investigation.
+
+</details>
+
+<br/>
+
+The practical design rule is therefore: **let the connector own connector mechanics, but let the orchestrator own the RP boundary around those mechanics**. That is the control point where first-party URL ownership, session binding, product context, fraud telemetry, generic external errors, and compliance evidence meet.
 
 ##### 26.7.2 Result Delivery Mode Taxonomy
 
@@ -30453,9 +30616,154 @@ The RP treats the extra document as if it were strong corroborating evidence for
 - **Weighting discipline**: Where only OCR-heavy capture is available, downgrade the evidential weight. Do not treat OCR-only fallback as equivalent to upstream LoA High onboarding or to a stronger live-person binding ceremony.
 - **Minimisation**: Do not request an extra document merely because it is available. Collect it only where the profile can explain why the extra evidence changes the decision and how its authenticity is verified.
 
+##### 29.2.45 Security Error Discrepancy Oracle
+
+**Threat Summary**: The RP or a downstream wallet connector returns externally distinguishable failure reasons for security-sensitive ceremonies — for example `nonce_replay_detected`, duplicate `state`, expired session, malformed submission, or a named fraud-rule branch. That turns the error surface into an attacker-feedback oracle: a probing attacker can learn which control fired, whether a live session exists, and how far a crafted request progressed through the RP's pipeline.
+
+**Classification**:
+
+| Property | Value |
+|:---------|:------|
+| **ARF Reference** | — (supplementary RP-side error-handling threat, not separately enumerated in CIR 2024/2981 Annex I) |
+| **CWE** | [CWE-203](https://cwe.mitre.org/data/definitions/203.html) — Observable Discrepancy; related: [CWE-209](https://cwe.mitre.org/data/definitions/209.html) — Information Exposure Through an Error Message |
+| **STRIDE** | Information Disclosure (attacker feedback, control discovery, session-state leakage) |
+| **Severity** | S2 — Medium |
+
+**Attack Sequence**:
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant ATK as ☠️ Attacker
+    participant ORCH as 🎛️ RP Orchestrator / Edge
+    participant CONN as 🔌 Wallet Connector / Verifier
+    participant VSI as 📊 VSI / SIEM
+
+    rect rgba(231, 76, 60, 0.14)
+    ATK->>ORCH: Submit replayed / malformed / stale payload
+    ORCH->>CONN: Forward for protocol handling
+    CONN->>ORCH: Internal result:<br/>nonce replay / duplicate state / expired session
+    ORCH->>ATK: Detailed external error ⚠️<br/>409 nonce_replay_detected
+    Note over ATK: Learns which control fired<br/>and tunes the next probe ⚠️
+    Note right of VSI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(148, 163, 184, 0.14)
+    ATK->>ORCH: Repeat with input variations
+    Note over ORCH,CONN: Re-evaluate submission internally<br/>and preserve the precise classification
+    ORCH->>VSI: Log exact reason, workflow ID,<br/>source IP, UA, timing
+    ORCH->>ATK: Generic external failure<br/>with correlation ID only
+    Note right of VSI: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. Attacker probes a wallet ceremony with crafted failures</strong></summary>
+
+The attacker sends a replayed wallet submission, reuses an old `state`, submits an expired or malformed payload, or intentionally triggers a high-risk edge case to see how the RP responds. The goal is not only to fail the ceremony, but to observe the exact shape of the failure.
+
+**Artifact Produced:** Crafted wallet-facing probe carrying attacker-selected failure conditions.
+
+</details>
+<details>
+<summary><strong>2. RP Orchestrator forwards the submission to the Wallet Connector / Verifier</strong></summary>
+
+The RP-owned edge or orchestrator routes the submission into the connector or verifier that performs protocol parsing, session lookup, replay checks, nonce validation, and connector-internal workflow handling. The connector now has the precise reason for rejection, even if the attacker should not.
+
+**Artifact Produced:** Internal verification result containing an exact rejection reason.
+
+</details>
+<details>
+<summary><strong>3. Connector classifies the rejection precisely</strong></summary>
+
+Typical internal outcomes include `nonce_replay_detected`, `duplicate_state`, `session_expired`, `unknown_workflow_id`, malformed JWE / JWS, or a downstream fraud / abuse rule branch. These distinctions are useful inside the RP because they drive fraud scoring, audit records, alert severity, and analyst triage.
+
+**Artifact Produced:** Precise connector-side failure classification tied to the RP workflow.
+
+</details>
+<details>
+<summary><strong>4. Vulnerable RP returns the precise reason to the attacker</strong></summary>
+
+If the RP reflects the internal classification back to the caller through distinct HTTP statuses, machine-readable error codes, reason strings, or visibly different UX copy, the attacker learns something about the hidden workflow state. This is the discrepancy-factor problem called out in the [OWASP Authentication Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html): externally distinct failures become an oracle.
+
+```http
+HTTP/1.1 409 Conflict
+Content-Type: application/json
+
+{
+  "error": "nonce_replay_detected",
+  "error_description": "Submission reused nonce n-7f8a3bc1e9d2 for workflow wf_9f3e",
+  "state": "sess_4721"
+}
+```
+
+**Artifact Produced:** Externally observable security error that leaks control and session-state detail.
+
+</details>
+<details>
+<summary><strong>5. Attacker iterates and maps the RP's hidden control surface</strong></summary>
+
+The attacker varies one dimension at a time: replayed nonce versus duplicate `state`, malformed body versus valid body on an expired session, known versus unknown workflow IDs, or requests from different IPs / devices. Distinct outcomes reveal whether the RP reached session lookup, holder-binding verification, fraud scoring, or a later orchestration stage.
+
+**Artifact Produced:** Control-discovery map of the RP's rejection logic, session states, and defence ordering.
+
+</details>
+<details>
+<summary><strong>6. Secure RP logs the precise internal reason into VSI and audit telemetry</strong></summary>
+
+In the hardened pattern, the exact rejection reason remains inside the RP security domain even though the external response is normalised. The RP logs the internal classification, `workflow_id`, source IP, user-agent, timing, and decision stage into VSI, SIEM, and audit records so analysts keep the detail that attackers should not receive.
+
+**Artifact Produced:** Precise internal telemetry tied to the RP workflow and external correlation ID.
+
+</details>
+<details>
+<summary><strong>7. Secure RP normalises the external response and keeps the detail internal</strong></summary>
+
+A hardened RP returns one generic external failure shape for security-sensitive rejection paths while logging the precise reason into VSI, SIEM, and audit records. Support channels get only a correlation ID; the exact replay / duplicate-state / malformed-submission reason stays inside the RP security domain.
+
+**Audit Telemetry:** Log the exact internal rejection reason, `workflow_id`, source IP, user-agent, TLS / network context, connector decision stage, correlation ID returned externally, and whether the event contributed to fraud score escalation.
+
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "error": "verification_failed",
+  "message": "The wallet interaction could not be completed.",
+  "correlation_id": "wf_9f3e"
+}
+```
+
+**Artifact Produced:** Generic user-facing failure plus precise internal telemetry.
+
+</details>
+<br/>
+
+**Attack Vector**: The attacker does not need a protocol break; they need a talkative error surface. Distinct statuses, JSON fields, error descriptions, timing differences, or front-end copy can all disclose whether a session exists, whether a nonce was valid but replayed, whether a fraud rule fired, or whether the request advanced to a later control stage. In OWASP terms, the RP has created a discrepancy factor. In CWE terms, the main weakness is an observable discrepancy, often accompanied by direct error-message information exposure.
+
+**Impact**: Medium — the oracle does not directly forge a credential or bypass holder binding, but it lowers the cost of reconnaissance, replay tuning, abuse automation, and control discovery. It also exposes internal product topology and decision boundaries that should stay inside the RP's own security domain.
+
+**Mitigation**:
+
+- **Primary**: For security-sensitive wallet ceremonies, return a generic external failure rather than the exact internal rejection reason. This is consistent with OWASP guidance for authentication and other adversarial decision points.
+- **Internal-only precision**: Preserve the exact cause internally for VSI, fraud scoring, SIEM, case management, and audit. The RP should know whether the event was replay, duplicate `state`, nonce mismatch, session expiry, malformed submission, or a fraud-rule hit even when the caller does not.
+- **Response normalisation**: Keep HTTP status, body shape, and user-facing copy stable across replay, duplicate-state, expired-session, and malformed-submission paths unless protocol interoperability strictly requires a distinction. Avoid leaking connector class names, vendor error codes, session IDs, nonces, or workflow states.
+- **Timing discipline**: Remove large timing and transport discrepancies where practical. A generic body is not enough if one path returns instantly with `404`, another slowly with `409`, and a third triggers a visibly different redirect.
+- **Support boundary**: Expose only a correlation ID externally. Analyst and customer-support tooling should resolve that ID to the detailed internal reason without teaching the attacker what the RP already knows.
+
 #### 29.3 Consolidated Risk Assessment Matrix
 
-The following matrix consolidates the risk ratings for all 44 threat scenarios documented in [§29.2](#292-threat-catalogue). Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
+The following matrix consolidates the risk ratings for all 45 threat scenarios documented in [§29.2](#292-threat-catalogue). Rows are ordered by impact severity (Critical → None), then by residual risk within each tier.
 
 Before reading the matrix, keep one distinction in mind: an assurance profile does **not** "solve" a threat in the abstract. Instead, it can materially **reduce exposure by design** for certain attack classes. For the generic policy model, see [§26.1.2](#2612-assurance-profiles-and-channel-policy); for the financial-sector profile that applies the same model to banks and PSPs, see [§24.8.3](#2483-financial-sector-high-assurance-wallet-profile). The most important design-level levers are summarised below:
 
@@ -30499,6 +30807,7 @@ Before reading the matrix, keep one distinction in mind: an assurance profile do
 | [§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials) | mdoc DeviceSignature Skip | Medium | Medium–High | 🟡 Medium — depends on whether the RP enforces full DeviceSignature validation including ephemeral key agreement; implementations that skip DeviceAuth accept replayed or cloned mdocs |
 | [§29.2.30](#29230-mdoc-iaca-chain-validation-bypass) | mdoc IACA Chain Validation Bypass | Low | Medium–High | 🟡 Medium — depends on whether the RP validates the full IACA chain including revocation checks; partial chain validation or missing IACA root allowlist creates gaps exploitable by rogue issuers |
 | [§29.2.6](#2926-status-list-denial-of-service) | Status List Denial of Service | Medium | Medium | 🟡 Medium — Status List caching per `max-age` header prevents immediate service disruption, but creates a revocation blindness window. The fail-open/fail-closed policy decision ([§11.5](#115-edge-cases-and-error-handling)) is an operational trade-off with no perfect answer |
+| [§29.2.45](#29245-security-error-discrepancy-oracle) | Security Error Discrepancy Oracle | High | Medium | 🟢 Low — if the RP normalises external failures, keeps precise rejection reasons internal-only, and avoids timing / status discrepancies that recreate the oracle; verbose or differentiated security errors materially improve attacker reconnaissance and replay tuning |
 | [§29.2.15](#29215-over-identification) | Over-Identification | Medium | Medium | 🟢 Low — if RP implements pseudonym support per [§16](#16-pseudonym-based-authentication-and-webauthn) and DCQL query minimisation; WRPRC-based attribute scope enforcement ([§5.3](#53-registration-certificates-wrprc), ARF [§6.6.3.3](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#6633-wallet-unit-allows-user-to-verify-that-relying-party-does-not-request-more-attributes-than-it-registered)) provides an ecosystem-level guardrail against excessive data requests |
 | [§29.2.31](#29231-post-verification-open-redirect) | Post-Verification Open Redirect | Medium | Medium | 🟢 Low — standard web security practice (RFC 9700 §4.2.4); strict redirect URI allowlisting and `response_mode=direct_post` eliminate the client-side redirect surface. Residual risk only if the RP constructs redirects from user-supplied parameters |
 | [§29.2.32](#29232-dcql-query-injection-via-intermediary) | DCQL Query Injection via Intermediary | Low | Medium | 🟢 Low — if the intermediary validates DCQL queries against the RP's WRPRC-scoped attribute limits and applies strict JSON schema validation; without schema validation, the intermediary becomes an amplifier for over-collection attacks |
@@ -30520,7 +30829,7 @@ Before reading the matrix, keep one distinction in mind: an assurance profile do
 
 This chapter defines **Verification Signal Intelligence (VSI)** — the practice of classifying every VP Token verification step result as a typed, severity-graded signal that feeds into fraud scoring engines, SIEM/SOAR pipelines, and continuous risk assessment. VSI fills the structural gap between [§29](#29-security-threat-catalogue) and [§31](#31-monitoring-observability-and-operational-readiness):
 
-- **[§29](#29-security-threat-catalogue) Security Threat Catalogue** answers: *"What attacks exist?"* — 44 threats with STRIDE classifications, attack vectors, and mitigations.
+- **[§29](#29-security-threat-catalogue) Security Threat Catalogue** answers: *"What attacks exist?"* — 45 threats with STRIDE classifications, attack vectors, and mitigations.
 - **[§31](#31-monitoring-observability-and-operational-readiness) Monitoring, Observability, and Operational Readiness** answers: *"How do you detect, alert, and respond?"* — metrics, alert triggers, audit trail structure.
 
 VSI is the **missing middle layer**: *"What signals do those attacks produce at the RP's verification pipeline, and how do you classify, score, and compose them into actionable decisions?"*
@@ -30536,7 +30845,7 @@ config:
 ---
 flowchart LR
     subgraph S29["§29 — Security Threat Catalogue"]
-        T1(["44 threats (STRIDE-classified)"])
+        T1(["45 threats (STRIDE-classified)"])
     end
 
     subgraph S30["§30 — Verification Signal Intelligence"]

@@ -704,6 +704,7 @@ When the exact standard is known, **name the document, not just the standards bo
 Within a DR document, prefer the **real subject** of the sentence — for example `the RP`, `the verifier`, `the wallet`, `this chapter`, `the guidance below`, or the specific protocol/actor — rather than treating the document identifier as an actor or analytical subject **when the sentence is really about the operational subject**.
 
 - Do **not** treat every body-text occurrence of `DR-000X` as a style error. Prose that genuinely discusses the document's own structure, scope, coverage, findings, update history, or navigation can and often should keep the document identifier.
+- Avoid redundant in-document labels that restate the current document identifier without adding meaning, such as column headers or lead-ins like `Detailed discussion in DR-0002`. Prefer `Further discussion`, `See also`, or a subject-specific label instead.
 - ✅ `For RPs, treat user binding as the broader assurance conclusion...`
 - ✅ `The sections below bridge this gap with RP-specific guidance.`
 - ✅ `DR-0005 is structured as both a reference document and a decision tool.`
