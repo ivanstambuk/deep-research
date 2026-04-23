@@ -1172,7 +1172,7 @@ The country code is ISO 3166-1 Alpha-2, the business register code is MS-specifi
 | 🟢 **2027+** | Implement mandate scope verification logic | When mandate Rulebook published |
 | 🟢 **2028+** | Deploy triple-credential combined presentation verification — LPID + PID + mandate ([§18.1](#181-example-legal-person-verification-lpid)) | When EBW wallets deployed |
 
-> **Cross-references**: [§6.15](#615-lpid-credential-format-legal-person) (LPID credential format details), [§11.12](#1112-lpid-verification-pipeline-delta) (LPID verification pipeline delta), [§18.1](#181-example-legal-person-verification-lpid) (LPID DCQL query examples), [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations) (identity matching in triple presentations), [§18](#18-combined-presentations-lpid-and-mandate-credentials) (representation attestations).
+> **Cross-references**: [§6.15](#615-lpid-credential-format-legal-person) (LPID credential format details), [§11.12](#1112-lpid-verification-pipeline-delta) (LPID verification pipeline delta), [§18.1](#181-example-legal-person-verification-lpid) (LPID DCQL query examples), [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) (identity matching in triple presentations), [§18](#18-combined-presentations-lpid-and-mandate-credentials) (representation attestations).
 
 ---
 
@@ -2320,7 +2320,7 @@ The operational meaning of each state is different for an RP:
 
 3. **RP self-request** (Art. 9(3)) — The RP itself requests suspension or cancellation (e.g., when discontinuing a wallet-integrated service). The Registrar **shall** comply.
 
-##### Proportionality Assessment
+##### 4.3.3 Proportionality Assessment
 
 Before acting on registrar-initiated grounds (pathway 2), the Registrar must conduct a **proportionality assessment** (Art. 9(4)), weighing:
 
@@ -2330,7 +2330,7 @@ Before acting on registrar-initiated grounds (pathway 2), the Registrar must con
 
 Based on this assessment, the Registrar may suspend or cancel with or without prior notice. This means an RP may find its registration suspended without warning if the breach is severe enough to justify immediate action.
 
-##### 24-Hour Notification Cascade
+##### 4.3.4 24-Hour Notification Cascade
 
 When a registration is suspended or cancelled, Art. 9(5) mandates a strict notification timeline — the Registrar must inform all three parties **within 24 hours**:
 
@@ -2338,7 +2338,7 @@ When a registration is suspended or cancelled, Art. 9(5) mandates a strict notif
 2. **Provider of WRPRC** (Registration Cert Provider) — to trigger certificate revocation
 3. **The affected RP** — including the reasons and available means of redress/appeal
 
-##### Certificate Revocation Cascade
+##### 4.3.5 Certificate Revocation Cascade
 
 Art. 9(6) mandates that upon suspension or cancellation, both the Access CA and Registration Cert Provider must **revoke without undue delay** all WRPACs and WRPRCs respectively belonging to the affected RP. This effectively paralyses the RP's ability to interact with any Wallet Unit — neither online (WRPAC) nor offline (WRPRC) verification will succeed.
 
@@ -4173,10 +4173,10 @@ response=eyJhbGciOiJFQ0RILUVTI...[Encrypted JWE]...&state=xyz123
 
 The Relying Party cryptographically verifies the PID's issuer signature to confirm it was legitimately issued by a notified PID Provider. The verification method depends on the credential format:
 
-- **SD-JWT VC**: Parse the Issuer-JWT header, extract the `x5c` certificate chain (or resolve the `kid` via the issuer's JWKS endpoint). Verify the ES256 (P-256 ECDSA) signature over the JWT payload. The leaf certificate must chain to the PID Provider's trust anchor obtained from the national LoTE ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)).
+- **SD-JWT VC**: Parse the Issuer-JWT header, extract the `x5c` certificate chain (or resolve the `kid` via the issuer's JWKS endpoint). Verify the ES256 (P-256 ECDSA) signature over the JWT payload. The leaf certificate must chain to the PID Provider's trust anchor obtained from the national LoTE ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)).
 - **mdoc**: Extract the `issuerAuth` COSE_Sign1 from the MSO. Verify the signature using the issuer's X.509 certificate from the `x5chain` unprotected header. Validate the certificate chain against the LoTE trust anchor for the PID Provider. Check the MSO `validityInfo` (`validFrom`, `validUntil`).
 
-In both formats, the Relying Party must resolve the correct LoTE by identifying the PID Provider's Member State (from the certificate's `issuer` field or the JWT `iss` claim) and fetching the corresponding LoTE entry. For cross-border presentations, the Relying Party may need to consult multiple Member State LoTEs. See [§18.1.7](#1817-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) step 3 for the per-credential verification detail including certificate chain building.
+In both formats, the Relying Party must resolve the correct LoTE by identifying the PID Provider's Member State (from the certificate's `issuer` field or the JWT `iss` claim) and fetching the corresponding LoTE entry. For cross-border presentations, the Relying Party may need to consult multiple Member State LoTEs. See [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) step 3 for the per-credential verification detail including certificate chain building.
 
 **Failure Path:** If signature verification fails, the Relying Party MUST reject the entire presentation. A forged or tampered PID cannot be trusted, and the cascading verification steps (revocation, device binding) are meaningless without a valid issuer signature.
 
@@ -4280,9 +4280,9 @@ In multi-attestation scenarios (where the `vp_token` contains more than one cred
 
 - **SD-JWT VC**: All credentials must contain the **same `cnf.jwk` public key**. Since the KB-JWT for each credential is signed with this key, identical `cnf.jwk` values prove the same device key — and therefore the same Wallet Unit — holds all credentials.
 - **mdoc**: All `DeviceResponse` documents must reference the **same `deviceKey`** in their MSO `deviceKeyInfo`.
-- **Cross-format (SD-JWT VC + mdoc)**: The Relying Party must determine whether the SD-JWT's `cnf.jwk` (JWK format) and the mdoc's `deviceKey` (COSE_Key format) represent the same underlying key. See [§18.1.8](#1818-cross-format-identity-matching) for the cross-format key matching algorithm.
+- **Cross-format (SD-JWT VC + mdoc)**: The Relying Party must determine whether the SD-JWT's `cnf.jwk` (JWK format) and the mdoc's `deviceKey` (COSE_Key format) represent the same underlying key. See [§18.1.10](#18110-cross-format-identity-matching) for the cross-format key matching algorithm.
 
-If a WSCA binding proof is available (future feature — ARF v2.8 §7.6.3), the Relying Party should additionally verify it to confirm hardware-level key co-residency. See [§18.1.7](#1817-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) steps 9–10 for the detailed identity matching and WSCA proof verification logic.
+If a WSCA binding proof is available (future feature — ARF v2.8 §7.6.3), the Relying Party should additionally verify it to confirm hardware-level key co-residency. See [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) steps 9–10 for the detailed identity matching and WSCA proof verification logic.
 
 **Audit Telemetry:** The Relying Party logs a `MULTI_CREDENTIAL_PRESENTATION_BOUND` event upon successful validation of holistic cryptographic binding.
 
@@ -4321,7 +4321,7 @@ The trust anchor discovery mechanism in the EUDI Wallet ecosystem is easiest to 
 
 3. **Adjacent Lists of Trusted Entities (LoTEs)** — LoTEs are the EUDI-specific list surfaces used for entities such as PID Providers, Wallet Providers, Access CAs, and Registration Certificate Providers. Their data model is defined by **ETSI TS 119 602 V1.1.1 (2025-11)**. They are operationally adjacent to the national trusted-list layer, but they are not the same thing as the `ETSI TS 119 615` procedure stack for authenticating and interpreting EUMS trusted lists.
 
-> **Operational portal**: The European Commission publishes the EUDI-specific LoTE views through the **EFDA (eIDAS Dashboard)** at [`eidas.ec.europa.eu/efda/wallet`](https://eidas.ec.europa.eu/efda/wallet). The portal provides separate list views for Wallet Providers, PID Providers, Access Certificate Providers, and Registration Certificate Providers. RPs implementing LoTE consumption for trust anchor discovery ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)) should treat the portal and the underlying `ETSI TS 119 602` data model as the authoritative source for those entity lists, while treating `ETSI TS 119 615` as the interpretation procedure for the Member State trusted-list layer.
+> **Operational portal**: The European Commission publishes the EUDI-specific LoTE views through the **EFDA (eIDAS Dashboard)** at [`eidas.ec.europa.eu/efda/wallet`](https://eidas.ec.europa.eu/efda/wallet). The portal provides separate list views for Wallet Providers, PID Providers, Access Certificate Providers, and Registration Certificate Providers. RPs implementing LoTE consumption for trust anchor discovery ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)) should treat the portal and the underlying `ETSI TS 119 602` data model as the authoritative source for those entity lists, while treating `ETSI TS 119 615` as the interpretation procedure for the Member State trusted-list layer.
 
 [Topic 31](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2320-topic-31-notification-and-publication-of-pid-provider-wallet-provider-attestation-provider-access-certificate-authority-and-provider-of-registration-certificates) adds a publication-process layer on top of the list formats. Member States notify the Commission over the secure notification channel; the Commission verifies completeness and technical conformity, compiles the publication, signs or seals the machine-readable output, and publishes it together with a human-readable view. Member States remain responsible for correctness of the notified data. Retrieval of the Commission-published information must be possible without authentication or prior registration, and the Official Journal publishes both list locations and the trust anchors used to verify the publication signature or seal.
 
@@ -4353,9 +4353,9 @@ For RP engineering, the practical split is:
 - **National Trusted Lists (`ETSI TS 119 612`)** publish qualified trust-service information and service history.
 - **`ETSI TS 119 615`** tells the RP how to authenticate the `LOTL`, authenticate a national trusted list from it, match a service to a certificate, and derive time-specific outcomes such as `QC_For_eSig`, `QWAC`, `QSCD_YES`, or `Indeterminate`.
 
-##### RP Trust Infrastructure Decision Guide
+##### 5.5.3 RP Trust Infrastructure Decision Guide
 
-The table above lists all trust infrastructure types, but conflates two distinct ETSI specifications — **LoTEs** (ETSI TS 119 602) and **Trusted Lists** (ETSI TS 119 612) — which serve different entity categories. The following decision table maps an RP's credential acceptance profile to the **exact** trust infrastructure components required. See [§5.5.7](#557-when-openid-federation-applies-credential-type-trust-framework-map) for the additional OID-FED dimension.
+The table above lists all trust infrastructure types, but conflates two distinct ETSI specifications — **LoTEs** (ETSI TS 119 602) and **Trusted Lists** (ETSI TS 119 612) — which serve different entity categories. The following decision table maps an RP's credential acceptance profile to the **exact** trust infrastructure components required. See [§5.5.11](#5511-when-openid-federation-applies-credential-type-trust-framework-map) for the additional OID-FED dimension.
 
 | RP Credential Acceptance Profile | LoTE (TS 119 602) | Trusted Lists (TS 119 612) | OID-FED | What You Need |
 |:---------------------------------|:------------------:|:--------------------------:|:-------:|:--------------|
@@ -4364,7 +4364,7 @@ The table above lists all trust infrastructure types, but conflates two distinct
 | **PID + PuB-EAAs** (e.g., driving licence, diplomas) | ✅ PID Provider LoTE | ✅ PuB-EAA TL + QTSP TL | ❌ Not needed | Both specifications required |
 | **PID + non-qualified EAAs** (e.g., loyalty cards, custom attestations) | ✅ PID Provider LoTE | ❌ Not needed | ⚠️ Possible (TS11 permits) | LoTE + potentially OID-FED trust chains; depends on the EAA Provider's `trustedAuthorities` type |
 | **Full acceptance** (PID + QEAA + PuB-EAA + non-qualified EAA) | ✅ PID Provider LoTE | ✅ QEAA TL + PuB-EAA TL + QTSP TL | ⚠️ Possible for non-qualified | All three trust infrastructure types |
-| **Italian IT-Wallet interop** ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) | ✅ PID Provider LoTE | ✅ As above per credential types | ✅ Required for RP trust establishment | Full OID-FED trust chain resolution for RP onboarding |
+| **Italian IT-Wallet interop** ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) | ✅ PID Provider LoTE | ✅ As above per credential types | ✅ Required for RP trust establishment | Full OID-FED trust chain resolution for RP onboarding |
 
 **Key distinctions:**
 - **LoTE (TS 119 602)**: The new eIDAS 2.0 format. Covers entity types introduced by eIDAS 2.0 — PID Providers, Wallet Providers, Access CAs, Registration Cert Providers. JSON serialisation (TS 119 602 Annex H). Published by Member State LoTE Providers.
@@ -4373,7 +4373,7 @@ The table above lists all trust infrastructure types, but conflates two distinct
 
 > **Engineering implication**: A PID-only RP (the simplest profile) needs only a single LoTE consumer — no Trusted List parsing, no OID-FED resolution. Each additional credential type adds trust infrastructure dependencies. RPs should explicitly map their target credential acceptance profile to this table during architecture design to avoid over-engineering or under-provisioning their trust anchor pipeline.
 
-##### 5.5.3 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)
+##### 5.5.4 RP Trust Anchor Retrieval Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 For RP engineering, the flow below is the **LoTE-based trust-anchor retrieval path** used to validate notified EUDI entities such as PID Providers. It sits **beside**, not instead of, the `ETSI TS 119 615` path for authenticating the `LOTL`, authenticating a national trusted list from it, matching services to certificates, and deriving time-specific qualified or `Indeterminate` conclusions. In other words:
 
@@ -4620,7 +4620,7 @@ Upon success, the Relying Party safely proceeds to revocation checking and devic
 
 </details>
 
-##### 5.5.4 Trust Anchor Lifecycle Events That Affect RPs
+##### 5.5.5 Trust Anchor Lifecycle Events That Affect RPs
 
 | Event | Primary evidence surface | RP consequence | `ETSI TS 119 615` role |
 |:------|:-------------------------|:---------------|:-----------------------|
@@ -4646,13 +4646,13 @@ The main operational distinction is that **LoTE events** change whether a notifi
 
 > **RP operational requirement**: RPs must implement periodic LoTE refresh and, where qualified outputs matter, a separate authenticated trusted-list refresh (at minimum daily, recommended more frequently). They should cache more than just raw XML or LoTE blobs. For trusted-list-backed conclusions they should also preserve the authenticated `LOTL`, the authenticated national list, the matched service entry, and the evaluation time used to derive the result. Otherwise the RP cannot later explain whether a conclusion was technically valid, qualified, or merely `Indeterminate` at the relevant time.
 
-##### 5.5.5 OpenID Federation: The Protocol Behind LoTE Entity Statements
+##### 5.5.6 OpenID Federation: The Protocol Behind LoTE Entity Statements
 
-The preceding sections ([§5.5.1](#551-architecture)–§5.5.4) document how RPs use **Lists of Trusted Entities (LoTEs)** to discover trust anchors. The LoTE format — `application/entity-statement+jwt` fetched from `/.well-known/openid-federation` — is defined by **OpenID Federation 1.0 (OID-FED)**, a protocol standardised by the OpenID Foundation. However, OID-FED is far more than a data format. It is a complete protocol for establishing **automated, dynamic trust** between entities through hierarchical chains of cryptographically signed metadata statements. This section explains the protocol itself, enabling readers to understand the architectural context behind the LoTE format already used throughout [§5.5](#55-trusted-lists-and-lists-of-trusted-entities).
+The preceding sections ([§5.5.1](#551-architecture)–§5.5.10) document how RPs use **Lists of Trusted Entities (LoTEs)** to discover trust anchors. The LoTE format — `application/entity-statement+jwt` fetched from `/.well-known/openid-federation` — is defined by **OpenID Federation 1.0 (OID-FED)**, a protocol standardised by the OpenID Foundation. However, OID-FED is far more than a data format. It is a complete protocol for establishing **automated, dynamic trust** between entities through hierarchical chains of cryptographically signed metadata statements. This section explains the protocol itself, enabling readers to understand the architectural context behind the LoTE format already used throughout [§5.5](#55-trusted-lists-and-lists-of-trusted-entities).
 
-> **Why this matters for RPs**: The EUDI ecosystem currently uses OID-FED as a data format (Entity Statement JWTs for LoTEs) within the ETSI Trusted List trust model. However, TS11 explicitly permits full OID-FED trust chain resolution for **non-qualified EAAs** ([§5.5.7](#557-when-openid-federation-applies-credential-type-trust-framework-map)), and Italy's IT-Wallet ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) already mandates it for RP trust establishment. RPs planning for non-qualified EAA acceptance or cross-border interoperability with OID-FED–based Member States need to understand the protocol, not just the format.
+> **Why this matters for RPs**: The EUDI ecosystem currently uses OID-FED as a data format (Entity Statement JWTs for LoTEs) within the ETSI Trusted List trust model. However, TS11 explicitly permits full OID-FED trust chain resolution for **non-qualified EAAs** ([§5.5.11](#5511-when-openid-federation-applies-credential-type-trust-framework-map)), and Italy's IT-Wallet ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) already mandates it for RP trust establishment. RPs planning for non-qualified EAA acceptance or cross-border interoperability with OID-FED–based Member States need to understand the protocol, not just the format.
 
-##### Core Concepts
+##### 5.5.7 Core Concepts
 
 | Concept | Definition | RP Relevance |
 |:--------|:-----------|:-------------|
@@ -4664,7 +4664,7 @@ The preceding sections ([§5.5.1](#551-architecture)–§5.5.4) document how RPs
 | **Trust Mark** | A signed JWT attestation of conformance to specific criteria (e.g., "this RP is authorised to request PID attributes"). Issued by a Trust Mark Issuer accredited by the Trust Anchor. | Trust Marks enable fine-grained RP authorisation — e.g., whether an RP may interact with minors, or which credential types it may request. |
 | **Metadata Policy** | Rules applied by superiors in the trust chain that constrain or modify a subordinate's metadata. Uses operators like `subset_of`, `one_of`, `add`, `default`. | The Trust Anchor can enforce policies on RPs — e.g., limiting which VP formats or attribute scopes an RP may declare. |
 
-##### Trust Chain Resolution Algorithm
+##### 5.5.8 Trust Chain Resolution Algorithm
 
 The trust chain resolution process (OID-FED [§11](#11-rp-authentication-and-presentation-verification)) enables a Wallet Instance to verify an RP's federation membership at runtime:
 
@@ -4679,7 +4679,7 @@ The trust chain resolution process (OID-FED [§11](#11-rp-authentication-and-pre
 
 > **Latency implication**: Trust chain resolution requires **multiple sequential HTTP fetches** — one per level of hierarchy. A single-level federation (RP → Trust Anchor) requires 2 fetches; with an Intermediate, 3. This makes the optional Resolver endpoint (`/resolve`) architecturally important for latency-sensitive use cases, and explains why the Italian specification allows RPs to include pre-built trust chains in presentation request JWT headers for offline verification.
 
-##### Federation Endpoints
+##### 5.5.9 Federation Endpoints
 
 | Endpoint | Path | Role | Required For |
 |:---------|:-----|:-----|:-------------|
@@ -4689,9 +4689,9 @@ The trust chain resolution process (OID-FED [§11](#11-rp-authentication-and-pre
 | Resolve | `GET /resolve?sub=&lt;entity_id>&trust_anchor=&lt;ta_id>` | Resolve trust chain and return final metadata | Trust Anchor (optional) |
 | Trust Mark Status | `POST /status?sub=...&trust_mark_id=...` | Check Trust Mark validity | Trust Anchor, Intermediate |
 
-##### 5.5.6 Trust Chain Resolution: Wallet Verifying an RP (OID-FED Model)
+##### 5.5.10 Trust Chain Resolution: Wallet Verifying an RP (OID-FED Model)
 
-The following sequence diagram illustrates how a Wallet Instance verifies an RP's federation membership using OID-FED trust chain resolution. This is the **alternative trust model** to WRPAC-based (X.509) RP verification — currently mandated only in the Italian IT-Wallet ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) and permitted for non-qualified EAA trust contexts ([§5.5.7](#557-when-openid-federation-applies-credential-type-trust-framework-map)).
+The following sequence diagram illustrates how a Wallet Instance verifies an RP's federation membership using OID-FED trust chain resolution. This is the **alternative trust model** to WRPAC-based (X.509) RP verification — currently mandated only in the Italian IT-Wallet ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) and permitted for non-qualified EAA trust contexts ([§5.5.11](#5511-when-openid-federation-applies-credential-type-trust-framework-map)).
 
 ```mermaid
 ---
@@ -4897,11 +4897,11 @@ If the Relying Party's Entity Configuration or Subordinate Statements contain Tr
 
 > **Comparison with WRPAC-based RP verification**: In the standard EU-wide model ([§5.2](#52-access-certificates-wrpac), [§11.1](#111-authentication-steps-wallet-side)), the Wallet verifies the RP using its **WRPAC** — an X.509 certificate containing the RP's registration data. This is a single certificate chain verification against a pre-cached Access CA trust anchor. The OID-FED model replaces this with the multi-hop trust chain resolution described above. The key trade-off: OID-FED provides richer metadata discovery and policy enforcement but requires more HTTP fetches and online connectivity (unless the RP includes a pre-built `trust_chain` in its presentation request).
 
-##### 5.5.7 When OpenID Federation Applies: Credential Type Trust Framework Map
+##### 5.5.11 When OpenID Federation Applies: Credential Type Trust Framework Map
 
 OID-FED and ETSI Trusted Lists are complementary, not competing, trust frameworks in the EUDI ecosystem. Their applicability depends on the credential type and the use case. The following tables clarify when each applies.
 
-##### Structural Comparison: OID-FED Trust Chains vs ETSI Trusted Lists
+##### 5.5.12 Structural Comparison: OID-FED Trust Chains vs ETSI Trusted Lists
 
 | Dimension | OID-FED Trust Chain | ETSI Trusted Lists |
 |:----------|:--------------------|:-------------------|
@@ -4916,7 +4916,7 @@ OID-FED and ETSI Trusted Lists are complementary, not competing, trust framework
 | **Scalability** | O(depth) HTTP fetches per trust chain resolution | O(1) list download per jurisdiction |
 | **Signing** | JWS (JWT) — ES256, RS256 | XAdES or JAdES (depending on format) |
 
-##### Credential Type Applicability
+##### 5.5.13 Credential Type Applicability
 
 | Use Case | Trust Framework | Rationale |
 |:---------|:----------------|:----------|
@@ -4925,23 +4925,23 @@ OID-FED and ETSI Trusted Lists are complementary, not competing, trust framework
 | PuB-EAA Provider trust | ETSI Trusted Lists (mandatory) | Notification to European Commission |
 | Non-qualified EAA Provider trust | OID-FED (permitted) or ETSI TS 119 602 LoTE | TS11 allows OID-FED for non-qualified only |
 | RP trust (EU-wide) | X.509 WRPAC | ARF mandates access certificates |
-| RP trust (Italian model) | OID-FED trust chain resolution | SPID/CIE legacy + IT-Wallet design ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
+| RP trust (Italian model) | OID-FED trust chain resolution | SPID/CIE legacy + IT-Wallet design ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
 | Wallet Provider trust | ETSI Trusted Lists (mandatory) | Notification to European Commission |
 
 > **TS11 constraint**: The `trustedAuthorities` field in TS11 attestation schemas supports three trust framework options: X.509 Authority Key Identifier (RFC 5280 §5.2.1.1), ETSI Trusted Lists (ETSI TS 119 612), and OpenID Federation. However, TS11 explicitly restricts OID-FED: *"OpenID Federation MAY only be used in context of non-qualified EAA types."* This means RPs accepting non-qualified EAAs must be prepared for OID-FED trust chains, while PID/QEAA/PuB-EAA trust remains exclusively ETSI-based.
 
-##### 5.5.8 National Precedent: Italian IT-Wallet and Full OID-FED Trust Infrastructure
+##### 5.5.14 National Precedent: Italian IT-Wallet and Full OID-FED Trust Infrastructure
 
 Italy's IT-Wallet implementation is the **only EUDI Large Scale Pilot that uses OpenID Federation as its complete trust infrastructure** — not merely as a data format (as all other Member States do for LoTEs), but as the full protocol for RP onboarding, trust establishment, and metadata discovery. This makes it the most significant real-world reference for OID-FED in the EUDI ecosystem.
 
-##### Key Architectural Facts
+##### 5.5.15 Key Architectural Facts
 
 1. **All entities** (Trust Anchor, Intermediates, Wallet Providers, Credential Issuers, Relying Parties) are required to publish an Entity Configuration at `/.well-known/openid-federation`.
 2. **RP onboarding** is federation-based: the RP publishes its Entity Configuration (signed with its Federation Entity Private Key), and the Trust Anchor (or an Intermediate) issues a Subordinate Statement attesting the RP's membership. Metadata policies in the Subordinate Statement constrain allowed VP formats (e.g., `dc+sd-jwt` with `ES256`/`ES384`).
-3. **Wallet Instance RP verification** uses the OID-FED trust chain resolution process described in [§5.5.6](#556-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model).
+3. **Wallet Instance RP verification** uses the OID-FED trust chain resolution process described in [§5.5.6](#556-openid-federation-the-protocol-behind-lote-entity-statements).
 4. **Trust Marks** provide fine-grained RP authorisation — including public/private RP classification and whether an RP may interact with minors.
 
-##### Dual Trust Path: OID-FED and ETSI Coexistence
+##### 5.5.16 Dual Trust Path: OID-FED and ETSI Coexistence
 
 Italy operates **both** trust models simultaneously:
 
@@ -4953,16 +4953,16 @@ Italy operates **both** trust models simultaneously:
 
 Entities listed in national Trusted Lists are **also** registered in the national Federation Registry. Key validation can occur through both mechanisms — verification against the Trusted List and verification through federation endpoints. This dual-path approach provides redundancy and enables gradual migration without abandoning the established ETSI model.
 
-##### Cross-Border Interoperability: Dual `client_id` Scheme
+##### 5.5.17 Cross-Border Interoperability: Dual `client_id` Scheme
 
 When an Italian Wallet User interacts with an RP from a Member State that uses the standard WRPAC/X.509 model (e.g., Germany), a **trust model mismatch** occurs — the Italian Wallet expects OID-FED trust chains, but the foreign RP presents an X.509 WRPAC. The Italian specification resolves this through the OpenID4VP `client_id` scheme mechanism:
 
-- **`client_id` scheme = `openid_federation`** → Wallet performs OID-FED trust chain resolution ([§5.5.6](#556-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
+- **`client_id` scheme = `openid_federation`** → Wallet performs OID-FED trust chain resolution ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 - **`client_id` scheme = `x509_hash`** → Wallet performs X.509 WRPAC verification, with RP metadata conveyed in `client_metadata` instead of via Entity Configuration
 
 This dual-scheme approach ensures cross-border interoperability, but adds implementation complexity for both RPs and Wallet Providers that must support both trust models.
 
-##### RP Entity Configuration Example (Italian Model)
+##### 5.5.18 RP Entity Configuration Example (Italian Model)
 
 An RP participating in the Italian OID-FED federation publishes the following Entity Configuration (decoded JWT payload):
 
@@ -4999,14 +4999,14 @@ An RP participating in the Italian OID-FED federation publishes the following En
 
 > **Forward-looking note**: If other Member States adopt OID-FED for RP trust establishment (following the Italian model), the EU could establish a **cross-federation Trust Anchor** where the European Commission's `/.well-known/openid-federation` serves as the root, with Member State Trust Anchors as Intermediates. This would parallel the Italian model at EU scale but requires political agreement on EU-wide OID-FED adoption, harmonisation of metadata types, and consensus on metadata policy cascading rules.
 
-##### 5.5.9 Non-Qualified EAA Issuer Trust: Three Verification Paths
+##### 5.5.19 Non-Qualified EAA Issuer Trust: Three Verification Paths
 
 When an RP receives a **non-qualified EAA** — e.g., a gym membership attestation, a loyalty card credential, or an employer attestation — the trust path differs from PID/QEAA verification. TS11's `trustedAuthorities` framework permits three trust mechanisms for non-qualified EAA Providers:
 
 | Trust Path | Mechanism | RP Verification |
 |:-----------|:----------|:----------------|
-| **OID-FED** | RP resolves the EAA Provider's Trust Chain via `/.well-known/openid-federation` → Subordinate Statements → Trust Anchor ([§5.5.6](#556-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)) | RP must trust the Trust Anchor governing the non-qualified EAA Provider; full OID-FED trust chain resolution required |
-| **ETSI TS 119 602 LoTE** | RP verifies the EAA Provider's public key against the national EAA Provider LoTE (Annex H format) | Same as PID Provider verification ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)) — LoTE-based trust anchor lookup |
+| **OID-FED** | RP resolves the EAA Provider's Trust Chain via `/.well-known/openid-federation` → Subordinate Statements → Trust Anchor ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)) | RP must trust the Trust Anchor governing the non-qualified EAA Provider; full OID-FED trust chain resolution required |
+| **ETSI TS 119 602 LoTE** | RP verifies the EAA Provider's public key against the national EAA Provider LoTE (Annex H format) | Same as PID Provider verification ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)) — LoTE-based trust anchor lookup |
 | **Self-signed** | No `trustedAuthorities` field; the EAA Provider's key is not anchored to an external trust framework | RP must make its own trust decision — no external trust anchor; highest risk |
 
 > **Engineering implication**: RPs accepting non-qualified EAAs must implement **three distinct trust verification paths** — a significant increase in verification pipeline complexity compared to PID-only RPs (which need only the ETSI LoTE path). The RP's verification logic must branch on the `trustedAuthorities` type field in the attestation schema to determine which trust path to follow. This branching logic should be implemented as a pluggable module to accommodate future trust framework additions.
@@ -5633,9 +5633,9 @@ The `TrustAuthority` object within `SchemaMeta.trustedAuthorities[]` determines 
 | `aki` | Base64URL-encoded Authority Key Identifier | N/A | Direct X.509 trust — RP matches AKI to cached issuer certificate |
 | `etsi_tl` | URI of Trusted List | `false` (ETSI TS 119 612) | Standard TL — QEAAs, PuB-EAAs. Same path as PID verification ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities)) |
 | `etsi_tl` | URI of LoTE | `true` (ETSI TS 119 602) | LoTE — non-qualified EAAs with voluntary trust registry |
-| `openid_federation` | Entity Identifier URI | N/A | OID-FED — non-qualified EAAs only. Trust chain resolution per [§5.5.5](#555-openid-federation-the-protocol-behind-lote-entity-statements) |
+| `openid_federation` | Entity Identifier URI | N/A | OID-FED — non-qualified EAAs only. Trust chain resolution per [§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model) |
 
-> **Cross-reference**: The three trust verification paths correspond to the branching logic described in [§5.5.9](#559-non-qualified-eaa-issuer-trust-three-verification-paths) (Non-Qualified EAA Issuer Trust). The `frameworkType` value is the machine-readable equivalent of the trust model diagram in [§7.2.3](#723-trust-model-decision-flowchart).
+> **Cross-reference**: The three trust verification paths correspond to the branching logic described in [§5.5.19](#5519-non-qualified-eaa-issuer-trust-three-verification-paths) (Non-Qualified EAA Issuer Trust). The `frameworkType` value is the machine-readable equivalent of the trust model diagram in [§7.2.3](#723-trust-model-decision-flowchart).
 
 ##### 6.16.3 REST API
 
@@ -5920,7 +5920,7 @@ This chapter provides a definitive answer by examining:
 
 **A Decentralized Identifier (DID)** is a globally unique URI (e.g., `did:web:example.com`, `did:ebsi:z123...`) that resolves to a **DID Document** containing public keys, service endpoints, and authentication methods. Unlike X.509 certificates — which derive trust from a hierarchical Certificate Authority chain — DIDs derive trust from the DID method's resolution mechanism (DNS, blockchain, distributed hash table, etc.). The W3C DID Core v1.0 specification achieved Recommendation status in July 2022; v1.1 is a Candidate Recommendation (March 2026).
 
-> **Relationship to other sections**: This chapter builds on [§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists) (Trust Infrastructure — certificates, trusted lists, LoTEs) and [§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection) (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before [§8](#8-openid4vp-and-haip-protocol-foundations) (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see [§5.5.5](#555-openid-federation-the-protocol-behind-lote-entity-statements)–§5.5.9 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
+> **Relationship to other sections**: This chapter builds on [§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists) (Trust Infrastructure — certificates, trusted lists, LoTEs) and [§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection) (Credential Formats — SD-JWT VC, mdoc, Rulebooks). It must be read before [§8](#8-openid4vp-and-haip-protocol-foundations) (OpenID4VP), which discusses `client_id_scheme = x509_hash` — the mandatory RP authentication mechanism whose rationale is explained here. For RPs considering non-qualified EAA acceptance or interoperability with Member States that use OpenID Federation for RP trust (notably Italy), see [§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)–§5.5.19 for the OID-FED protocol, trust chain resolution, and the dual trust model precedent.
 
 #### 7.2 The ARF Mandate: X.509 for the Core, DIDs Optional for Non-Qualified EAAs
 
@@ -7908,7 +7908,7 @@ The Relying Party Backend performs the full cryptographic verification pipeline 
 **Issuer signature (SD-JWT)**:
 1. Parse the tilde-delimited SD-JWT string: `Issuer-JWT~Disclosure1~...~DisclosureN~KB-JWT`
 2. Extract the Issuer-JWT header, resolve the issuer's public key via the `x5c` chain or `kid` → JWKS lookup
-3. Verify the ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary) step 7)
+3. Verify the ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model) step 7)
 
 **Device binding (KB-JWT)**:
 1. Extract the KB-JWT (the final segment after the last `~`)
@@ -8897,7 +8897,7 @@ public_key.verify(jar_signature, jar_payload, ec.ECDSA(hashes.SHA256()))
 <details>
 <summary><strong>11. Wallet Unit validates WRPAC certificate chain via LoTE</strong></summary>
 
-The Wallet Unit builds and validates the certificate chain: WRPAC leaf → Access CA intermediate → LoTE root trust anchor ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)). 
+The Wallet Unit builds and validates the certificate chain: WRPAC leaf → Access CA intermediate → LoTE root trust anchor ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)). 
 
 Each certificate in the chain is rigorously checked for: 
 1. Signature validity (cryptographic chaining)
@@ -9751,7 +9751,7 @@ The following checklist maps each RP verification aspect to a specific test tool
 | 14 | **Error response handling** | OIDF Conformance Suite | Suite sends `access_denied`, `invalid_request`, `vp_formats_not_supported` ([§11.6](#116-openid4vp-error-responses)) |
 | 15 | **Timeout and orphaned sessions** | Manual testing | Simulate wallet crash mid-flow; verify RP session cleanup ([§11.7](#117-error-recovery-and-retry-strategies)) |
 | 16 | **Multi-Wallet interoperability** | German sandbox + French playground + Reference Wallet | Test against 2+ different Wallet implementations ([§28.3](#283-wallet-interoperability-testing)) |
-| 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding ([§18.1.4](#1814-identity-matching-in-combined-presentations)) |
+| 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding ([§18.1.10](#18110-cross-format-identity-matching)) |
 | 18 | **HAIP profile compliance** | OIDF Conformance Suite | Run HAIP-specific test plan ([§11.8.1](#1181-oidf-oid4vphaip-conformance-suite-and-self-certification)) |
 | 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration ([§4](#4-rp-registration-data-model-and-registrar-api)) |
 | 20 | **Accessibility verification** | WCAG 2.2 audit tools | Verify consent UX, error messages, verification results meet WCAG 2.1 AA ([§21.5](#215-eaa-and-accessibility-compliance-for-rp-uis)) |
@@ -10971,7 +10971,7 @@ The Reader verifies the `issuerAuth` COSE_Sign1 signature within the `DeviceResp
 1. Extract the MSO (MobileSecurityObject) from the COSE_Sign1 payload
 2. Extract the PID Provider's signing certificate from the `x5chain` unprotected header
 3. Verify the COSE_Sign1 ES256 signature using the PID Provider's public key
-4. Validate the certificate chain against the PID Provider LoTE trust anchor ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary))
+4. Validate the certificate chain against the PID Provider LoTE trust anchor ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 5. Check MSO `validityInfo`: `signed` timestamp, `validFrom` ≤ now ≤ `validUntil`
 
 In online-connected supervised terminals, the Reader can perform the LoTE lookup in real-time. For offline terminals (e.g., border checkpoints with intermittent connectivity), the Reader must use a cached copy of the PID Provider LoTE, refreshed during its last online maintenance window.
@@ -11283,7 +11283,7 @@ Key differences from the supervised flow ([§13.4](#134-supervised-flow-sequence
 <details>
 <summary><strong>8. Wallet Unit verifies WRPAC certificate chain via LoTE</strong></summary>
 
-The Wallet Unit extracts the WRPAC certificate chain from the `readerAuth` (step 7) and validates it against the national LoTE trust anchors ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)). The chain typically consists of the terminal's leaf WRPAC → Access CA intermediate → LoTE root. The Wallet verifies each certificate's signature, checks validity periods, and confirms the chain terminates at a LoTE-listed trust anchor.
+The Wallet Unit extracts the WRPAC certificate chain from the `readerAuth` (step 7) and validates it against the national LoTE trust anchors ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)). The chain typically consists of the terminal's leaf WRPAC → Access CA intermediate → LoTE root. The Wallet verifies each certificate's signature, checks validity periods, and confirms the chain terminates at a LoTE-listed trust anchor.
 
 > **Offline verification**: In unsupervised scenarios, the Wallet Unit may not have internet access at the point of interaction (e.g., underground parking garage). The Wallet relies on its **cached LoTE** — a locally stored copy of the List of Trusted Entities refreshed periodically when connectivity was available. The cache TTL determines the maximum period during which a revoked Access CA certificate could still be trusted. See [§13.10](#1310-online-fallback-for-proximity-terminals) for cache management strategies.
 
@@ -14939,7 +14939,7 @@ A bank performing customer onboarding might request both PID attributes and an a
 
 When an RP interacts with a legal person — e.g., for B2B onboarding, procurement, or contract signing — it uses LPID-specific DCQL queries. The LPID attribute model is defined in [§3.3](#33-legal-person-identification-data-lpid); the credential format in [§6.15](#615-lpid-credential-format-legal-person).
 
-##### LPID-Only: Simple Company Verification
+##### 18.1.1 LPID-Only: Simple Company Verification
 
 For use cases requiring only company identity (e.g., VAT verification, procurement eligibility check):
 
@@ -14959,7 +14959,7 @@ For use cases requiring only company identity (e.g., VAT verification, procureme
 }
 ```
 
-##### LPID and Natural Person PID: Representative Identification
+##### 18.1.2 LPID and Natural Person PID: Representative Identification
 
 For use cases where the RP must identify both the company and the person interacting on its behalf:
 
@@ -14995,7 +14995,7 @@ For use cases where the RP must identify both the company and the person interac
 }
 ```
 
-##### LPID and PID and Mandate: Triple-Credential Corporate Onboarding
+##### 18.1.3 LPID and PID and Mandate: Triple-Credential Corporate Onboarding
 
 For high-assurance B2B use cases (financial onboarding, contract signing authority) where the RP must verify the company identity, the representative's personal identity, **and** their authority to act on behalf of the company:
 
@@ -15064,7 +15064,7 @@ When the RP receives a mandate with `joint_representation: true`, it must collec
 
 > **No specification exists** for multi-Wallet joint representation. ARF and OID4VP do not address multi-user sessions. RPs must implement this as application-level orchestration until a standard emerges.
 
-##### Mandate-Only DCQL Query
+##### 18.1.4 Mandate-Only DCQL Query
 
 For use cases where the RP already knows the company (e.g., an existing customer portal) and only needs to verify the representative's authority:
 
@@ -15086,9 +15086,9 @@ For use cases where the RP already knows the company (e.g., an existing customer
 }
 ```
 
-> **Assurance trade-off**: A mandate-only presentation lacks the PID and LPID binding checks ([§18.1.3](#1813-identity-matching-in-lpid-combined-presentations)). The RP can verify the mandate's `represented_entity_id` against its own records (e.g., stored EUID from prior LPID presentation), but cannot cryptographically verify the representative's identity in this session. Accept only for lower-assurance operations or when the representative was previously identified.
+> **Assurance trade-off**: A mandate-only presentation lacks the PID and LPID binding checks ([§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)). The RP can verify the mandate's `represented_entity_id` against its own records (e.g., stored EUID from prior LPID presentation), but cannot cryptographically verify the representative's identity in this session. Accept only for lower-assurance operations or when the representative was previously identified.
 
-##### 18.1.3 Identity Matching in LPID Combined Presentations
+##### 18.1.5 Identity Matching in LPID Combined Presentations
 
 When an RP receives a combined presentation involving LPID, PID, and potentially a mandate credential, it must perform **three-way binding verification**:
 
@@ -15096,11 +15096,11 @@ When an RP receives a combined presentation involving LPID, PID, and potentially
 2. **Representative ↔ PID binding** (attribute-based): the mandate representative identifier matches the representative PID subject identifier under the applicable Rulebook or credential profile — proving the natural person presenting is the authorised representative.
 3. **Mandate ↔ LPID binding** (attribute-based): `mandate.represented_entity_id` == `lpid.legal_person_id` — proving the mandate applies to the presented legal person.
 
-> **Key difference from natural-person combined presentations**: Natural person combined presentations ([§18.1.4](#1814-identity-matching-in-combined-presentations)) only need to verify same-User binding — one entity, multiple credentials. LPID combined presentations require **cross-entity binding** — proving that Person A is authorised to act for Company B. This is structurally more complex, requiring attribute-level cross-matching in addition to the standard cryptographic or presentation-based binding described in [§18.1.4](#1814-identity-matching-in-combined-presentations).
+> **Key difference from natural-person combined presentations**: Natural person combined presentations ([§18.1.10](#18110-cross-format-identity-matching)) only need to verify same-User binding — one entity, multiple credentials. LPID combined presentations require **cross-entity binding** — proving that Person A is authorised to act for Company B. This is structurally more complex, requiring attribute-level cross-matching in addition to the standard cryptographic or presentation-based binding described in [§18.1.4](#1814-mandate-only-dcql-query).
 
 The three-way binding check is performed after individual credential verification ([§11.3](#113-verification-checklist-for-sd-jwt-vc) for SD-JWT VC) and before the RP's business logic processes the verified claims. If any binding check fails, the entire combined presentation must be rejected.
 
-##### 18.1.4 Identity Matching in Combined Presentations
+##### 18.1.6 Identity Matching in Combined Presentations
 
 When the RP receives a combined presentation (multiple attestations in one response), it must verify that all attestations belong to the same User. The ARF (ARF [§6.6.3.10](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#66310-relying-party-instance-verifies-combined-presentation-of-attributes)) defines three binding methods, in ascending order of assurance:
 
@@ -15112,7 +15112,7 @@ When the RP receives a combined presentation (multiple attestations in one respo
 
 > **Current state (ARF v2.8.0)**: [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) now defines the current cryptographic-binding HLRs as `ACP_01`-`ACP_07`, replacing the older discussion-paper numbering. These HLRs require a scheme that lets a WSCA/WSCD prove management of two or more private keys, uses only ECCG v2.0 algorithms, should use a [Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs)-compatible ZKP, and works across issuance plus remote/proximity presentation. They do not define a deployed proof format. Until a concrete scheme is standardised, RPs should rely on **presentation-based binding** for low-risk use cases and **attribute-based binding** for high-risk use cases.
 
-##### 18.1.5 ARF High-Level Requirements for Combined Presentations
+##### 18.1.7 ARF High-Level Requirements for Combined Presentations
 
 The [ARF Annex 2, Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) defines a narrow current HLR set for **cryptographic binding of attestations**. Some rows are directly verifier-facing; others are issuance-time obligations for Attestation Providers that matter to RPs only because they determine whether a future binding proof can be trusted.
 
@@ -15126,7 +15126,7 @@ The [ARF Annex 2, Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-hi
 | **ACP_06** | Empty. | Do not cite or assign semantics to this row. |
 | **ACP_07** | Before making an `ACP_05` request, the Attestation Provider SHALL verify that the new attestation belongs to the User of the existing PID or attestation. | The RP should treat future binding proofs as relying on an issuance-time User-binding check, not merely on same-device key possession. |
 
-##### 18.1.6 Security Considerations for Combined Presentations
+##### 18.1.8 Security Considerations for Combined Presentations
 
 1. **Strictest policy prevails**: When attestations in a combined presentation carry different embedded disclosure policies, the **most restrictive** policy applies to the entire presentation. If one attestation's policy denies disclosure to the RP, the User is warned — but can override ([§20.3](#203-embedded-disclosure-policies-edp-evaluation)).
 
@@ -15147,7 +15147,7 @@ The [ARF Annex 2, Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-hi
    | **Session binding** | Each request uses a fresh `nonce` and ephemeral key, but the `state` parameter should encode sequential ordering (e.g., `state: "onboarding-step-2-of-3"`) for RP-side correlation |
    | **Timeout between steps** | Allow generous timeouts (60–120s) between sequential steps — the user may need time to re-authenticate to their Wallet for each approval |
 
-##### 18.1.7 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
+##### 18.1.9 Combined Presentation Verification Flow (Agnostic: Applies to Direct RP and Intermediary)
 
 ```mermaid
 ---
@@ -15228,7 +15228,7 @@ The RP examines the `vp_token` structure. When the DCQL query requested multiple
 }
 ```
 
-The RP uses the `presentation_submission` (or DCQL response mapping) to determine which `vp_token` entry satisfies which part of the original query. Each entry is an independent credential that must be verified individually (steps 3–8) before cross-credential binding is checked (steps 9–10). The RP must handle both SD-JWT VC format (`dc+sd-jwt`) and mdoc format (`mso_mdoc`) within the same response — see [§18.1.8](#1818-cross-format-identity-matching) for cross-format matching.
+The RP uses the `presentation_submission` (or DCQL response mapping) to determine which `vp_token` entry satisfies which part of the original query. Each entry is an independent credential that must be verified individually (steps 3–8) before cross-credential binding is checked (steps 9–10). The RP must handle both SD-JWT VC format (`dc+sd-jwt`) and mdoc format (`mso_mdoc`) within the same response — see [§18.1.10](#18110-cross-format-identity-matching) for cross-format matching.
 
 **Artifact Produced:** The decoupled `vp_token` structure mapping DCQL queries to disparate credential formats.
 
@@ -15238,7 +15238,7 @@ The RP uses the `presentation_submission` (or DCQL response mapping) to determin
 
 For each credential in the `vp_token`, the RP verifies the issuer's cryptographic signature. The verification method depends on the credential format:
 
-- **SD-JWT VC**: The RP parses the issuer-signed JWT header to extract the `x5c` certificate chain (or `kid` referencing a key in the issuer's JWKS), then verifies the JWT signature (ES256 / P-256 ECDSA per HAIP 1.0). The trust anchor is the issuer's root CA certificate obtained from the LoTE ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)).
+- **SD-JWT VC**: The RP parses the issuer-signed JWT header to extract the `x5c` certificate chain (or `kid` referencing a key in the issuer's JWKS), then verifies the JWT signature (ES256 / P-256 ECDSA per HAIP 1.0). The trust anchor is the issuer's root CA certificate obtained from the LoTE ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)).
 - **mdoc**: The RP verifies the `IssuerAuth` COSE_Sign1 signature in the MSO (Mobile Security Object) against the issuer's certificate from the LoTE.
 
 In both cases, the RP must build a certificate chain from the credential's leaf certificate up to the LoTE-provided trust anchor and verify every link. See [§12](#12-cryptographic-verification-pipeline-deep-dive) for the full cryptographic verification procedure.
@@ -15322,7 +15322,7 @@ This is the **critical cross-credential binding check** that distinguishes a com
 
 - **Same-format binding (SD-JWT VC + SD-JWT VC)**: Verify that all credentials contain the same `cnf.jwk` public key. Since the KB-JWT for each credential is signed with this key, matching `cnf.jwk` values proves that the same device key — and therefore the same Wallet Unit — holds all credentials.
 - **Same-format binding (mdoc + mdoc)**: Verify that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. The `DeviceAuth` signature over the shared `SessionTranscript` proves possession.
-- **Cross-format binding (SD-JWT VC + mdoc)**: This is the most complex case — the SD-JWT's `cnf.jwk` and the mdoc's MSO `deviceKey` are **structurally different keys** (JWK vs COSE_Key). The RP must determine whether they represent the same underlying key (see [§18.1.8](#1818-cross-format-identity-matching) for the cross-format matching algorithm).
+- **Cross-format binding (SD-JWT VC + mdoc)**: This is the most complex case — the SD-JWT's `cnf.jwk` and the mdoc's MSO `deviceKey` are **structurally different keys** (JWK vs COSE_Key). The RP must determine whether they represent the same underlying key (see [§18.1.10](#18110-cross-format-identity-matching) for the cross-format matching algorithm).
 
 > **If identity matching fails** (different `cnf.jwk` values or different `deviceKey` values): The credentials may originate from different Wallet Units or even different Users. The RP MUST reject the combined presentation — accepting mismatched credentials would allow a "credential cocktail" attack where attributes from different identities are combined.
 
@@ -15384,7 +15384,7 @@ The `_meta` object is an RP-internal construct (not part of the protocol) that r
 
 > **Key verification step**: Step 9 is the critical identity matching check. For SD-JWT VC, the RP verifies that all attestations contain the same `cnf.jwk` public key. For mdoc, the RP verifies that all `DeviceResponse` documents reference the same `deviceKey` in their MSO. If the keys differ, the attestations may originate from different Wallet Units — the RP should reject or flag the combined presentation.
 
-##### 18.1.8 Cross-Format Identity Matching
+##### 18.1.10 Cross-Format Identity Matching
 
 Open Question #9 identifies the challenge of combined presentations that mix SD-JWT VC and mdoc credentials in a single response. When this occurs, the RP must bridge two different device binding mechanisms:
 
@@ -15575,7 +15575,7 @@ The `vct` below is illustrative until the [Topic 29](https://eudi.dev/2.8.0/anne
 }
 ```
 
-> **Cross-references**: [§18.1.4](#1814-identity-matching-in-combined-presentations) (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), [§22.1](#221-customer-due-diligence-cdd-flow-direct-rp-model) (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), [§21.3](#213-gdpr-obligations-for-rps) (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
+> **Cross-references**: [§18.1.10](#18110-cross-format-identity-matching) (combined presentations — a representation attestation may appear alongside a standard PID in a combined query), [§22.1](#221-customer-due-diligence-cdd-flow-direct-rp-model) (CDD — representation may affect KYC obligations, e.g., onboarding a minor's account), [§21.3](#213-gdpr-obligations-for-rps) (GDPR — processing for a represented minor may have a different legal basis under Art. 8).
 
 ##### 18.2.4 Natural-to-Legal-Person Mandates (Paradigm B)
 
@@ -15610,7 +15610,7 @@ The **digital EU Power of Attorney** is a standardised, machine-readable mandate
 
 ##### 18.2.5 Mandate Verification Flow
 
-The following Mermaid sequence diagram illustrates the RP's verification flow when receiving a triple-credential corporate presentation (LPID + PID + mandate). This extends the combined presentation verification flow in [§18.1.7](#1817-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) with mandate-specific verification steps (phases 4–5).
+The following Mermaid sequence diagram illustrates the RP's verification flow when receiving a triple-credential corporate presentation (LPID + PID + mandate). This extends the combined presentation verification flow in [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) with mandate-specific verification steps (phases 4–5).
 
 ```mermaid
 ---
@@ -15737,7 +15737,7 @@ Each Status List check returns VALID or REVOKED. If the mandate is revoked, the 
 <details>
 <summary><strong>9. RP Instance verifies all credentials share the same cnf.jwk</strong></summary>
 
-This is the cryptographic binding check from [§18.1.4](#1814-identity-matching-in-combined-presentations). All three credentials must contain the same `cnf.jwk` public key, proving they are held in the same Wallet Unit. This is necessary but not sufficient — it proves same-wallet, not same-person-acts-for-same-entity.
+This is the cryptographic binding check from [§18.1.4](#1814-mandate-only-dcql-query). All three credentials must contain the same `cnf.jwk` public key, proving they are held in the same Wallet Unit. This is necessary but not sufficient — it proves same-wallet, not same-person-acts-for-same-entity.
 
 **Failure Path:** Key mismatch indicates a credential cocktail attack.
 
@@ -15747,7 +15747,7 @@ This is the cryptographic binding check from [§18.1.4](#1814-identity-matching-
 <details>
 <summary><strong>10. RP Instance verifies mandate representative identifier matches the PID subject identifier</strong></summary>
 
-This is the representative ↔ PID binding check from [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations). The mandate credential's representative identifier must match the representative PID subject identifier under the applicable Rulebook or credential profile. This proves the natural person presenting the credentials is the person named in the mandate as the representative.
+This is the representative ↔ PID binding check from [§18.1.3](#1813-lpid-and-pid-and-mandate-triple-credential-corporate-onboarding). The mandate credential's representative identifier must match the representative PID subject identifier under the applicable Rulebook or credential profile. This proves the natural person presenting the credentials is the person named in the mandate as the representative.
 
 **Failure Path:** A mismatch means the current user is not the authorized delegate.
 
@@ -15757,7 +15757,7 @@ This is the representative ↔ PID binding check from [§18.1.3](#1813-identity-
 <details>
 <summary><strong>11. RP Instance verifies mandate.represented_entity_id matches lpid.legal_person_id</strong></summary>
 
-This is the mandate ↔ LPID binding check from [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations). The mandate credential's `represented_entity_id` must match the LPID's `legal_person_id` (EUID). This proves the mandate applies to the company identified by the LPID. If the mandate names a different company, the representative cannot act for the presented company.
+This is the mandate ↔ LPID binding check from [§18.1.3](#1813-lpid-and-pid-and-mandate-triple-credential-corporate-onboarding). The mandate credential's `represented_entity_id` must match the LPID's `legal_person_id` (EUID). This proves the mandate applies to the company identified by the LPID. If the mandate names a different company, the representative cannot act for the presented company.
 
 **Failure Path:** A mismatch means the mandate applies to an entirely different business entity.
 
@@ -18130,7 +18130,7 @@ Key Binding JWT payload (proves Wallet Unit possesses the device key):
 
 The Bank performs the complete SD-JWT VC verification pipeline (§5.4.2):
 
-1. **Issuer signature** — verify the Issuer-JWT ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary))
+1. **Issuer signature** — verify the Issuer-JWT ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 2. **Disclosure integrity** — for each disclosed attribute, compute `SHA-256(base64url(disclosure))` and match against the `_sd` array in the Issuer-JWT
 3. **KB-JWT device binding** — verify the KB-JWT signature against the `cnf.jwk`, validate `aud` (matches Bank's `client_id`), `nonce`, `sd_hash`, and `iat` recency
 4. **Credential metadata** — check `iat`, `exp` (PID validity period), and `vct` (credential type matches `urn:eudi:pid:1` or a domestic `urn:eudi:pid:*` PID type)
@@ -19539,7 +19539,7 @@ If a PSP accepts corporate accounts, it must prepare for Legal Person Identifica
 |:-:|:-----------|:--------|:------------------|
 | 1 | Support LPID (`legal_person_id`, `legal_person_name`) credential type | Corporate account opening | [§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person), [§11.12](#1112-lpid-verification-pipeline-delta) |
 | 2 | Validate EUID format for `legal_person_id` claims | Receiving LPID presentations | [§3.4](#34-euid-the-anchor-identifier-for-legal-persons), [§11.12.2](#11122-euid-format-validation) |
-| 3 | Implement triple-credential DCQL queries (LPID + PID + mandate) | Corporate representative onboarding | [§18.1](#181-example-legal-person-verification-lpid), [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations) |
+| 3 | Implement triple-credential DCQL queries (LPID + PID + mandate) | Corporate representative onboarding | [§18.1](#181-example-legal-person-verification-lpid), [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) |
 | 4 | Verify three-way binding: `cnf.jwk` match, mandate representative identifier ↔ representative PID subject identifier under the applicable Rulebook, `represented_entity_id` ↔ `legal_person_id` | Combined presentations | [§18.2.5](#1825-mandate-verification-flow) |
 | 5 | Apply stricter Status List freshness policy for mandates than ordinary PID/LPID caching, with fresh/no-cache retrieval for high-value operations where risk policy requires it | Mandate verification | [§18.2.7](#1827-mandate-revocation-model) |
 
@@ -20121,7 +20121,7 @@ An intermediary is a first-class RP in the EUDI Wallet ecosystem. It connects mu
 
 The same legal entity can be both an intermediary and a direct RP. The operational rule is certificate-path separation: when acting directly, it uses its own direct-RP WRPAC/WRPRC material; when acting as intermediary, it uses the intermediary WRPAC plus the intermediated RP's request metadata and WRPRC or Registrar evidence.
 
-##### Deployment Architecture and Legal Implications
+##### 25.1.1 Deployment Architecture and Legal Implications
 
 The decision between Direct and Intermediary integration carries severe regulatory consequences:
 
@@ -20386,7 +20386,7 @@ The Wallet POSTs the JWE to the Intermediary's `response_uri` (`https://verifier
 The Intermediary performs the complete verification pipeline — the same verification an RP would do in the Direct model:
 
 1. Decrypt the JWE using the session's ephemeral private key (then destroy it)
-2. Parse the SD-JWT VC and verify the Issuer-JWT signature against the PID Provider LoTE trust anchor ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary))
+2. Parse the SD-JWT VC and verify the Issuer-JWT signature against the PID Provider LoTE trust anchor ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 3. Verify the KB-JWT signature against the `cnf.jwk` bound in the credential
 4. Validate `aud` (matches the Intermediary's `client_id`), `nonce`, `sd_hash`, and `iat` recency
 5. Check the credential's revocation status via the Token Status List
@@ -20547,7 +20547,7 @@ Verification policies are typically organised into three tiers of increasing fle
 |:-----|:-----------|:-------------|:--------------|
 | **Static** | Built-in checks with no parameters. Always executed in the same way. | Cryptographic signature verification, expiry check (`exp`), not-before check (`nbf`), device/key binding (`cnf.jwk` confirmation or mdoc `DeviceAuth`), schema validation | Enabled/disabled per verification request |
 | **Parameterized** | Checks that accept configuration arguments to customise behaviour. | Trusted issuer whitelist (X.509 certificate hash or Trusted List anchor), revocation status check (TokenStatusList index + expected value), credential type filter (`vct_values`) | Arguments provided per verification request or per verifier instance configuration |
-| **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching ([§18.1.8](#1818-cross-format-identity-matching)) | Rule definitions managed as code artifacts; version-controllable and independently testable |
+| **Dynamic** | Programmable rules evaluated at runtime against credential data. Policies can be defined inline, loaded from a policy server, or composed from multiple rule sets. | Custom business rules (e.g., "accept PID only from MS in [DE, NL, FR]"), AML screening delegation, age threshold validation, combined presentation cross-matching ([§18.1.10](#18110-cross-format-identity-matching)) | Rule definitions managed as code artifacts; version-controllable and independently testable |
 
 > **Why this matters for RPs**: The policy engine architecture determines how much verification logic lives in the RP's own codebase versus being delegated to the verification platform. RPs operating in regulated industries (banking, healthcare) benefit from the **auditability** of declarative policy definitions — each policy decision can be traced to a specific, versioned rule rather than buried in application code.
 
@@ -20859,7 +20859,7 @@ EUDI Wallet verification involves multiple asynchronous handoffs between compone
 
 ##### 26.6.1 Integration Models and Callback Layers
 
-###### Integration Model Overview
+###### 26.6.1.1 Integration Model Overview
 
 The **legal** distinction between models depends on **whose WRPAC signs the JAR** — not on where the verifier software runs:
 
@@ -20904,7 +20904,7 @@ The RP is a **native mobile application** (e.g., a banking app, insurance app, o
 
 </details>
 
-###### Callback Layer Applicability
+###### 26.6.1.2 Callback Layer Applicability
 
 | Layer | Name | Model A (self-hosted) | Model B (SaaS) | Model C (Intermediary) | Model D (browser DC API) | Model E (native app) |
 |:------|:-----|:---------------------:|:--------------:|:----------------------:|:------------------------:|:--------------------:|
@@ -20914,7 +20914,7 @@ The RP is a **native mobile application** (e.g., a banking app, insurance app, o
 
 L1 is defined by the OpenID4VP response return mode. In direct-post models, the Wallet POSTs to `response_uri` via `direct_post` / `direct_post.jwt`. In browser DC API and native OS credential models, the encrypted response returns through the platform API instead, so there is no Wallet-to-`response_uri` L1 callback at all. L2 and L3 are vendor API patterns that exist *above* that protocol layer. L2 notifies the RP that a verification session completed; L3 delegates a verification decision to an external service. In Model A, L1 and L2 collapse — the RP receives the `direct_post` directly — and L2 is unnecessary. Models B and C both require L2 callbacks, but with different trust models and payload requirements ([§26.6.5](#2665-callback-payload-requirements)).
 
-###### `response_uri` Domain Binding and Model B Validity
+###### 26.6.1.3 `response_uri` Domain Binding and Model B Validity
 
 A critical question for Model B is: **can the SaaS verifier host `response_uri` on its own domain** (e.g., `https://saas-verifier.example.com/response`) while the WRPAC identifies the RP's domain (e.g., `rp.example.com`)? The answer depends on the Client Identifier Prefix in use:
 
@@ -21090,7 +21090,7 @@ If the RP has configured Dynamic policies ([§26.1.1](#2611-three-tier-policy-ar
 
 - **L3 webhook delegations** — the verifier sends disclosed attributes to an external endpoint (e.g., the RP's AML screening service at `https://rp.example.com/aml-check`) and waits for a pass/fail response
 - **Custom rules** — e.g., *"accept PID only from DE, NL, FR issuers"*, *"require a dedicated age predicate where available"*, *"reject if birthdate indicates age &lt; 16"*
-- **Cross-credential matching** — if multiple credentials were presented (combined presentation, [§18.1.8](#1818-cross-format-identity-matching)), the verifier can check consistency (for example, `personal_administrative_number` where present and usable, or `family_name` + `birthdate`)
+- **Cross-credential matching** — if multiple credentials were presented (combined presentation, [§18.1.10](#18110-cross-format-identity-matching)), the verifier can check consistency (for example, `personal_administrative_number` where present and usable, or `family_name` + `birthdate`)
 
 The policy chain result (all tiers: static + parameterized + dynamic) is aggregated into a final verification decision: `SUCCESS`, `FAILED`, or `REQUIRES_REVIEW`.
 
@@ -21277,7 +21277,7 @@ The RP redirects the User's browser to the intermediary's authorization endpoint
 
 The User's Wallet receives the OpenID4VP authorization request — either via QR code scan (cross-device), custom scheme redirect (same-device), or Digital Credentials API invocation. The Wallet fetches the JAR from the `request_uri` and parses the signed JWT. The JAR is signed by the **intermediary's WRPAC** — the Wallet authenticates the intermediary as the live Relying Party Instance, then reads the end-RP request information and WRPRC or Registrar evidence to identify the intermediated RP. This two-layer identity is a unique aspect of the intermediary model ([§25.2](#252-end-to-end-intermediary-flow-intermediary-rp-model)).
 
-> **Trust chain**: The Wallet verifies the intermediary's WRPAC chain against the LoTE ([§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)), just as it would for a direct RP. The Wallet then evaluates the end-RP registration information from the request material, the selected WRPRC if available, or the responsible Registrar if online verification is needed.
+> **Trust chain**: The Wallet verifies the intermediary's WRPAC chain against the LoTE ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)), just as it would for a direct RP. The Wallet then evaluates the end-RP registration information from the request material, the selected WRPRC if available, or the responsible Registrar if online verification is needed.
 
 </details>
 <details>
@@ -21524,9 +21524,9 @@ response=eyJhbGciOiJFQ0RILUVTI...[JWE]...&state=sess_7f3a9b2c
 <details>
 <summary><strong>4. Verifier backend performs cryptographic verification</strong></summary>
 
-The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — [§5.5.3](#553-rp-trust-anchor-retrieval-flow-agnostic-applies-to-direct-rp-and-intermediary)), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
+The verifier backend receives the proxied `direct_post` and executes the full OID4VP verification pipeline: JWE decryption (using the ephemeral private key generated during session creation), SD-JWT signature verification against the issuer's trust anchor (LoTE lookup — [§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)), selective disclosure validation, revocation check (Token Status List — draft-ietf-oauth-status-list), and holder binding verification (KB-JWT `nonce` + `aud` matching).
 
-This step is identical to the standard verification flow documented in [§18.1.7](#1817-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
+This step is identical to the standard verification flow documented in [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) — the proxy topology does not change the verification logic itself. The verifier has no awareness that a gateway is sitting in front of it; it processes the VP Token and produces the same structured result it would in a direct topology.
 
 **Artifact Produced:** Verification Result (per-credential pass/fail, disclosed attribute set, verification dimensions).
 
@@ -21644,7 +21644,7 @@ Content-Type: application/json
 
 </details>
 
-###### Architecture Characteristics
+###### 26.6.4.1 Architecture Characteristics
 
 | Characteristic | Description |
 |:-------------|:-----------|
@@ -21654,7 +21654,7 @@ Content-Type: application/json
 | **Custom error mapping** | The gateway can transform verifier error responses into the RP's own error taxonomy before returning them to the Wallet. This enables fine-grained error handling (e.g., mapping `REVOKED` to a specific RP action) without modifying the verifier itself. |
 | **No L2 callback required** | Since the RP receives the verification result synchronously in the HTTP response from the verifier, no L2 callback is needed. The gateway receives the result, enriches it, and forwards it to the RP's backend within the same request lifecycle. |
 
-###### Use Cases
+###### 26.6.4.2 Use Cases
 
 - **Inline VSI evaluation** — the RP invokes its VSI composition engine ([§30.7](#307-signal-composition-and-risk-scoring)) with both the disclosed attributes and the HTTP context (client IP, device fingerprint, TLS fingerprint). The composite risk score is computed before the HTTP response returns to the Wallet, enabling real-time blocking of high-risk presentations (S0/S1 signals trigger immediate BLOCK; S2–S4 signals compose into Allow/Flag/Step-up decisions).
 - **Rate limiting and abuse detection** — the gateway enforces per-IP, per-session, or per-credential-type rate limits. Unusual patterns (e.g., 50 presentations from the same IP in 10 minutes) are blocked at the gateway level before reaching the verifier.
@@ -21663,7 +21663,7 @@ Content-Type: application/json
 - **Response transformation** — the gateway can modify the verifier's HTTP response before forwarding it to the Wallet (e.g., injecting additional redirect parameters, modifying the `redirect_uri`).
 
 
-###### Security Considerations
+###### 26.6.4.3 Security Considerations
 
 - **The gateway is a high-value target** — it has access to the raw VP Token, disclosed attributes, and full HTTP context. The gateway must be hardened: restrict network access, use mutual TLS for backend connections, audit gateway configuration changes, and rotate secrets regularly.
 - **JWE decryption key handling** — if the verifier runs behind the gateway (Model A), the ephemeral private key for JWE decryption must either reside on the verifier or be accessible to the gateway. If the gateway performs decryption, the ephemeral key must be stored in an HSM or secure enclave — never in application memory on the gateway host.
@@ -21691,9 +21691,9 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 | `verification_dimensions` | N/A | ✅ | Which [Topic 52](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2330-topic-52-relying-party-intermediaries) `RPI_09` verification dimensions were agreed and passed ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-rpi_08rpi_09)) |
 | `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata ([§26.6.6](#2666-risk-signal-forwarding)) |
 
-> **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see [§26.7.4](#2674-mode-deep-dives) for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
+> **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see [§26.7.4.1](#26741-push-vs-ping-the-payload-trade-off) for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
 
-###### L2 Delivery Mechanisms
+###### 26.6.5.1 L2 Delivery Mechanisms
 
 The L2 result delivery is not always a webhook push. Five mechanisms exist, each with different architectural tradeoffs. The first three correspond to the token delivery modes defined by OpenID Connect CIBA Core 1.0 — see [§26.7.2](#2672-result-delivery-mode-taxonomy) for the full taxonomy and [§26.7.3](#2673-two-axis-selection) for the selection decision tree:
 
@@ -21701,13 +21701,13 @@ The L2 result delivery is not always a webhook push. Five mechanisms exist, each
 |:----------|:------------|:-------:|:----------:|:---------|
 | **Push** (full-payload webhook) | Verifier POSTs complete result + disclosed attributes to RP's `statusCallbackUri` when session transitions | ~100ms | Medium — RP must expose an authenticated endpoint | Production event-driven architectures |
 | **Ping** (thin webhook + fetch) | Verifier POSTs notification (`session_id` + `status` only) to RP's callback; RP fetches full result via `GET /session/{id}` | ~200ms | Medium — RP exposes callback + calls session API | High-PII environments (KYC, healthcare) — attributes stay off webhook channel |
-| **Polling** | RP periodically calls `GET /session/{id}` (short, long, or batch polling — see [§26.7.4](#2674-mode-deep-dives)) | 1–5s (interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments; webhook fallback |
+| **Polling** | RP periodically calls `GET /session/{id}` (short, long, or batch polling — see [§26.7.4.2](#26742-poll-when-simplicity-wins)) | 1–5s (interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments; webhook fallback |
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
 | **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.4](#2674-mode-deep-dives)). Separately, the RP may deploy a reverse proxy ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
+> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.4.1](#26741-push-vs-ping-the-payload-trade-off)). Separately, the RP may deploy a reverse proxy ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.2](#2672-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
-###### Multi-Entity Callback Routing
+###### 26.6.5.2 Multi-Entity Callback Routing
 
 When an RP operates **multiple legal entities** (e.g., subsidiaries in different Member States, each with its own WRPAC), the SaaS verifier must route L2 callbacks to the correct entity. This requires:
 
@@ -21734,7 +21734,7 @@ When a SaaS verifier or intermediary sits between the Wallet and the end-RP, the
 
 ##### 26.6.7 Callback Security and Error Handling
 
-###### Authentication and Integrity
+###### 26.6.7.1 Authentication and Integrity
 
 L2 webhook endpoints are attractive attack targets — an attacker who can forge a callback can inject fabricated verification results into the RP's backend. RPs must implement at least one of the following authentication mechanisms:
 
@@ -21747,7 +21747,7 @@ L2 webhook endpoints are attractive attack targets — an attacker who can forge
 
 > **Recommendation**: Use HMAC signatures as the minimum baseline. Include a `timestamp` field in the signed payload and reject callbacks older than 5 minutes to prevent replay attacks. For financial-sector RPs subject to DORA, mTLS is recommended.
 
-###### Error Handling and Retry Semantics
+###### 26.6.7.2 Error Handling and Retry Semantics
 
 When the RP's webhook endpoint is unreachable (5xx, timeout, DNS failure), the verifier must handle retries gracefully:
 
@@ -22025,7 +22025,7 @@ flowchart TD
 
 ```
 
-###### Common Topology × Delivery Combinations
+###### 26.7.3.1 Common Topology × Delivery Combinations
 
 | Combination | Use Case | Example |
 |:------------|:---------|:--------|
@@ -22040,7 +22040,7 @@ flowchart TD
 
 ##### 26.7.4 Mode Deep Dives
 
-###### Push vs. Ping: The Payload Trade-Off
+###### 26.7.4.1 Push vs. Ping: The Payload Trade-Off
 
 The key architectural decision for webhook-based delivery is whether to use **push** (full payload) or **ping** (thin notification + fetch):
 
@@ -22054,7 +22054,7 @@ The key architectural decision for webhook-based delivery is whether to use **pu
 
 > **Recommendation**: For RPs processing **sensitive PII** (banking KYC, healthcare) in environments where webhook endpoint hardening is complex, **ping mode** reduces the attack surface by keeping attributes off the webhook channel. For high-throughput, low-sensitivity use cases (age verification, basic identity confirmation), **push mode** is simpler and faster.
 
-###### Poll: When Simplicity Wins
+###### 26.7.4.2 Poll: When Simplicity Wins
 
 Polling is the lowest-complexity integration — the RP needs no webhook endpoint, no persistent connections, and no message broker. It is the default delivery mode in the OpenID4VP reference design (the Verifier's frontend polls the Response URI using a `transaction-id`).
 
@@ -22066,7 +22066,7 @@ Polling is the lowest-complexity integration — the RP needs no webhook endpoin
 
 > **Interval guidance**: For short polling, use 2-second intervals during the first 30 seconds (user is actively waiting), then back off to 5-second intervals. Implement a maximum poll duration (e.g., 10 minutes per [§26.5.1](#2651-session-lifecycle-states) session expiry) after which the RP stops polling and displays a timeout error. The verifier may include a recommended `interval` in the session creation response.
 
-###### Stream: Real-Time Frontend Integration
+###### 26.7.4.3 Stream: Real-Time Frontend Integration
 
 Server-Sent Events (SSE) and WebSocket provide real-time delivery without requiring the RP to expose a server-side endpoint:
 
@@ -22077,7 +22077,7 @@ Server-Sent Events (SSE) and WebSocket provide real-time delivery without requir
 
 Stream delivery is primarily a **frontend** integration pattern — the RP's browser-based UI subscribes to events to update the user-facing state (e.g., transitioning from "Waiting for Wallet..." to "Verification complete"). It typically complements a backend delivery mode (push or ping) rather than replacing it. The backend still receives the full verification result for server-side processing; the stream provides the frontend with real-time awareness of the state transition.
 
-###### Event Bus: Enterprise Pub-Sub
+###### 26.7.4.4 Event Bus: Enterprise Pub-Sub
 
 For high-throughput enterprise RPs — particularly those subject to DORA (Art. 9 ICT risk management framework documentation) —verification events can be published to a message broker instead of or in addition to point-to-point webhooks:
 
@@ -22088,7 +22088,7 @@ For high-throughput enterprise RPs — particularly those subject to DORA (Art. 
 
 This mode is not offered by any EUDI wallet connector vendor as a native integration option (as of March 2026). However, RPs can implement it as a **bridge pattern**: receive push or ping webhooks from the connector, and immediately publish the event to an internal message broker for downstream processing. This decouples the webhook endpoint (which must respond quickly to avoid retry storms) from the business logic processing (which may be slow or multi-step).
 
-###### Vendor Ecosystem Landscape
+###### 26.7.4.5 Vendor Ecosystem Landscape
 
 The push model (full-payload webhook) is the dominant integration delivery mode across the EUDI vendor ecosystem. Only **Procivis** defaults to the ping model (thin notification → fetch), and **MATTR** supports a hybrid push/ping pattern via its backend retrieval architecture. The **synchronous inline** mode — where the RP forwards the VP token and receives the verification result in the same HTTP response — is **natively straightforward** with self-hosted or on-prem vendors (walt.id, Procivis) and library/SDK embeds (Spruce ID, Scytáles). With SaaS providers, sync inline requires the RP to proxy the `response_uri` through its own gateway and depends on whether the SaaS backend returns the verification result in the `direct_post` HTTP response — most SaaS vendors process asynchronously and deliver results via webhook, making sync inline impractical without vendor-specific support. Proxy topology for HTTP context capture (without sync inline) is achievable with **any** vendor if the RP routes `response_uri` traffic through its own gateway ([§26.6.4](#2664-reverse-proxy-integration-pattern)).
 
@@ -22219,7 +22219,7 @@ The following vendors offer RP integration capabilities for the EUDI Wallet ecos
 
 Beyond the RP-facing verifier platforms listed in [§27](#27-vendor-evaluation) and [§27.1](#271-vendor-detail-profiles), the EUDI Wallet ecosystem includes infrastructure providers, QTSPs, and identity proofing services that RPs may interact with indirectly. This section maps the broader vendor landscape for ecosystem awareness.
 
-##### Tier 3: Infrastructure Providers (PID, HSM, QTSP)
+##### 27.3.1 Tier 3: Infrastructure Providers (PID, HSM, QTSP)
 
 These vendors provide underlying infrastructure (PID issuance, HSMs, trust services) but are not RP-facing verifier platforms. Several of these vendors provide Remote WSCD infrastructure — the HSMs and WSCA software that Wallet Providers use to host cryptographic keys in cloud-based secure environments ([§7.4.5](#745-wscd-architecture-types-arf-45)).
 
@@ -22238,7 +22238,7 @@ These vendors provide underlying infrastructure (PID issuance, HSMs, trust servi
 | **Ubisecure** | 🇫🇮 FI | CIAM | ⚠️ | ⚠️ | European IAM/CIAM; EWC LSP participant; LEI services via RapidLEI |
 | **Verimi** | 🇩🇪 DE | Wallet SDK | 🟡 | 🟡 | EUDI Wallet SDK; government-certified; no public developer documentation |
 
-##### Tier 4: Identity Proofing and Document Verification
+##### 27.3.2 Tier 4: Identity Proofing and Document Verification
 
 These vendors provide identity verification for onboarding but rely on partners for VC verification.
 
@@ -22249,7 +22249,7 @@ These vendors provide identity verification for onboarding but rely on partners 
 | **IN Groupe** | 🇫🇷 FR | Government ID | ID Verifier app for MRZ/NFC docs; eIDAS 2.0 participant; no SD-JWT/DCQL docs |
 | **youniqx Identity** | 🇦🇹 AT | EUDI Infra Builder | Builds Germany's EUDI Wallet infrastructure; EUDI Verifier Service; also listed in [§27.1](#271-vendor-detail-profiles) |
 
-##### LSP Participation Cross-Reference
+##### 27.3.3 LSP Participation Cross-Reference
 
 Which vendors participate in which EU Digital Identity Wallet Large-Scale Pilots:
 
@@ -22436,7 +22436,7 @@ This matrix evaluates which integration delivery modes ([§26.7](#267-integratio
 
 ##### 27.8.1 Verification (OID4VP)
 
-###### L2 Delivery Mechanism Support
+###### 27.8.1.1 L2 Delivery Mechanism Support
 
 | Vendor | Push (full webhook) | Ping (thin webhook) | Poll (GET session) | Sync Inline ([§26.7.2](#2672-result-delivery-mode-taxonomy)) | SSE | WebSocket | Proxy Topology ([§26.7.1](#2671-deployment-topology-proxy-vs-direct)) |
 |:-------|:-------------------:|:-------------------:|:------------------:|:---------------------:|:---:|:---------:|:------------------------:|
@@ -22459,7 +22459,7 @@ This matrix evaluates which integration delivery modes ([§26.7](#267-integratio
 
 > For the architectural justification of proxy topology — including HTTP context capture, gateway-level security, synchronous inline processing, and SaaS compatibility — see [§26.7.1](#2671-deployment-topology-proxy-vs-direct).
 
-###### Callback Payload Model
+###### 27.8.1.2 Callback Payload Model
 
 | Vendor | VP Token in callback | Payload model | Callback authentication |
 |:-------|:-------------------:|:-------------|:-----------------------|
@@ -22474,9 +22474,9 @@ This matrix evaluates which integration delivery modes ([§26.7](#267-integratio
 | **Indicio** | 🟡 Claimed but not documented | Push (assumed) | ❓ |
 | **Others** | ❓ | ❓ | ❓ |
 
-> For the empirical landscape of delivery mode adoption across EUDI vendors — including push/ping dominance, sync inline availability, and SSE/WebSocket limitations — see [§26.7.4](#2674-mode-deep-dives) (Vendor Ecosystem Landscape).
+> For the empirical landscape of delivery mode adoption across EUDI vendors — including push/ping dominance, sync inline availability, and SSE/WebSocket limitations — see [§26.7.4.5](#26745-vendor-ecosystem-landscape) (Vendor Ecosystem Landscape).
 
-###### Verification Mode Selection Guidance
+###### 27.8.1.3 Verification Mode Selection Guidance
 
 The delivery mode capability should be evaluated against the RP's architectural constraints. The following matrix maps common RP requirements to the recommended delivery mode and vendor profile:
 
@@ -22648,7 +22648,7 @@ The Trust Mark is backed by two JSON data objects: `WalletTrustMarkInformation` 
 
 Annex 5.02 uses trust-indicator and badge language as non-binding Wallet UX guidance for data-sharing screens. Treat that as a Wallet-side explanatory pattern, not as permission for RPs to display the TS1 EUDI Wallet Trust Mark or to label themselves "trusted" outside the registration and access-certificate framework.
 
-> **Disambiguation**: The TS1 visual Trust Mark is unrelated to **OID-FED Trust Marks** ([§5.5.6](#556-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)). OID-FED Trust Marks are signed JWT attestations of RP federation membership — machine-readable authorisation signals validated programmatically by the Wallet Instance. The TS1 Trust Mark is a human-readable visual logo for end users. The naming collision is unfortunate but well-understood within the ecosystem.
+> **Disambiguation**: The TS1 visual Trust Mark is unrelated to **OID-FED Trust Marks** ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model)). OID-FED Trust Marks are signed JWT attestations of RP federation membership — machine-readable authorisation signals validated programmatically by the Wallet Instance. The TS1 Trust Mark is a human-readable visual logo for end users. The naming collision is unfortunate but well-understood within the ecosystem.
 
 ---
 
@@ -30871,7 +30871,7 @@ flowchart LR
 
 Each threat in [§29](#29-security-threat-catalogue) produces one or more named verification signals when it manifests. Each signal has a defined severity level (S0 Critical through S4 Noise), a STRIDE classification, and a composition weight. The signal composition engine aggregates individual signals into a composite risk score that drives one of four outcomes: **Allow** (proceed normally), **Flag** (allow but mark for review), **Step-up** (require additional authentication or a stronger presentation path), or **Block** (reject and alert SOC). The policy definition for that stronger path belongs in the RP's assurance-profile model ([§26.1.2](#2612-assurance-profiles-and-channel-policy)).
 
-##### Industry Framework Mapping
+##### 30.1.1 Industry Framework Mapping
 
 VSI is the EUDI-specific instantiation of several established industry frameworks. The mapping ensures that RP security teams can integrate EUDI verification signals into their existing tooling:
 
@@ -31084,7 +31084,7 @@ Every VSI signal is assigned a severity level from S0 (Critical) through S4 (Noi
 | **S3** | **Low — Informational** | **Allow** normally. Log signal in verification record. Update UEBA behavioural baseline. | No manual review required. Aggregate for weekly trend analysis. | `SDJWT_EXP_EXPIRED`, `CTX_DEVICE_UNKNOWN`, `CTX_GEO_MISMATCH`, `PROTO_PRESENTATION_REJECTED`, `MDOC_VALIDITY_EXPIRED`, `KBJWT_CLOCK_SKEW` |
 | **S4** | **Noise — Operational** | **Allow** normally. Log for diagnostics only. Do not feed into risk score. | No review. Use only for operational dashboards and debuggability. | `CTX_TIME_OF_DAY_ANOMALY`, `MDOC_NAMESPACE_NOT_FOUND`, `MDOC_DATA_REQUEST_DENIED`, `PROTO_ACCESS_DENIED`, `PROTO_TEMPORARILY_UNAVAILABLE` |
 
-##### Severity × STRIDE Matrix
+##### 30.6.1 Severity × STRIDE Matrix
 
 The intersection of severity level and STRIDE classification reveals the most dangerous signal combinations:
 
@@ -31097,7 +31097,7 @@ The intersection of severity level and STRIDE classification reveals the most da
 
 > **Key observation**: Tampering and Spoofing signals concentrate at S0/S1, because they indicate active credential manipulation or identity spoofing. Replay signals are exclusively S0 — any nonce/session reuse is unambiguous evidence of attack. DoS signals cap at S2 because they degrade service without compromising credentials.
 
-##### Regulatory Escalation Paths
+##### 30.6.2 Regulatory Escalation Paths
 
 | VSI Severity | Regulatory Trigger | Reporting Timeline | Applicable Regulation |
 |:-------------|:-------------------|:-------------------|:---------------------|
@@ -31114,7 +31114,7 @@ Individual VSI signals are **individually insufficient** for definitive blocking
 
 For RPs using explicit assurance profiles ([§26.1.2](#2612-assurance-profiles-and-channel-policy)), the composition engine should not treat `STEP_UP` as a generic placeholder. It should map elevated-risk outcomes to a **stronger predefined ceremony**: for example, prefer same-device DC API over cross-device fallback, require supervised or controlled proximity for a recovery or rebinding event, or restrict a non-device-bound presentation to lower-risk operations until stronger evidence is obtained.
 
-##### Scoring Model
+##### 30.7.1 Scoring Model
 
 ```
 composite_risk = Σ (base_weight[signal_i] × severity_multiplier[signal_i] × recency_factor[signal_i])
@@ -31137,7 +31137,7 @@ Decision:
 
 > **Implementation note**: The specific thresholds (20/50/80) and weights above are **illustrative, not prescriptive**. RPs MUST calibrate these values against their own transaction volumes, risk appetite, and regulatory tier. Financial RPs subject to PSD2 TRA should align thresholds with their reference fraud rate monitoring data ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking), RTS Art. 19).
 
-##### Fail-Fast vs Aggregate Validation
+##### 30.7.2 Fail-Fast vs Aggregate Validation
 
 RPs should not collapse VP Token validation into a single undifferentiated `verification_failed` result. A verifier can be implemented in two broad modes:
 
@@ -31161,7 +31161,7 @@ This is why vendors and in-house verification stacks should preserve:
 
 Without that granularity, the RP can still reject the single presentation, but it loses the most useful part of VSI: the ability to inspect the full failure surface of one suspicious VP Token instead of only the first error a library happened to report.
 
-##### Composite Scenario Walkthroughs
+##### 30.7.3 Composite Scenario Walkthroughs
 
 The following worked examples demonstrate how multi-signal composition drives decisions that differ from any individual signal's standalone action:
 
@@ -31232,7 +31232,7 @@ The WUA failure (emulated device) combined with automated TLS fingerprint, high 
 
 </details>
 
-##### Signal Flow: VP Token to Decision
+##### 30.7.4 Signal Flow: VP Token to Decision
 
 ```mermaid
 ---
@@ -31482,7 +31482,7 @@ The composition engine emits a VSI event to the SIEM/SOAR platform with `priorit
 
 Each VSI signal emits a structured event suitable for SIEM ingestion. The schema extends the [§31.3.1](#3131-verification-result-object-structure) Verification Result Object with per-signal event data, enabling correlation across multiple presentations and drill-down from aggregate dashboards to individual signal detail.
 
-##### VSI Event JSON Structure
+##### 30.8.1 VSI Event JSON Structure
 
 ```json
 {
@@ -31527,7 +31527,7 @@ Each VSI signal emits a structured event suitable for SIEM ingestion. The schema
 
 > **GDPR compliance ([§31.3](#313-audit-trail-requirements))**: The event schema logs `subject_correlation_hash` (a one-way hash of the RP's lawful account or identity correlation key), not raw PID attributes. The `source_ip` is included for security incident response (GDPR Art. 6(1)(f) legitimate interest) and must be subject to the RP's IP address retention policy. No attribute values (family_name, birthdate) are included in VSI events — only the credential type, format, and signal metadata.
 
-##### Field Reference
+##### 30.8.2 Field Reference
 
 | Field | Type | Description | Retention |
 |:------|:-----|:------------|:----------|
@@ -31546,7 +31546,7 @@ Each VSI signal emits a structured event suitable for SIEM ingestion. The schema
 | `correlation.previous_signals_24h` | array | Signal IDs from prior sessions in the last 24 hours | 24h rolling window |
 | `verification_result_ref` | string | `session_id` linking to the full [§31.3.1](#3131-verification-result-object-structure) verification result object | Per audit policy |
 
-##### CEF Compatibility
+##### 30.8.3 CEF Compatibility
 
 For SIEM platforms that ingest Common Event Format (CEF), the VSI event maps to:
 
@@ -31561,7 +31561,7 @@ CEF:0|EUDI-RP|VSI|1.0|KBJWT_AUD_MISMATCH|KB-JWT audience mismatch|10|
   cs5=abc-123-def cs5Label=SessionID
 ```
 
-##### Sample SIEM Queries
+##### 30.8.4 Sample SIEM Queries
 
 **Splunk** — Top 10 signals in the last hour:
 ```spl
@@ -31626,7 +31626,7 @@ This assessment evaluates vendor capabilities across six VSI-relevant dimensions
 | **SIEM-friendly event format** | Does the vendor produce structured events (JSON with consistent schema) suitable for SIEM ingestion, or are events only available via a vendor-specific dashboard? | "Can we export verification events as structured JSON via webhook or API for ingestion into our SIEM?" |
 | **Aggregate validation output** | When a presentation fails, does the verifier stop at the first error, or does it return the full set of applicable failed / passed / indeterminate checks from the same validation pass? | "Can your verifier return all applicable policy failures for one VP Token, rather than only the first error encountered?" |
 
-##### Vendor Assessment Matrix
+##### 30.10.1 Vendor Assessment Matrix
 
 | Vendor | Granular Failure Codes | Per-Policy Results | Raw VP Token Access | Webhook Event Types | SIEM-Friendly Format | Aggregate Validation Output | VSI Readiness |
 |:-------|:---------------------:|:------------------:|:-------------------:|:-------------------:|:--------------------:|:--------------------------:|:-------------:|
@@ -31843,7 +31843,7 @@ Production verification systems should produce a **structured verification resul
 
 Key design principles for the result object:
 
-1. **Per-credential granularity** — Combined presentations ([§18.1.4](#1814-identity-matching-in-combined-presentations)) may contain multiple credentials; each gets its own policy result array. A partial failure (one credential passes, another fails) should be logged with per-credential detail.
+1. **Per-credential granularity** — Combined presentations ([§18.1.10](#18110-cross-format-identity-matching)) may contain multiple credentials; each gets its own policy result array. A partial failure (one credential passes, another fails) should be logged with per-credential detail.
 
 2. **Policy descriptions** — Human-readable descriptions enable audit reviewers to understand what was checked without needing to consult implementation documentation. This supports DORA's requirement for "clear and comprehensive" ICT incident records.
 
@@ -35074,9 +35074,9 @@ This final group synthesises the technical investigation into actionable guidanc
 
 44. <a id="finding-44"></a> **The EBW shares trust infrastructure with the EUDI Wallet.** Trusted Lists/LoTEs, Access Certificate Authorities, Registrars, and the WUA mechanism are shared between the EUDI Wallet and the European Business Wallet. RPs will not need a separate trust integration for legal person credentials — but they must extend their LoTE cache to include LPID Provider entries. ([§3.2](#32-shared-trust-infrastructure), [§11.12](#1112-lpid-verification-pipeline-delta))
 
-45. <a id="finding-45"></a> **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** Current [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) (`RP_01`, `RP_02`) mandates a future Rulebook for representation attestations issued to a natural person representing another natural person, including validity, nature-of-representation, and authorised-operation attributes plus short-lived-or-revocable provider handling. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations))
+45. <a id="finding-45"></a> **Mandate credentials for natural-person-to-legal-person representation are not yet specified.** Current [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) (`RP_01`, `RP_02`) mandates a future Rulebook for representation attestations issued to a natural person representing another natural person, including validity, nature-of-representation, and authorised-operation attributes plus short-lived-or-revocable provider handling. The primary B2B use case — a company director acting on behalf of a company — lacks a formal credential specification. This is a significant gap for RPs planning B2B onboarding flows. ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary))
 
-46. <a id="finding-46"></a> **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's representative identifier must match the representative PID subject identifier under the applicable profile, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in [§18.1.4](#1814-identity-matching-in-combined-presentations). ([§18.1.3](#1813-identity-matching-in-lpid-combined-presentations))
+46. <a id="finding-46"></a> **Triple-credential combined presentations introduce cross-entity binding complexity.** Unlike natural person combined presentations, which verify that multiple credentials belong to the same User, LPID combined presentations require cross-entity attribute matching: the mandate's representative identifier must match the representative PID subject identifier under the applicable profile, and the mandate's `represented_entity_id` must match the LPID's `legal_person_id`. This three-way binding is a new verification pattern not covered by the existing same-User binding described in [§18.1.4](#1814-mandate-only-dcql-query). ([§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary))
 
 47. <a id="finding-47"></a> **Mandate scope enforcement is the hardest RP obligation.** Unlike identity verification (checking cryptographic proofs) or company verification (matching EUID format), scope checking requires semantic matching — determining whether an operation falls within the mandate's authority. No standard vocabulary exists. RPs must implement structured JSON scope matching ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step)) as a pluggable module, with deny-by-default for high-value operations. ([§18.2.6](#1826-scope-constraint-enforcement), [§11.12.3](#11123-mandate-scope-verification-new-pipeline-step))
 
@@ -35098,11 +35098,11 @@ This final group synthesises the technical investigation into actionable guidanc
 
 #### 34.8 OpenID Federation Observations
 
-55. <a id="finding-55"></a> **OID-FED is already embedded in DR-0002 as a data format, but the protocol itself was not previously explained.** The LoTE Entity Statement format uses OID-FED (`application/entity-statement+jwt`, `/.well-known/openid-federation`), but the underlying protocol — trust chain resolution, Entity Configurations, Subordinate Statements, metadata policies, Trust Marks — was not covered. Readers encountering OID-FED references in [§5.5](#55-trusted-lists-and-lists-of-trusted-entities) had no protocol context. ([§5.5.5](#555-openid-federation-the-protocol-behind-lote-entity-statements))
+55. <a id="finding-55"></a> **OID-FED is already embedded in DR-0002 as a data format, but the protocol itself was not previously explained.** The LoTE Entity Statement format uses OID-FED (`application/entity-statement+jwt`, `/.well-known/openid-federation`), but the underlying protocol — trust chain resolution, Entity Configurations, Subordinate Statements, metadata policies, Trust Marks — was not covered. Readers encountering OID-FED references in [§5.5](#55-trusted-lists-and-lists-of-trusted-entities) had no protocol context. ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 
-56. <a id="finding-56"></a> **Italy's IT-Wallet demonstrates a production deployment of full OID-FED trust infrastructure alongside ETSI Trusted Lists.** Italy is the only EUDI LSP using OID-FED as the complete protocol for RP onboarding, trust establishment, and metadata discovery — not merely as a data format. The Italian model includes dual `client_id` scheme support (`openid_federation` vs `x509_hash`) for cross-border interoperability, providing a concrete architectural precedent for other Member States. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure))
+56. <a id="finding-56"></a> **Italy's IT-Wallet demonstrates a production deployment of full OID-FED trust infrastructure alongside ETSI Trusted Lists.** Italy is the only EUDI LSP using OID-FED as the complete protocol for RP onboarding, trust establishment, and metadata discovery — not merely as a data format. The Italian model includes dual `client_id` scheme support (`openid_federation` vs `x509_hash`) for cross-border interoperability, providing a concrete architectural precedent for other Member States. ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure))
 
-57. <a id="finding-57"></a> **TS11 permits OID-FED for non-qualified EAA trust, creating an RP obligation to implement three distinct trust verification paths.** RPs accepting non-qualified EAAs must handle OID-FED trust chains, ETSI TS 119 602 LoTEs, and self-signed attestations — a significant increase in verification pipeline complexity compared to PID-only RPs. ([§5.5.7](#557-when-openid-federation-applies-credential-type-trust-framework-map), [§5.5.9](#559-non-qualified-eaa-issuer-trust-three-verification-paths))
+57. <a id="finding-57"></a> **TS11 permits OID-FED for non-qualified EAA trust, creating an RP obligation to implement three distinct trust verification paths.** RPs accepting non-qualified EAAs must handle OID-FED trust chains, ETSI TS 119 602 LoTEs, and self-signed attestations — a significant increase in verification pipeline complexity compared to PID-only RPs. ([§5.5.11](#5511-when-openid-federation-applies-credential-type-trust-framework-map), [§5.5.19](#5519-non-qualified-eaa-issuer-trust-three-verification-paths))
 
 #### 34.9 Cross-Border and International Observations
 
@@ -35209,7 +35209,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | **For non-KYC age verification use cases** (adult content, gambling, social media, retail), implement the EU Commission's ZKP Age Verification Solution ([§19](#19-age-verification-attestation-pipelines)) for maximum unlinkability. Unlike SD-JWT where presentations can be correlated via hash values, ZKP proofs are cryptographically unique per presentation — preventing RP linkability even with issuer collusion. |
 | 🔴 **Critical** | **For KYC-obligated RPs (banks, PSPs, insurers): Do NOT use the Age Verification App.** It cannot satisfy AMLD/PSD2 requirements. Implement full EUDI Wallet PID presentation ([§22](#22-amlkyc-onboarding-via-eudi-wallet)) for Customer Due Diligence. The AV App is designed exclusively for non-KYC use cases and does not provide the identity attributes required for regulatory compliance. ([§19.1.3](#1913-trust-model-and-issuer-infrastructure), [§19.1.6](#1916-comparison-zkp-vs-sd-jwt)) |
 | 🟡 **High** | **Design attestation processing pipelines to be entity-type-agnostic.** Do not hardcode natural person PID attributes or assume all presentations contain `family_name`/`birth_date`. LPID credentials use `legal_person_id`/`legal_person_name` and will arrive from EBW wallets starting 2028+. Use type-based dispatch: SD-JWT VC PID `vct` `urn:eudi:pid:1` or domestic `urn:eudi:pid:*`, mdoc PID `docType` `eu.europa.ec.eudi.pid.1`, and LPID `EWC_LPID_Attestation` or its future standard type. ([§3](#3-legal-person-identification-and-the-european-business-wallet), [§6.15](#615-lpid-credential-format-legal-person)) |
-| 🟡 **High** | **Implement DCQL multi-credential queries for B2B use cases.** Construct triple-credential DCQL queries (LPID + PID + mandate) for corporate onboarding and contract signing. Prepare for three-way binding verification ([§18.1](#181-example-legal-person-verification-lpid), [§18.1.3](#1813-identity-matching-in-lpid-combined-presentations)). |
+| 🟡 **High** | **Implement DCQL multi-credential queries for B2B use cases.** Construct triple-credential DCQL queries (LPID + PID + mandate) for corporate onboarding and contract signing. Prepare for three-way binding verification ([§18.1](#181-example-legal-person-verification-lpid), [§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)). |
 | 🟢 **Medium** | **Implement EUID format validation** in the verification pipeline for `legal_person_id` claims. Use the regex `^[A-Z]{2}[A-Z0-9]+\.[A-Z0-9]+(_[A-Z0-9])?$` per CIR 2021/1042. ([§3.4](#34-euid-the-anchor-identifier-for-legal-persons), [§11.12.2](#11122-euid-format-validation)) |
 
 | 🟢 **Medium** | **Implement mandate scope verification as a pluggable module** with configurable scope vocabulary. Support structured JSON scope matching ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step)) immediately; upgrade to vocabulary hierarchies when the Rulebook publishes. ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step), [§18.2.6](#1826-scope-constraint-enforcement)) |
@@ -35217,8 +35217,8 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | Operate an accessibility governance programme for wallet entry points: procurement requirements and VPAT / EN 301 549 evidence, manual assistive-technology testing, release regression gates, support-channel defect tagging, and periodic expert/user review. ([§21.5.7](#2157-accessibility-governance-and-procurement-controls), [§31.2.1](#3121-compliance-governance-and-incident-mapping)) |
 | 🟡 **High** | Provide at least one non-visual alternative to QR code scanning in cross-device flows: a "Open in EUDI Wallet" deep link, a copy-to-clipboard URI, or NFC. ([§10](#10-cross-device-remote-presentation), [§21.5.3](#2153-qr-code-accessibility-for-remote-flows)) |
 | 🟢 **Medium** | Present verification results using multi-modal indicators (text + icon + colour). Use ARIA live regions for async status updates. Never use colour alone. ([§21.5.4](#2154-accessible-consent-and-verification-ux-patterns)) |
-| 🟡 **High** | **Understand OID-FED trust chain resolution as a protocol, not merely as a data format.** TS11 permits OID-FED for non-qualified EAAs, meaning RPs accepting non-qualified EAAs must implement three distinct trust verification paths (OID-FED, ETSI LoTE, self-signed). Build the verification pipeline as a pluggable, trust-framework–branching module. ([§5.5.5](#555-openid-federation-the-protocol-behind-lote-entity-statements), [§5.5.9](#559-non-qualified-eaa-issuer-trust-three-verification-paths)) |
-| 🟢 **Medium** | **Prepare for dual trust model support (WRPAC + OID-FED)** if planning cross-border operations with Member States that use OID-FED for RP trust establishment (currently Italy). Support both `client_id` schemes (`x509_hash` and `openid_federation`) in the presentation request handling logic. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
+| 🟡 **High** | **Understand OID-FED trust chain resolution as a protocol, not merely as a data format.** TS11 permits OID-FED for non-qualified EAAs, meaning RPs accepting non-qualified EAAs must implement three distinct trust verification paths (OID-FED, ETSI LoTE, self-signed). Build the verification pipeline as a pluggable, trust-framework–branching module. ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model), [§5.5.19](#5519-non-qualified-eaa-issuer-trust-three-verification-paths)) |
+| 🟢 **Medium** | **Prepare for dual trust model support (WRPAC + OID-FED)** if planning cross-border operations with Member States that use OID-FED for RP trust establishment (currently Italy). Support both `client_id` schemes (`x509_hash` and `openid_federation`) in the presentation request handling logic. ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
 | 🟡 **High** | **Implement a pluggable trust resolution module for Rulebook-aware verification.** Define a `TrustResolver` interface with implementations for `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, and `OpenIDFederationResolver`. Route trust verification based on the `SchemaMeta.trustedAuthorities[].frameworkType` field from the Catalogue of Schemes. This architecture converts onboarding new attestation types from a code change to a configuration change. ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11), [§6.18](#618-rulebook-aware-verification-pipeline)) |
 | 🟢 **Medium** | **Subscribe to the EC Attestation Rulebooks Catalog** ([GitHub repo](https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog)) for new Rulebook notifications. When a sector-specific Rulebook publishes, follow the 5-step onboarding checklist in [§6.18.4](#6184-new-attestation-type-onboarding-checklist) to integrate the new attestation type into your verification pipeline. ([§6.11](#611-rulebook-architecture), [§6.18](#618-rulebook-aware-verification-pipeline)) |
 | 🔴 **Critical** | **Integrate the OIDF OID4VP/HAIP Conformance Suite into CI/CD pipelines.** Gate staging and production deployments on conformance test pass. Use `run-test-plan.py` for automated execution and maintain nightly regression runs. ([§11.8.3](#1183-cicd-pipeline-integration)) |
@@ -35264,7 +35264,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 3 | **Registration** | Optionally obtain WRPRC from Registration Certificate Provider | [§5.3](#53-registration-certificates-wrprc) |
 | 4 | **Registration** | Register URL/email/phone deletion channels for TS7 data deletion requests | [§20.1](#201-data-deletion-requests-ts7) |
 | 5 | **Trust setup** | Pre-cache LoTEs for all 27 MS + EEA countries by trust plane (RP access, issuer/provider trust, wallet/provider assurance), and pre-stage `LOTL` / national trusted-list bootstrap inputs where qualified outputs matter | [§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§23.2](#232-lote-discovery-across-member-states) |
-| 6 | **Trust setup** | Implement separate LoTE refresh and authenticated trusted-list refresh / evidence-preservation logic for those trust planes (minimum daily, more often where qualified outputs matter) | [§5.5.4](#554-trust-anchor-lifecycle-events-that-affect-rps), [§31.2](#312-alert-triggers) |
+| 6 | **Trust setup** | Implement separate LoTE refresh and authenticated trusted-list refresh / evidence-preservation logic for those trust planes (minimum daily, more often where qualified outputs matter) | [§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model), [§31.2](#312-alert-triggers) |
 | 7 | **Trust setup** | Implement WRPAC renewal automation (alert at 30 days before expiry) | [§31.2](#312-alert-triggers) |
 | 8 | **Protocol** | Implement JAR construction with `x509_hash`, DCQL, topology-appropriate encrypted response modes, and the ARF/ECCG v2.0 algorithm allowlist | [§8](#8-openid4vp-and-haip-protocol-foundations), [§9.3](#93-native-app-rp-integration-iosandroid) |
 | 9 | **Protocol** | Implement ephemeral key management for response encryption | [§8.4](#84-ephemeral-key-lifecycle-and-forward-secrecy) |
@@ -35273,7 +35273,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 12 | **Verification** | Build SD-JWT VC verification pipeline | [§11.3](#113-verification-checklist-for-sd-jwt-vc) |
 | 13 | **Verification** | Build mdoc verification pipeline | [§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp) |
 | 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Appendix B |
-| 15 | **Verification** | Implement combined presentation identity matching | [§18.1.4](#1814-identity-matching-in-combined-presentations) |
+| 15 | **Verification** | Implement combined presentation identity matching | [§18.1.10](#18110-cross-format-identity-matching) |
 | 16 | **Compliance** | Implement pseudonym acceptance for non-identification services using the WebAuthn/passkey route where profiled, while keeping the [Topic 11](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a238-topic-11-pseudonyms) pseudonym layer technology-abstracted | [§16](#16-pseudonym-based-authentication-and-webauthn) |
 | 17 | **Compliance** | Implement data deletion request handling behind registered URL/email/phone deletion channels; Wallet logs initiation, not RP fulfilment | [§20.1](#201-data-deletion-requests-ts7) |
 | 18 | **Compliance** | Register complete DPA contact information in `supervisoryAuthority` and support [Topic 50](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2328-topic-50-blueprint-to-report-unlawful-or-suspicious-request-of-data) reporting fallback semantics | [§20.2](#202-dpa-reporting-ts8), [§20.5](#205-ts8-dpa-contact-lookup-chain) |
@@ -35344,7 +35344,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§8.8) |
 | <a id="oq-30"></a> 30 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching ([§6.15.1](#6151-vct-value-and-issuer-metadata)) |
 | <a id="oq-31"></a> 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. ([§6.15.3](#6153-mdoc-format-gap)) |
-| <a id="oq-32"></a> 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) | Unclear — EBW is designed as a separate wallet, while [Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes)'s key-management proof assumes WSCA/WSCD-managed keys inside the presenting wallet context ([§18.1.3](#1813-identity-matching-in-lpid-combined-presentations)) |
+| <a id="oq-32"></a> 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) | Unclear — EBW is designed as a separate wallet, while [Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes)'s key-management proof assumes WSCA/WSCD-managed keys inside the presenting wallet context ([§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)) |
 | <a id="oq-33"></a> 33 | What is the mandate Attestation Rulebook timeline? [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_01` mandates the Commission to create a Rulebook for natural-to-natural representation attestations — when, and through which source, will natural-person-to-legal-person mandates be covered? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm); EBW watchlist | Commission Rulebook duty exists for natural-to-natural representation only; no published date and no natural-to-legal mandate profile. ([§18](#18-combined-presentations-lpid-and-mandate-credentials), [§11.12.3](#11123-mandate-scope-verification-new-pipeline-step)) |
 | <a id="oq-34"></a> 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm); [Topic I](https://eudi.dev/2.8.0/discussion-topics/i-natural-person-representing-another-natural-person/) background; EBW watchlist | Not addressed. LoA inference model from [§11.11](#1111-level-of-assurance-verification) may apply, but mandate-specific guidance is absent. ([§18.2.2](#1822-mandate-credential-attribute-model)) |
 | <a id="oq-35"></a> 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_02`; representation Rulebook | Provider short-lived-or-revocable duty exists for natural-to-natural representation attestations, but no implementation specification for the access layer. (§18.2.7) |
@@ -35352,8 +35352,8 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | <a id="oq-37"></a> 37 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) / Rulebook watchlist | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. ([§18.1](#181-example-legal-person-verification-lpid)) |
 | <a id="oq-38"></a> 38 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§18.1, [§18.2.4](#1824-natural-to-legal-person-mandates-paradigm-b)) |
 | <a id="oq-39"></a> 39 | When a Wallet Provider uses a remote HSM (ARF [§6.5.4.3](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#6543-migrating-the-pids-and-attestations-in-a-wallet-unit-to-a-different-wallet-solution)), the private key does not change during migration — the user authenticates to the existing HSM from the new Wallet Unit. Does this mean the PID's `cnf.jwk` stays the same, giving the RP zero migration signal? If so, is this a concern for security auditing (the RP cannot detect that the user changed devices)? | ARF [§6.5.4.3](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#6543-migrating-the-pids-and-attestations-in-a-wallet-unit-to-a-different-wallet-solution), TS10 v1.1 | Architecturally clean but creates an inconsistency: the RP has no way to know the user changed devices. Not addressed in ARF. ([§5.6.1](#561-wallet-migration-consolidated-rp-handling-guide)) |
-| <a id="oq-40"></a> 40 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF [§6.1](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#61-scope) | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
-| <a id="oq-41"></a> 41 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. ([§5.5.8](#558-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
+| <a id="oq-40"></a> 40 | Will the EU adopt OpenID Federation as an additional EU-wide cross-border trust framework (alongside ETSI Trusted Lists)? If so, the European Commission could serve as a cross-federation Trust Anchor with MS Trust Anchors as Intermediates — but this requires political consensus, metadata type harmonisation, and policy cascading rules. | OID-FED 1.0, ARF [§6.1](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#61-scope) | Not under active discussion. Italy's IT-Wallet is the only production OID-FED deployment. ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
+| <a id="oq-41"></a> 41 | How should RPs handle trust model negotiation when Wallet Instances from OID-FED–based Member States (e.g., Italy) interact with WRPAC-based RPs? Should the RP advertise both `client_id` schemes, or should the Wallet Instance fall back to the `x509_hash` scheme automatically? | OID4VP, Italian IT-Wallet specs | Currently handled via dual `client_id` scheme in the Italian specification, but no EU-wide protocol for trust model negotiation exists. ([§5.5.14](#5514-national-precedent-italian-it-wallet-and-full-oid-fed-trust-infrastructure)) |
 | <a id="oq-42"></a> 42 | When (if ever) will Article 14 implementing acts or bilateral agreements recognise non-EU trust frameworks, enabling non-EU credential verification through the EUDI trust chain? | Art. 14, EU Int'l Digital Strategy | No implementing acts adopted; no timeline. Switzerland QES mandate preparation started Jan 2025. ([§23.5](#235-non-eu-credential-recognition)) |
 | <a id="oq-43"></a> 43 | When will the Catalogue of Schemes API go live? TS11 v1.0.1 is published (January 2026) but the EC implementation and deployment timeline for the REST API is unclear. | TS11 v1.0.1 | API specification exists; no operational deployment announced. RPs should plan for Catalogue integration but cannot test against a live endpoint yet. ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)) |
 | <a id="oq-44"></a> 44 | Will EBSI/DID remain a trust model option for education credentials in the EUDI ecosystem, or will CIR 2025/1569 force convergence to ETSI Trusted Lists / LoTE? | DC4EU, CIR 2025/1569 | Unclear — Discussion Paper O and CIR 2025/1569 focus on ETSI TL and LoTE with no explicit mention of `did:ebsi`. DC4EU tested EBSI integration. ([§6.17.2](#6172-education), [§7.3.2](#732-ebsi-the-eus-own-did-infrastructure)) |
@@ -36083,3 +36083,4 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [EUDI Wallets Launchpad 2025 — Technical Report](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) — European Commission interoperability event (Dec 10–12, 2025, Brussels); 570+ tests, 420 successful, 60+ testers from 16 countries ([§28.3](#283-wallet-interoperability-testing))
 - [POTENTIAL LSP — Final Report](https://potential-eudigitalidentity.eu) — Large-Scale Pilot covering banking KYC, eGov, mDL, QES, ePrescription, SIM registration; 19 MS + Ukraine; 1,300+ tests, 1,000+ successful transactions, 249 cross-border; concluded Sep 2025 ([§28.3](#283-wallet-interoperability-testing))
 - [grnet/eudi-web-wallet-mock](https://github.com/grnet/eudi-web-wallet-mock) — Mock web application simulating EUDI Wallet interactions with credential issuers and verifiers; useful for rapid RP integration testing without mobile apps ([§11.8.4](#1184-obtaining-test-credentials))
+

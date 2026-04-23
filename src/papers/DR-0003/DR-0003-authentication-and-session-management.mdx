@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-04-17
+date_updated: 2026-04-23
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
 
@@ -14,7 +14,7 @@ related: []
 
 
 
-**DR-0003** · Published · Last updated 2026-04-17 · ~47,700 lines
+**DR-0003** · Published · Last updated 2026-04-23 · ~47,700 lines
 
 ---
 
@@ -1420,7 +1420,7 @@ Rev 4 introduces new guidance on **subscriber-controlled wallets** (SP 800-63B-4
 
 NIST SP 800-63B defines three **Authenticator Assurance Levels** (AAL1, AAL2, AAL3) that specify the minimum requirements for authenticator strength, number of factors, and replay resistance. These levels are independent of the **Identity Assurance Level** (IAL) — a system can operate at IAL2/AAL1 (high confidence in *who* the user is, but low confidence in the authentication mechanism) or IAL1/AAL3 (low identity proofing, but very strong authentication). This section provides a practical mapping from AAL requirements to concrete authenticator combinations commonly deployed in production.
 
-##### AAL1/AAL2/AAL3 Requirements Summary
+##### 1.8.1 AAL1/AAL2/AAL3 Requirements Summary
 
 NIST SP 800-63B defines three Authenticator Assurance Levels, each specifying a minimum bar for how confidently the system can verify that the entity interacting with it is the claimed subscriber. The levels are cumulative — every requirement at AAL1 also applies at AAL2, and every AAL2 requirement also applies at AAL3.
 
@@ -1444,7 +1444,7 @@ NIST SP 800-63B defines three Authenticator Assurance Levels, each specifying a 
 
 AAL1 permits single-factor authentication — a password alone satisfies it. This makes AAL1 suitable only for systems where the consequences of compromise are limited. AAL2 introduces the multi-factor requirement: an attacker who compromises one factor (e.g., a password) cannot access the account without also possessing a second factor. AAL3 adds hardware-based authenticator requirements and verifier impersonation resistance, making it the gold standard for systems where authentication failure could cause severe financial, safety, or national security harm.
 
-##### AAL-Compliant Authentication Combinations
+##### 1.8.2 AAL-Compliant Authentication Combinations
 
 **AAL1 combinations** (single-factor, any type):
 
@@ -1476,7 +1476,7 @@ This distinction is often misunderstood. A YubiKey used *without* user verificat
 
 AAL3 requires that at least one factor be **hardware-bound** and that the authenticator provides **verifier impersonation resistance** — meaning an attacker who compromises the verifier (the server) cannot impersonate the authenticator to gain access elsewhere. This rules out software-based TOTP generators and app-based push notifications for AAL3.
 In AAL3 deployments, the hardware authenticator must use **on-device attestation** to prove its identity to the relying party during registration. FIDO2 authenticators provide this via the `attestation` object in the WebAuthn registration ceremony. PIV cards provide it via X.509 certificate chains issued by a trusted CA. This attestation ensures that the authenticator is a genuine, unmodified device — not a software emulator or cloned token.
-##### Common MFA Configurations vs. AAL Compliance
+##### 1.8.3 Common MFA Configurations vs. AAL Compliance
 
 | Configuration | AAL1 | AAL2 | AAL3 | Notes |
 |:--------------|:----:|:----:|:----:|:------|
@@ -1491,7 +1491,7 @@ In AAL3 deployments, the hardware authenticator must use **on-device attestation
 
 The distinction between **platform authenticators** and **roaming authenticators** in WebAuthn is critical for AAL classification. A platform authenticator (e.g., MacBook Touch ID, Android fingerprint) is built into the user's device — it is not a separate hardware factor that can be removed. NIST classifies it as multi-factor when used with user verification, satisfying AAL2, but not AAL3. A roaming authenticator (e.g., YubiKey) is a removable hardware token — it satisfies AAL3 when used with user verification.
 
-##### SMS OTP: The AAL2 Compliance Trap
+##### 1.8.4 SMS OTP: The AAL2 Compliance Trap
 
 SMS one-time passwords occupy a uniquely problematic position in the AAL framework. Under NIST SP 800-63B §6.1.3.2, SMS OTP is classified as a **restricted** authenticator — it is listed as an acceptable multi-factor possession factor, but NIST explicitly states that organizations should "consider alternative authenticators" and that SMS OTP "may be restricted from use" depending on the threat model.
 
@@ -1503,7 +1503,7 @@ In practice, SMS OTP + password **technically satisfies AAL2**, which has led ma
 
 Several US federal agencies have moved to **ban SMS OTP outright** for AAL2 compliance, following OMB Memorandum M-22-09 ("Moving the U.S. Government Toward Zero Trust Cybersecurity Principles"), which directs agencies to phase out SMS and voice-call MFA in favor of phishing-resistant alternatives. Organizations should treat SMS OTP as **AAL1-equivalent** regardless of its formal AAL2 classification, and should not rely on it for any system where regulatory compliance or security assurance claims are required.
 
-##### Enterprise Migration Path: AAL1-to-AAL2-to-AAL3
+##### 1.8.5 Enterprise Migration Path: AAL1-to-AAL2-to-AAL3
 
 For organizations planning to improve their assurance level, NIST SP 800-63B provides a natural migration path that aligns with the broader industry shift toward passwordless and phishing-resistant authentication:
 
@@ -1517,7 +1517,7 @@ For organizations planning to improve their assurance level, NIST SP 800-63B pro
 
 Step 1 is the minimum viable improvement — it eliminates the single-factor risk with minimal user friction. Step 2 is the most impactful single change, because it introduces phishing resistance. Step 3 eliminates passwords entirely, reducing credential stuffing, breach replay, and password fatigue. Steps 4 and 5 are reserved for high-value systems that require AAL3 compliance.
 
-##### AAL3 for High-Value Systems
+##### 1.8.6 AAL3 for High-Value Systems
 
 AAL3 is reserved for systems where authentication compromise would have **severe consequences**: unauthorized access to classified information, financial systems controlling large-value transactions, healthcare systems accessing electronic health records, and critical infrastructure control systems (energy grid, water treatment, telecommunications).
 
@@ -1546,7 +1546,7 @@ The fourth revision of SP 800-63B, published in 2024, introduced several refinem
 - **Revised phishing-resistant requirement** — AAL2 and AAL3 authenticators are now explicitly expected to be phishing-resistant. This effectively positions WebAuthn/FIDO2 and smart cards as the preferred AAL2+ authenticators, while TOTP (which is not phishing-resistant) remains technically compliant but is increasingly seen as insufficient.
 - **Enhanced session management** — AAL3 now requires that session identifiers be bound to the authenticator, preventing session hijacking through cookie theft alone.
 
-##### Mapping AAL to eIDAS Assurance Levels
+##### 1.8.7 Mapping AAL to eIDAS Assurance Levels
 
 The EU eIDAS regulation defines three Levels of Assurance (LoA1, LoA2, LoA3) for electronic identification. While NIST AAL and eIDAS LoA serve similar purposes, they are not directly equivalent — their requirements differ in scope (NIST covers authentication only; eIDAS covers identity proofing + authentication) and specificity.
 
@@ -1584,7 +1584,7 @@ For organizations that must satisfy both NIST AAL and eIDAS LoA requirements, th
 
 The key insight is that **hardware-based phishing-resistant authentication** (FIDO2, PIV/CAC) satisfies both NIST AAL3 and eIDAS LoA3 simultaneously. Software-based multi-factor (password + TOTP, password + push) satisfies AAL2 and LoA2 but cannot be elevated to either high-assurance level without hardware. Organizations planning for eIDAS 2.0 wallet integration should consider FIDO2 passkeys as a future-proof path — passkeys are WebAuthn credentials that are cloud-synced but still hardware-bound at the platform level, and they are positioned to satisfy eIDAS LoA2 for most use cases.
 
-##### Session Management Requirements by AAL
+##### 1.8.8 Session Management Requirements by AAL
 
 NIST SP 800-63B ties session management controls directly to the AAL level. As assurance increases, so do the requirements for session lifetime, re-authentication, and session binding:
 
@@ -1601,7 +1601,7 @@ At AAL3, the session must be cryptographically bound to the authenticator (NIST 
 
 **Practical implications:** Organizations implementing AAL3 should design their session management to treat the session identifier as a *hint* rather than a *proof* of authentication. The real proof resides in the hardware authenticator. This design pattern — sometimes called "authentication-layer sessions" — aligns with zero-trust architecture principles and provides defense-in-depth against session hijacking, token theft, and cross-site request forgery.
 
-##### AAL and the European Digital Identity Wallet (EUDI Wallet)
+##### 1.8.9 AAL and the European Digital Identity Wallet (EUDI Wallet)
 
 The EU's EUDI Wallet, established under eIDAS 2.0 (Regulation (EU) 2024/1183), introduces a new dimension to assurance-level interoperability. The wallet issues **Qualified Electronic Attestations of Attributes** (QEAAs) at three levels of assurance corresponding to eIDAS LoA1, LoA2, and LoA3. When a relying party receives a wallet-based credential, the authentication assurance is determined by the wallet's certified assurance level — not by the relying party's own AAL implementation.
 
@@ -6938,7 +6938,7 @@ As of this writing, PSD3 is still in the European Parliament and Council negotia
 
 #### 5.2 SCA Requirements Under PSD2
 
-##### The Three-Factor Model
+##### 5.2.1 The Three-Factor Model
 
 SCA requires authentication based on the use of **two or more independent elements** drawn from three categories (RTS-SCA, Article 10):
 
@@ -6962,7 +6962,7 @@ The EBA clarified in EBA/Op/2019/11 that the mechanism for displaying transactio
 
 If payment details change after SCA is performed but before execution, the PSP must either re-perform SCA or reject the transaction.
 
-##### SCA Implementation Patterns
+##### 5.2.2 SCA Implementation Patterns
 
 PSD2 does not prescribe a specific technical implementation for SCA — the three-factor model is a regulatory requirement, not a protocol specification. Three dominant implementation patterns have emerged across European banking channels:
 
@@ -6991,7 +6991,7 @@ The critical requirement for two-device patterns is that the SCA device must dis
 | Primary weakness | Device loss/malware | Session fixation risk | Replay / interception |
 
 
-##### The Exemption Framework
+##### 5.2.3 The Exemption Framework
 
 RTS-SCA Article 18 defines conditions under which SCA may be exempted. Exemptions are **per-transaction** — the PSP performs real-time fraud risk analysis and decides whether to apply SCA:
 
@@ -7015,7 +7015,7 @@ RTS-SCA Article 18 defines conditions under which SCA may be exempted. Exemption
 - **Frictionless flow:** For low-risk transactions, the issuer can approve without any user interaction — this is an SCA exemption *within* the 3DS framework, driven by the issuer's fraud analysis.
 - **Biometric support:** The challenge flow can use device biometrics as the inherence factor, combined with the device itself as possession.
 
-##### Protocol Flow
+##### 5.3.1 Protocol Flow
 
 The 3DS2 authentication flow involves five participants: the **cardholder**, the **merchant** (with its 3DS Server), the **Directory Server** (card scheme infrastructure), and the **issuer** (card-issuing bank, operating the Access Control Server or ACS):
 
@@ -7179,7 +7179,7 @@ In the EU open banking ecosystem, the ASPSP (the bank) must expose PSD2-mandated
 
 A common misconception is that FAPI 2.0 itself *performs* SCA. In reality, FAPI secures the **API layer** (TPP authentication, token binding, request integrity), while the **end-user SCA** happens at the authorization server's login step — typically via the bank's mobile app or a decoupled push flow.
 
-##### FAPI 2.0 SCA Enforcement Points
+##### 5.4.1 FAPI 2.0 SCA Enforcement Points
 
 FAPI 2.0 enforces SCA compliance at several points in the OAuth flow:
 
@@ -7206,7 +7206,7 @@ FAPI 2.0 enforces SCA compliance at several points in the OAuth flow:
 | DPoP or mTLS token binding | Sender-constrained tokens | Token theft prevention |
 | OIDC `acr` claim enforcement | Knowledge/Inherence (end-user SCA) | PSD2 SCA for the PSU |
 
-##### Dynamic Linking in the FAPI Consent Flow
+##### 5.4.2 Dynamic Linking in the FAPI Consent Flow
 
 PSD2's dynamic linking requirement maps to the FAPI consent flow as follows:
 
@@ -7219,7 +7219,7 @@ PSD2's dynamic linking requirement maps to the FAPI consent flow as follows:
 
 This satisfies dynamic linking because the PSU authenticates while viewing the specific transaction details, and the resulting token is cryptographically bound to that consent.
 
-##### PSD2/FAPI 2.0 Requirements Mapping
+##### 5.4.3 PSD2/FAPI 2.0 Requirements Mapping
 
 | PSD2/RTS-SCA Requirement | FAPI 2.0 Mechanism | Coverage |
 |:-------------------------|:-------------------|:--------|
@@ -7238,7 +7238,7 @@ This satisfies dynamic linking because the PSU authenticates while viewing the s
 
 PSD3 and the accompanying PSR (COM(2023) 362 final) represent the most significant expansion of European payment authentication regulation since PSD2. The regulation will apply directly in all EU member states without national transposition.
 
-##### Expanded Scope
+##### 5.5.1 Expanded Scope
 
 **Crypto-asset transfers.** Crypto-asset service providers (CASPs) authorised under the Markets in Crypto-Assets Regulation (MiCA) become subject to SCA requirements. This closes a regulatory gap where crypto payments — Bitcoin, Ethereum, and other transferable tokens — operated entirely outside the SCA framework. The three-factor model applies; dynamic linking must include the transfer amount, recipient wallet address, and crypto-asset type.
 
@@ -7246,7 +7246,7 @@ PSD3 and the accompanying PSR (COM(2023) 362 final) represent the most significa
 
 **Instant payments.** The PSR mandates participation in the SEPA Instant Credit Transfer (SCT Inst) scheme for all PSPs. SCA exemptions for instant payments are tightened due to the irrevocability of instant settlement — once a payment is settled, it cannot be recalled.
 
-##### Tightened Exemption Rules
+##### 5.5.2 Tightened Exemption Rules
 
 The exemption framework — where fraud risk concentrates under SCA — sees the most operationally significant changes:
 
@@ -7256,7 +7256,7 @@ The exemption framework — where fraud risk concentrates under SCA — sees the
 - **Periodic re-SCA for recurring payments.** Recurring payment exemptions may require periodic re-authentication even when the amount and payee are unchanged — addressing fraud from compromised recurring mandates exploited over extended periods.
 - **Contactless payment codification.** PSD3 may codify the existing contactless SCA exemption (CEV) with a reduced cumulative cap or mandatory periodic re-SCA, contingent on fraud rates remaining below benchmarks.
 
-##### New Security Requirements
+##### 5.5.3 New Security Requirements
 
 - **Real-time transaction notifications.** PSD3 mandates notifications to payers for all electronic payment transactions, including amount, payee, date, and reference — complementing SCA as a fraud-detection layer.
 - **PSP-to-PSP mutual authentication.** For inter-PSP communication (settlement, instant payments), PSD3 introduces mandatory mutual authentication using mTLS with eIDAS-qualified certificates — closing a gap where inter-bank communication was less stringently secured than customer-facing flows.
@@ -7264,7 +7264,7 @@ The exemption framework — where fraud risk concentrates under SCA — sees the
 
 #### 5.6 Implementation Anti-Patterns
 
-##### SMS OTP as a Possession Factor
+##### 5.6.1 SMS OTP as a Possession Factor
 
 SMS one-time passwords remain the most widely deployed possession factor in European banking, yet they are the weakest link in the SCA chain. The EBA's EBA/Op/2018/11 acknowledges that SMS OTP *qualifies* as a possession factor under the RTS, but multiple European NCAs (including the German BaFin and the Dutch DNB) have signalled that PSPs should transition away from SMS OTP toward more secure alternatives.
 
@@ -7279,7 +7279,7 @@ SMS one-time passwords remain the most widely deployed possession factor in Euro
 
 **Recommended replacement path.** Push notification to a registered mobile banking app with cryptographic signing of the transaction payload (possession = device-bound key in TEE/SE; knowledge or inherence = PIN or biometric at the device). This pattern eliminates the SMS channel entirely and provides native dynamic linking.
 
-##### Static Passwords as a Possession Factor
+##### 5.6.2 Static Passwords as a Possession Factor
 
 A more subtle anti-pattern occurs when PSPs treat a **static password** as a possession factor rather than a knowledge factor. This typically manifests in two forms:
 
@@ -7289,7 +7289,7 @@ A more subtle anti-pattern occurs when PSPs treat a **static password** as a pos
 
 The RTS independence requirement is violated when the possession factor is just another knowledge factor in disguise. A true possession factor requires a hardware-bound secret (TEE/SE, TPM, smart card) that cannot be extracted by software alone.
 
-##### Session Replay on 3DS2 and Web Banking SCA
+##### 5.6.3 Session Replay on 3DS2 and Web Banking SCA
 
 **3DS2 challenge replay.** In early 3DS2 implementations, the challenge response (CRes) was transmitted as a plain JSON object that could be captured and replayed by an attacker who intercepted the traffic between the cardholder's browser and the ACS. While 3DS2.2+ introduced cryptographic binding of the CRes to the AReq (via `threeDSServerTransID`), not all implementations validated this binding correctly.
 
@@ -7299,7 +7299,7 @@ The RTS independence requirement is violated when the possession factor is just 
 
 **Mitigation:** The SCA approval must be bound to the payment consent resource, not the session cookie. The consent ID is a server-side reference; the mobile app signs the consent ID (not the session identifier) with its device key. The backend validates the signature and the consent ID against the payment being executed, rendering session fixation ineffective.
 
-##### Dynamic Linking Bypasses
+##### 5.6.4 Dynamic Linking Bypasses
 
 Several implementation patterns nominally satisfy SCA but fail the dynamic linking requirement in practice:
 
@@ -14669,7 +14669,7 @@ In both cases, the other party's challenge comes first. This asymmetry ensures t
 
 RFC 6287 §11 defines four operational modes that build on the core OCRA computation. Each mode specifies the DataInput structure, the message flow between parties, and the security properties achieved.
 
-##### 13.4.0 Challenge Generation and Entropy
+##### 13.4.1 Challenge Generation and Entropy
 
 The challenge is the only **mandatory** DataInput parameter in every OCRA suite. RFC 6287 does not prescribe a specific generation mechanism — the challenge may come from multiple sources, each with distinct trust properties:
 
@@ -14693,7 +14693,7 @@ The challenge is the only **mandatory** DataInput parameter in every OCRA suite.
 
 **Minimum recommendation:** 128-bit challenge entropy for security-critical deployments, achieved by hex challenges of 32+ nibbles or alphanumeric challenges of 20+ characters.
 
-##### 13.4.1 One-Way Challenge-Response (RFC 6287 §11.1)
+##### 13.4.2 One-Way Challenge-Response (RFC 6287 §11.1)
 
 The simplest mode — functionally equivalent to a challenge-response version of HOTP:
 
@@ -14797,7 +14797,7 @@ The **Server** compares the internally computed hash against the submitted `R`. 
 
 This mode authenticates the **client** to the server. The server is not authenticated — the client has no assurance it is talking to a legitimate server.
 
-##### 13.4.2 Mutual Challenge-Response (RFC 6287 §11.2)
+##### 13.4.3 Mutual Challenge-Response (RFC 6287 §11.2)
 
 Both parties authenticate each other through a four-step exchange:
 
@@ -14991,7 +14991,7 @@ Content-Type: application/json
 
 Neither HOTP nor TOTP provides mutual authentication capability — they are strictly one-way protocols where only the client proves knowledge of the shared secret. Mutual authentication is unique to OCRA within the OATH family.
 
-##### 13.4.3 Plain Signature (RFC 6287 §11.3.1)
+##### 13.4.4 Plain Signature (RFC 6287 §11.3.1)
 
 In signature mode, the challenge is not a random value but is **derived from or equal to the data being signed** — typically transaction details:
 
@@ -15001,7 +15001,7 @@ In signature mode, the challenge is not a random value but is **derived from or 
 
 This is the protocol-level mechanism for **transaction signing** — the OCRA code is cryptographically bound to the specific transaction parameters. If any parameter changes (amount, payee, reference), the signature becomes invalid.
 
-##### 13.4.4 Signature with Server Authentication (RFC 6287 §11.3.2)
+##### 13.4.5 Signature with Server Authentication (RFC 6287 §11.3.2)
 
 A hybrid mode combining mutual authentication with transaction signing. The client first authenticates the server (preventing phishing to a rogue transaction-signing page), then signs the transaction:
 
@@ -15321,7 +15321,7 @@ The Payment Card Industry Data Security Standard (PCI DSS v4.0) does not mandate
 
 #### 13.8 Server-Side Implementation Guidance
 
-##### 13.8.0 Challenge Management
+##### 13.8.1 Challenge Management
 
 The server must manage the lifecycle of every issued challenge — from generation through verification to consumption or expiry. The following pseudocode illustrates the core operations:
 
@@ -48683,3 +48683,4 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 ## References
 
 This document uses **narrative-style inline references** throughout. Standards, RFCs, regulations, and specifications are cited in context at the point of discussion — e.g., `(RFC 9449)`, `(NIST SP 800-63B, §11.1)`, `(ISO 18013-5 §14.1.1.5)` — rather than collected in a numbered bibliography. Each chapter's prose contains the full citation context for every source it relies on.
+

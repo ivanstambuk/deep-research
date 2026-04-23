@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-04-17
+date_updated: 2026-04-23
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 
@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-17 · ~28,000 lines
+**DR-0001** · Published · Last updated 2026-04-23 · ~28,000 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -1813,7 +1813,7 @@ HTTP/1.1 204 No Content
 
 No MCP gateway surveyed in §A–§M implements explicit session-token binding — validating that the `Mcp-Session-Id` was created by the same identity (`sub` claim) that presents the current bearer token. This gap, confirmed across all thirteen gateways ([Finding 26](#finding-26)), leaves deployments vulnerable to session hijacking via leaked session IDs, cross-user session confusion, and post-revocation session replay. CVE-2026-26118 (§A) demonstrates that server-side bypass attacks can circumvent gateway controls, making binding validation at the gateway layer — not just the MCP server — essential for defense in depth.
 
-##### Binding Strategy Comparison
+##### 2.5.1 Binding Strategy Comparison
 
 | Strategy | Mechanism | Pros | Cons |
 |:---------|:----------|:-----|:-----|
@@ -1823,7 +1823,7 @@ No MCP gateway surveyed in §A–§M implements explicit session-token binding �
 
 > **Recommendation**: For most deployments, **hash-based binding** provides the best cost/benefit ratio — it closes the session hijacking gap with minimal architecture change. This is especially relevant given the **March 2026 Roadmap's** push for stateless scaling, where hash-based or JWT-as-Session-ID bindings allow gateways to secure requests without maintaining session state. Deployments requiring FAPI 2.0 compliance (§3.7) or operating in regulated environments should adopt **DPoP + Session Binding** for full proof-of-possession. **JWT-as-Session-ID** is attractive for stateless gateway architectures but requires careful key management.
 
-##### Hash-Based Binding Flow
+##### 2.5.2 Hash-Based Binding Flow
 
 ```mermaid
 ---
@@ -2110,7 +2110,7 @@ Content-Type: application/json
 
 </details>
 
-##### Gateway Implementation Guidance
+##### 2.5.3 Gateway Implementation Guidance
 
 The session-token binding check should be placed **immediately after bearer token validation** and **before request forwarding** in the gateway filter chain — this ensures that the identity has been authenticated (valid token) before the binding is checked, and that no downstream processing occurs on a mismatched session. In PingGateway, this maps to a custom `ScriptableFilter` positioned after the `OAuth2ResourceServerFilter` in the chain — the filter extracts `sub` and `aud` from the validated token context, computes the HMAC, and compares against a Redis-backed binding store. In Kong, a custom Lua plugin (phase: `access`) can perform the same logic using Kong's PDK (`kong.request.get_header`, `kong.service.request.set_header`) with the binding store backed by Kong's shared dictionary or an external Redis instance. In Traefik, a Go middleware plugin implementing the `http.Handler` interface can intercept requests after the ForwardAuth middleware has validated the token, using Traefik's plugin SDK for header access and an external store for binding state.
 
@@ -2173,7 +2173,7 @@ flowchart TB
 
 While Streamable HTTP is the specified transport for protocol versions 2025-03-26 and later, the deprecated HTTP+SSE dual-endpoint transport (protocol version 2024-11-05) remains operational in many production deployments. SDK defaults, infrastructure inertia, and client library compatibility keep legacy SSE active — the MCP specification provides a [backwards compatibility guide](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility) acknowledging this reality, and the Transport Working Group's December 2025 roadmap confirms that backwards compatibility is "a priority" with breaking changes introduced "only when strictly necessary." Organizations running legacy SSE face five authorization constraints that Streamable HTTP resolved ([§2.2](#22-security-improvements)). Each constraint requires a distinct hardening pattern until migration is complete.
 
-##### Authorization Constraint Analysis
+##### 2.6.1 Authorization Constraint Analysis
 
 | # | Constraint | Root Cause | Severity | Streamable HTTP Resolution |
 |:--|:-----------|:-----------|:---------|:---------------------------|
@@ -2183,7 +2183,7 @@ While Streamable HTTP is the specified transport for protocol versions 2025-03-2
 | **C4** | **Dual-endpoint authorization asymmetry** | Legacy SSE uses separate `POST /message` (client→server) and `GET /sse` (server→client) endpoints. The `POST` endpoint can carry `Authorization: Bearer` headers normally, but the `GET /sse` endpoint cannot (C1). This creates a split authorization model: write-path requests have bearer token protection while the read-path SSE connection relies on cookies or query-string tokens — two different credential types with different security properties on the same logical connection. | 🟡 Moderate | Single `/mcp` endpoint for both directions eliminates the asymmetry. |
 | **C5** | **Connection resumption authentication** | SSE's `Last-Event-ID` header enables automatic reconnection after network interruptions. When the browser reconnects, it sends `Last-Event-ID` but relies on the same cookie/query-string credential from the original connection. If the credential has expired or been revoked during the interruption, the reconnection succeeds anyway if the server does not re-validate — creating a window for post-revocation access. | 🟡 Moderate | Streamable HTTP's `Last-Event-ID` resumption occurs on explicit `GET /mcp` requests where the client includes both `Authorization: Bearer` and `Mcp-Session-Id` headers, enabling re-validation on every reconnection ([§2.4](#24-gateway-implications)). |
 
-##### Hardening Patterns for Legacy SSE Deployments
+##### 2.6.2 Hardening Patterns for Legacy SSE Deployments
 
 Organizations that cannot yet migrate to Streamable HTTP should apply the following mitigations:
 
@@ -2195,7 +2195,7 @@ Organizations that cannot yet migrate to Streamable HTTP should apply the follow
 | **C3** | **Query-string token with rotation** | If cookies are not viable, pass a short-lived opaque token as a query parameter (`?token=...`). The token must be single-use or time-bounded (≤60 seconds), rotated on each reconnection, and excluded from server access logs. This is a last-resort pattern — query-string tokens are visible in browser history, proxy logs, and `Referer` headers. |
 | **C5** | **Mandatory re-authentication on reconnection** | On `Last-Event-ID` reconnection, re-validate the session cookie or query-string token before resuming the SSE stream. Reject connections with expired or revoked credentials — do not rely on the presence of `Last-Event-ID` as proof of prior authentication. |
 
-##### Migration Path: SSE to Streamable HTTP
+##### 2.6.3 Migration Path: SSE to Streamable HTTP
 
 The MCP spec defines a [backwards compatibility](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#backwards-compatibility) strategy that enables incremental migration:
 
@@ -2214,7 +2214,7 @@ WebSocket is **not an official MCP transport** — the MCP specification defines
 >
 > WebSocket transport currently lacks a standardized MCP authorization envelope, mid-session revalidation model, and token refresh mechanism. For cross-network deployments, exposing it as if it were equivalent to Streamable HTTP creates an avoidable trust gap.
 
-##### SDK Authorization Gap
+##### 2.7.1 SDK Authorization Gap
 
 | Capability | Streamable HTTP (both SDKs) | WebSocket (both SDKs) |
 |:-----------|:---------------------------|:---------------------|
@@ -2222,7 +2222,7 @@ WebSocket is **not an official MCP transport** — the MCP specification defines
 | **Per-request authorization** | Each `POST /mcp` carries the bearer token; gateway validates independently | ❌ JSON-RPC messages are sent as raw `WebSocket.send(JSON.stringify(message))` with no authorization envelope |
 | **Session revalidation** | Gateway re-validates the bearer token on every HTTP request; expired tokens are rejected immediately | ❌ Long-lived WebSocket connections outlive token `exp` with no revalidation mechanism; the server-side Python SDK calls `websocket.accept(subprotocol="mcp")` with no authentication check |
 
-##### WebSocket Authorization Challenges
+##### 2.7.2 WebSocket Authorization Challenges
 
 | # | Challenge | Root Cause | Severity | Streamable HTTP Resolution |
 |:--|:----------|:-----------|:---------|:--------------------------|
@@ -2233,7 +2233,7 @@ WebSocket is **not an official MCP transport** — the MCP specification defines
 | **W5** | **Token refresh requires full reconnection** | No in-band mechanism exists for rotating credentials on an established WebSocket connection. The only way to present a refreshed token is to close the WebSocket and re-establish with the new credential — disrupting server-side session state (context windows, conversation buffers) and requiring `Mcp-Session-Id` re-binding ([§2.4](#24-gateway-implications)). | 🟡 Moderate | Standard HTTP `401 → refresh → retry` cycle; session continuity via `Mcp-Session-Id` header ([§2.3](#23-session-lifecycle-and-token-binding)) |
 | **W6** | **Subprotocol negotiation gap** | Both SDKs use `Sec-WebSocket-Protocol: mcp` as the sole subprotocol. There is no `mcp-auth` variant that signals support for an authorization handshake message (analogous to `graphql-transport-ws` vs. `graphql-ws` in the GraphQL ecosystem). A server has no way to require authentication-capable clients at the protocol negotiation level. | 🟡 Moderate | Not applicable — HTTP content negotiation handles transport capabilities via `Accept` headers |
 
-##### Cross-Industry WebSocket Authorization Patterns
+##### 2.7.3 Cross-Industry WebSocket Authorization Patterns
 
 The WebSocket authorization problem is well-understood outside MCP. Four mature protocols address it with converging patterns:
 
@@ -2246,7 +2246,7 @@ The WebSocket authorization problem is well-understood outside MCP. Four mature 
 
 The **`graphql-ws` `connection_init` pattern** is the closest analogue to what MCP WebSocket transport would need: a post-handshake, pre-operation authorization message that carries credentials within the WebSocket subprotocol itself. The pattern is well-established (adopted by Apollo, Hasura, AWS AppSync, and the `graphql-ws` reference implementation) and maps directly to MCP's JSON-RPC message model.
 
-##### Mitigation Design for MCP WebSocket
+##### 2.7.4 Mitigation Design for MCP WebSocket
 
 If WebSocket were formalized as an MCP transport (via the Extensions framework, SEP-2133), the authorization model would need to address challenges W1–W6. Drawing from the cross-industry patterns above, a minimal design would include:
 
@@ -2870,7 +2870,7 @@ When MCP tool calls involve **high-value operations** — financial transactions
 - **Regulated environments**: PSD3 (EU), Open Banking (UK/AU/BR), and healthcare (FHIR/SMART) ecosystems increasingly mandate FAPI 2.0 compliance
 - **AI-specific threat model**: FAPI 2.0's formal attacker model explicitly addresses token injection and authorization request manipulation — attacks that are amplified when non-deterministic AI agents handle authorization flows
 
-##### Specification Landscape
+##### 3.7.1 Specification Landscape
 
 | Standard | RFC / Spec | Status | What It Secures | MCP Relevance |
 |:---------|:-----------|:-------|:----------------|:--------------|
@@ -2911,7 +2911,7 @@ flowchart TB
 
 ```
 
-##### MCP Gateway FAPI 2.0 Support
+##### 3.7.2 MCP Gateway FAPI 2.0 Support
 
 Among the gateways surveyed in §A–§M, FAPI 2.0 support varies:
 
@@ -3468,7 +3468,7 @@ flowchart TB
     style C_Status text-align:left
 ```
 
-##### Approach A: Agent-as-OAuth-Client (Current MCP Spec)
+##### 6.3.1 Approach A: Agent-as-OAuth-Client (Current MCP Spec)
 
 Each agent type gets its own `client_id`. Since the November 2025 spec (§1.3), the **preferred** method is Client ID Metadata Documents (CIMD), with Dynamic Client Registration (RFC 7591) as a fallback:
 
@@ -3501,7 +3501,7 @@ POST /register
 | DCR enables dynamic onboarding | OAuth clients aren't designed for ephemeral entities |
 | CIMD eliminates per-AS registration overhead | CIMD requires the client to host an HTTPS endpoint |
 
-##### Approach B: Agent-as-Workload (SPIFFE/WIMSE)
+##### 6.3.2 Approach B: Agent-as-Workload (SPIFFE/WIMSE)
 
 Each agent instance gets a **SPIFFE Verifiable Identity Document (SVID)** — a short-lived X.509 certificate or JWT bound to its runtime environment:
 
@@ -3571,7 +3571,7 @@ The AS validates the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` patte
 
 > **Implementation status (March 2026)**: Keycloak 26.4+ implements JWT-SVID client authentication as a **preview feature** using the SPIFFE Trust Bundle Endpoint for key validation. Stian Thorgersen (IBM) co-authored both the IETF draft and the [Keycloak federated client authentication feature](https://www.keycloak.org/2026/01/federated-client-authentication), making Keycloak the **reference implementation** for SPIFFE-based OAuth client auth. GA is targeted for Keycloak 26.6 pending IETF draft finalization. Hitachi will present implementation patterns for SPIFFE + OAuth federated identity at KubeCon + CloudNativeCon Europe 2026 (March 23–26, Amsterdam). Riptides has implemented kernel-level SPIFFE identity for agentic MCP workloads using kTLS and in-kernel mTLS handshakes. See [§21.12](#2112-spiffe-client-authentication-oauth-integration) for the full specification analysis.
 
-##### Approach C: Agent-as-First-Class-Identity (Emerging)
+##### 6.3.3 Approach C: Agent-as-First-Class-Identity (Emerging)
 
 Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class identity objects** alongside users and services. Ping Identity's **Agent IAM Core**, part of the Identity for AI suite that reached general availability on March 24, 2026, provides production agent-as-identity with delegated entitlements, runtime authorization, and both autonomous and on-behalf-of authentication flows (see §B.2.1 for the full technical analysis):
 
@@ -3666,7 +3666,7 @@ flowchart TB
 
 The approaches in [§6.3](#63-three-architectural-approaches-to-agent-identity)–§6.4 rely on centralized identity infrastructure — OAuth Authorization Servers, SPIRE servers, or IdP-managed agent registries. An alternative paradigm exists: **Decentralized Identifiers (DIDs)** and **Verifiable Credentials (VCs)**, both W3C standards, enable self-sovereign, cryptographically verifiable identity without dependence on a single centralized Identity Provider. DID Core 1.0 achieved W3C Recommendation status in July 2022, with [DID Core 1.1](https://www.w3.org/TR/did-core/) reaching Candidate Recommendation Snapshot in March 2026. The [Verifiable Credentials Data Model 2.0](https://www.w3.org/TR/vc-data-model-2.0/) was published as a W3C Recommendation in May 2025, aligning with modern security mechanisms (JOSE/COSE, Data Integrity). Together, DIDs and VCs offer a portable, interoperable identity layer where the identity holder — not a centralized authority — controls credential issuance, presentation, and revocation.
 
-##### Agent Identity Mapping: OIDC/OAuth vs. DID/VC
+##### 6.5.1 Agent Identity Mapping: OIDC/OAuth vs. DID/VC
 
 | Identity Need | OIDC/OAuth Approach (§6.3) | DID/VC Approach | Trade-off |
 |:---|:---|:---|:---|
@@ -3676,11 +3676,11 @@ The approaches in [§6.3](#63-three-architectural-approaches-to-agent-identity)�
 | **Cross-org trust** | OIDC Federation ([§8.7.2](#872-oidc-federation-10-for-agent-trust)) — hierarchical Trust Chains via signed Entity Statements | DID resolution + VC verification — verifier resolves the agent's DID, retrieves the DID Document, and validates presented VCs against trusted issuer DIDs | OIDC Federation provides a structured governance hierarchy (Trust Anchors, Intermediates); DID/VC offers flatter, more ad-hoc trust but requires each verifier to maintain its own trusted issuer list |
 | **Credential delegation** | RFC 8693 token exchange — STS issues scoped delegated token with `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) | VC issuance/presentation — delegating entity issues a scoped VC to the agent; agent presents the VC to downstream services | VC-based delegation supports offline verification and cross-domain portability without real-time STS connectivity; RFC 8693 provides tighter integration with existing OAuth token lifecycle (introspection, revocation) |
 
-##### Personhood Credentials and Inverse Personhood
+##### 6.5.2 Personhood Credentials and Inverse Personhood
 
 Adler et al. (2024) propose **Personhood Credentials (PHCs)** — privacy-preserving Verifiable Credentials that allow online entities to prove they are real humans without disclosing personal information. For MCP agent identity, the *inverse* application is equally important: a VC could attest that "**this entity is an AI agent, NOT a human**" (inverse personhood) or that "**this agent is operated by a verified organization**" (organizational attestation). This directly supports EU AI Act Art. 50(1) disclosure requirements (§24.3) — an agent presenting an "AI agent" VC provides cryptographic, machine-readable proof of its non-human nature, enabling downstream systems to trigger disclosure mechanisms automatically rather than relying on the `act` claim alone.
 
-##### Ecosystem Readiness Assessment
+##### 6.5.3 Ecosystem Readiness Assessment
 
 **DID Methods**: Production readiness varies significantly across 30+ registered DID methods. `did:web` is the most pragmatic for enterprise adoption — it leverages existing DNS/HTTPS infrastructure, requires no blockchain, and is supported by Microsoft Entra Verified ID, SpruceID, and walt.id. `did:key` is suitable for ephemeral, short-lived agent identities (analogous to [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B's SVID concept) but lacks key rotation. `did:ion` (Microsoft's Sidetree-based method on Bitcoin) and `did:ethr` (Ethereum-based) offer stronger decentralization but introduce blockchain dependencies unsuitable for most enterprise MCP deployments. The emerging `did:webvh` (did:web + Verifiable History) addresses `did:web`'s lack of cryptographic history, providing tamper-evident DID document changes.
 
@@ -3950,7 +3950,7 @@ The MCP Server processes the request, securely logging the transaction using bot
 
 **EUDI Wallet Connection**: The [eIDAS 2.0 regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (§24) mandates EU Digital Identity Wallets for all EU citizens by December 2026, built on a decentralized identity model that incorporates W3C VCs and protocols like OID4VCI (OpenID for Verifiable Credential Issuance) and OID4VP (OpenID for Verifiable Presentations). Qualified Electronic Attestations of Attributes (QEAAs) under eIDAS 2.0 are functionally VCs issued by Qualified Trust Service Providers (QTSPs). For MCP deployments in regulated EU environments, EUDI Wallet-issued organizational attestations could serve as high-assurance agent identity credentials — e.g., a QTSP-issued VC attesting that "Agent X is operated by Organization Y, which holds QTSP status under eIDAS." This bridges DID/VC with the EU's legally binding trust framework.
 
-##### Assessment
+##### 6.5.4 Assessment
 
 DID/VC offers significant long-term promise for decentralized agent identity — particularly for cross-organizational scenarios ([§8.7](#87-cross-organization-agent-federation)) where no single Trust Anchor governs all parties, and for EU-regulated deployments where EUDI Wallet-issued VCs carry legal standing. However, the technology is **not production-ready for MCP agent identity today**. A critical distinction must be made: the DID and VC ecosystem that *is* maturing — `did:web`, `did:webvh` (v1.0 with three implementations, August 2025), OID4VP (1.0 Final, July 2025), EUDI Wallets, HAIP 1.0 — is designed for **human identity management**, not agent identity. These standards address human credential holders presenting attributes to verifiers (e.g., a citizen presenting a mobile driving license to a relying party). No VC wallet supports agent-specific identity flows, no OID4VP deployment verifies AI agent credentials, and no EUDI Wallet implementation issues attestations to non-human entities. **MCP-I is the first initiative that directly targets agent identity within the MCP ecosystem** — but it is incubating with no production deployments (see "MCP Intersection" above). The OIDC/OAuth approach (§6.3) provides a working, battle-tested solution now.
 
@@ -4496,7 +4496,7 @@ The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context
 |:--|:---------------------|:------------|:------------------|:---------------|
 | 1 | **Authentication** | Weak/missing identity verification, credential theft, impersonation of MCP clients or servers | [§1](#1-mcp-authorization-spec-evolution) OAuth 2.1 + PKCE mandate; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) RFC 8693 OBO with `act` claim; §6.3 layered identity strategy (OAuth → SPIFFE → IdP-native); [§11](#11-credential-delegation-patterns) credential isolation | ✅ Strong — authentication architecture is DR-0001's core contribution |
 | 2 | **Authorization** | Overprivileged agents, scope creep, insufficient tool-level access control | [§3.4](#34-scope-minimization-best-practices-november-2025-spec) scope minimization; [§16](#16-task-based-access-control-tbac) TBAC; [§18](#18-api-to-mcp-scope-mapping) scope-to-tool mapping; [§19](#19-authorization-models-and-policy-engines-pattern-synthesis) Cedar & OPA policy engines | ✅ Strong — TBAC, fine-grained scope mapping, and policy engine integration provide comprehensive authorization |
-| 3 | **Input Validation** | Prompt injection (direct and indirect), malformed JSON-RPC, schema manipulation of tool inputs | [§13.2](#132-gateway-responsibilities) request validation (MCP JSON-RPC format); §F ContextForge guardrails (10+ guardrail plugins); **[§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) guardrail→authorization feedback pattern** (per-request graduated response to guardrail detections) | ⚠️→🟡 Weak→Moderate — [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) defines the guardrail→authorization feedback pattern for per-request prompt injection response, specifying how guardrail detection feeds into authorization decisions (pipeline ordering, three-outcome decision table, Cedar policy). Full prompt injection *detection* architecture remains out of scope ([§1](#1-mcp-authorization-spec-evolution)), but the *authorization response* to detection is now architecturally specified. CVE-2026-26118 (§A) validates that MCP server-level input validation remains a critical gap |
+| 3 | **Input Validation** | Prompt injection (direct and indirect), malformed JSON-RPC, schema manipulation of tool inputs | [§13.2](#132-gateway-responsibilities) request validation (MCP JSON-RPC format); §F ContextForge guardrails (10+ guardrail plugins); **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) guardrail→authorization feedback pattern** (per-request graduated response to guardrail detections) | ⚠️→🟡 Weak→Moderate — [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) defines the guardrail→authorization feedback pattern for per-request prompt injection response, specifying how guardrail detection feeds into authorization decisions (pipeline ordering, three-outcome decision table, Cedar policy). Full prompt injection *detection* architecture remains out of scope ([§1](#1-mcp-authorization-spec-evolution)), but the *authorization response* to detection is now architecturally specified. CVE-2026-26118 (§A) validates that MCP server-level input validation remains a critical gap |
 | 4 | **Data Boundaries** | Data/control plane confusion, indirect injection via tool responses, exfiltration through tool outputs | [§16](#16-task-based-access-control-tbac) TBAC separates authorization plane from data plane; §D.3 Virtual MCP Servers (structural data exclusion) | 🟡 Moderate — TBAC and Virtual MCP Servers address structural boundaries, but runtime data/control separation within tool responses is not specified |
 | 5 | **Data Protection** | Sensitive data exposure in tool parameters, responses, or logs; insufficient encryption at rest | §H.2 Token Vault (secrets never exposed to agent); §J Docker secret injection; [§13.2](#132-gateway-responsibilities) audit logging (log sanitization not specified) | 🟡 Moderate — credential data protection is strong, but data classification and PII handling in tool I/O are not architecturally addressed |
 | 6 | **Integrity** | Tool poisoning (malicious tool descriptors), schema manipulation, rug-pull attacks (post-approval tool modification) | [§8.3.2](#832-a2a-specific-security-threats) A2A-specific threats (agent shadowing, rug pull); §J Docker signed images; [§8.7.3](#873-a2a-v10-signed-agent-cards) Signed Agent Cards | ⚠️ Weak — DR-0001 identifies rug-pull and tool poisoning threats but lacks a systematic integrity verification mechanism for MCP tool descriptors |
@@ -4508,7 +4508,7 @@ The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context
 | 12 | **Audit & Logging** | Insufficient forensic capability, missing correlation across MCP sessions, tamper-evident logging gaps | [§13.2](#132-gateway-responsibilities) audit logging (comprehensive schema); [§24.4](#244-art-12-and-art-26-audit-trail-requirements) Art. 12 compliance; §9 JWT enrichment for audit context; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) `act` claim for attribution | ✅ Strong — audit architecture with user + agent attribution, EU AI Act compliance, and cross-protocol correlation guidance |
 | 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at [§14](#14-user-consent-models-first-party-vs-third-party)/AWS IAM Roles Anywhere and [§21.3](#213-wimse-workload-identity-in-multi-system-environments)/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges ([OQ 27](#oq-27)). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
 
-> **Assessment**: DR-0001 provides **strong coverage** in 6 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, Resource Limits, and Audit & Logging — reflecting its core focus on identity and access management for MCP. Resource Limits was upgraded from Moderate to Strong with the addition of [§13.8](#138-authorization-infrastructure-resilience) (authorization infrastructure resilience), which provides systematic fail-open/fail-closed guidance for infrastructure-level DoS scenarios. **Moderate coverage** exists for Data Boundaries, Data Protection, Input Validation, Network Isolation, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. Input Validation was upgraded from Weak to Moderate with the addition of [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) (guardrail→authorization feedback pattern), which specifies the authorization response to guardrail detections; full prompt injection *detection* architecture remains out of scope ([§1](#1-mcp-authorization-spec-evolution)). **Weak coverage** in Integrity and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security ([§1](#1-mcp-authorization-spec-evolution)) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
+> **Assessment**: DR-0001 provides **strong coverage** in 6 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, Resource Limits, and Audit & Logging — reflecting its core focus on identity and access management for MCP. Resource Limits was upgraded from Moderate to Strong with the addition of [§13.8](#138-authorization-infrastructure-resilience) (authorization infrastructure resilience), which provides systematic fail-open/fail-closed guidance for infrastructure-level DoS scenarios. **Moderate coverage** exists for Data Boundaries, Data Protection, Input Validation, Network Isolation, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. Input Validation was upgraded from Weak to Moderate with the addition of [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (guardrail→authorization feedback pattern), which specifies the authorization response to guardrail detections; full prompt injection *detection* architecture remains out of scope ([§1](#1-mcp-authorization-spec-evolution)). **Weak coverage** in Integrity and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security ([§1](#1-mcp-authorization-spec-evolution)) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
 
 #### 7.10 NIST SP 800-63-4 Assurance Levels for Agent Identity
 
@@ -5309,7 +5309,7 @@ The gateway meticulously repackages the MCP JSON-RPC result array back into A2A 
 
 #### 8.6 Emerging Standards and Discovery Federation
 
-##### Discovery Patterns
+##### 8.6.1 Discovery Patterns
 
 A2A agent discovery follows several patterns, each with a corresponding MCP/OAuth analogue:
 
@@ -5322,7 +5322,7 @@ A2A agent discovery follows several patterns, each with a corresponding MCP/OAut
 
 The architectural merging of discovery is accelerating. Advanced gateways (like ContextForge) are beginning to act as **Dual-Registry Endpoints**. Rather than maintaining siloed registries, these gateways advertise both MCP tools (for synchronous human-to-agent access) and A2A Agent Cards (for asynchronous agent-to-agent negotiation) over the same trusted domain boundary, using REST-based federation APIs. See [§13.7.4](#1374-agent-discovery-and-registry-ecosystem) for the broader agent discovery and registry ecosystem comparison across six discovery mechanisms, including AGNTCY and DIF MCP-I.
 
-##### Emerging Specifications
+##### 8.6.2 Emerging Specifications
 
 - **NIST AI Agent Standards Initiative** (January 2026) — Developing technical standards for secure, interoperable AI agent systems. RFIs on agent identity and authorization due March–April 2026.
 - **IETF WIMSE** — Workload Identity for Multi-System Environments. Could provide the chained identity propagation mechanism needed for MCP→A2A delegation, addressing unsolved problem 1 above.
@@ -8508,7 +8508,7 @@ The following table maps each CAEP event type to MCP-specific trigger scenarios 
 
 The five credential delegation patterns in [§11.1](#111-credential-delegation-pattern-taxonomy) all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip. Beyond performance, decentralized tokens also serve as a **resilience pattern**: because verification requires no AS contact, Biscuits and Macaroons provide zero-AS-dependency authorization — making them the most resilient token format for disaster-recovery scenarios where AS availability is constrained (see [§13.8.3](#1383-token-format-as-a-resilience-factor) for the token format resilience analysis).
 
-##### Diagram A: Macaroons (Symmetric)
+##### 12.4.1 Diagram A: Macaroons (Symmetric)
 
 ```mermaid
 flowchart LR
@@ -8567,7 +8567,7 @@ flowchart LR
     style V text-align:left
 ```
 
-##### Diagram B: Biscuits (Asymmetric)
+##### 12.4.2 Diagram B: Biscuits (Asymmetric)
 
 ```mermaid
 flowchart LR
@@ -8626,7 +8626,7 @@ flowchart LR
     style V text-align:left
 ```
 
-##### 12.4.1 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
+##### 12.4.3 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
 
 | Dimension | OAuth Token Exchange (§11.1) | Macaroons | Biscuits | UCANs |
 |:----------|:----------------------------|:----------|:---------|:------|
@@ -8637,7 +8637,7 @@ flowchart LR
 | **Cryptographic model** | AS signing (JWT/JWS) | Chained HMAC (symmetric key shared between issuer and verifier) | Public-key cryptography (Ed25519) | Public-key cryptography packaged as standard JWTs with nested Proofs |
 | **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; requires custom gateway extension | ❌ No MCP integration; requires custom gateway extension | ✅ **Live Production** — used by the Storacha MCP Server for agent memory |
 
-##### 12.4.2 How Biscuits Could Work in MCP
+##### 12.4.4 How Biscuits Could Work in MCP
 
 In a multi-agent delegation chain, a Biscuit enables **offline, cascading attenuation** without AS round-trips via public-key cryptography and Datalog evaluation.
 
@@ -8834,7 +8834,7 @@ With authorization verified successfully via offline logic, the MCP server proce
 </details>
 
 
-##### 12.4.3 How Macaroons Could Work in MCP
+##### 12.4.5 How Macaroons Could Work in MCP
 
 Macaroons also provide offline capability attenuation, but using chained HMACs instead of asymmetric public-key cryptography. This approach makes verification highly restrictive, as the verifying MCP server must share the Gateway's root secret key.
 
@@ -9015,7 +9015,7 @@ Assuming the HMAC chain is unbroken and all string constraints are verified by t
 </details>
 
 
-##### 12.4.4 Trade-offs for MCP Adoption
+##### 12.4.6 Trade-offs for MCP Adoption
 
 > **Note — Decentralized delegation is a resilience pattern, not the default MCP credential model**
 >
@@ -9025,11 +9025,11 @@ Assuming the HMAC chain is unbroken and all string constraints are verified by t
 
 **Where Biscuits/Macaroons shine**: Scenarios where AS availability is constrained or latency-sensitive make decentralized delegation compelling: (1) **multi-hop delegation chains** where each agent delegates to sub-agents (O(1) vs. O(n) AS calls), (2) **edge computing** deployments where MCP servers run at Cloudflare Workers (§K) or other edge locations with intermittent AS connectivity, (3) **air-gapped environments** where token exchange with a central AS is impossible, and (4) **latency-sensitive sub-agent delegation** where even millisecond AS round-trips are prohibitive (e.g., real-time tool orchestration).
 
-##### 12.4.5 UCANs (User Controlled Authorization Networks)
+##### 12.4.7 UCANs (User Controlled Authorization Networks)
 
 **UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
 
-##### Diagram C: UCANs (Asymmetric JWTs)
+##### 12.4.8 Diagram C: UCANs (Asymmetric JWTs)
 
 ```mermaid
 flowchart LR
@@ -9205,7 +9205,7 @@ The MCP Server wraps the CID into a standardized MCP `CallToolResult` and return
 
 </details>
 
-##### 12.4.6 Assessment
+##### 12.4.9 Assessment
 
 Of the three decentralized delegation paradigms, **UCANs** exhibit the strongest trajectory for modern AI agent integrations. By packaging capabilities directly inside standard JWTs mapped to Decentralized Identifiers (DIDs), UCANs achieve full offline attenuation without requiring bespoke datalog engines or HMAC synchronization, leveraging the ubiquity of JWT parsing libraries. As proven by the Storacha MCP Server, UCANs natively solve the "Agent Memory" privacy problem by putting the user in absolute cryptographic control of the data context block.
 
@@ -9304,7 +9304,7 @@ flowchart TD
 
 The logical capabilities of an MCP Gateway pipeline depend heavily on physical network topology. In practice, enterprise networks deploy gateways using one of two primary architectures based on organizational maturity, tooling, and latency requirements.
 
-##### Topology A: Component Chain (Two-Tier Defense)
+##### 13.1.2 Topology A: Component Chain (Two-Tier Defense)
 
 In a component chain architecture, security responsibilities are physically isolated. A traditional API Gateway (e.g., PingGateway, Kong) handles front-door identity validation, while a separate, specialized AI Gateway (e.g., LiteLLM, Cloudflare) handles foundation model orchestration, spend tracking, and MCP tool schema injection. This topology is standard in environments where SecOps and AI Ops maintain distinct infrastructure.
 
@@ -9539,7 +9539,7 @@ The AI Gateway intercepts the upstream result. It may execute localized guardrai
 
 
 
-##### Topology B: Converged Gateway
+##### 13.1.3 Topology B: Converged Gateway
 
 A converged architecture consolidates both identity AuthZ and AI orchestration into a single enhanced platform (e.g., Kong AI Gateway, Google Cloud Apigee, or Azure APIM). This unified perimeter eliminates inter-gateway network hops, significantly reducing the "latency trap" discussed in [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), but requires a tighter integration between Identity and AI Ops teams.
 
@@ -9742,7 +9742,7 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 
 > **Warning — The Latency Trap**
 >
-> Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways ([§13.3](#133-gateway-architecture-patterns)) attempt to solve this by co-locating both engines in a single process. See [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) for the concrete interaction pattern between the co-located engines — specifically, how the guardrail engine's detection output feeds back into the PDP's authorization decision.
+> Although these engines are logically separate, physically separating them into distinct network hops (e.g., routing traffic first to an API gateway for AuthZ, then to a separate security proxy for Guardrails, before hitting the MCP server) introduces significant latency. Adding two network hops per token effectively destroys streaming performance for LLMs. Deployers must weigh the architectural purity of physical separation against the user experience degradation of streaming latency. Converged gateways ([§13.3](#133-gateway-architecture-patterns)) attempt to solve this by co-locating both engines in a single process. See [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) for the concrete interaction pattern between the co-located engines — specifically, how the guardrail engine's detection output feeds back into the PDP's authorization decision.
 
 > **EU AI Act compliance note**: For MCP deployments classified as high-risk under Annex III of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689), the gateway's audit logging satisfies the record-keeping requirements of Art. 12(1)–(4) when implemented with sufficient log granularity. Art. 26(6)(a) further requires deployers to **retain automatically generated logs for a minimum of six months**. Logs MUST include: user identity (`sub`), agent identity (`act`), tool invoked, tool parameters, timestamp, and outcome. For cross-protocol deployments (MCP + A2A), **Cross-Protocol Audit Correlation** across both protocols is necessary to satisfy Art. 12's traceability requirements. If a request enters via A2A and executes via MCP, the W3C Trace Context must propagate across the boundary, binding the A2A negotiation to the MCP tool invocation in the centralized audit log. See [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) for W3C Trace Context details and [§24.4](#244-art-12-and-art-26-audit-trail-requirements) for the full Art. 12 regulatory analysis.
 >
@@ -9756,7 +9756,7 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 
 > **See also**: [§17](#17-sampling-authorization) (Sampling Authorization — token budget as per-server authorization), [§16](#16-task-based-access-control-tbac) (TBAC — budget as task-bound constraint), [§19](#19-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines — Cedar/OPA for budget rules), §M.4 (LiteLLM seven-entity spend tracking)
 
-##### The Authorization/Traffic-Management Distinction
+##### 13.2.3 The Authorization/Traffic-Management Distinction
 
 The [§13.2](#132-gateway-responsibilities) gateway responsibilities table lists **Rate Limiting** as a single row: *"Throttle per-user, per-agent, per-tool invocations."* This framing conflates two architecturally distinct operations:
 
@@ -9768,7 +9768,7 @@ The distinction matters for policy engine integration ([§19](#19-authorization-
 
 **Connection to TBAC ([§16](#16-task-based-access-control-tbac))**: A task-bound token with scope `task:analysis:budget:50.00` encodes the task's spending ceiling as an authorization constraint. When the task-bound budget is exhausted, the authorization decision changes — the agent must request new authorization for continued spending. This connects identity-aware rate limiting to the TBAC framework, treating **token budget as a task-bound authorization constraint** rather than an infrastructure rate limit. See also [§17](#17-sampling-authorization) (line 6061) where the same principle is applied to sampling budgets.
 
-##### Four-Dimensional Rate Limiting Model for MCP
+##### 13.2.4 Four-Dimensional Rate Limiting Model for MCP
 
 MCP gateway rate limiting operates across four dimensions of increasing identity-awareness. Each dimension requires progressively more sophisticated gateway capabilities:
 
@@ -9781,7 +9781,7 @@ MCP gateway rate limiting operates across four dimensions of increasing identity
 
 > **Ascending authorization significance**: Dimensions 1–2 are traffic management concerns (the agent can retry after a window). Dimensions 3–4 are authorization concerns (the agent's permission has changed — an administrator or policy must intervene). The gateway's HTTP response code should reflect this distinction: `429` for rate limits, `402`/`403` for budget exhaustion.
 
-##### Identity-Aware Budget Enforcement Flow
+##### 13.2.5 Identity-Aware Budget Enforcement Flow
 
 The following sequence diagram illustrates the gateway's budget enforcement pipeline for a `tools/call` request. The key architectural point is that budget checks occur **alongside** traditional authorization checks (token validation, scope verification) — not in a separate infrastructure system:
 
@@ -9930,7 +9930,7 @@ X-LiteLLM-Response-Cost: 0.006
 
 </details>
 
-##### Gateway Token Budget Capability Matrix
+##### 13.2.6 Gateway Token Budget Capability Matrix
 
 The following matrix maps token budget capabilities across all thirteen surveyed gateways. The matrix reveals that **LiteLLM (§M) is the only gateway with comprehensive identity-aware budget governance**, including per-agent and per-session budgets — reflecting its origin as an AI-native egress gateway rather than a general-purpose API gateway:
 
@@ -9951,7 +9951,7 @@ The following matrix maps token budget capabilities across all thirteen surveyed
 
 > **Architectural implication**: The matrix reveals a clear capability gap — only three gateways (LiteLLM, APIM, Kong) implement any form of token-aware budget enforcement. Organizations requiring identity-aware budget governance should either: **(a)** deploy one of these three gateways as the AI egress tier in a Component Chain topology ([§13.1.1](#1311-deployment-topologies-two-tier-vs-converged)), with a traditional API gateway handling ingress identity validation; or **(b)** implement custom budget enforcement via policy engine integration (see below) if using a gateway without native budget support.
 
-##### Policy Engine Integration for Budget Enforcement
+##### 13.2.7 Policy Engine Integration for Budget Enforcement
 
 Budget constraints can be enforced through two mechanisms: **gateway-native hooks** (LiteLLM's `max_budget_limiter`, APIM's XML `azure-openai-token-limit` policy) or **external policy engine evaluation** (Cedar, OPA/Rego). The choice has implications for composability and auditability:
 
@@ -9987,7 +9987,7 @@ budget_remaining = data.budgets[input.user_id].max_budget - input.spend_total
 
 **When to use each approach**: Gateway-native hooks (LiteLLM, APIM) are operationally simpler and have sub-millisecond latency since budget state is in local Redis/memory. Policy engine evaluation (Cedar, OPA) is more composable — budget rules can be combined with RBAC, ABAC, and ReBAC rules in a single policy evaluation, and policy changes are auditable through version-controlled policy files. For organizations already using Cedar or OPA for [§19](#19-authorization-models-and-policy-engines-pattern-synthesis) authorization, extending the policy with budget rules provides a unified authorization model. For organizations prioritizing operational simplicity, gateway-native hooks provide equivalent security with less configuration overhead.
 
-##### IETF RateLimit Headers for MCP
+##### 13.2.8 IETF RateLimit Headers for MCP
 
 The [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/) standardizes three HTTP response headers for rate limit communication:
 
@@ -9999,13 +9999,13 @@ The [IETF draft-ietf-httpapi-ratelimit-headers](https://datatracker.ietf.org/doc
 
 Kong's `ai-rate-limiting-advanced` plugin already returns per-provider rate limit headers (`X-AI-RateLimit-Limit-{window}-{provider}`, `X-AI-RateLimit-Remaining-{window}-{provider}`). LiteLLM returns `x-litellm-response-cost` for per-request cost transparency. APIM supports `remaining-tokens-header-name` and `tokens-consumed-header-name` via policy configuration. However, **no gateway currently returns standardized budget-specific headers** — the IETF draft covers rate limits but not cumulative budget state. MCP gateways implementing budget enforcement should extend the header model with budget-specific fields (e.g., `X-Budget-Remaining`, `X-Budget-Limit`) until a standard emerges.
 
-##### 13.2.3 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern
+##### 13.2.9 Guardrail→Authorization Feedback: The Per-Request Interaction Pattern
 
 > **See also**: [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) (AuthZ vs. Guardrail latency trade-off), [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) (cross-request behavioral trust scoring), [§19.3](#193-policy-engine-evaluation) (AuthZ vs. Guardrail Dichotomy), [§17](#17-sampling-authorization) (sampling guardrail scan as a specific instance), [§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum) (HITL tiers)
 
 [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) and [§19.3](#193-policy-engine-evaluation) define the AuthZ vs. Guardrail Dichotomy — the PDP evaluates *metadata* (fast, deterministic), the Guardrail Engine inspects *payload* (slow, non-deterministic) — and recommend composing them. But they never specify **how the guardrail engine's output feeds back into the authorization decision**. [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) addresses the *cross-request* dimension: guardrail triggers are aggregated over time as one of seven behavioral signal categories, adjusting an agent's dynamic trust score across requests. This section defines the complementary *per-request* pattern: the immediate authorization response when a guardrail detects a prompt injection, PII violation, or content policy breach in the current request.
 
-##### The Pipeline: AuthZ-First with Guardrail Enrichment
+##### 13.2.10 The Pipeline: AuthZ-First with Guardrail Enrichment
 
 Of the four possible pipeline orderings (guardrail-first serial, authz-first serial, parallel, and feedback loop), the **AuthZ-first with guardrail enrichment** pattern is architecturally optimal because it avoids the [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) latency trap — obviously unauthorized requests are rejected at the fast PDP stage without paying guardrail latency:
 
@@ -10071,7 +10071,7 @@ flowchart TD
 
 The key architectural insight is the **secondary PDP evaluation** (step 4): when the guardrail engine detects an issue, its structured output (confidence score, detection category, recommended action) is injected into the PDP's evaluation context as additional attributes. The PDP then applies threshold-based policies that consider both the original authorization context *and* the guardrail signal — producing a graduated response rather than a binary block.
 
-##### Three-Outcome Decision Table
+##### 13.2.11 Three-Outcome Decision Table
 
 The guardrail engine produces a structured result containing a confidence score (0.0–1.0) and a detection category. The secondary PDP evaluation maps this to one of three authorization responses, aligned with the HITL tier architecture ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)):
 
@@ -10083,7 +10083,7 @@ The guardrail engine produces a structured result containing a confidence score 
 
 > **Connection to [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) (Behavioral Trust Scoring)**: The per-request pattern (this section) and the cross-request pattern ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) are complementary, not competing. A single high-confidence guardrail detection triggers an *immediate* authorization response (hard deny of the current request). The same detection *also* increments the [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) behavioral trust signal, which adjusts the agent's dynamic trust score for *future* requests. Over time, repeated medium-confidence detections can degrade the trust score enough to trigger a tier change ([§16.6.2](#1662-trust-score-architecture-closed-loop-model)), even if no single detection crossed the high-confidence threshold.
 
-##### Gateway Guardrail→AuthZ Feedback Capability
+##### 13.2.12 Gateway Guardrail→AuthZ Feedback Capability
 
 No surveyed gateway currently implements a feedback loop between the guardrail engine's detection output and the PDP's authorization evaluation context. All 13 gateways treat guardrails and authorization as compositionally independent:
 
@@ -10098,7 +10098,7 @@ No surveyed gateway currently implements a feedback loop between the guardrail e
 
 > **Architectural implication**: TrueFoundry (§D) is closest to supporting this pattern — its four-stage guardrail architecture (LLM Input → LLM Output → MCP Pre Tool → MCP Post Tool) evaluates Cedar policies at the `mcp_tool_pre_invoke_guardrails` stage, and the architecture *could* support injecting prompt injection confidence into the Cedar evaluation context. No implementation does this today, but TrueFoundry's stage-based model provides the structural foundation.
 
-##### Cedar Policy Example: Guardrail-Enriched Authorization
+##### 13.2.13 Cedar Policy Example: Guardrail-Enriched Authorization
 
 The following Cedar policy demonstrates how guardrail detection output can be incorporated into the PDP evaluation context, enabling graduated authorization responses within a single policy evaluation:
 
@@ -10471,7 +10471,7 @@ This enables two critical capabilities:
 
 [§13.5.1](#1351-trace-propagation-across-mcp-tool-calls)–9.5.3 trace the **request lifecycle** — spans for gateway authentication, MCP execution, and tool backend processing — and correlate them with audit logs via `trace_id`. However, the **authorization decision itself** remains opaque: the [§13.5.3](#1353-trace-context-and-audit-log-correlation) audit log example captures `"policy_decision": "permit"` (a binary outcome) but not *which policy* produced the decision, *what attributes* were evaluated, or *why* the decision was reached. For EU AI Act Art. 12 compliance, "sufficient granularity for traceability" ([§24.4](#244-art-12-and-art-26-audit-trail-requirements)) arguably requires the decision rationale — not just the verdict. For policy debugging in complex Cedar/OPA rule sets with dozens of policies, the binary outcome is insufficient to diagnose unexpected access grants or denials. Authorization decision tracing closes this gap by capturing policy evaluation inputs and outputs as structured span attributes on the gateway's security processing span (`span-02` in [§13.5.1](#1351-trace-propagation-across-mcp-tool-calls)).
 
-###### Authorization Decision Span Attributes
+###### 13.5.4.1 Authorization Decision Span Attributes
 
 No formal OpenTelemetry semantic convention exists for authorization decision attributes — unlike `enduser.id` and `enduser.role` (which are standardized), authorization-specific attributes remain vendor-defined. The following attributes are recommended for MCP gateway implementations, attached to the gateway's authorization span (`span-02` in [§13.5.1](#1351-trace-propagation-across-mcp-tool-calls)):
 
@@ -10486,7 +10486,7 @@ No formal OpenTelemetry semantic convention exists for authorization decision at
 
 These attributes enable queries like: *"Show me all denied tool calls in the last hour where the denial reason was `scope_insufficient` and the policy engine was Cedar"* — a level of observability that binary `permit`/`deny` audit logs cannot provide.
 
-###### Policy Engine Decision Log Capabilities
+###### 13.5.4.2 Policy Engine Decision Log Capabilities
 
 The three primary policy engines surveyed in [§19.3](#193-policy-engine-evaluation) have fundamentally different decision logging architectures:
 
@@ -10500,7 +10500,7 @@ The three primary policy engines surveyed in [§19.3](#193-policy-engine-evaluat
 
 **Architectural implication**: OPA is the only policy engine with native, trace-correlated decision logging — making it the strongest choice for deployments requiring Art. 12-compliant authorization decision audit trails. For gateways using Cedar (AgentGateway §E, Bedrock AgentCore [§19.3](#193-policy-engine-evaluation)), **decision logging is a gateway implementation responsibility** — the Cedar library evaluates policies and returns a decision, but does not log it. Gateways must explicitly capture the Cedar evaluation result, the policy ID that matched, the entities evaluated, and the authorization context, then emit these as span attributes and/or audit log fields.
 
-###### OpenID Authorization API Response as Decision Log
+###### 13.5.4.3 OpenID Authorization API Response as Decision Log
 
 The OpenID Authorization API (§19.3) standardizes the PEP→PDP interface. While [§19.3](#193-policy-engine-evaluation) documents the evaluation **request** format (the SARC pattern: Subject, Action, Resource, Context), the evaluation **response** also contains structured decision metadata that naturally produces authorization decision audit records:
 
@@ -10524,7 +10524,7 @@ The `context.reason` field provides the **policy provenance** (which policy and 
 
 > **Connection to [§19.3](#193-policy-engine-evaluation) and [§24.4](#244-art-12-and-art-26-audit-trail-requirements)**: The OpenID Authorization API evaluation response closes the observability gap between [§19.3](#193-policy-engine-evaluation) (policy evaluation) and [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (distributed tracing). [§19.3](#193-policy-engine-evaluation) documents how the gateway asks the PDP *"can this agent call this tool?"* — but never mentions that the PDP's answer includes structured decision metadata. Capturing this metadata as OTel span attributes (this section) and including it in audit logs ([§13.5.3](#1353-trace-context-and-audit-log-correlation)) satisfies Art. 12's "sufficient granularity for traceability" requirement ([§24.4](#244-art-12-and-art-26-audit-trail-requirements)) at the authorization decision level, not just the request lifecycle level.
 
-###### Enhanced Audit Log with Authorization Decision Context
+###### 13.5.4.4 Enhanced Audit Log with Authorization Decision Context
 
 Extending the [§13.5.3](#1353-trace-context-and-audit-log-correlation) audit log schema with authorization decision fields transforms the audit record from action provenance (*who did what*) to decision provenance (*who decided, based on what, and why*):
 
@@ -10909,7 +10909,7 @@ Five components in the MCP gateway authorization pipeline can fail independently
 |:-:|:----------|:-------------|:-----------------|:--------------------|:----------|
 | 1 | **Authorization Server (AS)** | Token refresh fails; introspection endpoint unreachable; JWKS endpoint down | JWT: continue with cached JWKS (resilience window = JWKS cache TTL). Opaque: **fail-closed** — cannot validate without AS introspection (RFC 7662) | Cache JWKS aggressively (24h TTL, respecting `Cache-Control`); rate-limit `kid`-miss refetch (5–10 min interval to prevent JWKS endpoint DoS); prefer JWTs over opaque tokens for resilience; circuit breaker on AS endpoints | [§2.4](#24-gateway-implications), [§3](#3-mcp-scope-lifecycle-discovery-selection-and-challenge) |
 | 2 | **Policy Decision Point (PDP)** — Cedar / OPA | Policy evaluation timeout; policy store unreachable; bundle server down | Cedar: **fail-closed** (default-deny — empty policy set → all requests denied). OPA: **stale-while-revalidate** (last good bundle) → fail-closed if no cached bundle on cold start | OPA: enable bundle persistence to disk (`bundles[_].persist: true`) + readiness probes (`/health?bundles`). Cedar: implement gateway-side policy caching with TTL. Both: circuit breaker with configurable fail-open for `riskLevel: low` tools only | [§19](#19-authorization-models-and-policy-engines-pattern-synthesis), §E.2 |
-| 3 | **Guardrail Engine** | Prompt injection scanner offline; PII filter unreachable | Undefined — [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) defines the AuthZ vs. Guardrail dichotomy but assumes both operate | **Fail-open with observability**: allow requests but annotate with `guardrail_bypassed: true` in the audit log ([§13.5.4](#1354-authorization-decision-tracing)); escalate to CIBA (§15.5) for `riskLevel: high` tool calls; emit CAEP `assurance-level-change` to trigger manual review | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) |
+| 3 | **Guardrail Engine** | Prompt injection scanner offline; PII filter unreachable | Undefined — [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) defines the AuthZ vs. Guardrail dichotomy but assumes both operate | **Fail-open with observability**: allow requests but annotate with `guardrail_bypassed: true` in the audit log ([§13.5.4](#1354-authorization-decision-tracing)); escalate to CIBA (§15.5) for `riskLevel: high` tool calls; emit CAEP `assurance-level-change` to trigger manual review | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) |
 | 4 | **Gateway itself** | Gateway crash, restart, session state loss | Session-token binding ([§2.4](#24-gateway-implications)) lost; in-flight requests dropped | Externalize session state (Redis/etcd); use stateless token validation (JWTs); implement connection draining on shutdown; deploy redundant gateway instances behind a load balancer | [§2.4](#24-gateway-implications) |
 | 5 | **Revocation / CAEP infrastructure** | SSF transmitter/receiver offline; revocation events not delivered | Revocation delay bounded by token `exp` — worst case, a revoked token remains valid until natural expiry | Conservative token lifetimes as a compensating control; persistent retry queue for SSF events; fall back to short-lived tokens when CAEP receiver detects transmitter offline | [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways), [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) |
 
@@ -10923,7 +10923,7 @@ The fail-open/fail-closed decision is **per-component**, not system-wide. A blan
 | **AS (opaque introspection)** | **Fail-closed** | No local validation possible — opaque tokens require an AS round-trip (RFC 7662). If AS is unreachable, tokens cannot be validated. | — |
 | **PDP (Cedar)** | **Fail-closed** (default) | Cedar's default-deny is architecturally sound — no policy means no permission. Configurable fail-open for `riskLevel: low` tools only, with observability annotation. | Cedar SDK default-deny ([§19.3](#193-policy-engine-evaluation)); TrueFoundry Cedar + OPA (§D) |
 | **PDP (OPA)** | **Stale-while-revalidate** | OPA continues with last good bundle — functionally fail-open with stale policies. Acceptable if bundle staleness is bounded and monitored via `/health?bundles`. | OPA bundle persistence (`bundles[_].persist`, §E.2) |
-| **Guardrail engine** | **Fail-open** with annotation | Guardrails are defense-in-depth, not the primary authorization gate. Blocking all requests because a scanner is offline creates disproportionate availability impact. Annotate bypassed requests for post-hoc review. | [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) (AuthZ-first pipeline) |
+| **Guardrail engine** | **Fail-open** with annotation | Guardrails are defense-in-depth, not the primary authorization gate. Blocking all requests because a scanner is offline creates disproportionate availability impact. Annotate bypassed requests for post-hoc review. | [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (AuthZ-first pipeline) |
 | **Gateway state** | **Externalize** | Not a fail-open/closed decision — gateway state loss is an availability concern addressed by externalizing session state to a resilient store. | Redis/etcd session stores |
 | **CAEP receiver** | **Fail-safe** (compensating) | If revocation events cannot be received, shorten token lifetimes to reduce the window of exposure. Token `exp` becomes the de facto revocation propagation bound. | [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) Hybrid revocation strategy |
 
@@ -12104,7 +12104,7 @@ The absence of gateway involvement in URL elicitation represents the most signif
 
 1. **URL allowlist per MCP server** (analogous to OAuth `redirect_uri` registration): Gateways maintain a per-server list of permitted elicitation URL patterns. Servers register their permitted domains/paths at deployment time. The gateway rejects `elicitation/create` messages containing URLs not matching the allowlist — closing the "any URL" gap.
 
-2. **Guardrail engine URL scanning** (extends [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)): The guardrail engine inspects elicitation URLs for known phishing domains, Punycode homograph attacks, domain reputation scoring, and suspicious query parameters before forwarding to the client. This applies the same guardrail→authorization pipeline ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)) to a new input channel.
+2. **Guardrail engine URL scanning** (extends [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)): The guardrail engine inspects elicitation URLs for known phishing domains, Punycode homograph attacks, domain reputation scoring, and suspicious query parameters before forwarding to the client. This applies the same guardrail→authorization pipeline ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) to a new input channel.
 
 3. **Rate limiting on `elicitation/create`**: Per-server, per-user rate limits on elicitation requests prevent an attacker-controlled MCP server from flooding the client with URL elicitation prompts — an elicitation-specific denial-of-service vector.
 
@@ -13938,7 +13938,7 @@ The scoring engine ingests behavioral signals from sources already present in th
 | **Scope usage** | Ratio of used vs. requested scopes, scope escalation attempts (403 frequency), privilege creep over time | Token introspection, scope challenge logs ([§3](#3-mcp-scope-lifecycle-discovery-selection-and-challenge)) | High — scope escalation attempts are a direct authorization risk signal |
 | **Budget consumption** | Spend velocity, cost anomalies, budget burn rate deviation from historical baseline | Token budget system ([§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance)) | Medium — abnormal spend velocity correlates with compromised or runaway agents |
 | **Session patterns** | Duration anomalies, reconnection frequency, idle time, session duration vs. task complexity ratio | Streamable HTTP transport layer ([§2](#2-mcp-over-streamable-http-transport-layer-auth-implications)), session management ([§2.4](#24-gateway-implications)) | Low–Medium — session anomalies are weak signals alone but strengthen composite scores |
-| **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, §A; ContextForge guardrails, §F) | High — guardrail violations directly indicate policy-violating agent behavior (cross-request aggregate scoring; for per-request guardrail→authorization feedback, see [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
+| **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, §A; ContextForge guardrails, §F) | High — guardrail violations directly indicate policy-violating agent behavior (cross-request aggregate scoring; for per-request guardrail→authorization feedback, see [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
 | **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), RFC 8693), delegation chain audit (§13.5.4) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
 
 ##### 16.6.2 Trust Score Architecture: Closed-Loop Model
@@ -15021,7 +15021,7 @@ This matrix shows **all** authorization models each gateway supports — not jus
 
 Three policy engines appear as primary policy engines in MCP gateway implementations: Cedar (AgentGateway §E native, TrueFoundry §D guardrail, IBM ContextForge §F plugin), OPA (Kong §C official plugin, Traefik Hub §I built-in middleware, IBM ContextForge §F plugin, TrueFoundry §D guardrail), and OpenFGA (Auth0 §H). TrueFoundry and ContextForge both offer **Cedar and OPA** as first-class options. Three additional engines are relevant to MCP deployments through the broader ecosystem: XACML (WSO2 IS §G), PingAuthorize (PingGateway §B), and SpiceDB (Zanzibar alternative with tunable consistency). This section provides a consolidated evaluation of all six.
 
-##### Comparative Matrix
+##### 19.3.1 Comparative Matrix
 
 | Criterion | Cedar | OPA (Rego) | OpenFGA | XACML (3.0/4.0 JACAL) | PingAuthorize | SpiceDB |
 |:----------|:------|:-----------|:--------|:-----------------|:-----------------|:--------|
@@ -15045,7 +15045,7 @@ Three policy engines appear as primary policy engines in MCP gateway implementat
 
 > **Not evaluated: NGAC** — NIST's Next Generation Access Control ([NIST SP 800-178](https://csrc.nist.gov/pubs/sp/800/178/final)) defines a formal framework that combines ABAC and graph-based relationships into a unified model. NGAC was considered by the [NIST NCCoE AI Agent Identity concept paper](https://www.nccoe.nist.gov/ai-agent-identity-authorization) alongside ABAC and PBAC. However, no NGAC implementation has been integrated into any surveyed MCP gateway, and production-grade NGAC engines remain limited (NIST reference implementation in Java/Go). NGAC's graph-based policy structure could theoretically model MCP delegation chains, but Cedar and OPA currently offer stronger ecosystem support for MCP-specific authorization patterns. See [§25.3](#253-nist-ai-800-1-the-model-agent-system-and-tool-misuse) for the full NCCoE concept paper analysis.
 
-##### Why Formal Verification Matters for MCP Authorization
+##### 19.3.2 Why Formal Verification Matters for MCP Authorization
 
 Cedar's deliberately restricted language (no loops, no recursion, no negation of `permit`) enables **sound and complete automated policy analysis** — the `cedar analyze` command can mathematically prove properties like:
 
@@ -15056,7 +15056,7 @@ Cedar's deliberately restricted language (no loops, no recursion, no negation of
 
 OPA's Rego language is **Turing-complete**, which makes these properties **undecidable** — they cannot be proven or disproven algorithmically. OPA policies can only be tested empirically (unit tests with known inputs), not verified exhaustively. This is the primary reason Cedar is recommended for security-critical MCP tool authorization.
 
-##### How Cedar Formal Verification Works
+##### 19.3.3 How Cedar Formal Verification Works
 
 Cedar's `cedar analyze` command uses a **symbolic compiler** (implemented in Lean) that translates Cedar policies into SMT-LIB formulas — a standard format for satisfiability modulo theories solvers. These formulas are then solved by the CVC5 SMT solver.
 
@@ -15075,7 +15075,7 @@ Cedar's `cedar analyze` command uses a **symbolic compiler** (implemented in Lea
 
 > **Contrast with OPA**: OPA's `opa test` command runs policies against known inputs (empirical testing). This catches bugs in tested scenarios but cannot prove the absence of bugs across all possible inputs. Cedar's SMT-based analysis can prove universal properties: *"For ALL possible requests and ALL possible entity configurations, no unauthorized access is ever granted."*
 
-##### MCP Gateway Integration
+##### 19.3.4 MCP Gateway Integration
 
 The engines appear in the surveyed gateways as follows (9 of 13 gateways now have at least one policy engine integration):
 
@@ -15091,7 +15091,7 @@ The engines appear in the surveyed gateways as follows (9 of 13 gateways now hav
 | *PingAuthorize* | PingGateway (§B) | Companion product — centralized policy engine | Fine-grained MCP scope decisions (not Cedar/OPA/OpenFGA but functionally comparable ABAC) |
 | *None* | APIM (§A), Docker (§J), Cloudflare (§K) | N/A | Use scopes, container isolation, or edge policies; see Adoption Matrix below for extensibility options |
 
-##### Policy Engine × Gateway Adoption Matrix
+##### 19.3.5 Policy Engine × Gateway Adoption Matrix
 
 The MCP Gateway Integration table above shows the engines with confirmed gateway presence. This expanded matrix cross-references **all six evaluated engines** against **all thirteen gateways** — revealing integration pathways that are not immediately obvious from reading individual gateway deep-dives.
 
@@ -15122,7 +15122,7 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 
 > **Docker (§J) has no policy engine integration** by design — its security model is container isolation (process boundary), not policy-based authorization. Docker's model is orthogonal to policy engines and can be combined with any gateway that has policy engine support (e.g., Kong + Docker, Traefik + Docker).
 
-##### Recommendation for MCP Deployments
+##### 19.3.6 Recommendation for MCP Deployments
 
 | Scenario | Recommended Engine | Why |
 |:---------|:-------------------|:----|
@@ -15131,11 +15131,11 @@ The MCP Gateway Integration table above shows the engines with confirmed gateway
 | **Infrastructure policy / custom logic** | **OPA** | Turing-complete Rego handles complex, cross-cutting concerns (rate limiting, geo-restriction, custom claim logic) |
 | **Layered deployment** | **Cedar + OpenFGA** | Cedar for "is this tool call allowed?" (L2+L4), OpenFGA for "can this user access this resource?" (L3) |
 
-> **The AuthZ vs. Guardrail Dichotomy**: It is critical to note that while OPA and Cedar are excellent Policy Decision Points (PDPs) for access control, **they cannot fulfill the role of a Guardrail Engine natively**. A PDP evaluates *metadata* (identities, scopes, attributes) to render a fast permit/deny decision. It is not designed to perform deep inspection of the *payload* (the JSON-RPC body) to detect prompt injections, filter PII, or sanitize outputs. To achieve full coverage, a gateway must compose a fast PDP (for AuthZ) with a dedicated Guardrail Engine (for safety), keeping in mind the latency trade-offs discussed in [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails). See [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) for the concrete guardrail→authorization feedback pattern that specifies how the guardrail engine's output feeds back into the PDP's authorization decision — including the AuthZ-first pipeline ordering, three-outcome decision table, and Cedar policy examples for guardrail-enriched evaluation.
+> **The AuthZ vs. Guardrail Dichotomy**: It is critical to note that while OPA and Cedar are excellent Policy Decision Points (PDPs) for access control, **they cannot fulfill the role of a Guardrail Engine natively**. A PDP evaluates *metadata* (identities, scopes, attributes) to render a fast permit/deny decision. It is not designed to perform deep inspection of the *payload* (the JSON-RPC body) to detect prompt injections, filter PII, or sanitize outputs. To achieve full coverage, a gateway must compose a fast PDP (for AuthZ) with a dedicated Guardrail Engine (for safety), keeping in mind the latency trade-offs discussed in [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails). See [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) for the concrete guardrail→authorization feedback pattern that specifies how the guardrail engine's output feeds back into the PDP's authorization decision — including the AuthZ-first pipeline ordering, three-outcome decision table, and Cedar policy examples for guardrail-enriched evaluation.
 
 > **Impact on product evaluation**: Gateways with Cedar support (AgentGateway §E native, TrueFoundry §D guardrail, ContextForge §F plugin) gain a structural advantage for security-critical MCP deployments: formal policy verification, deny-by-default, and forbid-overrides-permit are **built-in guarantees**, not behaviors that must be manually coded. Gateways with OPA (Kong §C official plugin, Traefik Hub §I built-in, ContextForge §F plugin, TrueFoundry §D guardrail) offer more flexibility but without formal verification. TrueFoundry and ContextForge both offer Cedar and OPA, allowing different policy models for different use cases. Gateways with no external policy engine (APIM §A, Docker §J) rely on simpler models (scopes, container isolation) that may be sufficient for many deployments but cannot provide the same level of policy assurance — though APIM, Cloudflare, and WSO2 can reach OPA via extensibility mechanisms (see Adoption Matrix above). **Note**: APIM supplements its scope-based model with AI-specific policies (`llm-content-safety`, token rate limiting) that provide guardrails orthogonal to authz engines — see §A.3.2.
 
-##### Example Policies: Same MCP Scenario Across Three Engines
+##### 19.3.7 Example Policies: Same MCP Scenario Across Three Engines
 
 The following examples implement the same authorization scenario across Cedar, OPA/Rego, and OpenFGA — enabling direct comparison of language properties. The scenario: *"Allow the sales team to call CRM read tools; forbid destructive tools for all users."*
 
@@ -15221,7 +15221,7 @@ type tool
 
 > **Key takeaway**: Cedar and OPA express the same policy differently. Cedar provides **structural safety** (deny-by-default + forbid-overrides-permit are language guarantees). OPA provides **expressiveness** (the policy can do anything Rego can express, including complex cross-cutting logic). OpenFGA models the same scenario as **relationships** rather than rules — natural for document-level access but more verbose for simple RBAC. The `not deny` pattern in OPA is a common source of security bugs when developers forget to include it.
 
-##### OpenID Authorization API: The PDP/PEP Interoperability Standard
+##### 19.3.8 OpenID Authorization API: The PDP/PEP Interoperability Standard
 
 The OpenID Foundation's **OpenID Authorization API** specification (formerly under the working group name AuthZEN), ratified in January 2026, standardizes the interface between Policy Enforcement Points (PEPs) and Policy Decision Points (PDPs). The OpenID Authorization API aims to do for authorization what OpenID Connect did for authentication — enable interoperability across vendors and policy engines.
 
@@ -15268,7 +15268,7 @@ The OpenID Foundation's **OpenID Authorization API** specification (formerly und
 
 > **Connection to [§13.5.4](#1354-authorization-decision-tracing) (Authorization Decision Tracing)**: The OpenID AuthZ evaluation response contains structured decision metadata — `decision`, `context.reason` (policy provenance), and `context.obligations` (PEP enforcement instructions) — that should be captured as OTel span attributes on the gateway's authorization span. See [§13.5.4](#1354-authorization-decision-tracing) for the recommended `authz.*` attribute schema and the mapping from OpenID AuthZ response fields to trace data.
 
-##### Broader Policy Engine Landscape
+##### 19.3.9 Broader Policy Engine Landscape
 
 Beyond the six engines in the expanded comparison, several additional policy engines and platforms are relevant to MCP deployments:
 
@@ -15288,7 +15288,7 @@ Beyond the six engines in the expanded comparison, several additional policy eng
 
 > **ALFA 2.0** is the Axiomatics-originated "Abbreviated Language for Authorization" pursuing independent IETF standardization (Web Authorization Protocol WG). Unlike ALFA 1.0 (which was an OASIS XACML working draft and a direct syntactic front-end for XACML 3.0), ALFA 2.0 decouples from XACML to become a standalone authorization language. An [IDPro analysis](https://idpro.org) notes that ALFA and Cedar share "purposely constrained language" properties — both are deliberately non-Turing-complete for analyzability — and that lossless translation between them may be feasible. For environments with existing XACML ecosystems (WSO2 IS §G with Balana, Axiomatics PDP), ALFA 2.0 provides a modernized policy authoring surface without requiring migration to Cedar or OPA.
 
-##### MCP-Specific Policy Patterns: TBAC Encoding and Delegation Chains
+##### 19.3.10 MCP-Specific Policy Patterns: TBAC Encoding and Delegation Chains
 
 Each policy engine encodes Task-Based Access Control ([§16](#16-task-based-access-control-tbac)) and delegation chains (`act` claims, [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) differently. This table shows how the same TBAC scenario would be modeled in each engine:
 
@@ -16489,7 +16489,7 @@ flowchart LR
 
 ```
 
-##### Draft Family Trees
+##### 21.4.1 Draft Family Trees
 
 Three author groups are producing related draft families:
 
@@ -16499,7 +16499,7 @@ Three author groups are producing related draft families:
 | **Song / Peng** | `ai-agent-authorization` (expired), `ai-agent-collaborate-authz` | Single-agent `target_id` → multi-agent collaboration. The `-collaborate-` draft is the active successor |
 | **WIMSE-adjacent** | `klrc-aiagent-auth`, `ni-wimse-ai-agent-identity`, `nennemann-wimse-ect` | Agent auth model → agent identity → execution audit. These build on the WIMSE WG architecture drafts |
 
-##### Competition vs. Complementarity
+##### 21.4.2 Competition vs. Complementarity
 
 | Relationship | Drafts | Assessment |
 |:---|:---|:---|
@@ -18566,7 +18566,7 @@ See **[§19](#19-authorization-models-and-policy-engines-pattern-synthesis). Fin
 
 Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in matrix form, this section captures the **qualitative architectural relationships** between implementations — the "how do they differ and why" insights that emerge from studying each pair. Each vendor deep dive (§A–§M) contains a Pattern Traceability table linking to the general patterns ([§1](#1-mcp-authorization-spec-evolution)–§12); this section is the single, bidirectional source of truth for vendor-to-vendor comparisons.
 
-##### Token Strategy and Credential Management
+##### 23.4.1 Token Strategy and Credential Management
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18579,7 +18579,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **Red Hat (§L)** vs **Auth0 (§H)** | Auth0's Token Vault is **SaaS-managed** (vault-only, no OBO fallback). Red Hat's Vault integration is **self-hosted and declarative** (YAML AuthPolicy), with priority-based fallback to RFC 8693 OBO — the only gateway combining both credential delegation patterns in a single policy. |
 | **Red Hat (§L)** vs **Traefik (§I)** | Both implement RFC 8693 OBO as K8s-native gateways. Traefik does it in Go middleware code. Red Hat does it **declaratively in YAML** (Kuadrant AuthPolicy metadata phase). Same RFC, fundamentally different implementation paradigm. |
 
-##### Authorization Engine
+##### 23.4.2 Authorization Engine
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18590,7 +18590,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **Red Hat (§L)** vs **AgentGateway (§E)** | Both are K8s-native OSS gateways with declarative access control. AgentGateway uses **Cedar** (compiled into the Rust binary, single-pass evaluation). Red Hat delegates to **OPA Rego + CEL** (external service via `ext_authz`, 4-phase pipeline with cross-phase referencing). AgentGateway evaluates policy in-process; Red Hat evaluates policy out-of-process — fundamentally different trust boundaries. |
 | **Red Hat (§L)** vs **ContextForge (§F)** | Both combine OPA with additional auth mechanisms. ContextForge's OPA integration runs **in-process** as a Python plugin. Red Hat's OPA runs as part of **Authorino's `ext_authz` pipeline** (external gRPC service). Same policy engine, different architectural isolation. Red Hat uniquely adds **wristband JWTs** for cryptographic tool authorization — ContextForge's RBAC+Cedar+OPA operates without cryptographic assertion between policy engine and tool broker. |
 
-##### MCP Protocol Integration
+##### 23.4.3 MCP Protocol Integration
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18599,7 +18599,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **ContextForge (§F)** vs **APIM (§A)** | Both support REST→MCP. ContextForge additionally supports **gRPC→MCP** conversion (unique capability) and adds safety guardrails to the conversion pipeline. APIM now offers **gRPC proxy** (preview, managed gateway, March 2026) but does not yet convert gRPC to MCP tools — ContextForge retains the gRPC→MCP conversion advantage. |
 | **AgentGateway (§E)** vs **Kong (§C)** | AgentGateway is **purpose-built for MCP/A2A** (Rust data plane, protocol-native). Kong **adds MCP to an existing API gateway** (Lua plugins on top of established proxy). |
 
-##### Federation and Multi-Server Aggregation
+##### 23.4.4 Federation and Multi-Server Aggregation
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18609,7 +18609,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **ContextForge (§F)** vs **AgentGateway (§E)** | Both support A2A, federation, guardrails, Cedar, and admin UIs. AgentGateway is leaner and faster (Rust, stateless core) with Cedar + prompt guards. ContextForge is feature-denser (Python, batteries-included with 40+ plugins, gRPC→MCP, TOON compression, and RFC 9728). |
 | **Red Hat (§L)** vs **TrueFoundry (§D)** | Both federate MCP servers via aggregation. TrueFoundry uses **Virtual MCP Servers** with config-based tool composition (include/exclude lists). Red Hat uses **MCPServerRegistration CRDs** referencing Gateway API `HTTPRoute` resources, with identity-based tool filtering via wristband JWTs (not config-based). TrueFoundry filters tools by admin config; Red Hat filters tools by user identity claims. |
 
-##### IdP and Authority Model
+##### 23.4.5 IdP and Authority Model
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18620,7 +18620,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **Kong (§C)** vs **Auth0 (§H)** | Complementary roles: Auth0 secures the agent (identity). Kong secures the MCP traffic (transport). |
 | **ContextForge (§F)** vs **Auth0 (§H)** | Complementary roles: Auth0 secures the agent. ContextForge secures the traffic and content. |
 
-##### Deployment and Isolation Model
+##### 23.4.6 Deployment and Isolation Model
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18632,7 +18632,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 | **Red Hat (§L)** vs **Traefik (§I)** | Both are K8s-native MCP gateways. Traefik Hub uses its own proxy with proprietary SaaS control plane CRDs. Red Hat uses **Envoy** as the proxy with **Gateway API** standard CRDs. Traefik's auth is a ForwardAuth middleware (single-phase external call). Red Hat's auth is a 4-phase AuthPolicy pipeline (multi-step, cross-phase referencing). |
 | **Red Hat (§L)** vs **Cloudflare (§K)** | Opposite deployment models: Cloudflare operates at the **network edge** (global edge PoPs). Red Hat operates in the **service mesh** (K8s cluster). Both provide Zero Trust security but at different network layers. |
 
-##### Observability and Guardrails
+##### 23.4.7 Observability and Guardrails
 
 | Vendors Compared | Key Architectural Distinction |
 |:---|:---|
@@ -18645,7 +18645,7 @@ Where [§23.1](#231-spec-compliance-matrix)–§23.3 compare capabilities in mat
 
 Selecting an MCP gateway creates dependencies on vendor-specific technologies that vary dramatically in portability. This section evaluates the **migration cost** of switching away from each gateway, identifying which components use open standards (low lock-in) versus proprietary implementations (high lock-in).
 
-##### Lock-In Risk Taxonomy
+##### 23.5.1 Lock-In Risk Taxonomy
 
 Not all lock-in is equal. Some components (like a PII filtering plugin) can be replaced with a comparable product in days; others (like a proprietary agent identity directory) require migrating thousands of identity records, re-establishing trust relationships, and rewriting client authentication flows. The five lock-in categories, ordered by migration severity:
 
@@ -18657,7 +18657,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **4. Credential Management** | Token vaults, credential stores, rotation policies, managed OAuth lifecycle | 🟡 **Medium** — days to weeks | Credentials can generally be re-provisioned, but managed token lifecycle (auto-refresh, rotation) must be re-configured per-vendor. |
 | **5. Deployment / Runtime** | Cloud PaaS, container runtime, K8s CRDs, edge network, observability integrations | 🟢 **Low to Medium** — days | Infrastructure dependencies are often the easiest to replace. K8s workloads are portable; PaaS services require re-deployment; edge networks require DNS changes. |
 
-##### Cross-Gateway Lock-In Matrix
+##### 23.5.2 Cross-Gateway Lock-In Matrix
 
 | Lock-In Dimension | APIM (§A) | PingGW (§B) | Kong (§C) | TF (§D) | AgentGW (§E) | CF (§F) | WSO2 IS (§G) | Auth0 (§H) | Traefik (§I) | Docker (§J) | Cloudflare (§K) | Red Hat (§L) | LiteLLM (§M) |
 |:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
@@ -18668,7 +18668,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **Deployment** | 🔴 Azure PaaS only | 🟡 Self-hosted (Java) | 🟢 Self/Konnect | 🟡 SaaS/K8s | 🟢 Binary/K8s (OSS) | 🟢 PyPI/K8s (OSS) | 🟢 Self/Asgardeo | 🔴 SaaS only | 🟡 K8s + SaaS CP | 🟢 Headless daemon | 🔴 Edge only | 🟡 K8s (Envoy req.) | 🟢 Docker/K8s/PyPI (OSS) |
 | **Overall Risk** | 🔴 **High** | 🟡 **Medium** | 🟡 **Medium** | 🟡 **Medium** | 🟢 **Low** | 🟢 **Low** | 🟡 **Medium** | 🟡 **Med–High** | 🟡 **Low–Med** | 🟢 **Low** | 🔴 **High** | 🟢 **Low** | 🟢 **Low** |
 
-##### Per-Gateway Lock-In Profiles
+##### 23.5.3 Per-Gateway Lock-In Profiles
 
 **🔴 High Lock-In:**
 
@@ -18697,7 +18697,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **Docker MCP (§J)** | Docker container runtime, OCI container format, YAML configuration | Container isolation is an infrastructure pattern, not a protocol dependency. OCI containers run on any container runtime. | **Low**: Containers migrate to any OCI runtime (Podman, containerd). YAML config is portable. No identity or policy lock-in. The `docker-mcp` CLI allows headless daemon deployment, eliminating the prior Docker Desktop dependency. |
 | **LiteLLM (§M)** | LiteLLM proxy config format (YAML), Admin UI, Enterprise license (for SSO/audit) | Fully OSS (MIT). Python-based — no proprietary runtime. Provider API keys and MCP server configs are standard YAML. JWT auth uses standard OIDC claims. 200+ LLM provider integrations use standard API formats. | **Low**: Python package installs anywhere. YAML config and API keys migrate directly. MCP server definitions are declarative config. The OpenAPI-to-MCP synthesis engine is unique but uses standard OpenAPI specs as input — re-creating tool definitions on another gateway is straightforward. |
 
-##### Key Insight: The Lock-In Spectrum Maps to the Identity Layer
+##### 23.5.4 Key Insight: The Lock-In Spectrum Maps to the Identity Layer
 
 The strongest predictor of vendor lock-in is **where agent identities live**:
 
@@ -18736,7 +18736,7 @@ This section maps the MCP authentication, authorization, and identity patterns d
 
 #### 24.1 Regulatory Landscape
 
-##### The EU AI Act at a Glance
+##### 24.1.1 The EU AI Act at a Glance
 
 | Aspect | Detail |
 |:---|:---|
@@ -18746,7 +18746,7 @@ This section maps the MCP authentication, authorization, and identity patterns d
 | **Approach** | Risk-based: unacceptable → high → limited → minimal risk |
 | **Scope** | Any AI system placed on the EU market or whose output is used in the EU |
 
-##### Timeline
+##### 24.1.2 Timeline
 
 ```mermaid
 gantt
@@ -18771,7 +18771,7 @@ gantt
     Annex I product safety AI                   :2027-08-02, 1d
 ```
 
-##### Penalties (Art. 99)
+##### 24.1.3 Penalties (Art. 99)
 
 | Violation Category | Maximum Fine | DR-0001 Relevance |
 |:---|:---|:---|
@@ -18784,7 +18784,7 @@ gantt
 
 > **GPAI downstream obligations (Arts. 53–55)**: When MCP tools are powered by general-purpose AI models — particularly those classified as having systemic risk (training compute >10²⁵ FLOPs) — the GPAI provider's obligations under Art. 53 (technical documentation, copyright compliance, transparency) and Art. 55 (cybersecurity, incident reporting, adversarial testing) create **downstream architectural constraints**. Deployers integrating such models into MCP tool chains inherit the obligation to ensure the GPAI provider's compliance documentation is available (Art. 53(1)(b)) and that cybersecurity measures satisfy Art. 55(1)(c). While these obligations primarily apply to model providers (not IAM/platform architects), MCP gateway architectures should be prepared to **propagate GPAI provenance metadata** — model identifier, provider, and systemic risk classification — through the audit trail ([§24.4](#244-art-12-and-art-26-audit-trail-requirements)) to support deployers' compliance documentation obligations.
 
-##### Adjacent EU Regulations
+##### 24.1.4 Adjacent EU Regulations
 
 | Regulation | Citation | Relevance to DR-0001 |
 |:---|:---|:---|
@@ -18812,7 +18812,7 @@ This matrix maps each relevant EU AI Act article to the DR-0001 sections that im
 
 #### 24.3 Art. 50: AI Interaction Disclosure for MCP
 
-##### The Obligation
+##### 24.3.1 The Obligation
 
 Art. 50(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) states:
 
@@ -18820,7 +18820,7 @@ Art. 50(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-conten
 
 This obligation applies to **all** AI systems interacting with natural persons — not just high-risk systems. It is fully enforceable from **2 August 2026**. The European Commission's Second Draft of the Code of Practice on Marking and Labelling (published March 2026) provides the technical "how-to" for this compliance, mandating state-of-the-art machine-readable formats (e.g., C2PA metadata, digital watermarks) for AI-generated content. Note that this is distinct from the *GPAI Code of Practice* (which covers safety and copyright under Arts. 53–56); the Marking & Labelling Code focuses strictly on Art. 50 transparency.
 
-##### Impact on MCP Architecture
+##### 24.3.2 Impact on MCP Architecture
 
 In an MCP deployment, the AI agent calls tools on behalf of a user, and the tool's output may be presented to the user or to third parties. Art. 50(1) creates three architectural requirements:
 
@@ -18828,7 +18828,7 @@ In an MCP deployment, the AI agent calls tools on behalf of a user, and the tool
 2. **Third parties receiving AI-mediated communications** (e.g., an email sent by an agent on behalf of a user) must be informed of the AI involvement
 3. **The mechanism must be systematic** — disclosure cannot depend on individual tool implementations
 
-##### Proposed Implementation: Gateway-Injected AI Disclosure
+##### 24.3.3 Proposed Implementation: Gateway-Injected AI Disclosure
 
 The MCP gateway ([§13](#13-gateway-mediated-mcp-architecture)) is the natural enforcement point for Art. 50 disclosure. The gateway already enriches requests ([§13.2](#132-gateway-responsibilities), Session Enrichment) and audits all tool invocations — adding disclosure metadata is a minimal extension.
 
@@ -19037,7 +19037,7 @@ The agent reports "Email sent ✓" to the user. The application layer (the MCP c
 
 </details>
 
-##### Proposed MCP Extension: `ai_disclosure` Response Metadata
+##### 24.3.4 Proposed MCP Extension: `ai_disclosure` Response Metadata
 
 ```json
 {
@@ -19068,7 +19068,7 @@ The agent reports "Email sent ✓" to the user. The application layer (the MCP c
 | `disclosure_text` | Human-readable disclosure string | Art. 50(1): *\"clear and distinguishable manner\"* |
 | `regulation` | Legal citation for the disclosure | Auditability |
 
-##### Cross-Reference to §4.2
+##### 24.3.5 Cross-Reference to §4.2
 
 Art. 50(1) provides a **legal basis** for the architectural argument in [§4.2](#42-why-delegation-is-the-default) (Why Delegation is the Default). Impersonation — where the agent is invisible in the identity chain — makes Art. 50(1) disclosure **structurally impossible**. Only the delegation model, where the agent's identity is recorded in the `act` claim, enables the gateway to systematically generate `ai_disclosure` metadata. The OAuth Entity Profiles draft (§21.11) strengthens this further: `client_profile: "ai_agent"` provides a **standardized, machine-readable trigger** for Art. 50 disclosure injection — gateways can auto-inject `ai_disclosure` metadata whenever `client_profile` contains `ai_agent`, without relying on custom claim parsing or per-agent configuration.
 
@@ -19077,7 +19077,7 @@ Art. 50(1) provides a **legal basis** for the architectural argument in [§4.2](
 
 #### 24.4 Art. 12 and Art. 26: Audit Trail Requirements
 
-##### Art. 12: Provider's Log Design Obligation
+##### 24.4.1 Art. 12: Provider's Log Design Obligation
 
 Art. 12(1)–(4) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689):
 
@@ -19085,11 +19085,11 @@ Art. 12(1)–(4) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-
 >
 > Art. 12(2): *\"The logging capability shall provide, at a minimum, the following: (a) recording of the period of each use of the system; (b) the reference database against which input data has been checked; (c) the input data for which the search has led to a match; (d) the identification of the natural persons involved in the verification of the results.\"*
 
-##### Art. 26(6)(a): Deployer's Retention Obligation
+##### 24.4.2 Art. 26(6)(a): Deployer's Retention Obligation
 
 > Art. 26(6)(a): *\"[Deployers shall] keep the logs automatically generated by that high-risk AI system to the extent such logs are under their control, for a period appropriate to the intended purpose of the high-risk AI system, of at least six months.\"*
 
-##### MCP Audit Log Schema (Art. 12-compliant)
+##### 24.4.3 MCP Audit Log Schema (Art. 12-compliant)
 
 The gateway audit logging architecture ([§13.2](#132-gateway-responsibilities)) satisfies Art. 12 when the log schema includes:
 
@@ -19182,7 +19182,7 @@ flowchart LR
 
 #### 24.6 Art. 9 and Art. 15: Risk Management and Cybersecurity
 
-##### Art. 9: Risk Management System
+##### 24.6.1 Art. 9: Risk Management System
 
 Art. 9(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689):
 
@@ -19200,7 +19200,7 @@ The MCP gateway architecture ([§13](#13-gateway-mediated-mcp-architecture)) imp
 
 **FRIA/DPIA Trigger**: Art. 9(8) introduces the **Fundamental Rights Impact Assessment (FRIA)** for deployers of certain high-risk AI systems. GDPR Art. 35 independently requires a **Data Protection Impact Assessment (DPIA)** for high-risk data processing. The `riskLevel` metadata in MCP tool definitions ([§18.2](#182-tool-level-scope-metadata)) can serve as an automated trigger: tools classified as `critical` that produce legal effects should trigger both FRIA and DPIA before deployment.
 
-##### Art. 15: Accuracy, Robustness, and Cybersecurity
+##### 24.6.2 Art. 15: Accuracy, Robustness, and Cybersecurity
 
 Art. 15(5) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689):
 
@@ -19602,7 +19602,7 @@ This section maps DR-0001's MCP architecture to the **US regulatory framework** 
 
 #### 25.1 Regulatory Landscape: US AI Governance Post-EO 14110
 
-##### Executive Order 14110 and Its Aftermath
+##### 25.1.1 Executive Order 14110 and Its Aftermath
 
 **Executive Order 14110**, *"Safe, Secure, and Trustworthy Development and Use of Artificial Intelligence"*, was signed on **October 30, 2023** — the most comprehensive US federal AI policy directive to date. It mandated NIST develop guidelines for red-teaming, watermarking, and AI safety testing; directed agencies to adopt AI risk management practices; and established the **AI Safety Institute (AISI)** within NIST to lead safety evaluations.
 
@@ -19617,7 +19617,7 @@ EO 14110 was **rescinded on January 20, 2025** (the first day of the Trump admin
 | **NCCoE Concept Paper** | Feb 5, 2026 | First US government document on AI agent identity — post-rescission |
 | **AI Agent Standards Initiative** | Feb 17, 2026 | Three-pillar initiative launched — post-rescission |
 
-##### Timeline
+##### 25.1.2 Timeline
 
 ```mermaid
 gantt
@@ -19648,7 +19648,7 @@ gantt
 >
 > NIST's AI Risk Management Framework **predates** EO 14110 (AI RMF 1.0 was published in January 2023, ten months before the EO). The framework's adoption and evolution are independent of any single executive order. The post-rescission NCCoE and AI Agent Standards Initiative outputs confirm that US AI governance continues through standards-body channels rather than executive mandates.
 
-##### US vs. EU Approach: Voluntary Framework vs. Mandatory Regulation
+##### 25.1.3 US vs. EU Approach: Voluntary Framework vs. Mandatory Regulation
 
 | Dimension | US (NIST) | EU (AI Act) |
 |:----------|:----------|:------------|
@@ -19706,7 +19706,7 @@ flowchart LR
 
 The mapping demonstrates that DR-0001's gateway-mediated architecture provides the technical backbone for all four AI RMF functions. The GOVERN function is satisfied through the consent and oversight models; MAP through identity classification and risk-tiered access control; MEASURE through audit logging and policy evaluation; and MANAGE through active enforcement, credential lifecycle management, and incident response capabilities.
 
-##### NIST AI 600-1: Generative AI Profile
+##### 25.2.1 NIST AI 600-1: Generative AI Profile
 
 **AI 600-1** ([Generative AI Profile](https://airc.nist.gov/Docs/1), July 2024) is the AI RMF companion resource identifying **12 GenAI-specific risks**. Those relevant to MCP authentication and authorization:
 
@@ -19738,7 +19738,7 @@ Crucially, AI 800-1's core mandate to implement guardrails *before* a model/agen
 
 The **NIST National Cybersecurity Center of Excellence (NCCoE)** released *"Accelerating the Adoption of Software and AI Agent Identity and Authorization"* on **February 5, 2026** — the **first US government document specifically addressing AI agent identity and authorization**. The initial comment window closed on **April 2, 2026**. As of mid-April 2026, the NCCoE project page status is **"Reviewing Comments."**
 
-##### Six Areas of Interest: DR-0001 Alignment
+##### 25.4.1 Six Areas of Interest: DR-0001 Alignment
 
 The NCCoE concept paper identifies six areas of interest that map directly to DR-0001 chapters:
 
@@ -19751,7 +19751,7 @@ The NCCoE concept paper identifies six areas of interest that map directly to DR
 | **5. Tracking Data Flows** | Monitoring data movement across agent workflows | [§13.3](#133-gateway-architecture-patterns) (OpenTelemetry tracing), [§24.4](#244-art-12-and-art-26-audit-trail-requirements) (Art. 12 Audit Trail) |
 | **6. Prompt Injection prevention** | Mitigating instructions injected into agent prompts | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (Gateway guardrails), §F (ContextForge), [§17](#17-sampling-authorization) (Sampling abuse) |
 
-##### Standards Under NCCoE Consideration
+##### 25.4.2 Standards Under NCCoE Consideration
 
 The NCCoE paper explicitly lists the following standards — **MCP is first** — as candidates for its demonstration project:
 
@@ -19766,7 +19766,7 @@ The NCCoE paper also references **SP 800-207** (Zero Trust Architecture), **SP 8
 
 **Key insight**: DR-0001 is already **architecturally aligned** with what the NCCoE demonstration project aims to achieve. The gap identified by BS-13 was not content but *framing* — DR-0001 did not acknowledge or map to the NIST framework. The six NCCoE areas of interest are addressed by DR-0001's existing chapters; the cross-reference table above formalizes this alignment.
 
-##### Enterprise Use Cases
+##### 25.4.3 Enterprise Use Cases
 
 The NCCoE concept paper identifies three enterprise deployment scenarios that correspond to DR-0001's reference architecture profiles ([§13.6](#136-reference-architecture-profiles)):
 
@@ -19776,7 +19776,7 @@ The NCCoE concept paper identifies three enterprise deployment scenarios that co
 | **Security agents** | Agents that perform threat detection and response | High-Assurance / FAPI 2.0 (§13.6.3) |
 | **Software development agents** | Agents that write, test, and deploy code | Enterprise / Workforce ([§13.6.1](#1361-profile-1-enterpriseworkforce-internal-agents)) |
 
-##### Desired Outcomes and Current Status
+##### 25.4.4 Desired Outcomes and Current Status
 
 The NCCoE project aims to produce a **practice guide** with concrete implementation details for securing AI agent identity and authorization. The expected deliverables include reference architectures, technology-specific configurations, and deployment guidance. The concept paper's comment phase has now closed, and the NCCoE project page indicates that community input is being reviewed to inform subsequent planning activities, including a draft project description. Given NCCoE's typical project timeline, the practice guide is expected in **mid-to-late 2027**.
 
@@ -19806,7 +19806,7 @@ NIST SP 800-207 (*Zero Trust Architecture*, August 2020) establishes the foundat
 | **Micro-segmentation** | Fine-grained access boundaries around individual resources | Per-tool authorization ([§18](#18-api-to-mcp-scope-mapping)); per-resource URI-based scoping ([§18.5](#185-prompts-and-resources-primitive-specific-authorization)); Virtual MCP Servers (§D.3) |
 | **Continuous verification** | Authorization decisions are re-evaluated throughout the session | CAEP/SSF event-driven revocation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)) and continuous authorization re-evaluation ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)); gateway-level token validation on every request |
 
-##### PEP/PDP Model Mapping
+##### 25.6.1 PEP/PDP Model Mapping
 
 SP 800-207 defines a Policy Enforcement Point (PEP) / Policy Decision Point (PDP) architecture that maps directly to DR-0001's gateway and policy engine design:
 
@@ -19865,7 +19865,7 @@ Organizations operating in both the EU and US markets must satisfy both framewor
 | **Agent identity standard** | Not specified (eIDAS 2.0 for cross-border identity) | NCCoE exploring MCP + OAuth + SPIFFE + SCIM + NGAC |
 | **Timeline** | Art. 50: Aug 2, 2026; high-risk: Aug 2, 2027 | NCCoE practice guide expected mid-to-late 2027 |
 
-##### Global Regulatory Landscape: Beyond EU and US
+##### 25.7.1 Global Regulatory Landscape: Beyond EU and US
 
 The EU AI Act ([§24](#24-eu-regulatory-framework-ai-act-compliance-mapping)) and NIST AI RMF ([§25](#25-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)) represent the two most developed regulatory frameworks for AI agent identity and authorization. Seven additional jurisdictions have active or proposed AI governance frameworks. The following comparison evaluates whether any impose identity, authorization, or audit requirements that **exceed** the EU AI Act baseline:
 
@@ -19889,7 +19889,7 @@ The EU AI Act ([§24](#24-eu-regulatory-framework-ai-act-compliance-mapping)) an
 
 > **Strictest common denominator**: For organizations deploying MCP agents globally, implementing the **EU AI Act requirements as the binding baseline** ([§24](#24-eu-regulatory-framework-ai-act-compliance-mapping)) and the **NIST AI RMF as the organizational structure** ([§25](#25-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)) satisfies or exceeds every framework in this comparison — with two China-specific exceptions requiring additional compliance measures. International AI safety initiatives (Bletchley Declaration, Seoul Declaration, Hiroshima AI Process) are high-level political commitments with no binding enforcement mechanisms and no agent identity requirements.
 
-##### Dual-Compliance Architecture
+##### 25.7.2 Dual-Compliance Architecture
 
 DR-0001's gateway-mediated architecture satisfies both frameworks simultaneously:
 
@@ -19953,51 +19953,51 @@ flowchart LR
 
 #### 26.1 Protocol and Specification Convergence
 
-##### Key Finding 1: The MCP Spec Has Converged on a Sound OAuth Architecture
+##### 26.1.1 Key Finding 1: The MCP Spec Has Converged on a Sound OAuth Architecture
 
 The June 2025 MCP spec revision resolves the major security gaps of the March version. The mandated use of RFC 9728 (Protected Resource Metadata) and RFC 8707 (Resource Indicators) creates a robust foundation where:
 - MCP servers declare their trusted authorization servers
 - Access tokens are audience-bound and cannot be replayed across servers
 - MCP clients can dynamically discover how to authenticate
 
-##### Key Finding 2: The November 2025 MCP Spec Promotes Reactive Scope Negotiation to a Normative Protocol
+##### 26.1.2 Key Finding 2: The November 2025 MCP Spec Promotes Reactive Scope Negotiation to a Normative Protocol
 
 The November 2025 spec (2025-11-25) formally establishes a three-channel scope lifecycle (`WWW-Authenticate` on 401, `scopes_supported` in Protected Resource Metadata, and `insufficient_scope` on 403) that enables **server-driven, reactive scope negotiation**. The MCP server tells the client what scopes to request — not the other way around. Combined with mandatory scope minimization, this creates a built-in incremental consent mechanism at the protocol level. This is a critical evolution from the June 2025 spec where scope handling was largely unspecified. These features, originally proposed in the draft spec, were **promoted to normative specification** in the November 2025 release — confirming the protocol's commitment to scope lifecycle as a first-class concern.
 
 
 #### 26.2 Identity and Delegation
 
-##### Key Finding 3: Delegation (OBO) is the Correct Identity Model
+##### 26.2.1 Key Finding 3: Delegation (OBO) is the Correct Identity Model
 
 Impersonation is an anti-pattern for AI agents. Delegation via RFC 8693 token exchange is the established standard, with the `act` claim providing the auditable delegation chain. The emerging IETF drafts further validate this direction with AI-specific extensions like `requested_actor`.
 
-##### Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
+##### 26.2.2 Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
 
 RFC 8693 permits but does not mandate refresh token issuance. Whether an agent receives a refresh token depends on AS policy, scope sensitivity, and agent trust level. For long-running tasks, the gateway-managed token lifecycle (transparent refresh) is the recommended pattern — it decouples the agent from token management complexity and centralizes security controls.
 
-##### Key Finding 5: Agent Identity is an Emerging Third Category Between Users and Services
+##### 26.2.3 Key Finding 5: Agent Identity is an Emerging Third Category Between Users and Services
 
 AI agents are not simply "users" (they lack human accountability) nor "services" (they're non-deterministic and ephemeral). A layered identity strategy — entity classification (Entity Profiles [§21.11](#2111-oauth-entity-profiles-for-agent-classification)) + OAuth client_id (application) + agent type (act claim) + agent instance (SPIFFE Client Auth [§21.12](#2112-spiffe-client-authentication-oauth-integration)) — provides the necessary granularity for audit, consent, and policy enforcement. The emerging OAuth Entity Profiles draft provides the standardized `client_profile: "ai_agent"` claim that [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C proposed conceptually.
 
 
 #### 26.3 Authorization and Consent
 
-##### Key Finding 6: Task-Based Access Control (TBAC) is the Next Frontier
+##### 26.3.1 Key Finding 6: Task-Based Access Control (TBAC) is the Next Frontier
 <a id="finding-6"></a>
 
 Traditional RBAC/ABAC models are insufficient for agentic workflows. TBAC — granting permissions based on the task being performed rather than the user's role — is essential for least-privilege enforcement in multi-step agent workflows. This is still an emerging concept without a formal standard, but the OAuth scope encoding pattern (`task:type:operation:resource`) provides a practical implementation path.
 
-##### Key Finding 7: Tool-Level Scope Metadata Bridges API and MCP Worlds
+##### 26.3.2 Key Finding 7: Tool-Level Scope Metadata Bridges API and MCP Worlds
 <a id="finding-7"></a>
 
 When existing APIs are wrapped as MCP tools, the scope mapping layer is critical. Per-tool scope declarations (proposed as MCP spec extension) enable the gateway to dynamically filter available tools based on the user's granted scopes and trigger incremental consent for missing permissions.
 
-##### Key Finding 8: Consent is Not a Binary: It's a Spectrum, and Persistence is an Emerging Architectural Concern
+##### 26.3.3 Key Finding 8: Consent is Not a Binary: It's a Spectrum, and Persistence is an Emerging Architectural Concern
 <a id="finding-8"></a>
 
 Consent in agentic contexts ranges from fully implicit (enterprise first-party, admin-approved) to fully explicit (third-party, per-tool, per-scope). The incremental consent pattern — starting minimal and expanding on demand — is the recommended approach for agent interactions. **Beyond the consent decision model, how consent is persisted is an emerging architectural concern.** Five lifecycle patterns have emerged ([§14.7.1](#1471-consent-lifecycle-patterns)): moment-in-time, time-bounded, progressive, organization-managed, and consent as a first-class entity. Descope's Consent ID model represents the most advanced approach — treating each consent grant as an independent record with its own lifecycle — but most vendors (Auth0, Stytch, Ping Identity) implement consent as a side-effect of OAuth grant management. The choice has regulatory implications: GDPR Art. 7(1) requires *demonstrable* consent, and AI Act Art. 12 requires automatic event recording — both favor explicit consent persistence over token-based inference.
 
-##### Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization Without Scope Explosion: But No MCP Gateway Implements It Yet
+##### 26.3.4 Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization Without Scope Explosion: But No MCP Gateway Implements It Yet
 <a id="finding-9"></a>
 
 Rich Authorization Requests complement traditional scopes by carrying structured JSON `authorization_details` instead of flat strings. Combined with the PIP (Policy Information Point) pattern, this enables the Authorization Server to make dynamic authorization decisions based on real-time attribute lookups rather than pre-defined scope lists. This is critical for agentic AI where the authorization surface is too large and dynamic for static scope definitions. **However, as of March 2026, no MCP gateway (§A–§M) and no version of the MCP spec implements RAR for tool authorization.** The IETF draft `draft-chen-oauth-rar-agent-extensions-00` (March 2026) extends RAR with `policy_context` and `lifecycle_binding` for AI agent ecosystems, suggesting RAR adoption for MCP is forthcoming but not yet realized.
@@ -20005,22 +20005,22 @@ Rich Authorization Requests complement traditional scopes by carrying structured
 
 #### 26.4 Gateway Architecture Patterns
 
-##### Key Finding 10: The Gateway is the Universal Enforcement Point
+##### 26.4.1 Key Finding 10: The Gateway is the Universal Enforcement Point
 <a id="finding-10"></a>
 
 Every production-quality MCP deployment uses a gateway layer. The gateway pattern is not product-specific — it's an architectural invariant. Rather than a fragmented vendor landscape, gateway implementations converge into five foundational archetypes: **IdP-Native, Stateless Protocol Proxy, Converged AI Gateway, Edge-Native, and Container Runtime** ([§13.3](#133-gateway-architecture-patterns)). Across all these archetypes, the gateway's six responsibilities (AuthN, consent, AuthZ, enrichment, audit, rate limiting) remain consistent.
 
-##### Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
+##### 26.4.2 Key Finding 11: Azure APIM's Token Isolation Pattern Trades Client Transparency for Stronger Security
 <a id="finding-11"></a>
 
 Azure APIM's approach of encrypting the real IdP token (Entra JWT) and caching it server-side while returning an opaque AES session key to the MCP client is a **stronger** security posture than the MCP spec requires — the token never leaves the gateway's trust boundary. However, this breaks RFC 8707 audience binding (the client can't include `resource` because it doesn't hold a JWT) and prevents the MCP client from introspecting token claims (scopes, expiry, audience). The REST→MCP Conversion mode (Mode B) further demonstrates that the gateway can fully automate the API-to-tool mapping from OpenAPI specs, validating the scope mapping architecture in [§18](#18-api-to-mcp-scope-mapping) with a practical, zero-code implementation. The key gap is that the reference implementation targets the March 2025 MCP spec, not the June 2025 version with its critical RFC 9728/8707 requirements. APIM's **Credential Manager** (`get-authorization-context`), which is GA for all tiers, provides a standards-based alternative to Token Isolation — using standard JWT validation + managed backend OAuth tokens rather than opaque AES session keys. The broader Azure platform has also evolved: **Entra Agent ID** (preview) provides first-class AI agent identities, **API Center** provides MCP server and agent registry capabilities (§A.4), and the 20-tool-per-MCP-server limit has been removed (§A.7).
 
-##### Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
+##### 26.4.3 Key Finding 12: PingGateway's Purpose-Built MCP Filters Provide the Closest Implementation of the June 2025 Spec
 <a id="finding-12"></a>
 
 PingGateway is the only surveyed gateway that ships **dedicated MCP filter primitives** (`McpValidationFilter`, `McpProtectionFilter`, `McpAuditFilter`) rather than repurposing general-purpose API gateway policies — introduced in PingGateway 2025.11 (November 2025 LTS). The `McpProtectionFilter` automatically registers RFC 9728 Protected Resource Metadata, validates RFC 8707 audience-bound tokens, and implements scope challenge handling (401/403 with `WWW-Authenticate`) — making it the closest production implementation of the June 2025 MCP authorization spec. Combined with PingAuthorize for fine-grained policy decisions and DPoP for proof-of-possession token binding, PingGateway's approach favors **security-through-standards** over Azure APIM's **security-through-opacity** (token isolation). The Identity for AI platform, with general availability announced on March 24, 2026, adds DLP and session recording capabilities to the MCP gateway, positioning it alongside AgentGateway (§E), ContextForge (§F), and Kong (§C) as gateways with built-in guardrails. The trade-off is that PingGateway does not support REST→MCP conversion (Mode B), requiring a real MCP server backend, and the `McpValidationFilter` currently rewrites protocol versions to `2025-06-18` — the November 2025 spec features (CIMD, enhanced scope challenges) are not yet supported.
 
-##### Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP, Cedar, and RFC 9728
+##### 26.4.4 Key Finding 17: IBM ContextForge Pioneers the Batteries-Included MCP Gateway Model with gRPC→MCP, Cedar, and RFC 9728
 <a id="finding-17"></a>
 
 
@@ -20038,7 +20038,7 @@ ContextForge's guardrail plugin ecosystem — now including PII detection, secre
 
 The trade-off is **maturity**: ContextForge reached v1.0.0-RC2 on 9 March 2026 (v1.0.0 GA targeted 28 March 2026), is not officially supported by IBM (community-driven open source), and its 300+ configuration variables suggest operational complexity. Its auth model is now more comprehensive with RFC 9728 and Cedar but still lacks novel patterns like Token Vault, CIBA, or TBAC. The growing ecosystem — Desktop app, CLI, and a dedicated `contextforge-org` GitHub organization — signals increasing community investment.
 
-##### Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
+##### 26.4.5 Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
 <a id="finding-13"></a>
 
 TrueFoundry's Bifrost takes a third architectural approach — neither the monolithic PaaS model (Azure APIM) nor the in-process filter chain (PingGateway), but a **split Control Plane / Gateway Plane** where the gateway is stateless and configuration is centralized. Four innovations distinguish this approach:
@@ -20054,7 +20054,7 @@ TrueFoundry's Bifrost takes a third architectural approach — neither the monol
 
 The trade-off is that TrueFoundry does not implement RFC 9728 (Protected Resource Metadata) or RFC 8707 (Resource Indicators), relying on its centralized registry for discovery rather than the decentralized, standards-based approach mandated by the June 2025 MCP spec. The platform is fully proprietary (not open source), creating a 🟡 Medium lock-in dependency on TrueFoundry's ecosystem — though the underlying policy engines (Cedar, OPA) are open standards.
 
-##### Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
+##### 26.4.6 Key Finding 14: AgentGateway Demonstrates the Pure Data Plane Model with Protocol-Native MCP/A2A Support
 <a id="finding-14"></a>
 
 AgentGateway is the only gateway that treats MCP and A2A as **first-class protocols** rather than layering them on top of HTTP reverse proxying. Four architectural innovations distinguish this approach:
@@ -20072,7 +20072,7 @@ The trade-off is that AgentGateway's auth model still delegates to external syst
 
 #### 26.5 Platform and Runtime Implementations
 
-##### Key Finding 15: WSO2 IS 7.2 Demonstrates the IdP-Native MCP Authorization Model
+##### 26.5.1 Key Finding 15: WSO2 IS 7.2 Demonstrates the IdP-Native MCP Authorization Model
 <a id="finding-15"></a>
 
 WSO2 Identity Server 7.2 and Asgardeo represent a fundamentally different architectural approach: the **IdP is the Authorization Server** for MCP, with no intermediary gateway or proxy required. Three innovations distinguish this model:
@@ -20085,7 +20085,7 @@ WSO2 Identity Server 7.2 and Asgardeo represent a fundamentally different archit
 
 The trade-off is that WSO2 IS provides **authorization only** — no tool federation, no API→MCP conversion, no request-level policy enforcement, no protocol-native multiplexing. These capabilities remain in the gateway domain (§A–§F). The deprecation of WSO2's earlier sidecar proxy in favor of this native approach also validates a broader **convergence thesis**: MCP authorization is becoming a core IdP capability rather than a gateway add-on.
 
-##### Key Finding 16: Auth0 for AI Agents Addresses the Full AI Agent Security Stack, Not Just MCP Authorization
+##### 26.5.2 Key Finding 16: Auth0 for AI Agents Addresses the Full AI Agent Security Stack, Not Just MCP Authorization
 <a id="finding-16"></a>
 
 Auth0/Okta's approach reveals a wider scope than MCP authorization alone. Four capabilities distinguished this model:
@@ -20100,7 +20100,7 @@ Auth0/Okta's approach reveals a wider scope than MCP authorization alone. Four c
 
 The trade-off is that Auth0 is a **SaaS-only CIAM platform** — no self-hosted option, no gateway/proxy capabilities, and no MCP traffic proxying. Organizations needing tool federation, API→MCP conversion, or protocol-native multiplexing still need a gateway (§A–§F). Auth0 secures the **agent**; gateways secure the **communication**.
 
-##### Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
+##### 26.5.3 Key Finding 18: Kong's Plugin-Based MCP Adoption Validates the "Extend, Don't Replace" Gateway Strategy
 <a id="finding-18"></a>
 
 Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway deployment. Four aspects stand out:
@@ -20115,7 +20115,7 @@ Kong AI Gateway demonstrates that MCP adoption doesn't require a new gateway dep
 
 The trade-off is that Kong's MCP plugins are **enterprise-only** (not in the OSS edition), and Kong still lacks RFC 9728, RFC 8707, and tool federation. However, Kong is closing two significant gaps: **A2A support** (AI A2A Proxy plugin planned for v3.14 LTS) and **MCP server aggregation** (new AI MCP Proxy mode in v3.14 that aggregates multiple upstream MCP servers behind a single route). When v3.14 ships, Kong will be the first API gateway–class product to support both MCP and A2A alongside its existing REST/gRPC capabilities.
 
-##### Key Finding 19: Traefik Hub Delivers the First Concrete TBAC and OBO Implementations for MCP
+##### 26.5.4 Key Finding 19: Traefik Hub Delivers the First Concrete TBAC and OBO Implementations for MCP
 <a id="finding-19"></a>
 
 Traefik Hub is architecturally the most significant recent discovery because it is the **only gateway that operationalizes two patterns this document previously described as theoretical**:
@@ -20128,7 +20128,7 @@ Traefik Hub is architecturally the most significant recent discovery because it 
 
 The initial trade-offs — **Kubernetes dependency** and proprietary SaaS control plane management — remain. Traefik Hub’s CRD-based configuration requires a K8s deployment, pulling policy governance into its cloud-hosted service. While recent additions like the Responses API middleware provide AI Gateway WAF guardrails against data extraction, Traefik Hub still lacks A2A support and tool federation — these remain strengths of AgentGateway (§E) and ContextForge (§F), respectively.
 
-##### Key Finding 20: Docker MCP Gateway Introduces Container Isolation as a Fundamentally New MCP Security Layer
+##### 26.5.5 Key Finding 20: Docker MCP Gateway Introduces Container Isolation as a Fundamentally New MCP Security Layer
 <a id="finding-20"></a>
 
 Docker MCP Gateway is architecturally **orthogonal** to all ten other models in this investigation. While gateways (§A–§I) operate at the network/proxy layer, Docker operates at the **process/container layer**. Three aspects are uniquely significant:
@@ -20141,7 +20141,7 @@ Docker MCP Gateway is architecturally **orthogonal** to all ten other models in 
 
 The trade-off is **Docker Desktop dependency** — the full Toolkit + Catalog experience requires Docker Desktop, which is proprietary (not open source). The container isolation model also doesn’t address the network-level auth patterns (OAuth 2.1, OBO, TBAC) that proxy-level gateways provide — making Docker complementary to, not a replacement for, gateway approaches.
 
-##### Key Finding 21: Cloudflare Introduces Edge-Native MCP Security as a New Architectural Layer
+##### 26.5.6 Key Finding 21: Cloudflare Introduces Edge-Native MCP Security as a New Architectural Layer
 <a id="finding-21"></a>
 
 Cloudflare's current MCP stack is architecturally significant because it operates at a **fundamentally different location** than all other models. While gateways (§A–§I) operate at the origin and Docker (§J) operates at the container level, Cloudflare operates at the **network edge** — via global edge PoPs. Three aspects are uniquely significant:
@@ -20157,7 +20157,7 @@ The trade-off is **Cloudflare platform dependency** — all MCP traffic must rou
 
 #### 26.6 Regulatory Compliance
 
-##### Key Finding 22: The EU AI Act Creates Binding Architectural Constraints That DR-0001 Patterns Already Largely Satisfy
+##### 26.6.1 Key Finding 22: The EU AI Act Creates Binding Architectural Constraints That DR-0001 Patterns Already Largely Satisfy
 <a id="finding-22"></a>
 
 The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)) enters full enforcement for high-risk AI systems on **2 August 2026**. Its requirements for audit logging (Art. 12), human oversight (Art. 14), cybersecurity (Art. 15), and AI interaction disclosure (Art. 50) create binding architectural constraints for any MCP deployment serving EU persons. Key findings from the regulatory mapping ([§24](#24-eu-regulatory-framework-ai-act-compliance-mapping)):
@@ -20175,7 +20175,7 @@ The EU Artificial Intelligence Act ([Regulation (EU) 2024/1689](https://eur-lex.
 
 #### 26.7 NHI Governance
 
-##### Key Finding 23: NHI Governance Is an Emerging Architectural Requirement for Agent-Scale MCP Deployments
+##### 26.7.1 Key Finding 23: NHI Governance Is an Emerging Architectural Requirement for Agent-Scale MCP Deployments
 <a id="finding-23"></a>
 
 As AI agent deployments scale from single-agent prototypes to multi-agent production systems, the governance of Non-Human Identities becomes an architectural requirement — not optional infrastructure. Five factors drive this:
@@ -20193,7 +20193,7 @@ As AI agent deployments scale from single-agent prototypes to multi-agent produc
 
 #### 26.8 Credential Delegation and Federation
 
-##### Key Finding 24: Credential Delegation Is a Five-Pattern Architectural Spectrum, Not a Single Vendor Feature
+##### 26.8.1 Key Finding 24: Credential Delegation Is a Five-Pattern Architectural Spectrum, Not a Single Vendor Feature
 <a id="finding-24"></a>
 
 The investigation reveals five distinct credential delegation patterns across the implementations surveyed ([§11.1](#111-credential-delegation-pattern-taxonomy)):
@@ -20213,7 +20213,7 @@ These patterns are **complementary, not competing** — an enterprise MCP deploy
 
 #### 26.9 Cross-Organization Federation
 
-##### Key Finding 25: Cross-Organization Agent Federation Requires a Multi-Layer Trust Architecture, Not a Single Protocol
+##### 26.9.1 Key Finding 25: Cross-Organization Agent Federation Requires a Multi-Layer Trust Architecture, Not a Single Protocol
 <a id="finding-25"></a>
 
 Cross-organizational agent federation — where Agent A from Organization X calls an MCP tool hosted by Organization Y — demands trust establishment at four distinct layers:
@@ -20228,7 +20228,7 @@ Cross-organizational agent federation — where Agent A from Organization X call
 
 No single standard covers all four layers. Production deployments will combine **OIDC Federation 1.0** (organizational trust, [§8.7.2](#872-oidc-federation-10-for-agent-trust)), **WIMSE/SPIFFE** (workload identity, [§21.3.2](#2132-spiffe-cross-domain-federation)), and **OIDC-A or A2A v1.0 Signed Agent Cards** (agent-specific claims, [§8.7.4](#874-multi-layer-trust-architecture), [§21.8](#218-oidc-a-openid-connect-for-agents-10-proposal)). The NIST NCCoE AI Agent Identity project and OpenID Foundation AIIM Community Group are actively developing guidance for this multi-layer architecture. See [§8.7](#87-cross-organization-agent-federation) for the complete trust establishment taxonomy.
 
-##### Key Finding 26: No MCP Gateway Implements Session-Token Binding: A Universal Security Gap
+##### 26.9.2 Key Finding 26: No MCP Gateway Implements Session-Token Binding: A Universal Security Gap
 <a id="finding-26"></a>
 
 Research across all 13 surveyed gateways (§A–§M) found that **none explicitly implement session-token binding** — the practice of validating that the `Mcp-Session-Id` was originally created by the same identity as the current bearer token. The MCP spec recommends binding session IDs to user-specific information (Security Best Practices — Session Hijacking mitigation) but uses advisory language, not MUST-level requirements.
@@ -20242,7 +20242,7 @@ Auth0 is the only vendor to discuss JWT-as-session-ID for identity binding in th
 
 #### 26.10 Composable Agentic Identity Stack
 
-##### Key Finding 27: Four Emerging Specifications Form a Composable Agentic Identity Stack
+##### 26.10.1 Key Finding 27: Four Emerging Specifications Form a Composable Agentic Identity Stack
 <a id="finding-27"></a>
 
 Research into four emerging IETF/OIDF specifications — OAuth Entity Profiles (`draft-mora-oauth-entity-profiles-01`, §21.11), SPIFFE Client Authentication (`draft-ietf-oauth-spiffe-client-auth-01`, §21.12), OpenID Authority Claims (§21.13), and Keycloak Federated Client Authentication ([§21.12.5](#21125-keycloak-reference-implementation)) — reveals they form **complementary, non-competing layers** of a composable agentic identity stack:
@@ -20260,7 +20260,7 @@ No single specification covers all layers. No vendor ships the complete composed
 
 #### 26.11 Sampling and Reverse Authorization
 
-##### Key Finding 28: MCP Sampling Creates an Unmediated Server-to-Client Authorization Channel
+##### 26.11.1 Key Finding 28: MCP Sampling Creates an Unmediated Server-to-Client Authorization Channel
 <a id="finding-28"></a>
 
 MCP's `sampling/createMessage` inverts the authorization model: the server requests the client to perform LLM inference, bypassing the gateway and all OAuth controls that govern client-to-server tool calls. The November 2025 "Sampling with Tools" (SEP-1577) escalates this by enabling servers to drive recursive multi-turn tool loops on the host's LLM. Six distinct attack vectors — compute drain ("Denial of Wallet"), prompt injection via `systemPrompt`, context exfiltration via `includeContext: "allServers"`, covert tool invocation through unauthorized tools in sampling requests, tool shadowing across servers, and recursive loop DoS — are enabled by this authorization gap. The MCP spec's security requirements for sampling are all SHOULD-level (advisory); no mandatory authorization scope, budget constraint, or gateway enforcement hook exists.
@@ -20270,7 +20270,7 @@ The proposed `mcp:sampling` scope family ([§17.4](#174-authorization-model-prop
 
 #### 26.12 Primitive-Specific Authorization
 
-##### Key Finding 29: MCP Authorization Is Tool-Centric: Prompts and Resources Have Distinct, Unaddressed Risk Profiles
+##### 26.12.1 Key Finding 29: MCP Authorization Is Tool-Centric: Prompts and Resources Have Distinct, Unaddressed Risk Profiles
 <a id="finding-29"></a>
 
 MCP defines three server-side primitives — Tools, Prompts, and Resources — each with fundamentally different authorization semantics. DR-0001’s authorization architecture (and the MCP specification itself) treats tool authorization as the default model, but Prompts and Resources differ in critical ways: Resources use **URI-based access control** (structurally different from name-based tool authorization), support **persistent subscriptions** (`resources/subscribe`) that create ongoing data channels, and can return **binary content** (cryptographic keys, database dumps). Prompts enable **cross-primitive privilege escalation** through embedded resources in `PromptMessage` responses — a client with `mcp:prompts` scope but not `mcp:resources` can receive resource content through the prompt channel. Nine distinct attack vectors (R1–R5 for Resources, P1–P4 for Prompts) are identified in [§18.5.4](#1854-threat-taxonomy-prompts-and-resources), including path traversal via RFC 6570 URI templates, bulk data exfiltration through resource enumeration, and metadata leakage via the Completion API. The MCP spec’s Prompts security section is effectively empty (no requirements listed), and Resources authorization requirements are SHOULD-level only.
@@ -20278,7 +20278,7 @@ MCP defines three server-side primitives — Tools, Prompts, and Resources — e
 
 #### 26.13 US/EU Regulatory Convergence
 
-##### Key Finding 30: US and EU AI Governance Frameworks Are Converging on Agent Identity as a First-Class Concern
+##### 26.13.1 Key Finding 30: US and EU AI Governance Frameworks Are Converging on Agent Identity as a First-Class Concern
 <a id="finding-30"></a>
 
 Both the NIST NCCoE concept paper (February 2026) and the EU AI Act (2024) now explicitly address AI agent identity as a governance requirement — the NCCoE paper lists MCP as the first standard under consideration and references OAuth/OIDC/SPIFFE/SCIM as foundational. The AI Agent Standards Initiative's three pillars (industry-led standards, open-source protocols, agent security/identity research) map directly to DR-0001's coverage of IETF/OIDF emerging standards ([§21](#21-emerging-standards-for-ai-agent-authorization)), MCP/A2A protocols ([§1](#1-mcp-authorization-spec-evolution), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)), and gateway-mediated security architecture ([§13](#13-gateway-mediated-mcp-architecture)). The AI RMF 1.0 four-function framework (Govern/Map/Measure/Manage) provides the organizational structure that DR-0001's technical architecture implements. The convergence signal is strong: within 12 months, both jurisdictions produced agent-identity-specific frameworks referencing overlapping technical standards. See [§25](#25-us-regulatory-framework-nist-ai-risk-management-and-agent-identity) for the full US regulatory mapping.
@@ -20286,7 +20286,7 @@ Both the NIST NCCoE concept paper (February 2026) and the EU AI Act (2024) now e
 
 #### 26.14 Agent Discovery and Registry Ecosystem
 
-##### Key Finding 31: The Agent Discovery and Registry Ecosystem Is Fragmenting Across Six Competing Approaches with Underspecified Registry-Level Authorization
+##### 26.14.1 Key Finding 31: The Agent Discovery and Registry Ecosystem Is Fragmenting Across Six Competing Approaches with Underspecified Registry-Level Authorization
 <a id="finding-31"></a>
 
 Six distinct agent discovery and registry mechanisms are converging in 2025–2026 — MCP Registry (Anthropic/GitHub/PulseMCP/Microsoft), A2A Registry (Linux Foundation), Azure API Center (Microsoft), AGNTCY Agent Directory (Cisco → Linux Foundation), Windows 11 MCP Registry (Microsoft), and DIF MCP-I (Decentralized Identity Foundation) — each with fundamentally different trust models, namespace structures, and governance. Registry-level authorization — who can publish, who can query, who can delist, and who governs the registry itself — varies dramatically and is largely underspecified. The MCP Registry and A2A Registry are publicly queryable (enabling the Dependency Confusion threat from [§13.7.1](#1371-tool-supply-chain-threat-taxonomy)), while Azure API Center and Windows 11 restrict queries via RBAC. Only Signed Agent Cards (A2A) and AGNTCY (VCs) provide cryptographic signing of published metadata; the MCP Registry relies on transport-level integrity without signing individual tool descriptors. The discovery-to-authorization pipeline — from registry lookup to RFC 9728 Protected Resource Metadata to OAuth 2.1 authorization — is implicit but never architecturally specified as an end-to-end flow. The AGNTCY framework (Linux Foundation, Jul 2025) introduces a parallel agent identity stack combining OASF (Open Agent Schema Framework), a decentralized Agent Directory, and VC+SPIFFE-based identity — protocol-agnostic infrastructure that intersects DR-0001 at the identity and discovery layer. DIF MCP-I (Mar 2026) aims to provide decentralized identity for AI agents via W3C DIDs and VCs, representing a potential long-term alternative to OIDC Federation ([§8.7.2](#872-oidc-federation-10-for-agent-trust)) for cross-org agent trust. See [§13.7.4](#1374-agent-discovery-and-registry-ecosystem) for the full registry comparison and authorization gap analysis.
@@ -20294,14 +20294,14 @@ Six distinct agent discovery and registry mechanisms are converging in 2025–20
 
 #### 26.15 Continuous Access Evaluation
 
-##### Key Finding 32: CAEP Enables Graduated Gateway Responses Beyond Binary Token Revocation
+##### 26.15.1 Key Finding 32: CAEP Enables Graduated Gateway Responses Beyond Binary Token Revocation
 <a id="finding-32"></a>
 
 [§12.3.1](#1231-shared-signals-framework-ssf-and-caep)–20.3.5 cover SSF/CAEP for `session-revoked` events — binary session termination. The CAEP 1.0 specification (Final, September 2025) defines four additional event types (`token-claims-change`, `credential-change`, `assurance-level-change`, `device-compliance-change`) that enable the MCP gateway to issue **graduated responses** — step-up authentication via CIBA (§15.5), scope restriction via policy re-evaluation ([§19](#19-authorization-models-and-policy-engines-pattern-synthesis)), and delegation chain invalidation — rather than only session termination. Microsoft Entra's Continuous Access Evaluation (CAE), the most mature production CAEP implementation, demonstrates a counterintuitive architectural insight: CAE **extends** access token lifetimes to 28 hours (vs. the 1-hour default) because real-time CAEP events provide near-instant revocation for critical state changes, making short token lifetimes — a crude proxy for revocation — unnecessary. For MCP, this directly addresses the [§10](#10-refresh-tokens-and-long-lived-agent-sessions) tension between short-lived access tokens (security) and long-running agent tasks (functionality). No MCP gateway surveyed in §A–§M currently implements SSF Receiver functionality. See [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) for the full CAEP event → gateway action mapping.
 
 #### 26.16 Token Budget Governance
 
-##### Key Finding 33: LLM Token Budget Governance Is an Authorization Concern, Not a Traffic Management Concern
+##### 26.16.1 Key Finding 33: LLM Token Budget Governance Is an Authorization Concern, Not a Traffic Management Concern
 <a id="finding-33"></a>
 
 Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware token budget enforcement — tracking cumulative token consumption per user, per agent, per team, and per session, then rejecting requests when budgets are exhausted. LiteLLM's implementation is the most granular: seven-entity spend tracking with per-MCP-tool cost attribution (`mcp_namespaced_tool_name` in all daily spend tables), session-level budget caps with iteration limits (`max_budget_per_session`, `max_iterations`), and Redis-buffered multi-pod scaling (§M.4.3). The architectural insight is that budget exhaustion is semantically equivalent to scope exhaustion — the agent's *permission to consume LLM tokens* has been extinguished. This makes token budget enforcement an authorization decision (HTTP `402 Budget Exceeded`), not a rate limiting decision (HTTP `429 Too Many Requests`). The distinction matters for policy engine integration: budget constraints should be expressible in Cedar/OPA policies alongside traditional RBAC/ABAC rules, enabling unified authorization evaluation that considers both identity permissions and spending authority. The four-dimensional rate limiting model ([§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance)) — Request Rate → Token Rate → Cumulative Budget → Task-Bound Budget — provides a framework for classifying where traffic management ends and authorization begins.
@@ -20309,48 +20309,48 @@ Three gateways (LiteLLM §M, Azure APIM §A, Kong §C) implement identity-aware 
 
 #### 26.17 Authorization Decision Observability
 
-##### Key Finding 34: MCP Gateway Observability Traces the Request Lifecycle but Not the Authorization Decision: an Art. 12 Traceability Gap
+##### 26.17.1 Key Finding 34: MCP Gateway Observability Traces the Request Lifecycle but Not the Authorization Decision: an Art. 12 Traceability Gap
 <a id="finding-34"></a>
 
 [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) provides comprehensive distributed tracing for the MCP request lifecycle — spans for gateway authentication, MCP server execution, and tool backend processing, correlated via W3C Trace Context `trace_id`. However, the **authorization decision itself** remains a black box within these traces: audit logs capture `"policy_decision": "permit"` (a binary outcome) but not which policy produced the decision, what attributes were evaluated, or why the decision was reached. This gap has three practical consequences: (1) Art. 12's "sufficient granularity for traceability" requirement ([§24.4](#244-art-12-and-art-26-audit-trail-requirements)) is only partially satisfied — binary outcomes provide action provenance but not decision provenance; (2) policy debugging in complex Cedar/OPA deployments with dozens of rules requires reproducing the exact request context rather than inspecting trace data; (3) the OpenID Authorization API evaluation response (§19.3) already provides structured decision metadata (`context.reason`, `context.obligations`) that is available at the PEP but never captured as trace or audit data. Among the three primary policy engines ([§19.3](#193-policy-engine-evaluation)), OPA provides native decision logs with W3C `trace_id`/`span_id` correlation and policy-driven data masking — the strongest foundation for authorization decision observability. Cedar (open-source) provides no decision logging; gateways using Cedar must implement it. No formal OpenTelemetry semantic convention exists for authorization decision attributes (`authz.decision`, `authz.policy.id`, `authz.reason`) — this is a standards gap. See [§13.5.4](#1354-authorization-decision-tracing) for the recommended `authz.*` attribute schema, policy engine decision log comparison, and enhanced audit log format.
 
 #### 26.18 Multi-Agent Framework Identity
 
-##### Key Finding 35: Framework Identity Context Is Not Portable Across Agent Orchestration Frameworks
+##### 26.18.1 Key Finding 35: Framework Identity Context Is Not Portable Across Agent Orchestration Frameworks
 <a id="finding-35"></a>
 
 Among the six major agent orchestration frameworks surveyed — LangGraph, AutoGen/Semantic Kernel, CrewAI, OpenAI Agents SDK, Google ADK, and Amazon Bedrock Agents — only Google ADK has a mandatory `user_id` parameter in its session model and explicit A2A↔user_id bridging (via `A2AAgentExecutor` metadata extraction). The remaining five frameworks either lack user identity concepts entirely (AutoGen, OpenAI Agents SDK), represent identity only as prompt-level role definitions (CrewAI's `Agent.role`/`Agent.backstory`), or support identity as an optional, application-defined context field (LangGraph's `Runtime[ContextT]`). Microsoft's Entra Agent ID provides the strongest cloud-native identity story — treating AI agents as first-class Entra ID identities with conditional access and governance — but is platform-bound and does not produce portable identity claims consumable by non-Microsoft frameworks. No framework produces or consumes standard RFC 8693 `act` claims. This means that when agents built on different frameworks communicate via A2A, user identity context is lost at every framework boundary — creating an authorization gap that exists above the wire-protocol level addressed in [§8.4](#84-the-mcp--a2a-security-gap). The gap manifests in three layers: vocabulary mismatch (different keys for user identity), transport mismatch (no standard A2A field for user delegation), and authorization model mismatch (cryptographic delegation vs. prompt-level role definitions). See [§8.9](#89-framework-identity-context-the-intra-organization-gap).
 
 #### 26.19 Cross-Border Data Sovereignty
 
-##### Key Finding 36: Delegation Tokens Crossing Jurisdictional Boundaries Constitute GDPR Art. 44 Transfers Requiring a Legal Basis
+##### 26.19.1 Key Finding 36: Delegation Tokens Crossing Jurisdictional Boundaries Constitute GDPR Art. 44 Transfers Requiring a Legal Basis
 <a id="finding-36"></a>
 
 JWT delegation tokens produced by RFC 8693 token exchange (§5) carry claims — `sub`, `email`, `name` — that constitute personal data under GDPR Art. 4(1). When these tokens cross jurisdictional boundaries in multi-hop MCP delegation chains (EU Agent → US Gateway → Brazil Tool), each hop constitutes a separate "transfer" of personal data to a third country under GDPR Art. 44, requiring its own legal basis (adequacy decision, SCCs, DPF certification, or Art. 49 derogation). JWT payloads are base64-encoded, not encrypted — any intermediary can read the PII. No MCP gateway (0/13 surveyed) implements border-crossing PII transformation: pseudonymization of `sub` claims via Pairwise Pseudonymous Identifiers (PPIDs), jurisdictional routing policies that evaluate GDPR transfer mechanisms before forwarding tokens, or federated audit log sovereignty that keeps PII in the data subject's home jurisdiction. The EU-US Data Privacy Framework provides the primary transfer basis for US-destined tokens but remains legally fragile — the third attempt after Safe Harbor (Schrems I, 2015) and Privacy Shield (Schrems II, 2020). Data localization laws in China (PIPL Art. 38 — CAC security assessment mandatory for large-scale transfers), Russia (Federal Law 242-FZ — hard localization), and India (DPDP Act §21 — negative-list approach, effective ~mid-2027) impose additional constraints that may block real-time cross-border delegation chains entirely. See [§24.15](#2415-data-sovereignty-in-cross-border-agent-delegation-chains).
 
 #### 26.20 MCP Tasks Authorization Context
 
-##### Key Finding 37: MCP Tasks Primitive Lacks Authorization Context Persistence Across Sessions
+##### 26.20.1 Key Finding 37: MCP Tasks Primitive Lacks Authorization Context Persistence Across Sessions
 <a id="finding-37"></a>
 
 The MCP Tasks specification (experimental, November 2025) mandates that receivers "**MUST** bind tasks to [the] authorization context" and "**MUST** reject `tasks/get`, `tasks/result`, and `tasks/cancel` requests for tasks that do not belong to the same authorization context as the requestor." However, the spec does not define what constitutes "authorization context" — leaving implementations to choose between session ID, bearer token `sub` claim, `act` claim chain, or full token identity. This ambiguity creates three unresolved problems: **(1)** authorization context does not persist when the task outlives the originating session (tokens expire, sessions terminate, but the task and its results remain on the server); **(2)** cross-session polling cannot be validated because there is no standard mechanism to determine whether a new session's bearer token represents "the same authorization context" as the originating session's; **(3)** CAEP events ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)) that revoke sessions or change assurance levels have no defined propagation path to tasks that were created within those sessions but have independent authorization authority (e.g., via `offline_access` or `lifecycle_binding`). The `lifecycle_binding` mechanism ([§20.4](#204-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft), `draft-chen-oauth-rar-agent-extensions-00`) provides the architecturally correct task-bound token pattern — tying token validity to `task_id` via webhook — but no MCP gateway (0/13 surveyed) supports either the Tasks primitive or `lifecycle_binding`, creating a double-gap where the protocol primitive exists but the authorization infrastructure to secure it does not. See [§10.6](#106-mcp-tasks-primitive-authorization-for-durable-async-workflows).
 
 #### 26.21 Agent Behavioral Trust Scoring
 
-##### Key Finding 38: Agent Behavioral Trust Is Referenced 17+ Times but Never Architecturally Specified as a Closed-Loop Scoring System
+##### 26.21.1 Key Finding 38: Agent Behavioral Trust Is Referenced 17+ Times but Never Architecturally Specified as a Closed-Loop Scoring System
 <a id="finding-38"></a>
 
 DR-0001 references behavioral trust, risk scores, anomaly detection, and adaptive risk engines in 17+ locations — including the CSA Agentic Trust Framework ([§7.6](#76-csa-agentic-trust-framework-atf)), the multi-layer trust architecture Layer 4 ([§8.7.4](#874-multi-layer-trust-architecture)), the Adaptive Risk Engine trigger row ([§15.9.1](#1591-trigger-sources)), CAEP `assurance-level-change` events ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)), and PingOne Protect integration (§B) — but never architecturally specifies: **(1)** what signals feed the scoring engine; **(2)** how the score is computed; **(3)** how the score maps to authorization decisions; **(4)** how the scoring loop closes (feedback from false positives); **(5)** where the scoring engine sits architecturally; **(6)** how trust score changes propagate. [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) closes this gap by defining a seven-category behavioral signal taxonomy, a four-phase closed-loop scoring architecture (Collect → Score → Decide → Feedback), a five-tier trust-score-to-authorization mapping aligned with the HITL tier architecture ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)), three scoring engine deployment models (gateway sidecar, PIP extension, external risk service), and the gateway-as-CAEP-producer pattern for trust score propagation. The OWASP Agentic AI Top 10 ASI10 (Rogue Agents) risk — previously rated "Moderate" due to the absence of behavioral anomaly detection — is upgraded to "Strong" with [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)'s closed-loop architecture.
 
-##### Key Finding 39: The Guardrail→Authorization Interaction Is Architecturally Undefined: No Gateway Implements Per-Request Feedback
+##### 26.21.2 Key Finding 39: The Guardrail→Authorization Interaction Is Architecturally Undefined: No Gateway Implements Per-Request Feedback
 <a id="finding-39"></a>
 
-All 13 surveyed gateways treat the guardrail engine and the PDP as **compositionally independent** systems — guardrails produce a binary pass/block decision, and authorization produces a separate permit/deny decision, with no data flowing between them. [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) addresses the *cross-request* dimension (behavioral trust scoring aggregates guardrail violations over time), but the *per-request* response to guardrail detection — what happens *immediately* when a guardrail detects a prompt injection in the current request — is architecturally undefined. [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern) closes this gap by defining the **AuthZ-First with Guardrail Enrichment** pipeline pattern: a secondary PDP evaluation enriched with guardrail confidence scores, producing graduated responses (hard deny / CIBA escalation / scope attenuation / pass-with-monitoring) rather than binary blocks. TrueFoundry's four-stage guardrail architecture (§D) is the closest structural precedent — its `mcp_tool_pre_invoke_guardrails` stage evaluates Cedar policies alongside prompt injection detectors — but no implementation currently injects guardrail confidence into the Cedar evaluation context.
+All 13 surveyed gateways treat the guardrail engine and the PDP as **compositionally independent** systems — guardrails produce a binary pass/block decision, and authorization produces a separate permit/deny decision, with no data flowing between them. [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) addresses the *cross-request* dimension (behavioral trust scoring aggregates guardrail violations over time), but the *per-request* response to guardrail detection — what happens *immediately* when a guardrail detects a prompt injection in the current request — is architecturally undefined. [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) closes this gap by defining the **AuthZ-First with Guardrail Enrichment** pipeline pattern: a secondary PDP evaluation enriched with guardrail confidence scores, producing graduated responses (hard deny / CIBA escalation / scope attenuation / pass-with-monitoring) rather than binary blocks. TrueFoundry's four-stage guardrail architecture (§D) is the closest structural precedent — its `mcp_tool_pre_invoke_guardrails` stage evaluates Cedar policies alongside prompt injection detectors — but no implementation currently injects guardrail confidence into the Cedar evaluation context.
 
 
 #### 26.22 Authorization Infrastructure Resilience
 
-##### Key Finding 40: Authorization Infrastructure Resilience Is Implicitly Assumed but Never Systematically Addressed
+##### 26.22.1 Key Finding 40: Authorization Infrastructure Resilience Is Implicitly Assumed but Never Systematically Addressed
 <a id="finding-40"></a>
 
 DR-0001's authorization architecture implicitly assumes all infrastructure components — AS, PDP, guardrail engine, gateway state, CAEP receiver — are continuously available. Scattered references acknowledge failure scenarios ([§15.5.7.4](#15574-offline-and-edge-cases) prescribes "circuit breaker → fail-closed" for IdP unavailability; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) notes the centralized IdP "availability risk"), but no section prior to [§13.8](#138-authorization-infrastructure-resilience) defined a systematic failure mode taxonomy or a per-component fail-open/fail-closed decision framework. Among the 13 surveyed gateways, Envoy's `failure_mode_allow` (§L, Red Hat MCP Gateway) is the only implementation providing explicit, configurable resilience behavior for the authorization filter — all other gateways either fail-closed by default (Cedar, Kong) or rely on implicit caching (Azure APIM cached JWKS, Cloudflare edge PoP cached policy, OPA stale bundles). PingGateway's `CircuitBreakerFilter` (§B) provides composable resilience through its `openHandler` but requires explicit configuration — it is not enabled by default. The token format choice creates a natural resilience asymmetry ([§13.8.3](#1383-token-format-as-a-resilience-factor)): JWT + cached JWKS provides a time-bounded resilience window, opaque tokens have zero AS-outage resilience, and Biscuits/Macaroons provide full offline validation — reframing decentralized tokens from a performance optimization to a disaster-recovery pattern.
@@ -20358,7 +20358,7 @@ DR-0001's authorization architecture implicitly assumes all infrastructure compo
 
 #### 26.23 URL Mode Elicitation Security
 
-##### Key Finding 41: URL Mode Elicitation Creates an Unmediated Server-to-Browser Channel with No Gateway Interception Point
+##### 26.23.1 Key Finding 41: URL Mode Elicitation Creates an Unmediated Server-to-Browser Channel with No Gateway Interception Point
 <a id="finding-41"></a>
 
 URL Mode Elicitation (SEP-1036, [§14.8](#148-url-mode-elicitation-sep-1036-security-analysis)) enables MCP servers to direct users to arbitrary HTTPS URLs for third-party credential acquisition, payment processing, and OAuth flows — creating a browser handoff that sits outside both gateway mediation and Authorization Server control. Unlike MCP authorization ([§1.2](#12-june-2025-spec-2025-06-18-major-revision)–§1.4, mediated by the AS with `redirect_uri` validation) and CIBA (§15.5, mediated by the AS with `binding_message` context), elicitation URLs have no allowlist mechanism, no cryptographic session binding, and no gateway interception point. In 2026 this is no longer a niche browser edge case: Chrome's WebMCP guidance explicitly treats browser-native agent tooling as complementary to backend MCP, and Cloudflare Browser Run now demonstrates mixed MCP/CDP/WebMCP deployments. That means elicitation is the exact boundary where backend authorization can spill into a live browser session with DOM access, cookies, and potentially agent-driven UI automation. The spec includes strong server-side phishing mitigations (mandatory `/connect` endpoint with `sub` claim verification before third-party redirect) and client-side safe URL handling (secure browser contexts, domain highlighting, explicit consent), but these remain **implementation requirements, not protocol-level guarantees** — a non-compliant server can redirect to any URL, and a browser-use agent ([§14.5](#145-is-user-consent-always-required)) can still auto-consent unless a separate human-confirmation control interrupts the loop. Both official SDKs (TypeScript, Python) ship full URL elicitation implementations, confirming the feature is production-ready, but among 13 surveyed gateways, none implement elicitation URL validation.
@@ -20445,7 +20445,7 @@ URL Mode Elicitation (SEP-1036, [§14.8](#148-url-mode-elicitation-sep-1036-secu
 
 39. **Implement a closed-loop behavioral trust scoring engine for risk-adaptive agent authorization.** Deploy one of three scoring engine models ([§16.6.3](#1663-scoring-engine-placement)): **(a)** **Model C (external risk service)** — if PingOne Protect, Okta ITP, Entra ID Protection, or Silverfort RAP is already deployed, integrate the existing risk scoring API as a PIP attribute ([§19](#19-authorization-models-and-policy-engines-pattern-synthesis)) queried by the PDP on each `tools/call`; **(b)** **Model B (PIP extension)** — for vendor-neutral deployments, implement a scoring engine that ingests the seven behavioral signal categories ([§16.6.1](#1661-behavioral-signal-taxonomy): tool call patterns, error behavior, scope usage, budget consumption, session patterns, guardrail triggers, delegation behavior) from the gateway audit log stream and exposes a normalized 0.0–1.0 trust score via the PIP interface; **(c)** **Model A (gateway sidecar)** — for single-gateway or edge deployments where latency is critical. Map trust scores to the five-tier authorization response table ([§16.6.2](#1662-trust-score-architecture-closed-loop-model)) aligned with HITL tiers ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)). Emit CAEP `assurance-level-change` events ([§16.6.4](#1664-caep-as-trust-score-propagation-mechanism)) when scores cross tier thresholds — making the gateway a CAEP **producer** in addition to consumer ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)). Use the CSA ATF maturity level ([§7.6](#76-csa-agentic-trust-framework-atf)) as a trust score ceiling — behavioral scoring operates within the organizationally-attested autonomy envelope. See [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization).
 
-40. **Implement the AuthZ-First with Guardrail Enrichment pipeline pattern** ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)) for per-request prompt injection response. At minimum: **(a)** evaluate PDP authorization (identity, scopes, TBAC context, trust score) *before* invoking the guardrail engine — rejecting obviously unauthorized requests without paying guardrail latency; **(b)** when the guardrail engine detects an issue (prompt injection, PII violation, content safety breach), inject the detection confidence score and category into the PDP evaluation context and re-evaluate with enriched attributes; **(c)** map guardrail confidence to graduated responses using the three-outcome decision table ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)): high confidence (≥ 0.9) → hard deny, medium confidence (0.5–0.89) → CIBA escalation (§15.5) with scope attenuation, low confidence (< 0.5) → pass with observability annotation; **(d)** emit every guardrail detection as a behavioral trust signal ([§16.6.1](#1661-behavioral-signal-taxonomy)) regardless of per-request response — the aggregate pattern operates on the cross-request dimension; **(e)** include guardrail confidence, detection category, and PDP re-evaluation result in the authorization decision audit log ([§13.5.4](#1354-authorization-decision-tracing)) for forensic traceability. See [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern).
+40. **Implement the AuthZ-First with Guardrail Enrichment pipeline pattern** ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) for per-request prompt injection response. At minimum: **(a)** evaluate PDP authorization (identity, scopes, TBAC context, trust score) *before* invoking the guardrail engine — rejecting obviously unauthorized requests without paying guardrail latency; **(b)** when the guardrail engine detects an issue (prompt injection, PII violation, content safety breach), inject the detection confidence score and category into the PDP evaluation context and re-evaluate with enriched attributes; **(c)** map guardrail confidence to graduated responses using the three-outcome decision table ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)): high confidence (≥ 0.9) → hard deny, medium confidence (0.5–0.89) → CIBA escalation (§15.5) with scope attenuation, low confidence (< 0.5) → pass with observability annotation; **(d)** emit every guardrail detection as a behavioral trust signal ([§16.6.1](#1661-behavioral-signal-taxonomy)) regardless of per-request response — the aggregate pattern operates on the cross-request dimension; **(e)** include guardrail confidence, detection category, and PDP re-evaluation result in the authorization decision audit log ([§13.5.4](#1354-authorization-decision-tracing)) for forensic traceability. See [§13.2.3](#1323-the-authorizationtraffic-management-distinction).
 
 41. **Define per-component fail-open/fail-closed policies for the MCP gateway authorization pipeline** ([§13.8](#138-authorization-infrastructure-resilience)). At minimum: **(a)** configure PDP (Cedar/OPA) to **fail-closed** by default — if the policy engine is unreachable, deny all tool calls; optionally configure fail-open for `riskLevel: low` tools with `guardrail_bypassed: true` audit annotation; **(b)** configure guardrail engines to **fail-open with observability** — guardrails are defense-in-depth and should not block all requests when a scanner is offline, but bypassed requests must be annotated in the audit log and escalated via CIBA (§15.5) for high-risk tool calls; **(c)** cache JWKS aggressively (24h TTL) to provide an AS resilience window for JWT validation — the JWKS cache TTL defines the AS failure budget; **(d)** externalize gateway session state (Redis/etcd) to survive gateway restarts without losing session-token bindings ([§2.4](#24-gateway-implications)); **(e)** use conservative token lifetimes as a compensating control when the CAEP receiver is offline — token `exp` becomes the de facto revocation propagation bound; **(f)** for MCP deployments requiring high authorization availability in multi-agent delegation chains, evaluate Biscuits/Macaroons ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans)) as resilience tokens that provide zero-AS-dependency validation, reframing them from a performance optimization to a disaster-recovery pattern. See [§13.8](#138-authorization-infrastructure-resilience).
 
@@ -20561,11 +20561,11 @@ These questions represent genuinely open research problems, standards gaps, or r
 
 34. <a id="oq-35"></a> 🟡 **Agent behavioral trust score standardization** — Should the MCP specification define a standard `trust_score` claim or `agent_risk` attribute in bearer tokens — enabling downstream MCP servers to make risk-aware authorization decisions without querying an external scoring service? The closed-loop behavioral trust scoring architecture ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) produces a normalized 0.0–1.0 score, but without standardization, each scoring engine will use proprietary formats, preventing interoperable trust-aware authorization across multi-gateway and cross-org deployments. **Sub-questions**: (a) Should trust scores be opaque (0.0–1.0 float) or semantic (High/Medium/Low/Untrusted)? Opaque enables fine-grained policy thresholds; semantic enables human-readable audit trails and CSA ATF alignment. (b) Should the scoring window be configurable (last 5 minutes vs. last 24 hours), and if so, how should the window length be declared — as a claim in the token (`trust_score_window_seconds`) or as metadata in the scoring engine's PIP response? (c) How should trust scores interact with the CSA ATF maturity levels ([§7.6](#76-csa-agentic-trust-framework-atf)) — should an agent's ATF level set a floor for its dynamic trust score, preventing behavioral scoring from downgrading below the organizationally-attested maturity level, or should behavioral scoring be able to override ATF attestation entirely when severe anomalies are detected? See [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization).
 
-35. <a id="oq-36"></a> 🟡 **Guardrail→authorization feedback interface standardization** — Should the interface between guardrail engines and PDPs be standardized (e.g., a `guardrail_result` context schema with `confidence`, `category`, and `recommended_action` fields), or should it remain gateway-specific? The AuthZ-First with Guardrail Enrichment pipeline ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)) defines the *pattern* but not the *interface contract*. Without standardization, each gateway will implement proprietary formats for passing guardrail detection context into Cedar/OPA evaluation — preventing portable policies that work across gateways. **Sub-questions**: (a) Should the interface follow an existing standard (e.g., OpenID Authorization API's context extension, XACML's obligation/advice model, or a new IETF draft), or should it be defined within the MCP specification? (b) Should guardrail confidence thresholds (0.5 for escalation, 0.9 for deny) be standardized or configurable per deployment — and if configurable, should the threshold configuration live in the PDP policy (Cedar/OPA) or in the guardrail engine's configuration? (c) How should false positive feedback propagate — when a human reviewer (via CIBA, §15.5) approves a request that the guardrail flagged as medium-confidence, should the feedback reduce future confidence scores for similar patterns (closed-loop learning), or should guardrail thresholds remain static? See [§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern).
+35. <a id="oq-36"></a> 🟡 **Guardrail→authorization feedback interface standardization** — Should the interface between guardrail engines and PDPs be standardized (e.g., a `guardrail_result` context schema with `confidence`, `category`, and `recommended_action` fields), or should it remain gateway-specific? The AuthZ-First with Guardrail Enrichment pipeline ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) defines the *pattern* but not the *interface contract*. Without standardization, each gateway will implement proprietary formats for passing guardrail detection context into Cedar/OPA evaluation — preventing portable policies that work across gateways. **Sub-questions**: (a) Should the interface follow an existing standard (e.g., OpenID Authorization API's context extension, XACML's obligation/advice model, or a new IETF draft), or should it be defined within the MCP specification? (b) Should guardrail confidence thresholds (0.5 for escalation, 0.9 for deny) be standardized or configurable per deployment — and if configurable, should the threshold configuration live in the PDP policy (Cedar/OPA) or in the guardrail engine's configuration? (c) How should false positive feedback propagate — when a human reviewer (via CIBA, §15.5) approves a request that the guardrail flagged as medium-confidence, should the feedback reduce future confidence scores for similar patterns (closed-loop learning), or should guardrail thresholds remain static? See [§13.2.3](#1323-the-authorizationtraffic-management-distinction).
 
 36. <a id="oq-37"></a> 🟡 **Authorization infrastructure resilience standardization** — Should the MCP specification define a standard `resilience_mode` configuration for gateway authorization components (e.g., `fail-open`, `fail-closed`, `stale-while-revalidate`), or should resilience behavior remain gateway-specific? Envoy's `failure_mode_allow` (§L) is the only surveyed gateway providing an explicit, per-route resilience knob — all other gateways implement resilience implicitly through caching (Azure APIM, Cloudflare) or inherit default behaviors (Cedar fail-closed, OPA stale-bundle). **Sub-questions**: (a) Should `failure_mode_allow` (Envoy pattern) be generalized to a cross-gateway configuration standard, enabling portable resilience policies across MCP gateway implementations? (b) How should the MCP specification address the JWT/opaque token resilience asymmetry ([§13.8.3](#1383-token-format-as-a-resilience-factor)) in its token format guidance — should deployments requiring high availability be explicitly steered toward JWTs over opaque tokens? (c) Should gateways be required to annotate fail-open responses (e.g., via a standard `x-mcp-authz-degraded` header) so that downstream MCP servers can detect degraded authorization and apply compensating controls? (d) For Biscuits/Macaroons ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans)), should the MCP spec define guidance on when to prefer decentralized tokens over centralized OAuth for resilience reasons — completing the reframing from performance optimization to disaster-recovery pattern? See [§13.8](#138-authorization-infrastructure-resilience).
 
-37. <a id="oq-38"></a> 🟡 **URL Elicitation gateway interception and allowlist standardization** — Should the MCP specification define a standard mechanism for gateways to validate elicitation URLs before they reach the client (analogous to OAuth `redirect_uri` registration, RFC 9700 §4.1)? Currently, servers can send any HTTPS URL via `elicitation/create` with no gateway-level URL allowlist, domain pinning, or integrity check ([§14.8](#148-url-mode-elicitation-sep-1036-security-analysis)). A gateway-mediated URL validation layer — where MCP servers register permitted elicitation URL patterns at deployment time — would close the gap between URL Elicitation's open-ended URL model and OAuth's tightly controlled redirect model. **Sub-questions**: (a) Should the allowlist be per-server (registered in gateway configuration, analogous to `redirect_uri` in OAuth client registration) or per-tool (declared in tool metadata alongside `requiredScopes`, [§18.2](#182-tool-level-scope-metadata))? (b) Should gateways scan elicitation URLs against threat intelligence feeds (Punycode detection, domain reputation, known phishing patterns) via the guardrail engine ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)), and if so, should scan results flow into the guardrail→authorization pipeline ([§13.2.3](#1323-guardrailauthorization-feedback-the-per-request-interaction-pattern)) or produce independent block/allow decisions? (c) How should CUA-specific defenses ([§14.5](#145-is-user-consent-always-required)) be extended to URL elicitation — should the MCP spec enforce that `elicitation/create` responses from automated agents carry a flag indicating non-human consent, enabling target URLs to apply stricter verification? See [§14.8](#148-url-mode-elicitation-sep-1036-security-analysis).
+37. <a id="oq-38"></a> 🟡 **URL Elicitation gateway interception and allowlist standardization** — Should the MCP specification define a standard mechanism for gateways to validate elicitation URLs before they reach the client (analogous to OAuth `redirect_uri` registration, RFC 9700 §4.1)? Currently, servers can send any HTTPS URL via `elicitation/create` with no gateway-level URL allowlist, domain pinning, or integrity check ([§14.8](#148-url-mode-elicitation-sep-1036-security-analysis)). A gateway-mediated URL validation layer — where MCP servers register permitted elicitation URL patterns at deployment time — would close the gap between URL Elicitation's open-ended URL model and OAuth's tightly controlled redirect model. **Sub-questions**: (a) Should the allowlist be per-server (registered in gateway configuration, analogous to `redirect_uri` in OAuth client registration) or per-tool (declared in tool metadata alongside `requiredScopes`, [§18.2](#182-tool-level-scope-metadata))? (b) Should gateways scan elicitation URLs against threat intelligence feeds (Punycode detection, domain reputation, known phishing patterns) via the guardrail engine ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)), and if so, should scan results flow into the guardrail→authorization pipeline ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) or produce independent block/allow decisions? (c) How should CUA-specific defenses ([§14.5](#145-is-user-consent-always-required)) be extended to URL elicitation — should the MCP spec enforce that `elicitation/create` responses from automated agents carry a flag indicating non-human consent, enabling target URLs to apply stricter verification? See [§14.8](#148-url-mode-elicitation-sep-1036-security-analysis).
 
 38. <a id="oq-39"></a> 🟡 **WebSocket transport authorization governance** — Should the MCP Extensions framework (SEP-2133) define an official `io.modelcontextprotocol/websocket-transport` extension with a mandatory `connection_init`-style authorization message (analogous to `graphql-ws`), or should WebSocket remain an SDK-level convenience with no protocol-level security contract? Both official MCP SDKs (TypeScript, Python) ship WebSocket transport as public API with zero authorization — no credential placement, no per-message auth, no session revalidation ([§2.7](#27-websocket-transport-authorization-constraints-and-patterns)). Developers adopt it because the SDK offers it, creating a de facto transport with no security governance. **Sub-questions**: (a) Should the MCP WebSocket subprotocol be split into `mcp` (current, no auth) and `mcp-auth` (requires `auth/initialize` handshake message before any protocol operations), mirroring the GraphQL ecosystem's `graphql-ws` vs. `graphql-transport-ws` split? (b) Should gateways that proxy WebSocket connections be required to perform deep message inspection on the `auth/initialize` message (extracting and validating the bearer token) to extend the gateway's auth pipeline to WS channels, or is handshake-only upgrade-request authorization sufficient? (c) How should mid-session token expiry be handled — periodic `notifications/auth/required` server-initiated revalidation (as proposed in [§2.7](#27-websocket-transport-authorization-constraints-and-patterns)), mandatory WebSocket close + reconnect (MQTT pattern), or gateway-side idle timeout that forcibly closes connections when the bound token expires? See [§2.7](#27-websocket-transport-authorization-constraints-and-patterns).
 
@@ -22325,7 +22325,7 @@ After consent is established (either through the explicit flow or cookie bypass)
 2.  **First-party enterprise bypass**: In a first-party deployment where the MCP client is admin-approved in Entra ID, the Entra consent is implicit — but the APIM consent cookie still applies unless the admin configures APIM to skip it
 3.  **The cookie lives in the user's browser**, not in APIM's server-side cache — this is different from the AES-encrypted session key which is a server-side mechanism
 
-##### Can the APIM Consent Page Be Disabled?
+##### A.6.1 Can the APIM Consent Page Be Disabled?
 
 **Yes.** The APIM consent page is **not an OAuth/MCP spec requirement** — it is an APIM-layer policy decision implemented in `authorize.policy.xml`. It can be disabled or bypassed through three approaches:
 
@@ -27983,3 +27983,4 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to the processing of personal data
 - [Regulation (EU) 2024/1183 — eIDAS 2.0 / European Digital Identity Framework](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) — European Digital Identity Wallets and electronic identification
 - [Regulation (EU) 2024/1689 — EU Artificial Intelligence Act](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) — Harmonised rules on artificial intelligence (entered into force 1 August 2024)
+

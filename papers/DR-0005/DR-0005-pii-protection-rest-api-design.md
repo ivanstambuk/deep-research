@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-04-08
-date_updated: 2026-04-08
+date_updated: 2026-04-23
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
 reader_allow_h3_chapter_split: false
@@ -14,7 +14,7 @@ reader_allow_h3_chapter_split: false
 <!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
 
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
-**DR-0005** · Published · Created 2026-04-08
+**DR-0005** · Published · Last updated 2026-04-23
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0005-pii-protection-rest-api-design/reader-orientation)
@@ -1909,7 +1909,7 @@ Jane assumes the email is broken or fraudulent and contacts support — generati
 
 </details>
 
-##### Mitigations
+##### §3.5.7.1 Mitigations
 
 **Intermediate confirmation step.** The link does not perform the consumptive action on GET. Instead, it renders a confirmation page ("Click below to confirm your password reset") that submits via POST. The token is consumed only on the POST request. Since email scanners and link preview bots only issue GET requests, the token remains valid for the human user. This is the most robust and widely deployed mitigation:
 
@@ -1939,7 +1939,7 @@ The user clicks the link (safe for scanners — no token in the URL) and enters 
 
 **Session binding.** After the user loads the confirmation page, the server sets a session cookie or stores a browser fingerprint server-side. The final consumptive POST is only accepted if it originates from the same session that loaded the confirmation page. Even if an attacker intercepts the link, they cannot complete the flow without the session. This adds server-side state but provides strong anti-theft protection.
 
-##### Trade-Off Summary
+##### §3.5.7.2 Trade-Off Summary
 
 | Mitigation | Scanner resistance | User friction | Implementation complexity | Maintenance burden |
 |:--|:--:|:--:|:--:|:--:|
@@ -1951,7 +1951,7 @@ The user clicks the link (safe for scanners — no token in the URL) and enters 
 
 *Legend: ✅ Strong · ⚠️ Partial · 🟢 Low · 🟡 Medium · 🔴 High*
 
-##### Recommendation
+##### §3.5.7.3 Recommendation
 
 The **intermediate confirmation page** pattern (GET renders, POST consumes) is the most robust and widely deployed solution. It aligns with HTTP method semantics — GET is safe and idempotent per RFC 9110 — and requires no ongoing maintenance. The split link + code flow is an excellent alternative when the design can accommodate a short code entry step. Scanner User-Agent detection should only be used as a supplementary defence, never as the sole mitigation.
 

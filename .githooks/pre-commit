@@ -35,6 +35,7 @@
 # Check 34: Block commits with malformed numeric heading numbering or alpha-suffixed numeric section IDs.
 # Check 35: Block commits with raw Markdown bold inside Mermaid node/subgraph labels.
 # Check 36: Block commits with all-empty Markdown table rows.
+# Check 37: Block commits with unnumbered nested subsections inside numbered DR section trees.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -792,6 +793,21 @@ for file in $STAGED_AUTHORING_DOCS; do
 done
 
 if [ -n "$EMPTY_TABLE_ROW_FAILURES" ]; then
+  EXITCODE=1
+fi
+
+# ── Check 37: Missing nested section IDs ────────────────────────────
+
+SUBSECTION_ID_FAILURES=""
+for file in $STAGED_AUTHORING_DOCS; do
+  if [ -f "$file" ]; then
+    if ! python3 "$HOOK_DIR/validate-subsection-ids.py" "$file"; then
+      SUBSECTION_ID_FAILURES="yes"
+    fi
+  fi
+done
+
+if [ -n "$SUBSECTION_ID_FAILURES" ]; then
   EXITCODE=1
 fi
 

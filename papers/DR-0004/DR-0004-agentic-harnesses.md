@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-28
-date_updated: 2026-03-29
+date_updated: 2026-04-23
 tags: [agentic-ai, coding-assistants, claude-code, github-copilot, cursor, cline, roo-code, kilo-code, goose, opencode, crush, aider, mcp, agentic-harnesses, privacy, security, data-sovereignty, byok, agents-md]
 related: []
 ---
@@ -14,7 +14,7 @@ related: []
 
 # Agentic Harnesses: Architecture, Privacy, and Evaluation of AI-Powered Coding Assistants
 
-**DR-0004** · Published · Last updated 2026-03-29 · ~8,600 lines
+**DR-0004** · Published · Last updated 2026-04-23 · ~8,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0004-agentic-harnesses/executive-decision-summary)
@@ -3225,11 +3225,11 @@ Every agentic harness needs a mechanism for receiving project-specific instructi
 
 ##### 12.1 Format Catalog
 
-###### GitHub Copilot: `.github/copilot-instructions.md`
+###### 12.1.1 GitHub Copilot: `.github/copilot-instructions.md`
 
 GitHub Copilot reads instructions from two locations inside a repository. The original single-file form, `.github/copilot-instructions.md`, lives in the well-known `.github/` directory and is committed alongside the project. A newer directory-based variant, `.github/instructions/*.md`, allows teams to split instructions across multiple Markdown files — one for coding style, another for testing, a third for deployment — without bloating a single monolithic file. Both forms are plain Markdown with no metadata support. Copilot in the cloud (not VS Code) also supports repository-level instructions configured through the GitHub UI, which are stored server-side rather than in the working tree.
 
-###### Claude Code: `CLAUDE.md` and `.claude/rules/`
+###### 12.1.2 Claude Code: `CLAUDE.md` and `.claude/rules/`
 
 Claude Code employs the most sophisticated instruction system in the ecosystem. The primary mechanism is `CLAUDE.md`, a Markdown file that Claude Code discovers at multiple levels in the directory hierarchy:
 
@@ -3274,7 +3274,7 @@ Use plan mode for changes under `src/billing/`.
 
 This bridges the two ecosystems without duplicating content.
 
-###### Cursor: `.cursorrules` and `.cursor/rules/`
+###### 12.1.3 Cursor: `.cursorrules` and `.cursor/rules/`
 
 Cursor has evolved from a single file to a multi-layered rule system. The original `.cursorrules` file at the project root is still supported but considered legacy. The modern approach uses `.cursor/rules/`, a directory of Markdown files (`.md` or `.mdc` extension) with optional YAML frontmatter:
 
@@ -3298,7 +3298,7 @@ Beyond project rules, Cursor supports **Team Rules** (centrally managed from the
 
 Cursor also reads `AGENTS.md` as a simpler alternative to `.cursor/rules/` for projects that prefer a single, unstructured instruction file.
 
-###### Gemini CLI: `GEMINI.md`
+###### 12.1.4 Gemini CLI: `GEMINI.md`
 
 Gemini CLI uses `GEMINI.md` as its context file, following a three-tier hierarchy:
 
@@ -3318,11 +3318,11 @@ Like Claude Code, Gemini CLI supports file imports with `@file.md` syntax, allow
 
 This means Gemini CLI can natively read AGENTS.md by adding it to the `context.fileName` list. The `/memory show` command displays all loaded context, `/memory reload` forces a rescan, and `/memory add <text>` appends to the global file.
 
-###### Windsurf: `.windsurfrules`
+###### 12.1.5 Windsurf: `.windsurfrules`
 
 Windsurf's instruction file is a plain Markdown file at the project root. As of early 2026, Windsurf has adopted AGENTS.md support alongside its native `.windsurfrules` format, joining the growing list of tools that read the cross-tool standard.
 
-###### Cline family: `.clinerules`, `.roorules`, `.kilorules`
+###### 12.1.6 Cline family: `.clinerules`, `.roorules`, `.kilorules`
 
 The Cline ecosystem (Cline, Roo Code, and Kilo Code) shares a common heritage and each carries its own instruction file convention:
 
@@ -3332,11 +3332,11 @@ The Cline ecosystem (Cline, Roo Code, and Kilo Code) shares a common heritage an
 
 All three are plain Markdown files with no metadata support.
 
-###### Continue.dev: `.continue/config.yaml`
+###### 12.1.7 Continue.dev: `.continue/config.yaml`
 
 Continue.dev departs from the Markdown-only pattern by using YAML for its configuration file. `.continue/config.yaml` combines model settings, context providers, tab autocomplete configuration, and custom instructions in a single structured file. Continue.dev also reads AGENTS.md.
 
-###### Augment Code and others
+###### 12.1.8 Augment Code and others
 
 Several newer entrants have bypassed proprietary formats entirely and adopted AGENTS.md as their primary or sole instruction mechanism. Augment Code reads AGENTS.md natively. Jules (Google), Warp, Zed, Phoenix, and opencode are among the growing list of tools that recognize AGENTS.md out of the box.
 
@@ -6693,7 +6693,7 @@ The challenge is compounded by the architecture of modern agentic harnesses: a s
 | **Goose** | ✅ Provider-dependent | Your API provider's regions | Block-designed BYOK agent; supports local models for air-gapped environments |
 | **Eigent** | ✅ Local-first | Your machine | Strongest guarantee: code never leaves the workstation; supports local LLMs |
 
-###### Anthropic's Inference Geo
+###### 35.1.1 Anthropic's Inference Geo
 
 Anthropic introduced the `inference_geo` parameter for the Messages API, providing per-request geographic control over where model inference runs. Available on Claude Opus 4.6 and subsequent models, it accepts two values:
 
@@ -6704,13 +6704,13 @@ Workspace-level settings (`allowed_inference_geos`, `default_inference_geo`) let
 
 ⚠️ **EU inference not yet available.** At launch, `inference_geo` only supports `"us"` and `"global"`. Anthropic has stated that additional regions will be added over time. EU-only organizations requiring strict data-at-rest residency must rely on Anthropic's Zero Data Retention (ZDR) arrangement combined with AWS Bedrock EU endpoints or Google Cloud Vertex AI's EU regions as an interim measure.
 
-###### Zero Data Retention (ZDR)
+###### 35.1.2 Zero Data Retention (ZDR)
 
 ZDR is Anthropic's strongest data residency mechanism: customer prompts and Claude's outputs are not stored at rest after the API response is returned. Data is processed in real time and promptly discarded, with no logging or non-ephemeral storage. ZDR covers the Messages API, Claude Code (when used with commercial organization API keys or through Claude Enterprise), and nearly all Messages API features including extended thinking, prompt caching, and computer use.
 
 The critical caveat: ZDR does **not** prevent data from transiting through US infrastructure — it ensures data is not *stored* there. For regulatory interpretations of data residency that focus on processing location (not just storage), ZDR alone may be insufficient.
 
-###### BYOK Tools: Provider-Dependent Flexibility
+###### 35.1.3 BYOK Tools: Provider-Dependent Flexibility
 
 Bring-your-own-key tools — Cline, Roo Code, and Goose — offer the most architectural flexibility for data residency because the data destination is fully configurable. Organizations can route inference through:
 
@@ -6722,11 +6722,11 @@ Bring-your-own-key tools — Cline, Roo Code, and Goose — offer the most archi
 
 The tool itself sends data wherever the API endpoint directs — so choosing a regionally-deployed model provider ensures code stays within the required jurisdiction. This makes BYOK agents the preferred choice for organizations with strict multi-region requirements.
 
-###### GitHub Copilot Enterprise
+###### 35.1.4 GitHub Copilot Enterprise
 
 GitHub Enterprise Cloud offers the most mature turnkey data residency controls among the closed-source agentic tools. Regional data residency (US, EU) ensures that code processing, conversation history, and feature data remain within the configured region. This satisfies GDPR requirements for EU-based organizations without requiring additional infrastructure or BYOK configuration.
 
-###### Local-First: Eigent
+###### 35.1.5 Local-First: Eigent
 
 Eigent's local-first architecture provides the strongest data residency guarantee possible: code never leaves the machine. For organizations in defense, intelligence, regulated financial services, or healthcare that cannot send source code to any external service, Eigent paired with a local model is the only option that satisfies absolute data residency requirements. The trade-off is model quality — local models (Llama, Mistral, Qwen) typically lag behind frontier API models on complex agentic tasks.
 
@@ -8561,3 +8561,4 @@ Open questions for the agentic harness ecosystem are catalogued with full analys
 
 <a id="oq-12"></a>
 **12. Is the desktop coding agent category a sustainable platform category or a transitional form?** The desktop coding agent — exemplified by the Codex Desktop App and Eigent — occupies a distinct niche in the agentic harness landscape: standalone graphical applications that provide visual workspaces for orchestrating, monitoring, and directing one or more AI coding agents ([§44.1](#441-what-defines-a-desktop-agent)). Their value proposition centres on observability — persistent dashboards, parallel-thread monitoring, and real-time intervention capabilities that terminal agents fundamentally cannot provide. The tradeoff analysis in [§44.4](#444-desktop-vs-ide-vs-terminal-a-tradeoff-analysis) shows that desktop agents excel at multi-agent cross-repo workflows, visually demanding tasks like diff review, and scheduled automations, but lose to terminal agents on latency for single-file editing, CI/CD integration, and pair programming. The Codex Desktop App's Git worktree isolation, scheduled automations, and visual PR tooling demonstrate capabilities that have no CLI equivalent ([§44.2](#442-codex-desktop-app-the-multi-agent-command-centre)), while Eigent provides an open-source, self-hosted, BYOK-compatible alternative for organisations wanting multi-agent orchestration with full data sovereignty ([§44.3](#443-eigent-the-open-source-multi-agent-workforce)). But the category faces structural headwinds. Desktop applications have higher development overhead than CLI tools, and the core observability advantage is eroding as terminal agents progressively add visual features — markdown-rendered output, interactive diff viewers, and permission-prompt UIs that blur the line between terminal and desktop categories ([§44.5](#445-the-bridge-pattern-gui-modes-of-cli-tools)). Claude Desktop's Code tab and OpenHands' Local GUI demonstrate that the same agent engine can ship in both terminal and GUI form factors, raising the question of whether the desktop app is a distinct platform or simply a presentation layer. The long-term equilibrium may be a single agent runtime with multiple frontends (terminal, IDE panel, desktop dashboard) — a trajectory that both Anthropic and OpenAI are already pursuing.
+

@@ -8,6 +8,7 @@
     "prepare:reader": "node scripts/prepare-reader.mjs",
     "refresh:reader:live": "node scripts/prepare-reader.mjs --ensure-live",
     "validate:mermaid": "node scripts/validate-mermaid.mjs",
+    "validate:subsection-ids": "python3 .githooks/validate-subsection-ids.py",
     "dev": "node scripts/dev-reader.mjs",
     "test:reader:all": "node scripts/test-reader-all.mjs",
     "test:reader:chapter-routes": "node scripts/test-reader-chapter-routes.mjs",

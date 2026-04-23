@@ -18,11 +18,17 @@ import { useActiveHeading } from './useOutlineSync.js';
 const NAV_WIDTH_STORAGE_KEY = 'dr-reader-nav-width';
 const NAV_WIDTH_EXPLICIT_STORAGE_KEY = 'dr-reader-nav-width-explicit';
 const NAV_COLLAPSED_STORAGE_KEY = 'dr-reader-nav-collapsed';
+const OUTLINE_WIDTH_STORAGE_KEY = 'dr-reader-outline-width';
+const OUTLINE_WIDTH_EXPLICIT_STORAGE_KEY = 'dr-reader-outline-width-explicit';
 const NAV_MIN_WIDTH = 240;
 const NAV_MAX_WIDTH = 520;
 const NAV_DEFAULT_WIDTH = 280;
 const NAV_COLLAPSED_WIDTH = 54;
 const NAV_RESIZER_GUTTER = 12;
+const OUTLINE_MIN_WIDTH = 240;
+const OUTLINE_MAX_WIDTH = 520;
+const OUTLINE_DEFAULT_WIDTH = 280;
+const OUTLINE_RESIZER_GUTTER = 12;
 const MERMAID_MODAL_TITLE_ID = 'reader-mermaid-modal-title';
 const MERMAID_ACTION_FEEDBACK_RESET_MS = 1800;
 const MERMAID_FOCUSABLE_SELECTOR = [
@@ -49,6 +55,10 @@ function findChapterTitle(shellDocument, chapterId) {
 
 function clampNavWidth(value) {
   return Math.min(NAV_MAX_WIDTH, Math.max(NAV_MIN_WIDTH, value));
+}
+
+function clampOutlineWidth(value) {
+  return Math.min(OUTLINE_MAX_WIDTH, Math.max(OUTLINE_MIN_WIDTH, value));
 }
 
 function clampMermaidZoom(value) {
@@ -78,6 +88,23 @@ function readStoredNavWidthExplicit() {
   }
 
   return window.localStorage.getItem(NAV_WIDTH_EXPLICIT_STORAGE_KEY) === 'true';
+}
+
+function readStoredOutlineWidth() {
+  if (typeof window === 'undefined') {
+    return OUTLINE_DEFAULT_WIDTH;
+  }
+
+  const raw = Number(window.localStorage.getItem(OUTLINE_WIDTH_STORAGE_KEY));
+  return Number.isFinite(raw) ? clampOutlineWidth(raw) : OUTLINE_DEFAULT_WIDTH;
+}
+
+function readStoredOutlineWidthExplicit() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(OUTLINE_WIDTH_EXPLICIT_STORAGE_KEY) === 'true';
 }
 
 function buildChapterNavEntries(shellDocument) {
@@ -169,7 +196,8 @@ export default function ChapterPage({
   const location = useLocation();
   const navigate = useNavigate();
   const articleRef = useRef(null);
-  const resizeStateRef = useRef(null);
+  const navResizeStateRef = useRef(null);
+  const outlineResizeStateRef = useRef(null);
   const mermaidModalRef = useRef(null);
   const mermaidModalCloseButtonRef = useRef(null);
   const mermaidModalDiagramRef = useRef(null);
@@ -184,6 +212,9 @@ export default function ChapterPage({
   const [navWidthExplicit, setNavWidthExplicit] = useState(readStoredNavWidthExplicit);
   const [navCollapsed, setNavCollapsed] = useState(readStoredNavCollapsed);
   const [navResizing, setNavResizing] = useState(false);
+  const [outlineWidth, setOutlineWidth] = useState(readStoredOutlineWidth);
+  const [outlineWidthExplicit, setOutlineWidthExplicit] = useState(readStoredOutlineWidthExplicit);
+  const [outlineResizing, setOutlineResizing] = useState(false);
   const [expandedMermaid, setExpandedMermaid] = useState(null);
   const [expandedMermaidZoom, setExpandedMermaidZoom] = useState(clampMermaidZoom(globalMermaidZoomPercent));
   const [expandedMermaidReady, setExpandedMermaidReady] = useState(false);
@@ -682,7 +713,7 @@ export default function ChapterPage({
     }
 
     const handlePointerMove = (event) => {
-      const current = resizeStateRef.current;
+      const current = navResizeStateRef.current;
       if (!current) {
         return;
       }
@@ -692,7 +723,7 @@ export default function ChapterPage({
     };
 
     const stopResize = () => {
-      resizeStateRef.current = null;
+      navResizeStateRef.current = null;
       setNavResizing(false);
     };
 
@@ -708,7 +739,50 @@ export default function ChapterPage({
   }, [navResizing]);
 
   useEffect(() => {
-    if (!navResizing) {
+    if (!outlineWidthExplicit) {
+      return;
+    }
+
+    window.localStorage.setItem(OUTLINE_WIDTH_STORAGE_KEY, String(outlineWidth));
+  }, [outlineWidth, outlineWidthExplicit]);
+
+  useEffect(() => {
+    window.localStorage.setItem(OUTLINE_WIDTH_EXPLICIT_STORAGE_KEY, outlineWidthExplicit ? 'true' : 'false');
+  }, [outlineWidthExplicit]);
+
+  useEffect(() => {
+    if (!outlineResizing) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event) => {
+      const current = outlineResizeStateRef.current;
+      if (!current) {
+        return;
+      }
+
+      const delta = event.clientX - current.startX;
+      setOutlineWidth(clampOutlineWidth(current.startWidth - delta));
+    };
+
+    const stopResize = () => {
+      outlineResizeStateRef.current = null;
+      setOutlineResizing(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopResize);
+    window.addEventListener('pointercancel', stopResize);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopResize);
+      window.removeEventListener('pointercancel', stopResize);
+    };
+  }, [outlineResizing]);
+
+  useEffect(() => {
+    if (!navResizing && !outlineResizing) {
       return undefined;
     }
 
@@ -721,7 +795,7 @@ export default function ChapterPage({
       document.body.style.userSelect = previousUserSelect;
       document.body.style.cursor = previousCursor;
     };
-  }, [navResizing]);
+  }, [navResizing, outlineResizing]);
 
   const handleNavToggle = () => {
     setNavCollapsed((current) => !current);
@@ -733,13 +807,27 @@ export default function ChapterPage({
     }
 
     event.preventDefault();
-    resizeStateRef.current = {
+    navResizeStateRef.current = {
       startX: event.clientX,
       startWidth: navWidth,
     };
     setNavWidthExplicit(true);
     setNavCollapsed(false);
     setNavResizing(true);
+  };
+
+  const handleOutlineResizeStart = (event) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    outlineResizeStateRef.current = {
+      startX: event.clientX,
+      startWidth: outlineWidth,
+    };
+    setOutlineWidthExplicit(true);
+    setOutlineResizing(true);
   };
 
   const handleHeadingNavigation = (headingId) => {
@@ -861,7 +949,7 @@ export default function ChapterPage({
 
   return (
     <section
-      className={`chapter-reader page-shell${navCollapsed ? ' nav-collapsed' : ''}${navResizing ? ' is-resizing-nav' : ''}`}
+      className={`chapter-reader page-shell${navCollapsed ? ' nav-collapsed' : ''}${navResizing ? ' is-resizing-nav' : ''}${outlineResizing ? ' is-resizing-outline' : ''}`}
       data-layout-width={layoutWidthMode}
       style={{
         '--chapter-nav-width': navCollapsed
@@ -869,6 +957,10 @@ export default function ChapterPage({
           : (navWidthExplicit ? `${navWidth}px` : 'var(--reader-nav-recommended-width)'),
         '--chapter-nav-collapsed-width': `${NAV_COLLAPSED_WIDTH}px`,
         '--chapter-nav-resizer-width': `${navCollapsed ? 0 : NAV_RESIZER_GUTTER}px`,
+        '--chapter-outline-width': outlineWidthExplicit
+          ? `${outlineWidth}px`
+          : 'var(--reader-outline-recommended-width)',
+        '--chapter-outline-resizer-width': `${OUTLINE_RESIZER_GUTTER}px`,
       }}
     >
       <aside className="chapter-nav-sidebar">
@@ -969,6 +1061,16 @@ export default function ChapterPage({
             </Link>
           ) : <span />}
         </nav>
+      </div>
+
+      <div className="chapter-outline-resizer-slot">
+        <button
+          type="button"
+          className="chapter-outline-resizer"
+          onPointerDown={handleOutlineResizeStart}
+          aria-label="Resize chapter outline"
+          title="Resize chapter outline"
+        />
       </div>
 
       <aside className="chapter-outline-sidebar">
