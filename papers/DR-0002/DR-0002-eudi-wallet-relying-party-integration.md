@@ -20879,11 +20879,38 @@ The **legal** distinction between models depends on **whose WRPAC signs the JAR*
 <details>
 <summary><strong>Model A — Direct RP (self-hosted verifier)</strong></summary>
 
+```mermaid
+flowchart LR
+    App["RP Frontend / App"] -->|"Start session"| RP["RP Backend / Verifier"]
+    Wallet["Wallet"] -->|"L1 direct_post"| RP
+    RP -->|"Result / session update"| App
+```
+
+**Wallet-facing edge:** The RP's own verifier endpoint receives the Wallet's protocol submission directly.
+
+**Result return path:** The VP Token lands on RP infrastructure and is processed in the same trust boundary.
+
+**Callback implication:** L1 exists, but no separate L2 callback is needed because the RP already has the primary result.
+
 The RP deploys its own verifier (e.g., self-hosted walt.id, Procivis on-prem, or a custom implementation). The RP's backend *is* the verifier — the Wallet's `direct_post` arrives directly at the RP's `response_uri` endpoint. This is **not** a reverse proxy — it is simply a backend endpoint on the RP's server. No L2 callback is needed because the RP already has the VP Token.
 
 </details>
 <details>
 <summary><strong>Model B — Direct RP (SaaS verifier)</strong></summary>
+
+```mermaid
+flowchart LR
+    App["RP Frontend / App"] -->|"Start session"| RP["RP Backend"]
+    RP -->|"Create session"| SaaS["SaaS Verifier"]
+    Wallet["Wallet"] -->|"L1 direct_post"| SaaS
+    SaaS -->|"L2 callback / result"| RP
+```
+
+**Wallet-facing edge:** The SaaS verifier hosts the `response_uri` and receives the Wallet's protocol traffic.
+
+**Result return path:** The RP receives an operational callback or fetched result from the SaaS verifier rather than the raw VP Token.
+
+**Callback implication:** L1 terminates at the SaaS verifier; L2 is required to get the verification outcome back into RP systems.
 
 The RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.id Cloud, Paradym SaaS) but remains the **legal RP**. The SaaS verifier signs the JAR with the RP's WRPAC (the RP's private key is either hosted in the SaaS provider's HSM or accessed remotely). The Wallet sees the RP's identity, not the SaaS provider's. The SaaS verifier is a **technical service provider**, not a legal intermediary — it has no WRPAC of its own. L2 callbacks are required to deliver verification results back to the RP.
 
@@ -20893,17 +20920,60 @@ The RP delegates protocol execution to a cloud-hosted verifier API (e.g., walt.i
 <details>
 <summary><strong>Model C — Intermediary</strong></summary>
 
+```mermaid
+flowchart LR
+    App["End-RP Frontend / App"] -->|"Start journey"| RP["End-RP Backend"]
+    RP -->|"Request / business intent"| Int["Intermediary"]
+    Wallet["Wallet"] -->|"L1 direct_post"| Int
+    Int -->|"L2 callback / verified attributes"| RP
+    RP -->|"Journey outcome / session update"| App
+```
+
+**Wallet-facing edge:** The intermediary is the Wallet-visible relying party and protocol endpoint.
+
+**Result return path:** The end-RP receives only the intermediary's forwarded, already-verified output.
+
+**Callback implication:** L1 terminates at the intermediary; the end-RP depends on L2 forwarding and cannot independently verify the original credential.
+
 The intermediary is a **separate legal entity** with its own WRPAC (Art. 5b(10)). The Wallet's consent screen shows both the intermediary's and the end-RP's identity. The intermediary verifies the credential and forwards verified attributes to the end-RP via L2 callback. The end-RP cannot independently verify the original credential. See [§25](#25-intermediary-architecture-and-trust-flows) for the full intermediary architecture.
 
 </details>
 <details>
 <summary><strong>Model D — Direct RP (browser DC API)</strong></summary>
 
+```mermaid
+flowchart LR
+    RP["RP Web Origin"] -->|"navigator.credentials.get()"| Browser["Browser DC API"]
+    Browser -->|"Wallet request"| Wallet["Wallet"]
+    Wallet -->|"VP Token via browser API"| Browser
+    Browser -->|"VP Token"| RP
+```
+
+**Wallet-facing edge:** The browser platform API mediates between the RP's web origin and the Wallet.
+
+**Result return path:** The VP Token returns through the browser API into the RP's web context, then to RP-controlled validation logic.
+
+**Callback implication:** There is no `response_uri`, so L1, L2, and L3 callback layers are all inapplicable.
+
 The RP uses the W3C Digital Credentials API (DC API) in a **browser context** with response mode `dc_api.jwt` (HAIP 1.0 [§6.2](#62-sd-jwt-vc-structure-decoded-issuer-jwt)). The VP Token flows through the **browser platform API** — there is no `response_uri`, no HTTP POST to a verifier backend, and no L2 callback. The browser acts as the secure conduit between the Wallet and the RP's origin. The RP receives the VP Token directly in the browser context via `navigator.credentials.get()` and validates it server-side. This model eliminates the entire callback architecture — L1, L2, and L3 are all inapplicable. Model D is the preferred model for same-device browser-based flows where the ARF `OIA_08` platform conditions are met because it provides phishing resistance via origin validation and avoids the `response_uri` domain binding question entirely.
 
 </details>
 <details>
 <summary><strong>Model E — Direct RP (native app OS Credential API)</strong></summary>
+
+```mermaid
+flowchart LR
+    App["RP Native App"] -->|"CredentialManager / PassKit call"| OS["OS Credential API"]
+    OS -->|"Wallet invoke"| Wallet["Wallet"]
+    Wallet -->|"VP Token via OS API"| OS
+    OS -->|"VP Token"| App
+```
+
+**Wallet-facing edge:** The mobile operating system mediates the invocation between the RP app and the Wallet.
+
+**Result return path:** The VP Token returns through the OS credential API to the native app, which can validate locally or send it to RP backend services.
+
+**Callback implication:** There is no `response_uri`, so the callback stack disappears just as it does in the browser DC API model.
 
 The RP is a **native mobile application** (e.g., a banking app, insurance app, or government services app) that invokes the EUDI Wallet directly via the **OS-level credential manager API**: Android `CredentialManager` with `GetDigitalCredentialOption` (`androidx.credentials` 1.6+), or iOS PassKit "Verify with Wallet" / `IdentityDocumentProvider` framework (iOS 26+). Architecturally identical to Model D: no `response_uri`, no L1/L2/L3 callbacks. The OS acts as the trusted mediator — it discovers installed wallets, presents a system UI selector, and routes the OpenID4VP request to the user-selected wallet. The wallet handles consent and biometric authorization, then returns the VP Token to the calling app via the OS credential API. The native RP app validates the VP Token itself (or delegates to its own backend). Model E is the preferred model for **native mobile RP applications** because it provides OS-mediated wallet discovery (pre-flight credential matching), phishing resistance (the wallet knows the request came from the OS, not an arbitrary app), and a seamless UX without browser redirects or deep links. See [§9.3](#93-native-app-rp-integration-iosandroid) for platform-specific implementation details.
 
