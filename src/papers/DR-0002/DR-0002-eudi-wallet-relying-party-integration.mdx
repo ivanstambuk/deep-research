@@ -21795,7 +21795,7 @@ Read this as a **first-party control boundary**, not as a claim that every check
 
 ###### 26.7.1.1 RP-Owned Orchestrator Pattern
 
-The sequence below keeps OID4VP / OID4VCI and SD-JWT VC / mdoc internals deliberately abstract. It is grouped into three phases: first-party journey initiation and session setup, wallet ceremony and protocol mediation, and RP-side decisioning. The point is the orchestration boundary: multiple wallet interactions may occur, but the RP-owned orchestrator mediates them as one stateful process before any internal product consumes the outcome.
+The sequence below keeps OID4VP / OID4VCI and SD-JWT VC / mdoc internals deliberately abstract. It is grouped into three phases: first-party journey initiation and session setup, wallet ceremony and protocol mediation, and RP-side decisioning. The point is the orchestration boundary: multiple wallet interactions may occur, but the RP-owned orchestrator mediates them as one stateful process before any internal product consumes the outcome. The launch surface from the app into the wallet may materialize as a same-device DC API invocation, a QR / `request_uri` handoff, or a deep / universal / app link, but it still sits inside the same RP-owned journey envelope.
 
 ```mermaid
 ---
@@ -21836,6 +21836,7 @@ sequenceDiagram
 
     rect rgba(52, 152, 219, 0.14)
     Note over User,Conn: Phase 2 — Wallet ceremony and protocol mediation
+    App-->>W: Invoke wallet via DC API,<br/>QR/request_uri, or deep/app link
     User->>W: Review and approve wallet action
     W->>Orch: Send wallet-facing protocol message
     Orch->>Conn: Mediate protocol step
@@ -21912,7 +21913,17 @@ This is the point where the RP can preserve first-party URL ownership (§26.8), 
 
 </details>
 <details>
-<summary><strong>7. End User reviews and approves the wallet action</strong></summary>
+<summary><strong>7. First-party browser or native app invokes or exposes the wallet launch surface</strong></summary>
+
+The first-party channel turns the launch contract into the concrete wallet-entry mechanism appropriate for the platform. In a same-device browser flow this may be a DC API / browser-mediated invoke. In a cross-device flow it may become a QR code carrying a `request_uri` or equivalent launch payload. In a native-app flow it may become a universal link, app link, or other OS-level handoff into the wallet.
+
+This step is worth drawing explicitly because it is where the RP-controlled app stops being a normal product UI and becomes a wallet-entry surface. The browser or app is not yet sending a verified result; it is bridging the user from the RP's first-party context into the wallet ceremony while preserving the same RP-owned session envelope, return contract, and expiry semantics.
+
+**Artifact Produced:** Wallet launch surface exposed to the user or platform mediator.
+
+</details>
+<details>
+<summary><strong>8. End User reviews and approves the wallet action</strong></summary>
 
 The user reviews the wallet prompt and explicitly approves the action that the journey requires: for example attribute disclosure, authentication, RP-controlled issuance acceptance, or another wallet-mediated authorization step. Making this approval explicit in the sequence matters because the wallet ceremony is not just a backend exchange; there is a user-consent or user-authorization moment inside the wallet before the next protocol message is sent.
 
@@ -21920,7 +21931,7 @@ Architecturally, this is the human confirmation point that must still line up wi
 
 </details>
 <details>
-<summary><strong>8. Wallet sends a wallet-facing protocol message to the orchestrator edge</strong></summary>
+<summary><strong>9. Wallet sends a wallet-facing protocol message to the orchestrator edge</strong></summary>
 
 This arrow stands in for the repeated wallet-facing interactions that may occur during the ceremony: request-object retrieval, protocol submission, token / credential retrieval, status advancement, or other wallet-facing steps. The internal OID4VP / OID4VCI and SD-JWT VC / mdoc details are abstracted away here on purpose.
 
@@ -21928,7 +21939,7 @@ What matters architecturally is that the RP-owned edge remains the first receivi
 
 </details>
 <details>
-<summary><strong>9. RP Orchestrator mediates the protocol step to the connector</strong></summary>
+<summary><strong>10. RP Orchestrator mediates the protocol step to the connector</strong></summary>
 
 The orchestrator translates or forwards the wallet-facing step to the connector using the connector session established earlier. In a tightly integrated deployment this may look like a near pass-through. In other deployments it can include route normalization, session correlation, policy checks, or vendor-specific adaptation before the connector sees the request.
 
@@ -21936,7 +21947,7 @@ In a sync-inline topology (§26.6.4, §26.7.3) this can occur inside the same HT
 
 </details>
 <details>
-<summary><strong>10. Wallet Connector returns a protocol result or internal failure</strong></summary>
+<summary><strong>11. Wallet Connector returns a protocol result or internal failure</strong></summary>
 
 The connector returns either a verified protocol outcome, a signal that another protocol turn is required, or a connector-internal failure such as duplicate `state`, nonce mismatch, malformed submission, expired session, or replay detection. Some of these protections may be implemented fully inside the connector rather than inside the orchestrator, and that is fine.
 
@@ -21946,7 +21957,7 @@ The architectural value is that the RP receives a structured internal outcome en
 
 </details>
 <details>
-<summary><strong>11. RP Orchestrator returns protocol continuation or completion to the wallet</strong></summary>
+<summary><strong>12. RP Orchestrator returns protocol continuation or completion to the wallet</strong></summary>
 
 If another wallet-facing interaction is needed, the orchestrator returns the next protocol step to the wallet. If the protocol is complete, the orchestrator returns the wallet-facing completion response that lets the wallet close its side of the ceremony.
 
@@ -21956,7 +21967,7 @@ This is distinct from the later RP business outcome returned to the first-party 
 
 </details>
 <details>
-<summary><strong>12. RP Orchestrator sends verified result, HTTP context, and product state to policy / fraud / audit services</strong></summary>
+<summary><strong>13. RP Orchestrator sends verified result, HTTP context, and product state to policy / fraud / audit services</strong></summary>
 
 Once the protocol result is sufficiently complete, the orchestrator enriches it with first-party context: product journey state, HTTP-layer observations, session history, and any required compliance metadata. This is where the RP combines connector output with VSI Layer 3 context (§30.5), product policy, AML / KYC / SCA logic, or other fraud controls.
 
@@ -21966,7 +21977,7 @@ That enrichment is what turns a cryptographically valid wallet result into an RP
 
 </details>
 <details>
-<summary><strong>13. Policy / Fraud / Audit services return a decision and internal reason</strong></summary>
+<summary><strong>14. Policy / Fraud / Audit services return a decision and internal reason</strong></summary>
 
 The downstream policy stack returns the RP's internal decision record: business decision plus detailed internal reason. That reason may incorporate connector outcomes, replay / duplicate-state handling, HTTP-context anomalies, sanctions or fraud hits, and risk-scoring results.
 
@@ -21976,7 +21987,7 @@ This is the point where the RP decides whether the journey is allowed, denied, s
 
 </details>
 <details>
-<summary><strong>14. RP Orchestrator returns a generic journey outcome to the first-party browser or native app</strong></summary>
+<summary><strong>15. RP Orchestrator returns a generic journey outcome to the first-party browser or native app</strong></summary>
 
 The orchestrator converts the internal decision into the external RP-side journey outcome seen by the first-party browser or native app. This is separate from the wallet-facing protocol completion above. The app does not need the raw protocol failure details or fraud logic; it needs the RP-owned result surface that tells it how to continue the user journey.
 
@@ -21989,6 +22000,14 @@ The response can therefore remain intentionally generic: success, generic failur
 <br/>
 
 The practical design rule is therefore: **let the connector own connector mechanics, but let the orchestrator own the RP boundary around those mechanics**. That is the control point where first-party URL ownership, session binding, product context, fraud telemetry, generic external errors, and compliance evidence meet.
+
+| Wallet Entry Variant | First-party launch surface | What the app exposes to the user or platform | What the wallet actually consumes | Primary reference |
+|:---------------------|:---------------------------|:---------------------------------------------|:----------------------------------|:------------------|
+| **Same-device browser** | Browser-mediated invoke | DC API / browser credential selector | RP-supplied request passed through the browser / OS credential API | §9, §28.1.1 |
+| **Cross-device fallback** | Split-device handoff | QR code, copyable verification link, or equivalent launch payload | `request_uri`-based wallet entry artefact fetched by the wallet over its own channel | §10, §21.5.3 |
+| **Native app** | OS-level app handoff | Universal link, app link, deep link, or platform-native invoke surface | Wallet launch target resolved by the mobile OS into the wallet app | §9.3, §28.1.2 |
+
+The important boundary is that these are **entry variants of the same RP-owned journey**, not three unrelated architectures. The orchestrator still owns session linkage, expiry, return routing, and the business context bound to the wallet operation; only the user-facing launch surface changes by platform and channel.
 
 ##### 26.7.2 Deployment Topology: Proxy vs. Direct
 
