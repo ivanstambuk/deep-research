@@ -103,6 +103,13 @@ function testExternalCitationIsSkipped() {
     },
     targetIndex: buildIndex([{ headingId: '4-internal', text: '4 Internal section' }]),
   });
+  const haipResult = linkifyTextValue('HAIP 1.0 §6 (line 270) explicitly notes the requirement.', {
+    buildHref: () => '#should-not-link',
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex: buildIndex([{ headingId: '6-internal', text: '6 Internal section' }]),
+  });
 
   assert.equal(result.changed, false);
   assert.equal(result.diagnostics.length, 1);
@@ -120,6 +127,8 @@ function testExternalCitationIsSkipped() {
   assert.equal(dpdpResult.diagnostics[0].category, 'skipped_external_citation');
   assert.equal(parentheticalRfcResult.changed, false);
   assert.equal(parentheticalRfcResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(haipResult.changed, false);
+  assert.equal(haipResult.diagnostics[0].category, 'skipped_external_citation');
 }
 
 function testArfReferencesResolveAsExternalLinks() {

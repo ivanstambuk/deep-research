@@ -36,6 +36,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bETSI\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bCIR\s+\d{4}\/\d+(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bARF\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
+  /\bHAIP\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bTS\d+\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\bWebAuthn(?:\s+L\d+)?\b(?:[\s,./()-]+\w[\w.-]*){0,6}\s*$/i,
   /\b(?:spec|specification|draft)\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
@@ -68,7 +69,7 @@ const EXTERNAL_CITATION_PATTERNS = [
 ];
 const INTERNAL_REFERENCE_PREFIX_RE = /\b(?:see|from|in|under|via|within|cross[- ]reference:?|described\s+in|documented\s+in|discussed\s+in|covered\s+(?:in\s+detail\s+)?in|referenced\s+in|mapped\s+in|detailed\s+in|analysed\s+in|analyzed\s+in)\s*$/i;
 const INTERNAL_REFERENCE_SUFFIX_RE = /^\s*(?:\)|\]|\.)?\s*(?:covers?|covered|describes?|described|discusses?|documented|details?|maps?|mapped|explains?|analyses?|analyzes?|provides?|traces?|shows?)\b/i;
-const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|CIBA(?:\s+Core)?|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
+const STRONG_EXTERNAL_SOURCE_RE = /\b(?:RFC|NIST(?:\s+SP)?|ISO|ETSI|CIR|ARF|HAIP|TS\d+|HIPAA|PCI\s+DSS|OWASP|OID4VP|OID4VCI|OAuth|OpenID|CIBA(?:\s+Core)?|OIDC\s+Core|OpenID\s+Connect\s+Core|PID\s+Rulebook|SD-JWT\s+VC|CSC\s+API|SAMLCore|SAMLProf|OASIS\s+SAML|WebAuthn(?:\s+Level\s+\d+)?|Fielding\s+\d{4}|SOX|Sarbanes-Oxley|CUBI|W3C\s+DBSC|Topic\s+\d|MS-[A-Z0-9-]+|DPDP\s+Act|Federal\s+Law)\b(?:[\s,./():'’-]+\w[\w.-]*)*$/i;
 const ARF_MAIN_EXPLICIT_PREFIX_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*$/i;
 const ARF_MAIN_EXPLICIT_SUFFIX_RE = /^\s+of\s+the\s+ARF(?:\s+Main\s+Document)?\b/i;
 const ARF_MAIN_PRIOR_SECTION_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*§\d+(?:\.\d+)*/i;
