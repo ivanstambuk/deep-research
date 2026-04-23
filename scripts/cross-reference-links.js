@@ -73,6 +73,8 @@ const ARF_MAIN_EXPLICIT_PREFIX_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.
 const ARF_MAIN_EXPLICIT_SUFFIX_RE = /^\s+of\s+the\s+ARF(?:\s+Main\s+Document)?\b/i;
 const ARF_MAIN_PRIOR_SECTION_RE = /\bARF(?:\s+Main\s+Document)?(?:\s+v\d+(?:\.\d+){0,2})?,?\s*§\d+(?:\.\d+)*/i;
 const ARF_TOPIC_EXPLICIT_PREFIX_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)(?:\s*,\s*)?$/i;
+const TARGET_HEADING_CUE_STOP_WORDS = new Set(['a', 'an', 'and', 'by', 'for', 'from', 'in', 'of', 'on', 'or', 'the', 'to', 'via', 'with']);
+const STRUCTURAL_LABEL_CUE_WORDS = new Set(['mode', 'model', 'option', 'pattern']);
 
 function stripMarkdownFormatting(value) {
   return value
@@ -302,6 +304,71 @@ function extractTrailingTopicPhrase(lookback) {
   return match ? match[1] : null;
 }
 
+function normalizeHeadingCueWord(value) {
+  const normalized = value.toLowerCase();
+  if (normalized.length > 3 && normalized.endsWith('s')) {
+    return normalized.slice(0, -1);
+  }
+
+  return normalized;
+}
+
+function extractTargetHeadingCueWords(target) {
+  if (!target?.text) {
+    return [];
+  }
+
+  return normalizeTopicMatchText(stripLeadingSectionEnumeration(target.text))
+    .split(' ')
+    .filter(Boolean)
+    .map(normalizeHeadingCueWord)
+    .filter((word) => !TARGET_HEADING_CUE_STOP_WORDS.has(word));
+}
+
+function trailingTextStartsWithTargetHeadingCue({ trailingText, target }) {
+  const trimmedTrailing = trailingText.trimStart();
+  if (!trimmedTrailing || !/^[A-Za-z0-9]/.test(trimmedTrailing)) {
+    return false;
+  }
+
+  const headingCueWords = extractTargetHeadingCueWords(target);
+  if (headingCueWords.length < 2) {
+    return false;
+  }
+
+  const trailingCueWords = normalizeTopicMatchText(trimmedTrailing)
+    .split(' ')
+    .filter(Boolean)
+    .map(normalizeHeadingCueWord);
+
+  return trailingCueWords[0] === headingCueWords[0] && trailingCueWords[1] === headingCueWords[1];
+}
+
+function lookbackEndsWithStructuralLabelCue(lookback) {
+  return /\b(?:Model|Pattern|Option|Mode)\s+[A-Z0-9]+\s*,?\s*$/i.test(normalizeCitationLookback(lookback));
+}
+
+function targetHeadingSupportsStructuralLabelCue(target) {
+  const headingCueWords = extractTargetHeadingCueWords(target);
+  return headingCueWords.some((word) => STRUCTURAL_LABEL_CUE_WORDS.has(word));
+}
+
+function hasTargetHeadingCue({ lookback, trailingText, target }) {
+  if (!target?.text) {
+    return false;
+  }
+
+  if (trailingTextStartsWithTargetHeadingCue({ trailingText, target })) {
+    return true;
+  }
+
+  if (lookbackEndsWithStructuralLabelCue(lookback) && targetHeadingSupportsStructuralLabelCue(target)) {
+    return true;
+  }
+
+  return false;
+}
+
 function targetHeadingStartsWithTrailingTopic({ lookback, target }) {
   const topicPhrase = extractTrailingTopicPhrase(lookback);
   if (!topicPhrase || !target?.text) {
@@ -322,6 +389,10 @@ function hasInternalReferenceCue({ lookback, trailingText, target = null }) {
   const normalizedPrefix = normalizeCitationLookback(lookback);
 
   if (INTERNAL_REFERENCE_PREFIX_RE.test(normalizedPrefix) || /DR-\d{4}\s*$/i.test(normalizedPrefix)) {
+    return true;
+  }
+
+  if (hasTargetHeadingCue({ lookback: normalizedPrefix, trailingText, target })) {
     return true;
   }
 

@@ -304,7 +304,7 @@ related: []
     - [26.4 Validation vs. Verification Separation](#264-validation-vs-verification-separation)
     - [26.5 Session Management and Result Delivery](#265-session-management-and-result-delivery)
     - [26.6 Callback Integration Architecture](#266-callback-integration-architecture)
-    - [26.7 Integration Delivery Modes](#267-integration-delivery-modes)
+    - [26.7 First-Party Control Boundary and Delivery Architecture](#267-first-party-control-boundary-and-delivery-architecture)
     - [26.8 URL Surface Ownership, Facade Deployment, and RP-Bindability](#268-url-surface-ownership-facade-deployment-and-rp-bindability)
   </details>
   - <details><summary><a href="#27-vendor-evaluation">27. Vendor Evaluation</a></summary>
@@ -19829,7 +19829,7 @@ This profile matters because the main hardening levers operate at different laye
 
 For financial-sector RPs, the practical rule is: **do not require proximity for routine presentation by default, but do require stronger ceremony for credential issuance, recovery, re-binding, and signal-triggered escalation paths.** For the abstract policy model, see §26.1.2; for the prioritised financial-sector action list, see §35.2.
 
-For financial-sector deployments, this should be treated as a **banking-grade baseline expectation**: front the wallet journey with a **stateful first-party orchestrator** rather than exposing wallet-verifier mechanics directly to product frontends or internal systems. This boundary is also operationally necessary because wallet connectors commonly authenticate RP-to-connector traffic with backend credentials or client certificates that must remain inside the RP security domain rather than in browser or mobile frontend code. At the internet-facing edge, a synchronous RP-owned boundary is usually preferable where the chosen topology supports it; if a wallet connector internally uses push, ping, polling, or callback-style result delivery, those mechanics should remain **behind** the orchestrator as connector-integration details rather than leaking into the public channel. In practice this also means keeping the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces first-party and RP-bindable, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see §26.8). A vendor-owned `direct_post` domain is therefore not acceptable for this profile: the RP would lose first-receiving-edge HTTP context such as source IP, User-Agent, TLS fingerprint, and request timing, and would no longer control the wallet-facing trust and result surfaces. See §26.7.1.1 for the general architecture rationale.
+For financial-sector deployments, this should be treated as a **banking-grade baseline expectation**: front the wallet journey with a **stateful first-party orchestrator** rather than exposing wallet-verifier mechanics directly to product frontends or internal systems. This boundary is also operationally necessary because wallet connectors commonly authenticate RP-to-connector traffic with backend credentials or client certificates that must remain inside the RP security domain rather than in browser or mobile frontend code. At the internet-facing edge, a synchronous RP-owned boundary is usually preferable where the chosen topology supports it; if a wallet connector internally uses push, ping, polling, or callback-style result delivery, those mechanics should remain **behind** the orchestrator as connector-integration details rather than leaking into the public channel. In practice this also means keeping the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces first-party and RP-bindable, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see §26.8). A vendor-owned `direct_post` domain is therefore not acceptable for this profile: the RP would lose first-receiving-edge HTTP context such as source IP, User-Agent, TLS fingerprint, and request timing, and would no longer control the wallet-facing trust and result surfaces. See §26.7.1 for the general architecture rationale.
 
 
 #### 24.9 Industry Interpretation Disputes and Open Questions
@@ -20823,7 +20823,7 @@ Every OpenID4VP verification interaction is a **stateful session** with a define
 
 ##### 26.5.2 Result Delivery: Polling vs. Callbacks
 
-Across `DR-0002`, five delivery modes are distinguished in total: push, ping, poll, stream, and sync inline (§26.7.2). This subsection focuses only on the three most common **asynchronous server-side L2** patterns used when a verifier or intermediary must deliver results back to the RP backend: poll, webhook push, and webhook ping. **Synchronous inline** delivery is covered in §26.7.2 because it depends on proxy topology (§26.7.1) and occurs inside the Wallet's `direct_post` HTTP round-trip rather than as a later callback. Likewise, Models D and E (§26.6.1) bypass L2 delivery entirely because the RP receives the VP Token directly through the browser or OS credential API.
+Across `DR-0002`, six delivery modes are discussed in total: push, ping, poll, stream, sync inline, and event bus (§26.7.3). This subsection focuses only on the three most common **asynchronous server-side L2** patterns used when a verifier or intermediary must deliver results back to the RP backend: poll, webhook push, and webhook ping. **Synchronous inline** delivery is covered in §26.7.3 because it depends on proxy topology (§26.7.2) and occurs inside the Wallet's `direct_post` HTTP round-trip rather than as a later callback. Likewise, Models D and E (§26.6.1) bypass L2 delivery entirely because the RP receives the VP Token directly through the browser or OS credential API.
 
 | Pattern | Mechanism | When to Use |
 |:--------|:----------|:------------|
@@ -20831,7 +20831,7 @@ Across `DR-0002`, five delivery modes are distinguished in total: push, ping, po
 | **Webhook push** | Verifier POSTs complete result to RP's `statusCallbackUri` when session transitions to Fulfilled/Failed | Production deployments; high-volume RPs; event-driven architectures |
 | **Webhook ping** | Verifier POSTs thin notification (session ID + status only); RP fetches full result via `GET /session/{id}` | High-PII environments where attributes should not traverse the webhook channel |
 
-> **If you are looking for synchronous delivery**: see **Sync Inline** in §26.7.2 and the selection decision in §26.7.3. Stream delivery (SSE/WebSocket) is also covered there; in this chapter it is treated primarily as a frontend/session-status transport rather than the main backend result-delivery pattern.
+> **If you are looking for synchronous delivery**: see **Sync Inline** in §26.7.3 and the selection decision in §26.7.4. Stream delivery (SSE/WebSocket) is also covered there; in this chapter it is treated primarily as a frontend/session-status transport rather than the main backend result-delivery pattern.
 
 The webhook push pattern is preferred for production because it eliminates polling latency and reduces API load. A typical callback configuration includes:
 - `statusCallbackUri` — the RP's webhook endpoint URL
@@ -21397,7 +21397,7 @@ The User experience is identical to the direct SaaS model (§26.6.2 step 12) —
 
 ##### 26.6.4 Reverse Proxy Integration Pattern
 
-When an RP deploys a **reverse proxy** (API gateway) in front of the verification backend, the RP's infrastructure sits **in the HTTP request/response path** between the Wallet and the verifier. This proxy topology (§26.7.1) provides two independent benefits: **HTTP context capture** (origin IP, User-Agent, TLS fingerprint — available regardless of delivery mode) and the **option** of synchronous inline result delivery (§26.7.2) — enabling inline processing that is impossible with asynchronous-only delivery modes.
+When an RP deploys a **reverse proxy** (API gateway) in front of the verification backend, the RP's infrastructure sits **in the HTTP request/response path** between the Wallet and the verifier. This proxy topology (§26.7.2) provides two independent benefits: **HTTP context capture** (origin IP, User-Agent, TLS fingerprint — available regardless of delivery mode) and the **option** of synchronous inline result delivery (§26.7.3) — enabling inline processing that is impossible with asynchronous-only delivery modes.
 
 This pattern is distinct from Models A–D (§26.6.1) in that it is a **deployment topology** rather than a legal or protocol-level distinction. A reverse proxy deployment is most commonly used with **Model A** (self-hosted verifier) but can also be layered in front of a SaaS verifier (Model B) if the RP proxies the `response_uri` traffic through its own domain (§26.6.1 `x509_san_dns` workaround).
 
@@ -21690,21 +21690,21 @@ The L2 callback (operational result delivery) must include sufficient metadata f
 | `verification_dimensions` | N/A | ✅ | Which Topic 52 `RPI_09` verification dimensions were agreed and passed (§25.4.1) |
 | `risk_signals` | 🟡 Optional | ✅ Recommended | Client IP, User-Agent, device fingerprint, timing metadata (§26.6.6) |
 
-> **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode (§26.7.2), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see §26.7.4.1 for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
+> **Push vs. ping delivery**: The callback payload table above assumes **push** mode — the verifier delivers the full payload in a single webhook POST. In **ping** mode (§26.7.3), the L2 callback contains only the `session_id` and `status`; the RP then fetches the full result via `GET /session/{session_id}`. Ping mode reduces PII exposure on the webhook channel — see §26.7.5.1 for the security and latency trade-offs between push and ping. Some vendors (e.g., Procivis) default to ping mode. RPs should support both delivery models.
 
 ###### 26.6.5.1 L2 Delivery Mechanisms
 
-The L2 result delivery is not always a webhook push. Five mechanisms exist, each with different architectural tradeoffs. The first three correspond to the token delivery modes defined by OpenID Connect CIBA Core 1.0 — see §26.7.2 for the full taxonomy and §26.7.3 for the selection decision tree:
+The L2 result delivery is not always a webhook push. Across this chapter, six mechanisms are discussed in total, although the first three are the main callback-oriented patterns for Models B and C. The first three correspond to the token delivery modes defined by OpenID Connect CIBA Core 1.0 — see §26.7.3 for the canonical taxonomy and §26.7.4 for the selection decision tree:
 
 | Mechanism | How it works | Latency | Complexity | Best for |
 |:----------|:------------|:-------:|:----------:|:---------|
 | **Push** (full-payload webhook) | Verifier POSTs complete result + disclosed attributes to RP's `statusCallbackUri` when session transitions | ~100ms | Medium — RP must expose an authenticated endpoint | Production event-driven architectures |
 | **Ping** (thin webhook + fetch) | Verifier POSTs notification (`session_id` + `status` only) to RP's callback; RP fetches full result via `GET /session/{id}` | ~200ms | Medium — RP exposes callback + calls session API | High-PII environments (KYC, healthcare) — attributes stay off webhook channel |
-| **Polling** | RP periodically calls `GET /session/{id}` (short, long, or batch polling — see §26.7.4.2) | 1–5s (interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments; webhook fallback |
+| **Polling** | RP periodically calls `GET /session/{id}` (short, long, or batch polling — see §26.7.5.2) | 1–5s (interval) | Lowest — no webhook infrastructure | Development/testing; low-volume deployments; webhook fallback |
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
 | **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice (§26.7.4.1). Separately, the RP may deploy a reverse proxy (§26.7.1) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode (§26.7.2), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
+> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice (§26.7.5.1). Separately, the RP may deploy a reverse proxy (§26.7.2) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode (§26.7.3), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
 ###### 26.6.5.2 Multi-Entity Callback Routing
 
@@ -21757,37 +21757,17 @@ When the RP's webhook endpoint is unreachable (5xx, timeout, DNS failure), the v
 
 > **Polling fallback**: RPs that depend on webhook reliability should implement a complementary polling mechanism — a periodic `GET /sessions?status=fulfilled&since={timestamp}` sweep that catches any sessions whose webhook delivery failed. This eliminates the single-point-of-failure risk of webhook-only architectures.
 
-#### 26.7 Integration Delivery Modes
+#### 26.7 First-Party Control Boundary and Delivery Architecture
 
-The preceding sections describe the callback architecture in terms of **what** is delivered (§26.6.5 payload specification) and **who** delivers it (§26.6.1 integration models A–E). This section addresses the equally critical question of **how** the verification result reaches the RP's backend.
+The preceding sections describe callback architecture in terms of **what** is delivered (§26.6.5 payload specification), **who** delivers it (§26.6.1 integration models A–E), and **how** a reverse-proxy deployment can be implemented (§26.6.4). This section steps up one level from those mechanics and asks the architecture questions that determine the shape of the RP-facing system: where the first-party control boundary sits, whether the wallet-facing topology is proxy or direct, and how verification results return to the RP.
 
-Two **orthogonal** architectural dimensions govern this question:
+These dimensions are **orthogonal**. An RP can decide that wallet ceremonies should terminate at a first-party orchestrator, still choose either proxy or direct topology, and then independently choose a result-delivery mode. The subsections below move in that order: control boundary first, topology second, delivery taxonomy third, and selection logic after that.
 
-1. **Deployment topology** — Is the RP's infrastructure in the HTTP path between Wallet and verifier? (**Proxy** vs. **Direct**)
-2. **Result delivery mode** — How does the RP receive the verification result from the verifier? (**Push** / **Ping** / **Poll** / **Stream** / **Sync inline** / **Event Bus**)
-
-These dimensions are **independent**. An RP deploying a reverse proxy in front of its verifier still needs to choose a result delivery mode — the proxy provides HTTP context capture and the *option* of synchronous inline delivery, but it does not replace the delivery mode decision.
-
-##### 26.7.1 Deployment Topology: Proxy vs. Direct
-
-| Topology | Description | HTTP Context | VP Token Access | Enables |
-|:---------|:------------|:-------------|:----------------|:--------|
-| **Direct** | Wallet POSTs `direct_post` directly to verifier's `response_uri`. RP is not in the HTTP path — it receives results asynchronously via push/ping/poll/stream. | ❌ RP has no access to wallet's HTTP headers, IP, User-Agent, TLS fingerprint | ❌ RP never sees the raw `direct_post` — only processed results from verifier | Push, Ping, Poll, Stream, Event Bus |
-| **Proxy** | RP's API gateway (reverse proxy) sits between Wallet and verifier. Gateway intercepts the `direct_post`, captures the full HTTP context (origin IP, User-Agent, cookies, TLS fingerprint, request timing), and forwards to verifier. | ✅ Full HTTP context captured at gateway | ✅ Gateway sees raw VP Token (encrypted JWE) before forwarding to verifier | All of Direct's modes **plus** Sync Inline |
-
-> **Key insight**: Proxy deployment is a **prerequisite** for HTTP context capture and VSI Layer 3 signal extraction (§30.5) — regardless of whether the RP processes the verification result synchronously or asynchronously. An RP can deploy a proxy to capture HTTP context for VSI evaluation and *still* receive verification results via push webhook. The proxy and the delivery mode are independent decisions.
->
-> **SaaS compatibility**: Proxy topology is **straightforward** with self-hosted or on-prem verifiers — the RP controls the deployment and can route `response_uri` through any gateway. With SaaS verifiers, proxy topology is **still achievable**: the RP configures the `response_uri` to point to its own gateway domain (§26.6.4), which captures HTTP context and forwards traffic to the SaaS backend. This requires the SaaS vendor to support custom domain configuration for the `response_uri`, or the RP to handle DNS-level routing. For the orchestrator pattern described below, wrapping only the SaaS verifier's session API (creation, polling, webhook ingestion) is **not sufficient** if the wallet-facing `direct_post` still lands on a vendor-owned domain: the RP would still lose first-receiving-edge HTTP context and first-party control of the wallet-facing URL surfaces in §26.8. No vendor in the EUDI ecosystem provides a dedicated "synchronous verify" API endpoint (POST VP token → receive result in response body) — the OpenID4VP `direct_post` flow places the *wallet* as the HTTP client, and the RP is always a third party. Library/SDK embeds (Spruce ID, Scytáles) are inherently synchronous since verification executes in-process.
->
-> **Security recommendation**: The verifier's `response_uri` should never be directly internet-facing on a vendor-owned domain in banking-grade deployments. The minimum expectation is that the RP owns the wallet-facing receiving edge and the relevant RP-bindable URL surfaces in §26.8, so that `direct_post` traffic, request-object fetches, verifier identity material, and result retrieval remain first-party. Routing through the RP's API gateway enables rate limiting (per-IP, per-session), WAF rules, DDoS mitigation (e.g., Cloudflare, AWS Shield), request size limits, TLS termination with the RP's own certificates, and capture of source IP / User-Agent / TLS context for VSI. Without that RP-owned edge, the verifier's endpoint is exposed to the open internet with whatever protection the vendor provides, and the RP loses the HTTP context needed for high-assurance fraud and audit handling.
->
-> See §26.6.4 for the full reverse proxy integration pattern, architecture diagram, and security considerations.
-
-###### 26.7.1.1 Why a Stateful RP Orchestrator Is Needed for Identification and Authentication
+##### 26.7.1 Why the RP Needs a First-Party Orchestrator
 
 The architectural question is not whether the RP should add a generic "workflow engine" on top of wallet verification. The question is whether **identification and authentication should terminate at a stateful RP-owned control boundary before any internal product relies on the result**. In production systems the answer is usually yes: wallet-based PID identification, pseudonym authentication, SCA, recovery, credential re-binding, RP-controlled attestation issuance, and later attestation presentation / verification are not single stateless API calls. They are multi-step security ceremonies that bind product context, session state, nonce / `state`, response-encryption state, intended-use scope, HTTP context, policy evaluation, and audit evidence into one decision surface.
 
-For internet-facing application channels, the preferred external shape is often **synchronous at the RP-owned edge**, even when the wallet connector or verifier uses asynchronous mechanics internally. Public frontends should not poll a wallet connector directly, and push / ping / callback semantics should usually be absorbed behind the orchestrator as implementation detail. In banking-grade deployments this also implies first-party ownership of the wallet-facing URL surfaces that actually define the ceremony: the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see §26.8). A `direct_post` to a vendor-owned domain may be architecturally possible under the base protocol model, but it is not acceptable for this pattern because the RP would lose source IP, User-Agent, TLS, timing, and related HTTP context at the first receiving edge. The orchestrator keeps the public contract stable while letting the RP decide whether the downstream connector uses synchronous inline processing (§26.6.4, §26.7.2), asynchronous push or ping (§26.5.2, §26.6.5), or fallback polling (§26.6.7).
+For internet-facing application channels, the preferred external shape is often **synchronous at the RP-owned edge**, even when the wallet connector or verifier uses asynchronous mechanics internally. Public frontends should not poll a wallet connector directly, and push / ping / callback semantics should usually be absorbed behind the orchestrator as implementation detail. In banking-grade deployments this also implies first-party ownership of the wallet-facing URL surfaces that actually define the ceremony: the wallet submission target, request-object host, verifier identity and trust-material URLs, and follow-up result surfaces, plus any post-wallet return target or front-channel authorization host that is browser-visible in the journey (see §26.8). A `direct_post` to a vendor-owned domain may be architecturally possible under the base protocol model, but it is not acceptable for this pattern because the RP would lose source IP, User-Agent, TLS, timing, and related HTTP context at the first receiving edge. The orchestrator keeps the public contract stable while letting the RP decide whether the downstream connector uses synchronous inline processing (§26.6.4, §26.7.3), asynchronous push or ping (§26.5.2, §26.6.5), or fallback polling (§26.6.7).
 
 The orchestrator also acts as the **error-abstraction boundary**. Detailed protocol and connector outcomes such as replay detection, duplicate `state`, nonce mismatch, expired session, or malformed wallet-facing submissions may be detected inside the wallet connector rather than inside the orchestrator itself. That is still useful to the RP: the orchestrator can hide those low-level distinctions from a potential fraudster by returning a generic external failure, while routing the precise internal reason into the Verification Signal Intelligence pipeline (§30.7) and audit / monitoring records (§31.3, §31.4).
 
@@ -21797,20 +21777,20 @@ The main architecture arguments are summarised below:
 |:-:|:----------------------------|:---------------------------------|
 | 1 | **Wallet ceremonies are stateful, even when the connector already orchestrates them internally** — the RP should not leak connector workflow state outside its own security domain. The first-party orchestrator wraps connector sessions inside an RP-specific workflow ID, product-session correlation, and business journey state before internal identity, authentication, fraud, KYC, or SCA products consume the result. | Financial-sector wallet profile (§24.8.3); session lifecycle states (§26.5.1); concurrent session management (§26.5.3); URL surface ownership and RP bindability (§26.8) |
 | 2 | **PID and authentication results must bind to the same product journey** — a valid presentation is only useful if it is tied to the correct user session, account, transaction, or recovery flow. The orchestrator preserves that RP-side binding across identification, step-up, and downstream decisioning. | Pseudonym and attribute flow (§16.7); progressive assurance journey (§16.13); payment-SCA evidence (§24.4); CDD / KYC and identity assurance (§24.5) |
-| 3 | **The RP needs HTTP context for fraud scoring** — source IP, TLS fingerprint, device / browser context, and timing signals are only available when the RP owns the wallet-facing edge. That context lets the RP enrich wallet outcomes with first-party fraud, anomaly, and abuse signals before any internal product acts on them. | Reverse-proxy integration pattern (§26.6.4); deployment topology (§26.7.1); contextual and behavioural signals (§30.5) |
+| 3 | **The RP needs HTTP context for fraud scoring** — source IP, TLS fingerprint, device / browser context, and timing signals are only available when the RP owns the wallet-facing edge. That context lets the RP enrich wallet outcomes with first-party fraud, anomaly, and abuse signals before any internal product acts on them. | Reverse-proxy integration pattern (§26.6.4); deployment topology (§26.7.2); contextual and behavioural signals (§30.5) |
 | 4 | **Internal identity and authentication products should not be externally exposed** — the orchestrator keeps the wallet-facing URL surface first-party while translating wallet outcomes into internal product contracts. This preserves a stable RP-owned facade while allowing internal security products to remain private and independently evolvable. Many wallet connectors also require backend application authentication such as API keys, OAuth client credentials or access tokens, or mutual TLS / client certificates, which are not appropriate to distribute to frontend applications. | Financial-sector high-assurance profile (§24.8.3); reverse-proxy backend connection and mTLS (§26.6.4); callback authentication patterns (§26.6.5); URL surface ownership and RP bindability (§26.8) |
 | 5 | **The wallet does more than one exchange** — request-object retrieval, wallet submission, response processing, and status progression must be mediated without forcing each internal product to speak OID4VP / OID4VCI / SD-JWT VC / mdoc directly. The orchestrator absorbs that ceremony and presents one RP-specific workflow instead of protocol-specific handoffs. | OpenID4VP and HAIP protocol foundations ([§8](#8-openid4vp-and-haip-protocol-foundations)); response unwrapping and credential parsing ([§12.1](#121-direct_postjwt-jarm-response-unwrapping)–[§12.3](#123-mdoc-iso-18013-5-cbor-parsing-mac-vs-signature)); payment-SCA lifecycle flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); session management and result delivery ([§26.5](#265-session-management-and-result-delivery)) |
 | 6 | **Request scope and intended use need a control point** — the RP needs one place to reconcile registered scope, WRPRC / Registrar evidence, product purpose, and requested attributes before the wallet request is built. The same control point keeps disclosure minimised and ensures the request matches the RP's authorised purpose. | RP registration data model (§4); HAIP request profile (§17.2.2); verification gates and forwarding requirements (§25.4.1) |
-| 7 | **The public edge should be sync-first, while async connector modes stay internal** — push, ping, callback, or polling may exist behind the orchestrator, but they should usually not define the public frontend contract. The orchestrator can hide those delivery mechanics while still supporting connector-specific completion modes internally. | Result-delivery modes ([§26.5.2](#2652-result-delivery-polling-vs-callbacks)); callback payload requirements ([§26.6.5](#2665-callback-payload-requirements)); delivery-mode taxonomy ([§26.7.2](#2672-result-delivery-mode-taxonomy)); mode deep dives ([§26.7.4](#2674-mode-deep-dives)) |
+| 7 | **The public edge should be sync-first, while async connector modes stay internal** — push, ping, callback, or polling may exist behind the orchestrator, but they should usually not define the public frontend contract. The orchestrator can hide those delivery mechanics while still supporting connector-specific completion modes internally. | Result-delivery modes ([§26.5.2](#2652-result-delivery-polling-vs-callbacks)); callback payload requirements ([§26.6.5](#2665-callback-payload-requirements)); delivery-mode taxonomy ([§26.7.3](#2673-result-delivery-mode-taxonomy)); mode deep dives ([§26.7.5](#2675-mode-deep-dives)) |
 | 8 | **Connector internals should not leak to attackers** — replay, duplicate-state, or malformed-submission reasons can be translated into generic user-facing failure while the precise signal is escalated internally. This reduces attacker feedback while preserving detailed telemetry for fraud, monitoring, and investigation. | OpenID4VP error responses ([§11.6](#116-openid4vp-error-responses)); callback security and error handling ([§26.6.7](#2667-callback-security-and-error-handling)); security error discrepancy oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)); signal severity classification ([§30.6](#306-signal-severity-classification)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
 | 9 | **Audit and compliance evidence must be assembled in one place** — request purpose, verification result, HTTP context, fraud score, and final decision need one correlated evidence trail. The orchestrator is the natural point to stamp that evidence with one RP-side workflow and decision record. | Regulatory compliance mapping ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)); bank and PSP integration blueprint ([§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub)); SIEM integration event schema ([§30.8](#308-siem-integration-event-schema)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
 | 10 | **It separates first-party orchestration from a legal intermediary model** — an RP-owned orchestrator in the direct model is not the same thing as an Article 5b(10) intermediary with its own Wallet-facing identity. That distinction matters because the RP remains the first-party relying party, not a separate external actor interposed in the trust chain. | Intermediary role versus direct integration ([§25.1](#251-intermediary-role-vs-direct-integration)); forwarding obligations ([§25.4](#254-intermediary-to-intermediated-rp-attribute-forwarding)) |
 
 Read this as a **first-party control boundary**, not as a claim that every check must run inside the orchestrator. In many deployments the wallet connector still performs the protocol-heavy work: request construction, nonce validation, JWE processing, signature checks, holder binding, duplicate-session protection, connector-internal workflow progression, and connector-specific error classification. The orchestrator's job is to own the RP-facing boundary around that machinery: keep the public channel stable, prevent connector topology and state from leaking outside the RP security domain, bind connector sessions to an RP-specific workflow ID, preserve product context, enrich results with first-party HTTP context and policy, and decide what the caller should learn versus what should remain internal telemetry.
 
-###### 26.7.1.2 RP-Owned Orchestrator Pattern (Agnostic: Applies to Direct RP and SaaS-Backed Direct RP)
+###### 26.7.1.1 RP-Owned Orchestrator Pattern
 
-The sequence below keeps OID4VP / OID4VCI and SD-JWT VC / mdoc internals deliberately abstract. The point is the orchestration boundary: multiple wallet interactions may occur, but the RP-owned orchestrator mediates them as one stateful process before any internal product consumes the outcome.
+The sequence below keeps OID4VP / OID4VCI and SD-JWT VC / mdoc internals deliberately abstract. It is grouped into three phases: first-party journey initiation and session setup, wallet ceremony and protocol mediation, and RP-side decisioning. The point is the orchestration boundary: multiple wallet interactions may occur, but the RP-owned orchestrator mediates them as one stateful process before any internal product consumes the outcome.
 
 ```mermaid
 ---
@@ -21832,6 +21812,8 @@ sequenceDiagram
     participant Conn as ⚙️ Wallet Connector / Protocol Service
     participant Risk as 🛡️ Policy / Fraud / Audit
 
+    rect rgba(148, 163, 184, 0.14)
+    Note over User,Conn: Phase 1 — First-party journey initiation and session setup
     User->>App: Start onboarding, authentication,<br/>or attestation journey
     App->>Orch: Start first-party wallet-backed journey
     Orch->>Orch: Allocate session state<br/>(nonce, TTL, correlation, purpose)
@@ -21844,51 +21826,84 @@ sequenceDiagram
     Orch->>Conn: Create journey-specific connector session
     Conn-->>Orch: Return request handle / wallet entry artefact
     Orch-->>App: Return first-party wallet entry point
+    Note right of Risk: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note over User,Conn: Phase 2 — Wallet ceremony and protocol mediation
     User->>W: Review and approve wallet action
     W->>Orch: Send wallet-facing protocol message
     Orch->>Conn: Mediate protocol step
     Conn-->>Orch: Return protocol result or internal failure
-    Orch-->>W: Continue or complete wallet step
+    Orch-->>W: Return protocol continuation<br/>or completion to wallet
+    Note right of Risk: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note over Orch,Risk: Phase 3 — RP decisioning and journey outcome
     Orch->>Risk: Send verified result + HTTP context + product state
     Risk-->>Orch: Return decision + internal reason
-    Orch-->>App: Return generic success or generic failure
+    Orch-->>App: Return generic journey outcome<br/>to first-party app
     Note right of Risk: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
 ```
+
+Because this section is intentionally protocol-agnostic, the walkthrough focuses on session ownership, orchestration responsibilities, and decision boundaries rather than wire-level payloads.
 
 <details>
 <summary><strong>1. End User starts the journey in the first-party browser or native app</strong></summary>
 
 The user starts a first-party journey such as onboarding, PID identification, pseudonym sign-in, SCA, recovery, credential re-binding, RP-controlled attestation issuance, or later attestation presentation / verification. The initiating channel may be a browser frontend or a native app, but in either case it remains the RP's own first-party experience rather than a direct handoff to a verifier or issuer console.
 
+The important architectural fact is that the journey begins with **RP-owned purpose and product context already known**: what operation is being attempted, on which account or transaction, and what return experience the user expects. That first-party intent is what the orchestrator will later bind to the wallet result.
+
 </details>
 <details>
 <summary><strong>2. First-party browser or native app starts the wallet-backed journey at the orchestrator</strong></summary>
 
-The first-party channel calls the RP's own orchestration boundary rather than talking directly to a verifier or issuer API. This keeps the public contract stable even if the downstream wallet connector changes delivery mode, protocol role, or vendor.
+The first-party channel calls the RP's own orchestration boundary rather than talking directly to a verifier or issuer API. In practice this call typically carries the RP's own journey identifiers and return intent: the browser or app session, operation class, account or transaction reference, and where the user should land when the wallet leg finishes.
+
+This keeps the public contract stable even if the downstream wallet connector changes delivery mode, protocol role, or vendor. The frontend integrates once against an RP-owned journey API rather than learning connector-specific session creation semantics.
+
+**Artifact Produced:** RP-owned journey initiation request bound to the first-party session.
 
 </details>
 <details>
 <summary><strong>3. RP Orchestrator allocates session state</strong></summary>
 
-The orchestrator creates the stateful envelope for the ceremony: correlation ID, product session linkage, nonce, timeout window, intended use, and policy context. This is where the RP binds the wallet operation to its own business journey before any protocol message is emitted. Without this state envelope, a later wallet result cannot be safely attached to the correct user, account, or transaction.
+The orchestrator creates the authoritative stateful envelope for the ceremony: correlation ID, product session linkage, nonce, timeout window, intended use, policy context, and the linkage back to the RP's own user, account, or transaction state. This is where the RP binds the wallet operation to its own business journey before any protocol message is emitted.
+
+It is also where idempotency and replay boundaries begin. Later wallet messages are accepted only if they can be matched to this live RP-owned record. Without that envelope, a cryptographically valid wallet result could still be operationally unsafe because the RP would not know which business action it is authorising.
+
+**Artifact Produced:** RP-controlled journey session envelope.
 
 </details>
 <details>
 <summary><strong>4. RP Orchestrator creates a journey-specific connector session</strong></summary>
 
-The orchestrator asks the wallet connector / protocol service to create the protocol session for the journey branch that applies. In the **presentation / verification** branch, this means request construction, response-encryption setup, verifier-side handle creation, and preparation of the wallet entry artefact. In the **RP-controlled issuance** branch, it means issuer-side session preparation, offer / handle creation, and any issuance-specific setup needed before the wallet enters the ceremony. In a direct RP design the connector may run on RP infrastructure; in a SaaS-backed direct RP design the same call goes to a provider. The orchestrator does not need to expose that difference to the public-facing app.
+The orchestrator asks the wallet connector / protocol service to instantiate the protocol session for the journey branch that applies. In the **presentation / verification** branch, this means request construction, response-encryption setup, verifier-side handle creation, and preparation of the wallet entry artefact. In the **RP-controlled issuance** branch, it means issuer-side session preparation, offer / handle creation, and any issuance-specific setup needed before the wallet enters the ceremony.
+
+The key boundary is that the connector owns the protocol-heavy mechanics, but the orchestrator decides **when** they are invoked and under **which RP purpose and policy context**. In a direct RP design the connector may run on RP infrastructure; in a SaaS-backed direct RP design the same call goes to a provider. The orchestrator does not need to expose that difference to the public-facing app.
 
 </details>
 <details>
 <summary><strong>5. Wallet Connector returns request handle or wallet entry artefact</strong></summary>
 
-The connector returns the material needed to reach the wallet, and that artefact depends on the branch. In the **presentation / verification** case this might be a request URI, QR payload, deep link target, or other verifier-side entry artefact. In the **issuance** case it may be an offer handle, issuance entry handle, or other issuer-side wallet entry material. The orchestrator receives this as an internal result and can still apply RP policy before handing anything back to the caller.
+The connector returns the material needed to reach or continue the wallet ceremony together with its own opaque session handle. In the **presentation / verification** case this might be a request URI, QR payload, deep link target, or other verifier-side entry artefact. In the **issuance** case it may be an offer handle, issuance entry handle, or other issuer-side wallet entry material.
+
+The orchestrator receives this as an internal dependency, not as something that must be exposed verbatim to the frontend. That distinction matters because the RP may still want to wrap it, proxy it, or attach first-party routing and telemetry before the user-facing channel sees anything.
+
+**Artifact Produced:** Connector session handle plus wallet entry artefact.
 
 </details>
 <details>
 <summary><strong>6. RP Orchestrator returns a first-party wallet entry point to the browser or native app</strong></summary>
 
-The orchestrator gives the first-party channel a first-party wallet entry point, not a raw exposure of connector-internal mechanics. This is the point where the RP can preserve first-party URL ownership (§26.8), keep internal services off the public internet, and avoid teaching attackers unnecessary details about connector topology.
+The orchestrator converts the connector output into a first-party launch contract for the browser or native app. That contract may proxy, wrap, or simply relay the wallet entry information, but from the app's perspective the RP still owns the journey surface, the return path, and the external contract.
+
+This is the point where the RP can preserve first-party URL ownership (§26.8), keep internal services off the public internet, and avoid teaching attackers unnecessary details about connector topology. The frontend should learn how to continue the user journey, not how the connector is deployed.
+
+**Artifact Produced:** First-party wallet launch contract returned to the app.
 
 </details>
 <details>
@@ -21896,47 +21911,73 @@ The orchestrator gives the first-party channel a first-party wallet entry point,
 
 The user reviews the wallet prompt and explicitly approves the action that the journey requires: for example attribute disclosure, authentication, RP-controlled issuance acceptance, or another wallet-mediated authorization step. Making this approval explicit in the sequence matters because the wallet ceremony is not just a backend exchange; there is a user-consent or user-authorization moment inside the wallet before the next protocol message is sent.
 
+Architecturally, this is the human confirmation point that must still line up with the RP purpose bound earlier. The wallet may present protocol-specific consent text, but the RP can interpret the result safely only if the approved wallet action still corresponds to the RP's intended business journey.
+
 </details>
 <details>
 <summary><strong>8. Wallet sends a wallet-facing protocol message to the orchestrator edge</strong></summary>
 
-This arrow stands in for the repeated wallet-facing interactions that may occur during the ceremony: request-object retrieval, protocol submission, token / credential retrieval, status advancement, or other wallet-facing steps. The internal OID4VP / OID4VCI and SD-JWT VC / mdoc details are abstracted away here on purpose. What matters architecturally is that the RP-owned edge remains the first receiving boundary for those interactions when the chosen topology allows it.
+This arrow stands in for the repeated wallet-facing interactions that may occur during the ceremony: request-object retrieval, protocol submission, token / credential retrieval, status advancement, or other wallet-facing steps. The internal OID4VP / OID4VCI and SD-JWT VC / mdoc details are abstracted away here on purpose.
+
+What matters architecturally is that the RP-owned edge remains the first receiving boundary for those interactions when the chosen topology allows it. Even in a protocol-agnostic picture, that means the wallet is not talking directly to internal product code; it is talking to a controlled ingress point that can bind the message back to the RP's active session envelope.
 
 </details>
 <details>
 <summary><strong>9. RP Orchestrator mediates the protocol step to the connector</strong></summary>
 
-The orchestrator forwards the wallet-facing step to the connector. In a sync-inline topology (§26.6.4, §26.7.2) this can occur inside the same HTTP round-trip. In other topologies the connector may complete part of the work asynchronously, but from the first-party browser or native app's point of view that complexity is still hidden behind the orchestrator boundary.
+The orchestrator translates or forwards the wallet-facing step to the connector using the connector session established earlier. In a tightly integrated deployment this may look like a near pass-through. In other deployments it can include route normalization, session correlation, policy checks, or vendor-specific adaptation before the connector sees the request.
+
+In a sync-inline topology (§26.6.4, §26.7.3) this can occur inside the same HTTP round-trip. In other topologies the connector may complete part of the work asynchronously, but from the first-party browser or native app's point of view that complexity is still hidden behind the orchestrator boundary.
 
 </details>
 <details>
 <summary><strong>10. Wallet Connector returns a protocol result or internal failure</strong></summary>
 
-The connector returns either a verified protocol outcome or a connector-internal failure such as duplicate `state`, nonce mismatch, malformed submission, expired session, or replay detection. Some of these protections may be implemented fully inside the connector rather than inside the orchestrator, and that is fine. The architectural value is that the RP receives a structured internal outcome without exposing the low-level reason directly to the external caller.
+The connector returns either a verified protocol outcome, a signal that another protocol turn is required, or a connector-internal failure such as duplicate `state`, nonce mismatch, malformed submission, expired session, or replay detection. Some of these protections may be implemented fully inside the connector rather than inside the orchestrator, and that is fine.
+
+The architectural value is that the RP receives a structured internal outcome envelope rich enough for policy and telemetry, without exposing the low-level reason directly to the wallet or first-party app. This is the handoff point where protocol mechanics stop being the public concern and become RP decision input.
+
+**Artifact Produced:** Internal protocol outcome envelope with result status, failure class, and next-action hint.
 
 </details>
 <details>
-<summary><strong>11. RP Orchestrator continues or completes the wallet step</strong></summary>
+<summary><strong>11. RP Orchestrator returns protocol continuation or completion to the wallet</strong></summary>
 
-If another wallet-facing interaction is needed, the orchestrator returns the next step to the wallet. If the protocol is complete, the orchestrator closes the wallet-facing leg. This is the mediation point that lets one logical product journey span several protocol interactions without making the frontend manage connector state itself.
+If another wallet-facing interaction is needed, the orchestrator returns the next protocol step to the wallet. If the protocol is complete, the orchestrator returns the wallet-facing completion response that lets the wallet close its side of the ceremony.
+
+This is distinct from the later RP business outcome returned to the first-party app: the wallet gets the protocol-level continuation or terminal response it needs to finish the exchange, while the app later gets the RP's own journey outcome. Keeping those two outputs separate avoids conflating protocol closure with business approval.
+
+**Artifact Produced:** Wallet-facing continuation or completion response.
 
 </details>
 <details>
 <summary><strong>12. RP Orchestrator sends verified result, HTTP context, and product state to policy / fraud / audit services</strong></summary>
 
-Once the protocol result is available, the orchestrator enriches it with first-party context: product journey state, HTTP-layer observations, and any required compliance metadata. This is where the RP combines connector output with VSI Layer 3 context (§30.5), product policy, AML / KYC / SCA logic, or other fraud controls. That enrichment is what turns a cryptographically valid wallet result into an RP decision.
+Once the protocol result is sufficiently complete, the orchestrator enriches it with first-party context: product journey state, HTTP-layer observations, session history, and any required compliance metadata. This is where the RP combines connector output with VSI Layer 3 context (§30.5), product policy, AML / KYC / SCA logic, or other fraud controls.
+
+That enrichment is what turns a cryptographically valid wallet result into an RP decision input. A valid wallet response is not automatically the same thing as an allowed business action; the RP still needs to evaluate it in the context of its own transaction, account, channel, and fraud posture.
+
+**Artifact Produced:** Enriched decision input package combining protocol result and first-party context.
 
 </details>
 <details>
 <summary><strong>13. Policy / Fraud / Audit services return a decision and internal reason</strong></summary>
 
-The downstream policy stack returns the business decision plus the detailed internal reason. That reason may incorporate connector outcomes, replay / duplicate-state handling, HTTP-context anomalies, sanctions or fraud hits, and risk-scoring results. The precise reason should be preserved for VSI, SIEM, and audit trails (§30.7, §31.3), even when the orchestrator intentionally suppresses it from the public response.
+The downstream policy stack returns the RP's internal decision record: business decision plus detailed internal reason. That reason may incorporate connector outcomes, replay / duplicate-state handling, HTTP-context anomalies, sanctions or fraud hits, and risk-scoring results.
+
+This is the point where the RP decides whether the journey is allowed, denied, stepped up, or diverted into some other controlled handling path. The precise reason should be preserved for VSI, SIEM, and audit trails (§30.7, §31.3), even when the orchestrator intentionally suppresses it from the public response.
+
+**Artifact Produced:** Internal policy decision record with rationale and audit linkage.
 
 </details>
 <details>
-<summary><strong>14. RP Orchestrator returns generic success or generic failure to the first-party browser or native app</strong></summary>
+<summary><strong>14. RP Orchestrator returns a generic journey outcome to the first-party browser or native app</strong></summary>
 
-The orchestrator returns the external outcome to the first-party browser or native app. The response can be generic by design: the RP does not need to tell a potential attacker whether the failure came from replay detection, nonce mismatch, malformed wallet-facing traffic, or a sanctions screening rule. The caller gets the minimal result needed for the user journey, while the detailed reason remains internal telemetry for monitoring, response, and investigation.
+The orchestrator converts the internal decision into the external RP-side journey outcome seen by the first-party browser or native app. This is separate from the wallet-facing protocol completion above. The app does not need the raw protocol failure details or fraud logic; it needs the RP-owned result surface that tells it how to continue the user journey.
+
+The response can therefore remain intentionally generic: success, generic failure, or another controlled next action, while the detailed reason stays internal telemetry for monitoring, response, and investigation. This preserves a stable first-party completion contract without leaking attacker-useful diagnostics.
+
+**Artifact Produced:** External first-party journey outcome linked to internal telemetry and session state.
 
 </details>
 
@@ -21944,9 +21985,28 @@ The orchestrator returns the external outcome to the first-party browser or nati
 
 The practical design rule is therefore: **let the connector own connector mechanics, but let the orchestrator own the RP boundary around those mechanics**. That is the control point where first-party URL ownership, session binding, product context, fraud telemetry, generic external errors, and compliance evidence meet.
 
-##### 26.7.2 Result Delivery Mode Taxonomy
+##### 26.7.2 Deployment Topology: Proxy vs. Direct
 
-Five distinct delivery modes exist for the verification result, three of which correspond to the token delivery modes defined by OpenID Connect Client-Initiated Backchannel Authentication (CIBA) Core 1.0 (§10–12):
+With the first-party control boundary established, the next decision is whether the RP receives wallet traffic at its own gateway or lets the Wallet post directly to a verifier endpoint. That topology choice determines whether the RP can capture first-receiving-edge HTTP context and whether synchronous inline delivery is even available.
+
+| Topology | Description | HTTP Context | VP Token Access | Enables |
+|:---------|:------------|:-------------|:----------------|:--------|
+| **Direct** | Wallet POSTs `direct_post` directly to verifier's `response_uri`. RP is not in the HTTP path — it receives results asynchronously via push/ping/poll/stream. | ❌ RP has no access to wallet's HTTP headers, IP, User-Agent, TLS fingerprint | ❌ RP never sees the raw `direct_post` — only processed results from verifier | Push, Ping, Poll, Stream, Event Bus |
+| **Proxy** | RP's API gateway (reverse proxy) sits between Wallet and verifier. Gateway intercepts the `direct_post`, captures the full HTTP context (origin IP, User-Agent, cookies, TLS fingerprint, request timing), and forwards to verifier. | ✅ Full HTTP context captured at gateway | ✅ Gateway sees raw VP Token (encrypted JWE) before forwarding to verifier | All of Direct's modes **plus** Sync Inline |
+
+> **Key insight**: Proxy deployment is a **prerequisite** for HTTP context capture and VSI Layer 3 signal extraction (§30.5) — regardless of whether the RP processes the verification result synchronously or asynchronously. An RP can deploy a proxy to capture HTTP context for VSI evaluation and *still* receive verification results via push webhook. The proxy and the delivery mode are independent decisions.
+>
+> **SaaS compatibility**: Proxy topology is **straightforward** with self-hosted or on-prem verifiers — the RP controls the deployment and can route `response_uri` through any gateway. With SaaS verifiers, proxy topology is **still achievable**: the RP configures the `response_uri` to point to its own gateway domain (§26.6.4), which captures HTTP context and forwards traffic to the SaaS backend. This requires the SaaS vendor to support custom domain configuration for the `response_uri`, or the RP to handle DNS-level routing. For the orchestrator pattern described above, wrapping only the SaaS verifier's session API (creation, polling, webhook ingestion) is **not sufficient** if the wallet-facing `direct_post` still lands on a vendor-owned domain: the RP would still lose first-receiving-edge HTTP context and first-party control of the wallet-facing URL surfaces in §26.8. No vendor in the EUDI ecosystem provides a dedicated "synchronous verify" API endpoint (POST VP token → receive result in response body) — the OpenID4VP `direct_post` flow places the *wallet* as the HTTP client, and the RP is always a third party. Library/SDK embeds (Spruce ID, Scytáles) are inherently synchronous since verification executes in-process.
+>
+> **Security recommendation**: The verifier's `response_uri` should never be directly internet-facing on a vendor-owned domain in banking-grade deployments. The minimum expectation is that the RP owns the wallet-facing receiving edge and the relevant RP-bindable URL surfaces in §26.8, so that `direct_post` traffic, request-object fetches, verifier identity material, and result retrieval remain first-party. Routing through the RP's API gateway enables rate limiting (per-IP, per-session), WAF rules, DDoS mitigation (e.g., Cloudflare, AWS Shield), request size limits, TLS termination with the RP's own certificates, and capture of source IP / User-Agent / TLS context for VSI. Without that RP-owned edge, the verifier's endpoint is exposed to the open internet with whatever protection the vendor provides, and the RP loses the HTTP context needed for high-assurance fraud and audit handling.
+>
+> See §26.6.4 for the full reverse proxy integration pattern, architecture diagram, and security considerations.
+
+##### 26.7.3 Result Delivery Mode Taxonomy
+
+This subsection is the canonical delivery-mode taxonomy for the chapter. §26.5.2 keeps the narrower asynchronous L2 view, and §26.6.5.1 applies the same mechanisms specifically to callback architectures.
+
+Six distinct delivery modes are discussed for the verification result, three of which correspond to the token delivery modes defined by OpenID Connect Client-Initiated Backchannel Authentication (CIBA) Core 1.0 (§10–12):
 
 | Mode | Mechanism | Direction | Latency | RP Infrastructure Required | Data in Transit | CIBA Equivalent | Requires Proxy? |
 |:-----|:----------|:----------|:-------:|:--------------------------|:---------------|:---------------:|:---------------:|
@@ -21954,14 +22014,14 @@ Five distinct delivery modes exist for the verification result, three of which c
 | **Ping** | Connector POSTs **thin notification** (session ID + status only) to RP's callback endpoint; RP fetches full result via `GET /session/{id}` | Connector → RP → Connector | ~200ms | RP exposes webhook endpoint + calls session API | Attributes remain on connector until RP fetches via authenticated API | CIBA §11 (Ping) | No |
 | **Poll** | RP periodically calls `GET /session/{id}` until status transitions | RP → Connector | 1–5s (interval) | No RP endpoint needed — RP initiates all requests | Attributes remain on connector until RP fetches | CIBA §10 (Poll) | No |
 | **Stream** | RP holds a persistent connection (SSE or WebSocket); connector pushes status events in real-time | Connector → RP (persistent) | ~50ms | RP maintains persistent HTTP connection | Events + attributes traverse persistent channel | — | No |
-| **Sync Inline** | RP's proxy gateway forwards `direct_post` to verifier, waits for verification result in the HTTP response, and processes the result before returning the response to the wallet — all in a single round-trip | Wallet → Gateway → Verifier → Gateway → Wallet | ~0ms (synchronous) | RP deploys API gateway in front of verifier (§26.6.4) | RP has full result within the wallet's HTTP request lifecycle | — | **Yes** |
+| **Sync Inline** | RP's proxy gateway forwards `direct_post` to verifier, waits for verification result in the HTTP response, and processes the result before returning the response to the wallet — all in a single round-trip | Wallet → Gateway → Verifier → Gateway → Wallet | ~0ms (synchronous) | RP deploys an RP-owned proxy / orchestrator edge in front of verifier (§26.6.4) | RP has full result within the wallet's HTTP request lifecycle | — | **Yes** |
 | **Event Bus** | Connector publishes verification events to a message broker (Kafka, RabbitMQ, AWS EventBridge); RP subscribes | Connector → Broker → RP | ~100–500ms | RP runs message consumer; broker infrastructure | Attributes traverse broker; encryption at rest recommended | — | No |
 
 > **CIBA alignment**: The push, ping, and poll modes correspond directly to the three token delivery modes in OpenID Connect CIBA Core 1.0 (§10 Poll, §11 Ping, §12 Push). While CIBA governs **authentication token** delivery from an OpenID Provider to a client, the same patterns apply to **verification result** delivery from a wallet connector to an RP. Adopting this terminology provides a shared vocabulary for architects familiar with the OIDC ecosystem.
 >
 > **Sync Inline is the only mode that requires proxy deployment.** All other modes work with both direct and proxy topologies. When the RP deploys a proxy but uses push/ping/poll for result delivery, the proxy provides HTTP context capture as a side-channel benefit — the result delivery itself is no different from the direct topology.
 
-##### 26.7.3 Two-Axis Selection
+##### 26.7.4 Two-Axis Selection
 
 The RP makes two independent decisions — one for each axis:
 
@@ -22024,7 +22084,7 @@ flowchart TD
 
 ```
 
-###### 26.7.3.1 Common Topology × Delivery Combinations
+###### 26.7.4.1 Common Topology × Delivery Combinations
 
 | Combination | Use Case | Example |
 |:------------|:---------|:--------|
@@ -22037,9 +22097,9 @@ flowchart TD
 
 > **Hybrid deployments**: Production RPs rarely use a single combination. A common pattern is **Proxy + Push + batch polling fallback** (§26.6.7) — the gateway captures HTTP context from every wallet interaction, the verifier pushes results via webhook in the normal case, and a periodic batch poll sweeps for any missed callbacks. For cross-device browser flows, this is often combined with **SSE** on the frontend to provide real-time UX updates while the backend processes the push callback.
 
-##### 26.7.4 Mode Deep Dives
+##### 26.7.5 Mode Deep Dives
 
-###### 26.7.4.1 Push vs. Ping: The Payload Trade-Off
+###### 26.7.5.1 Push vs. Ping: The Payload Trade-Off
 
 The key architectural decision for webhook-based delivery is whether to use **push** (full payload) or **ping** (thin notification + fetch):
 
@@ -22053,7 +22113,7 @@ The key architectural decision for webhook-based delivery is whether to use **pu
 
 > **Recommendation**: For RPs processing **sensitive PII** (banking KYC, healthcare) in environments where webhook endpoint hardening is complex, **ping mode** reduces the attack surface by keeping attributes off the webhook channel. For high-throughput, low-sensitivity use cases (age verification, basic identity confirmation), **push mode** is simpler and faster.
 
-###### 26.7.4.2 Poll: When Simplicity Wins
+###### 26.7.5.2 Poll: When Simplicity Wins
 
 Polling is the lowest-complexity integration — the RP needs no webhook endpoint, no persistent connections, and no message broker. It is the default delivery mode in the OpenID4VP reference design (the Verifier's frontend polls the Response URI using a `transaction-id`).
 
@@ -22065,7 +22125,7 @@ Polling is the lowest-complexity integration — the RP needs no webhook endpoin
 
 > **Interval guidance**: For short polling, use 2-second intervals during the first 30 seconds (user is actively waiting), then back off to 5-second intervals. Implement a maximum poll duration (e.g., 10 minutes per §26.5.1 session expiry) after which the RP stops polling and displays a timeout error. The verifier may include a recommended `interval` in the session creation response.
 
-###### 26.7.4.3 Stream: Real-Time Frontend Integration
+###### 26.7.5.3 Stream: Real-Time Frontend Integration
 
 Server-Sent Events (SSE) and WebSocket provide real-time delivery without requiring the RP to expose a server-side endpoint:
 
@@ -22076,7 +22136,7 @@ Server-Sent Events (SSE) and WebSocket provide real-time delivery without requir
 
 Stream delivery is primarily a **frontend** integration pattern — the RP's browser-based UI subscribes to events to update the user-facing state (e.g., transitioning from "Waiting for Wallet..." to "Verification complete"). It typically complements a backend delivery mode (push or ping) rather than replacing it. The backend still receives the full verification result for server-side processing; the stream provides the frontend with real-time awareness of the state transition.
 
-###### 26.7.4.4 Event Bus: Enterprise Pub-Sub
+###### 26.7.5.4 Event Bus: Enterprise Pub-Sub
 
 For high-throughput enterprise RPs — particularly those subject to DORA (Art. 9 ICT risk management framework documentation) —verification events can be published to a message broker instead of or in addition to point-to-point webhooks:
 
@@ -22087,7 +22147,7 @@ For high-throughput enterprise RPs — particularly those subject to DORA (Art. 
 
 This mode is not offered by any EUDI wallet connector vendor as a native integration option (as of March 2026). However, RPs can implement it as a **bridge pattern**: receive push or ping webhooks from the connector, and immediately publish the event to an internal message broker for downstream processing. This decouples the webhook endpoint (which must respond quickly to avoid retry storms) from the business logic processing (which may be slow or multi-step).
 
-###### 26.7.4.5 Vendor Ecosystem Landscape
+###### 26.7.5.5 Vendor Ecosystem Landscape
 
 The push model (full-payload webhook) is the dominant integration delivery mode across the EUDI vendor ecosystem. Only **Procivis** defaults to the ping model (thin notification → fetch), and **MATTR** supports a hybrid push/ping pattern via its backend retrieval architecture. The **synchronous inline** mode — where the RP forwards the VP token and receives the verification result in the same HTTP response — is **natively straightforward** with self-hosted or on-prem vendors (walt.id, Procivis) and library/SDK embeds (Spruce ID, Scytáles). With SaaS providers, sync inline requires the RP to proxy the `response_uri` through its own gateway and depends on whether the SaaS backend returns the verification result in the `direct_post` HTTP response — most SaaS vendors process asynchronously and deliver results via webhook, making sync inline impractical without vendor-specific support. Proxy topology for HTTP context capture (without sync inline) is achievable with **any** vendor if the RP routes `response_uri` traffic through its own gateway (§26.6.4).
 
@@ -22095,7 +22155,7 @@ No vendor natively offers SSE or WebSocket as a server-to-server L2 delivery mec
 
 #### 26.8 URL Surface Ownership, Facade Deployment, and RP-Bindability
 
-The preceding sections document **where messages move**. This subsection documents a different but equally important architectural question: **which party owns the URLs that define those movements**. For verifier products claiming white-label, façade, proxy, or RP-owned-edge deployment, URL ownership is a first-class capability domain rather than a branding afterthought.
+The preceding sections establish **where the RP control boundary sits** and **where messages move**. This subsection addresses a different but equally important architectural question: **which party owns the URLs that define those movements**. For verifier products claiming white-label, façade, proxy, or RP-owned-edge deployment, URL ownership is a first-class capability domain rather than a branding afterthought.
 
 In `DR-0002`, a URL surface counts as **RP-bindable** only if all three conditions are true:
 
@@ -22437,7 +22497,7 @@ This matrix evaluates which integration delivery modes (§26.7) each RP-facing v
 
 ###### 27.8.1.1 L2 Delivery Mechanism Support
 
-| Vendor | Push (full webhook) | Ping (thin webhook) | Poll (GET session) | Sync Inline (§26.7.2) | SSE | WebSocket | Proxy Topology (§26.7.1) |
+| Vendor | Push (full webhook) | Ping (thin webhook) | Poll (GET session) | Sync Inline (§26.7.3) | SSE | WebSocket | Proxy Topology (§26.7.2) |
 |:-------|:-------------------:|:-------------------:|:------------------:|:---------------------:|:---:|:---------:|:------------------------:|
 | **walt.id** | ✅ `statusCallbackUri` with full result payload | ❌ | ✅ `GET /session/{id}` | ✅ Self-hosted — RP proxies `response_uri`, intercepts `direct_post` and verification result inline | ❌ | ❌ | ✅ Self-hosted, Docker/K8s — gateway-deployable |
 | **Procivis** | ❌ | ✅ Thin notification → `GET /session/{id}` | ✅ `GET /session/{id}` | ✅ On-prem — RP can proxy the verifier endpoint | ❌ | ❌ | ✅ On-prem option |
@@ -22456,7 +22516,7 @@ This matrix evaluates which integration delivery modes (§26.7) each RP-facing v
 | **Gataca** | 🟡 Event-driven claims | ❓ | 🟡 API state query | 🟡 On-prem option | ❓ | ❓ | 🟡 On-prem option |
 | **Thales** | ❓ | ❓ | ❓ | ❓ No verifier product | ❓ | ❓ | ❓ No verifier product |
 
-> For the architectural justification of proxy topology — including HTTP context capture, gateway-level security, synchronous inline processing, and SaaS compatibility — see §26.7.1.
+> For the architectural justification of proxy topology — including HTTP context capture, gateway-level security, synchronous inline processing, and SaaS compatibility — see §26.7.2.
 
 ###### 27.8.1.2 Callback Payload Model
 
@@ -22473,7 +22533,7 @@ This matrix evaluates which integration delivery modes (§26.7) each RP-facing v
 | **Indicio** | 🟡 Claimed but not documented | Push (assumed) | ❓ |
 | **Others** | ❓ | ❓ | ❓ |
 
-> For the empirical landscape of delivery mode adoption across EUDI vendors — including push/ping dominance, sync inline availability, and SSE/WebSocket limitations — see §26.7.4.5 (Vendor Ecosystem Landscape).
+> For the empirical landscape of delivery mode adoption across EUDI vendors — including push/ping dominance, sync inline availability, and SSE/WebSocket limitations — see §26.7.5.5 (Vendor Ecosystem Landscape).
 
 ###### 27.8.1.3 Verification Mode Selection Guidance
 
@@ -36082,4 +36142,3 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [EUDI Wallets Launchpad 2025 — Technical Report](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) — European Commission interoperability event (Dec 10–12, 2025, Brussels); 570+ tests, 420 successful, 60+ testers from 16 countries (§28.3)
 - [POTENTIAL LSP — Final Report](https://potential-eudigitalidentity.eu) — Large-Scale Pilot covering banking KYC, eGov, mDL, QES, ePrescription, SIM registration; 19 MS + Ukraine; 1,300+ tests, 1,000+ successful transactions, 249 cross-border; concluded Sep 2025 (§28.3)
 - [grnet/eudi-web-wallet-mock](https://github.com/grnet/eudi-web-wallet-mock) — Mock web application simulating EUDI Wallet interactions with credential issuers and verifiers; useful for rapid RP integration testing without mobile apps (§11.8.4)
-

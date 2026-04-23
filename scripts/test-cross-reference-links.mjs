@@ -515,6 +515,49 @@ function testInternalCueOverridesExternalCitationSkip() {
   assert.equal(documentSlugCue.parts.some((part) => part.type === 'link' && part.href === '#16-pseudonym-based-authentication-and-webauthn'), true);
 }
 
+function testTargetHeadingCueOverridesExternalCitationSkip() {
+  const targetIndex = buildIndex([
+    { headingId: '2665-callback-payload-requirements', text: '26.6.5 Callback Payload Requirements' },
+    { headingId: '2661-integration-models-and-callback-layers', text: '26.6.1 Integration Models and Callback Layers' },
+    { headingId: '2664-reverse-proxy-integration-pattern', text: '26.6.4 Reverse-Proxy Integration Pattern' },
+  ]);
+
+  const chainedInternalRefs = linkifyTextValue(
+    'The preceding sections describe callback architecture in terms of what is delivered (§26.6.5 payload specification), who delivers it (§26.6.1 integration models A–E), and how a reverse-proxy deployment can be implemented (§26.6.4).',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+  const modelLabelCue = linkifyTextValue(
+    'RPs targeting cross-browser coverage must implement a dual-protocol backend or fall back to Universal Links for Safari-based OID4VP flows (Model D, §26.6.1).',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+
+  assert.equal(chainedInternalRefs.changed, true);
+  assert.equal(chainedInternalRefs.diagnostics.length, 0);
+  assert.equal(
+    chainedInternalRefs.parts.filter((part) => part.type === 'link').map((part) => part.href).join(','),
+    '#2665-callback-payload-requirements,#2661-integration-models-and-callback-layers,#2664-reverse-proxy-integration-pattern',
+  );
+
+  assert.equal(modelLabelCue.changed, true);
+  assert.equal(modelLabelCue.diagnostics.length, 0);
+  assert.equal(
+    modelLabelCue.parts.some((part) => part.type === 'link' && part.href === '#2661-integration-models-and-callback-layers'),
+    true,
+  );
+}
+
 function testSectionRangesLinkFirstEndpointOnly() {
   const targetIndex = buildIndex([
     { headingId: '5-section', text: '5 Section' },
@@ -976,6 +1019,7 @@ testArfTopicMentionsDoNotBlockLaterInternalSections();
 testArfCarryForwardDoesNotResolveBareSections();
 testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks();
 testInternalCueOverridesExternalCitationSkip();
+testTargetHeadingCueOverridesExternalCitationSkip();
 testSectionRangesLinkFirstEndpointOnly();
 testExactMatchDoesNotGuessDescendants();
 testDashPunctuationReferencesLinkNormally();
