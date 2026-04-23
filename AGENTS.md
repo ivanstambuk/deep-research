@@ -624,7 +624,18 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
 2. **Horizontal Layouts in Top-Down Charts**: To force horizontal structuring within a top-down diagram (`flowchart TD`), chain the target nodes together using the invisible link syntax (`~~~`) within a subgraph. This binds them in a single row without disrupting the vertical flow.
 3. **Conserving Vertical Space**: To prevent awkward wrapping and reduce vertical bloat in large graphs, force inline titles or long descriptive phrases onto a single line by replacing standard spaces with a non-breaking space (`&nbsp;`).
 4. **Code Blocks in Nodes**: Avoid using HTML tags (`<pre>`, `<code>`) for code blocks inside Mermaid nodes, as GitHub's native parser may strip them or format them incorrectly. Instead, use non-breaking spaces (`&nbsp;`) for manual indentation within Markdown strings. *Warning*: Do not use HTML entity hyphens (`&#8209;`) to prevent wrapping, as Mermaid has a known parser bug that renders them incorrectly (e.g., `&-`). Use standard hyphens.
-5. **Phase Styling in Sequence Diagrams**: `sequenceDiagram` does not natively support background colors for individual `Note` statements. To style distinct background phases, wrap the steps in `rect rgba(...)` blocks and use `themeVariables` (`noteBkgColor: "transparent"`, `noteBorderColor: "transparent"`) in the YAML frontmatter to allow notes to seamlessly inherit the bounding box's background color without rendering ugly borders. Phase rects **MUST** use `rgba()` with low alpha (≈ 0.14) for dark-theme compatibility:
+5. **Flowchart Label Clipping / Box Width**: If a rendered `flowchart` node shows truncated text even though the label uses inline HTML such as `min-width`, the box is being measured by Mermaid's `flowchart.wrappingWidth`, not by the inner element's CSS. Fix this per-diagram unless the user explicitly asks for a global renderer change. Add local Mermaid config with a `wrappingWidth` larger than the intended label width, then use a fixed-width inline element slightly below that value:
+   ```mermaid
+   ---
+   config:
+     flowchart:
+       wrappingWidth: 760
+   ---
+   flowchart TD
+       A["<span style='display:inline-block; width:720px; white-space:nowrap; text-align:left'><b>1. HTTP POST Payload</b> - Form urlencoded string: response=JWE</span>"]
+   ```
+   Keep the label width lower than `wrappingWidth` so Mermaid measures a wide enough rectangle. After applying this fix, regenerate the Markdown mirror / reader assets and verify the actual reader route with Playwright or a rendered screenshot; source inspection alone is not enough.
+6. **Phase Styling in Sequence Diagrams**: `sequenceDiagram` does not natively support background colors for individual `Note` statements. To style distinct background phases, wrap the steps in `rect rgba(...)` blocks and use `themeVariables` (`noteBkgColor: "transparent"`, `noteBorderColor: "transparent"`) in the YAML frontmatter to allow notes to seamlessly inherit the bounding box's background color without rendering ugly borders. Phase rects **MUST** use `rgba()` with low alpha (≈ 0.14) for dark-theme compatibility:
    - *Grey phase*: `rect rgba(148, 163, 184, 0.14)`
    - *Green phase*: `rect rgba(46, 204, 113, 0.14)`
    - *Yellow phase*: `rect rgba(241, 196, 15, 0.14)`
@@ -632,8 +643,8 @@ While programmatic errors are caught by git hooks, aesthetic consistency across 
    - *Blue phase*: `rect rgba(52, 152, 219, 0.14)`
    - Never use `rect rgb()` — the opaque backgrounds are unreadable on dark theme.
    - For long or multi-stage sequences, especially OAuth, authorization, wallet, or signing flows, prefer explicit phase grouping when it materially improves readability. Do not force phases on short or already-clear sequences, but long diagrams should normally be segmented into their major conceptual stages.
-6. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
-7. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
+7. **Self-Referential Logic**: Avoid placing large logic pseudo-code in standalone or floating `Note` boxes. Instead, represent logic processing as a self-referential arrow (e.g., `Agent->>Agent: Validate Token`) with the pseudocode attached directly to the message string using `<br/>` tags, rather than using a separate `Note right of` (which causes visual floating).
+8. **Backticks in Sequence Diagrams**: Avoid using Markdown backticks (`` ` ``) for URLs, code blocks, or endpoints inside `sequenceDiagram` elements (messages or notes). The mermaid sequence parser treats them as literal characters; use standard text instead.
 
 ### Diagram Approval Workflow (Docker Rendering)
 

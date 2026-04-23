@@ -10278,15 +10278,16 @@ This chapter provides a bit-level, technically actionable breakdown of the requi
 When the RP requests `response_mode=direct_post.jwt` (JARM — JWT Secured Authorization Response Mode), the Wallet does not POST a plain JSON object or a transparent JWE containing the `vp_token`. Instead, it POSTs a signed and encrypted JWT that wraps the actual presentation response, fundamentally changing the unwrapping pipeline.
 
 ```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 760
+---
 flowchart TD
-    A["`**1.&nbsp;HTTP&nbsp;POST&nbsp;Payload**
-    Form&nbsp;urlencoded&nbsp;string:&nbsp;response=&lt;JWE>`"]
-    B["`**2.&nbsp;Transport&nbsp;Decryption&nbsp;(JWE)**
-    Decrypt&nbsp;using&nbsp;RP's&nbsp;ephemeral&nbsp;private&nbsp;key`"]
-    C["`**3.&nbsp;Authorisation&nbsp;Response&nbsp;Verification&nbsp;(JWS)**
-    Verify&nbsp;signature&nbsp;+&nbsp;validate&nbsp;iss,&nbsp;aud,&nbsp;exp`"]
-    D["`**4.&nbsp;Payload&nbsp;Extraction&nbsp;&&nbsp;Binding&nbsp;Check**
-    Extract&nbsp;vp_token&nbsp;and&nbsp;match&nbsp;state&nbsp;to&nbsp;session`"]
+    A["<span style='display:inline-block; width:720px; white-space:nowrap; text-align:left'><b>1. HTTP POST Payload</b> — Form urlencoded string: response=JWE</span>"]
+    B["<span style='display:inline-block; width:720px; white-space:nowrap; text-align:left'><b>2. Transport Decryption (JWE)</b> — Decrypt using RP's ephemeral private key</span>"]
+    C["<span style='display:inline-block; width:720px; white-space:nowrap; text-align:left'><b>3. Authorisation Response Verification (JWS)</b> — Verify signature + validate iss, aud, exp</span>"]
+    D["<span style='display:inline-block; width:720px; white-space:nowrap; text-align:left'><b>4. Payload Extraction &amp; Binding Check</b> — Extract vp_token and match state to session</span>"]
 
     A --> B --> C --> D
 
@@ -22117,9 +22118,11 @@ The RP makes two independent decisions — one for each axis:
 
 ```mermaid
 flowchart TD
-    Start(["`**RP Integration Architecture**`"]) --> D1["`**Decision 1: Deployment Topology**
+    Start(["`**RP Integration Architecture**`"]) --> D1["`**Decision 1**
+    **Deployment Topology**
     _Independent of result delivery_`"]
-    Start --> D2["`**Decision 2: Result Delivery Mode**
+    Start --> D2["`**Decision 2**
+    **Result Delivery Mode**
     _Independent of deployment topology_`"]
 
     D1 --> TQ1{"`Does the RP need any of:
