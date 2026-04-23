@@ -286,12 +286,35 @@ function hasEqualCanonicalCandidatePriority(left, right) {
   return compareCanonicalCandidatePriority(left, right) === 0;
 }
 
+function normalizeReaderBasePath(value) {
+  const trimmed = String(value ?? '/').trim();
+  if (!trimmed || trimmed === '/') {
+    return '/';
+  }
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function getReaderBasePath() {
+  if (typeof process === 'undefined' || !process?.env) {
+    return '/';
+  }
+
+  return normalizeReaderBasePath(process.env.DR_BASE_PATH);
+}
+
 export function buildReaderHref({ slug, chapterId, headingId }) {
   if (!slug || !chapterId || !headingId) {
     return null;
   }
 
-  return `/${slug}/${chapterId}#${headingId}`;
+  const basePath = getReaderBasePath();
+  if (basePath === '/') {
+    return `/${slug}/${chapterId}#${headingId}`;
+  }
+
+  return `${basePath}${slug}/${chapterId}#${headingId}`;
 }
 
 export function buildMarkdownHref({ headingId }) {

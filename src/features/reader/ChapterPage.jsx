@@ -31,6 +31,9 @@ const OUTLINE_DEFAULT_WIDTH = 280;
 const OUTLINE_RESIZER_GUTTER = 12;
 const MERMAID_MODAL_TITLE_ID = 'reader-mermaid-modal-title';
 const MERMAID_ACTION_FEEDBACK_RESET_MS = 1800;
+const READER_BASE_HREF = import.meta.env.BASE_URL === '/'
+  ? ''
+  : import.meta.env.BASE_URL.replace(/\/$/, '');
 const MERMAID_FOCUSABLE_SELECTOR = [
   'button:not([disabled])',
   '[href]',
@@ -183,6 +186,18 @@ function getMermaidActionLabel(action, status) {
   }
 
   return 'Download PNG';
+}
+
+function buildDocXrefHref({ slug, chapterId, headingId }) {
+  if (!slug || !chapterId) {
+    return null;
+  }
+
+  const pathname = READER_BASE_HREF
+    ? `${READER_BASE_HREF}/${slug}/${chapterId}`
+    : `/${slug}/${chapterId}`;
+
+  return headingId ? `${pathname}#${headingId}` : pathname;
 }
 
 export default function ChapterPage({
@@ -616,6 +631,22 @@ export default function ChapterPage({
     }
 
     const articleNode = articleRef.current;
+
+    articleNode.querySelectorAll('a[data-doc-xref="true"]').forEach((node) => {
+      if (!(node instanceof HTMLAnchorElement)) {
+        return;
+      }
+
+      const href = buildDocXrefHref({
+        slug: node.getAttribute('data-doc-slug') || readerDocumentMeta.slug,
+        chapterId: node.getAttribute('data-doc-chapter-id'),
+        headingId: node.getAttribute('data-doc-heading-id'),
+      });
+
+      if (href) {
+        node.setAttribute('href', href);
+      }
+    });
 
     const handleArticleClick = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {

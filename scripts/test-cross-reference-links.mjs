@@ -4,6 +4,7 @@ import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 import {
   applyTextReplacements,
+  buildReaderHref,
   buildLabelTargetIndex,
   buildSectionTargetIndex,
   collectLikelyFalsePositiveExternalSkips,
@@ -51,6 +52,29 @@ function testLinkifySupportedInternalReference() {
     },
     { type: 'text', value: ' for details.' },
   ]);
+}
+
+function testBuildReaderHrefRespectsConfiguredBasePath() {
+  const originalBasePath = process.env.DR_BASE_PATH;
+
+  process.env.DR_BASE_PATH = 'deep-research';
+
+  try {
+    assert.equal(
+      buildReaderHref({
+        slug: 'DR-0002-eudi-wallet-relying-party-integration',
+        chapterId: '22-amlkyc-onboarding-via-eudi-wallet',
+        headingId: '221-customer-due-diligence-cdd-flow-direct-rp-model',
+      }),
+      '/deep-research/DR-0002-eudi-wallet-relying-party-integration/22-amlkyc-onboarding-via-eudi-wallet#221-customer-due-diligence-cdd-flow-direct-rp-model',
+    );
+  } finally {
+    if (originalBasePath === undefined) {
+      delete process.env.DR_BASE_PATH;
+    } else {
+      process.env.DR_BASE_PATH = originalBasePath;
+    }
+  }
 }
 
 function testExternalCitationIsSkipped() {
@@ -1048,6 +1072,7 @@ function testLikelyFalsePositiveExternalSkipReport() {
 }
 
 testLinkifySupportedInternalReference();
+testBuildReaderHrefRespectsConfiguredBasePath();
 testExternalCitationIsSkipped();
 testArfReferencesResolveAsExternalLinks();
 testArfSuffixCueResolvesExternalLinks();
