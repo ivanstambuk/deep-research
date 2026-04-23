@@ -117,6 +117,16 @@ function isFindingsHeading(value) {
   return normalized === 'findings' || normalized === 'key findings';
 }
 
+function findNearestHeading(headingStack, predicate) {
+  for (let index = headingStack.length - 1; index >= 0; index -= 1) {
+    if (predicate(headingStack[index].text)) {
+      return headingStack[index];
+    }
+  }
+
+  return null;
+}
+
 function normalizeFindingKey(identifier) {
   return /^f-?\d+$/i.test(identifier)
     ? `finding-${identifier.toLowerCase().replace(/^f-?/, 'f-')}`
@@ -202,6 +212,77 @@ export function normalizeLabelReferenceToken(tokenText) {
   }
 
   return null;
+}
+
+function classifyCanonicalHeading(candidate) {
+  const normalizedHeading = stripLeadingSectionEnumeration(candidate?.contextHeadingText ?? '').toLowerCase();
+
+  if (candidate?.family === 'oq') {
+    if (normalizedHeading === 'open questions') {
+      return 3;
+    }
+
+    if (normalizedHeading.startsWith('open questions and ')) {
+      return 2;
+    }
+
+    if (normalizedHeading.startsWith('open questions')) {
+      return 1;
+    }
+
+    return 0;
+  }
+
+  if (candidate?.family === 'finding') {
+    if (normalizedHeading === 'key findings') {
+      return 2;
+    }
+
+    if (normalizedHeading === 'findings') {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+function getCanonicalCandidatePriority(candidate) {
+  return {
+    anchorStyle: candidate?.anchorStyle ?? '',
+    depth: Number.isInteger(candidate?.contextHeadingDepth) ? candidate.contextHeadingDepth : Number.POSITIVE_INFINITY,
+    headingClass: classifyCanonicalHeading(candidate),
+  };
+}
+
+function compareCanonicalCandidatePriority(left, right) {
+  const leftPriority = getCanonicalCandidatePriority(left);
+  const rightPriority = getCanonicalCandidatePriority(right);
+
+  if (leftPriority.headingClass !== rightPriority.headingClass) {
+    return rightPriority.headingClass - leftPriority.headingClass;
+  }
+
+  if (leftPriority.depth !== rightPriority.depth) {
+    return leftPriority.depth - rightPriority.depth;
+  }
+
+  const anchorStyleRank = {
+    'heading-tail': 3,
+    block: 2,
+    inline: 1,
+  };
+  const leftAnchorRank = anchorStyleRank[leftPriority.anchorStyle] ?? 0;
+  const rightAnchorRank = anchorStyleRank[rightPriority.anchorStyle] ?? 0;
+
+  if (leftAnchorRank !== rightAnchorRank) {
+    return rightAnchorRank - leftAnchorRank;
+  }
+
+  return 0;
+}
+
+function hasEqualCanonicalCandidatePriority(left, right) {
+  return compareCanonicalCandidatePriority(left, right) === 0;
 }
 
 export function buildReaderHref({ slug, chapterId, headingId }) {
@@ -642,6 +723,19 @@ function findNextRegexMatch(regex, value, cursor) {
   };
 }
 
+function parseSectionRangeTail(rangeTailText) {
+  const match = rangeTailText.match(/^(\s*[-–—]\s*)(?:§\s*)?(\d+(?:\.\d+)*)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    displayText: rangeTailText.slice(match[1].length),
+    separatorText: match[1],
+    sectionNumber: match[2],
+  };
+}
+
 function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = {}) {
   const sectionRangeMatch = findNextRegexMatch(XREF_RANGE_TOKEN_RE, value, cursor);
   const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
@@ -756,6 +850,7 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
     if (kind === 'section' || kind === 'sectionRange') {
       const firstTokenText = nextToken.firstTokenText ?? tokenText;
       const rangeTailText = nextToken.rangeTailText ?? '';
+      const rangeTail = rangeTailText ? parseSectionRangeTail(rangeTailText) : null;
       const sectionNumber = firstTokenText.slice(1);
       const trailingTextForReference = kind === 'sectionRange' ? value.slice(end) : trailingText;
 
@@ -788,7 +883,22 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           text: firstTokenText,
           target: arfTarget,
         });
-        if (rangeTailText) {
+        if (rangeTail) {
+          const rangeTailTarget = resolveArfMainTarget(rangeTail.sectionNumber);
+          const rangeTailHref = buildArfMainHref(rangeTail.sectionNumber);
+          parts.push({ type: 'text', value: rangeTail.separatorText });
+
+          if (rangeTailTarget && rangeTailHref) {
+            parts.push({
+              type: 'link',
+              href: rangeTailHref,
+              text: rangeTail.displayText,
+              target: rangeTailTarget,
+            });
+          } else {
+            parts.push({ type: 'text', value: rangeTailText.slice(rangeTail.separatorText.length) });
+          }
+        } else if (rangeTailText) {
           parts.push({ type: 'text', value: rangeTailText });
         }
         hasLinks = true;
@@ -930,7 +1040,26 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         text: firstTokenText,
         target: resolution.target,
       });
-      if (rangeTailText) {
+      if (rangeTail) {
+        const rangeResolution = resolveTarget(targetIndex ?? new Map(), rangeTail.sectionNumber);
+        parts.push({ type: 'text', value: rangeTail.separatorText });
+
+        if (rangeResolution.status === 'resolved') {
+          const rangeHref = buildHref(rangeResolution.target);
+          if (rangeHref) {
+            parts.push({
+              type: 'link',
+              href: rangeHref,
+              text: rangeTail.displayText,
+              target: rangeResolution.target,
+            });
+          } else {
+            parts.push({ type: 'text', value: rangeTailText.slice(rangeTail.separatorText.length) });
+          }
+        } else {
+          parts.push({ type: 'text', value: rangeTailText.slice(rangeTail.separatorText.length) });
+        }
+      } else if (rangeTailText) {
         parts.push({ type: 'text', value: rangeTailText });
       }
       hasLinks = true;
@@ -1241,9 +1370,14 @@ function computeHeadingTailInsertOffset(node) {
 }
 
 function inferHeadingContext(headingStack) {
+  const findingsHeading = findNearestHeading(headingStack, isFindingsHeading);
+  const openQuestionsHeading = findNearestHeading(headingStack, isOpenQuestionsHeading);
+
   return {
-    inFindings: headingStack.some((heading) => isFindingsHeading(heading.text)),
-    inOpenQuestions: headingStack.some((heading) => isOpenQuestionsHeading(heading.text)),
+    findingsHeading,
+    inFindings: Boolean(findingsHeading),
+    inOpenQuestions: Boolean(openQuestionsHeading),
+    openQuestionsHeading,
   };
 }
 
@@ -1264,6 +1398,8 @@ function collectListTargets(node, headingContext, candidates) {
         insertOffset,
         line: item.position?.start?.line ?? null,
         anchorStyle: 'inline',
+        contextHeadingDepth: headingContext.findingsHeading?.depth ?? null,
+        contextHeadingText: headingContext.findingsHeading?.text ?? null,
         labelText: `Finding ${itemNumber}`,
       });
     }
@@ -1275,6 +1411,8 @@ function collectListTargets(node, headingContext, candidates) {
         insertOffset,
         line: item.position?.start?.line ?? null,
         anchorStyle: 'inline',
+        contextHeadingDepth: headingContext.openQuestionsHeading?.depth ?? null,
+        contextHeadingText: headingContext.openQuestionsHeading?.text ?? null,
         labelText: `OQ ${itemNumber}`,
       });
     }
@@ -1301,6 +1439,8 @@ function collectTableTargets(node, headingContext, candidates) {
       insertOffset,
       line: row.position?.start?.line ?? null,
       anchorStyle: 'inline',
+      contextHeadingDepth: headingContext.openQuestionsHeading?.depth ?? null,
+      contextHeadingText: headingContext.openQuestionsHeading?.text ?? null,
       labelText: `OQ ${firstCellText}`,
     });
   });
@@ -1323,6 +1463,8 @@ function collectParagraphTarget(node, headingContext, candidates) {
         insertOffset: node.position?.start?.offset ?? null,
         line: node.position?.start?.line ?? null,
         anchorStyle: 'block',
+        contextHeadingDepth: headingContext.findingsHeading?.depth ?? null,
+        contextHeadingText: headingContext.findingsHeading?.text ?? null,
         labelText: `Finding ${findingMatch[1]}`,
       });
       return true;
@@ -1338,6 +1480,8 @@ function collectParagraphTarget(node, headingContext, candidates) {
         insertOffset: node.position?.start?.offset ?? null,
         line: node.position?.start?.line ?? null,
         anchorStyle: 'block',
+        contextHeadingDepth: headingContext.openQuestionsHeading?.depth ?? null,
+        contextHeadingText: headingContext.openQuestionsHeading?.text ?? null,
         labelText: `OQ ${oqMatch[1]}`,
       });
       return true;
@@ -1371,6 +1515,8 @@ export function collectMarkdownLabelTargets(tree, options = {}) {
           insertOffset: computeHeadingTailInsertOffset(node),
           line: node.position?.start?.line ?? null,
           anchorStyle: 'heading-tail',
+          contextHeadingDepth: node.depth ?? null,
+          contextHeadingText: text,
           labelText: stripLeadingSectionEnumeration(text),
         });
       }
@@ -1416,14 +1562,16 @@ export function collectMarkdownLabelTargets(tree, options = {}) {
   const anchorReplacements = [];
 
   grouped.forEach((entries, normalizedKey) => {
-    if (entries.length > 1) {
+    const rankedEntries = [...entries].sort(compareCanonicalCandidatePriority);
+
+    if (rankedEntries.length > 1 && hasEqualCanonicalCandidatePriority(rankedEntries[0], rankedEntries[1])) {
       diagnostics.push({
         category: 'ambiguous_canonical_label_definition',
         normalizedKey,
-        diagnosticFamily: entries[0]?.family ?? null,
+        diagnosticFamily: rankedEntries[0]?.family ?? null,
         documentSlug: options.documentSlug ?? null,
-        line: entries[0]?.line ?? null,
-        candidateTargets: entries.map((entry) => ({
+        line: rankedEntries[0]?.line ?? null,
+        candidateTargets: rankedEntries.map((entry) => ({
           line: entry.line ?? null,
           labelText: entry.labelText ?? null,
         })),
@@ -1431,7 +1579,7 @@ export function collectMarkdownLabelTargets(tree, options = {}) {
       return;
     }
 
-    const target = entries[0];
+    const target = rankedEntries[0];
     targets.push(target);
     anchorReplacements.push({
       start: target.insertOffset,

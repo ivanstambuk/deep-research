@@ -558,12 +558,14 @@ function testTargetHeadingCueOverridesExternalCitationSkip() {
   );
 }
 
-function testSectionRangesLinkFirstEndpointOnly() {
+function testSectionRangesLinkBothEndpointsWhenResolvable() {
   const targetIndex = buildIndex([
     { headingId: '5-section', text: '5 Section' },
     { headingId: '6-section', text: '6 Section' },
     { headingId: '231-section', text: '23.1 Section' },
+    { headingId: '244-section', text: '24.4 Section' },
     { headingId: '10-section', text: '10 Section' },
+    { headingId: '12-section', text: '12 Section' },
     { headingId: '164312-security', text: '164.312 Security' },
   ]);
 
@@ -600,14 +602,14 @@ function testSectionRangesLinkFirstEndpointOnly() {
   assert.equal(rangeResult.diagnostics.length, 0);
   assert.deepEqual(
     rangeResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
-    ['See ', '[§5](#5-section)', '–§6', '.'],
+    ['See ', '[§5](#5-section)', '–', '[§6](#6-section)', '.'],
   );
 
   assert.equal(shorthandRangeResult.changed, true);
   assert.equal(shorthandRangeResult.diagnostics.length, 0);
   assert.deepEqual(
     shorthandRangeResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
-    ['See ', '[§23.1](#231-section)', '–24.4', ' and ', '[§10](#10-section)', '–12', '.'],
+    ['See ', '[§23.1](#231-section)', '–', '[24.4](#244-section)', ' and ', '[§10](#10-section)', '–', '[12](#12-section)', '.'],
   );
 
   assert.equal(externalRangeResult.changed, false);
@@ -837,6 +839,35 @@ function testMarkdownLabelTargetsCoverListsTablesAndParagraphs() {
   assert.equal(linked.includes('<a id="finding-3"></a>'), true);
 }
 
+function testMarkdownLabelTargetsPreferCanonicalOpenQuestionRegistry() {
+  const source = [
+    '##### 24.9.1 Open Questions (Not Yet Settled)',
+    '',
+    '| # | Issue |',
+    '|:-:|:------|',
+    '| 1 | Local open question |',
+    '',
+    '### 36. Open Questions',
+    '',
+    '| # | Question |',
+    '|:-:|:---------|',
+    '| 1 | Canonical open question |',
+    '',
+  ].join('\n');
+
+  const parser = unified().use(remarkParse).use(remarkGfm);
+  const tree = parser.parse(source);
+  const result = collectMarkdownLabelTargets(tree, {
+    documentSlug: 'synthetic-doc',
+  });
+  const linked = applyTextReplacements(source, result.anchorReplacements);
+
+  assert.equal(result.diagnostics.length, 0);
+  assert.equal(result.targets.some((target) => target.normalizedKey === 'oq-1' && target.line === 11), true);
+  assert.equal(linked.includes('| <a id="oq-1"></a> 1 | Canonical open question |'), true);
+  assert.equal(linked.includes('| <a id="oq-1"></a> 1 | Local open question |'), false);
+}
+
 function testHeadingBackedLabelAnchorsStayAfterHeadingLine() {
   const source = [
     '---',
@@ -1020,7 +1051,7 @@ testArfCarryForwardDoesNotResolveBareSections();
 testEarlierProtocolMentionsDoNotSuppressInternalSectionLinks();
 testInternalCueOverridesExternalCitationSkip();
 testTargetHeadingCueOverridesExternalCitationSkip();
-testSectionRangesLinkFirstEndpointOnly();
+testSectionRangesLinkBothEndpointsWhenResolvable();
 testExactMatchDoesNotGuessDescendants();
 testDashPunctuationReferencesLinkNormally();
 testHastRewriteOnlyLinksInternalReferences();
@@ -1032,6 +1063,7 @@ testMarkdownRewritesSupportBareArfTopicReferencesForDr0002();
 testMarkdownRewritesSupportSectionRanges();
 testLabelLinkifySupportsFindingAndOqReferences();
 testMarkdownLabelTargetsCoverListsTablesAndParagraphs();
+testMarkdownLabelTargetsPreferCanonicalOpenQuestionRegistry();
 testHeadingBackedLabelAnchorsStayAfterHeadingLine();
 testMarkdownCrossReferencesSupportLabels();
 testLikelyFalsePositiveExternalSkipReport();
