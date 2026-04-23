@@ -343,6 +343,15 @@ export default function ChapterPage({
     ? `Chapters in ${activeChapterEntry?.title ?? 'this group'}`
     : 'Chapter headings';
 
+  useEffect(() => {
+    const documentTitle = readerDocumentMeta?.title?.trim() || 'Deep Research Pro';
+    const chapterTitle = chapterMeta?.title?.trim();
+
+    document.title = chapterTitle
+      ? `${chapterTitle} · ${documentTitle}`
+      : documentTitle;
+  }, [chapterMeta?.title, readerDocumentMeta?.title]);
+
   function clearMermaidFeedbackTimeouts() {
     Object.values(mermaidFeedbackTimeoutsRef.current).forEach((timeoutId) => {
       window.clearTimeout(timeoutId);

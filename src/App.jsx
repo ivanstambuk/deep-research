@@ -165,6 +165,10 @@ function readInitialGlobalMermaidZoom() {
 }
 
 function OverviewPage() {
+  useEffect(() => {
+    document.title = 'Deep Research Pro';
+  }, []);
+
   return (
     <section className="overview-page page-shell">
       <div className="document-grid library-grid">
