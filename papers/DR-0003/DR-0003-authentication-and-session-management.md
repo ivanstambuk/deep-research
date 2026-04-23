@@ -576,14 +576,14 @@ related: []
 > | Sections | Theme | Best For |
 > |:---------|:------|:---------|
 > | **[§1](#1-authentication-assurance-levels)** | Authentication assurance levels (AAL, LoA, eIDAS) | **All readers** — foundational classification |
-> | **[§2](#2-saml-20)–§4** | Federation protocols (SAML, OIDC, OAuth, WS-Fed) | **Architects** choosing SSO protocols |
-> | **[§6](#6-ws-federation)–§9** | Passwords and passwordless taxonomy | **Developers** modernising credential systems |
-> | **[§10](#10-passwordless-methods-taxonomy)–§13** | OTP, challenge-response, FIDO2/passkeys | **Implementers** deploying MFA and passwordless |
-> | **[§14](#14-webauthn-and-ctap2-architecture)–§19** | Client-side secrets, biometrics, device attestation, tokens, wallet SDKs | **Mobile developers** in banking/fintech |
-> | **[§20](#20-token-form-factor-taxonomy)–§24** | Attack taxonomy, M2M, NHI, CIAM/WIAM, adaptive auth | **Security and identity architects** |
-> | **[§25](#25-non-human-identity-governance)–§26** | Advanced crypto (anon creds, ZKP) | **Cryptography engineers** and researchers |
-> | **[§28](#28-risk-based-and-adaptive-authentication)–§31** | Cross-device, CIBA | **Architects** designing decoupled auth flows |
-> | **[§32](#32-zero-knowledge-proofs-in-authentication)–§38** | Session management, OAuth proxy, Kerberos, device-bound sessions, CAEP | **Backend engineers** managing session lifecycle |
+> | **[§2](#2-saml-20)–[§4](#4-advanced-oauth-20-security-profiles-and-vulnerabilities)** | Federation protocols (SAML, OIDC, OAuth, WS-Fed) | **Architects** choosing SSO protocols |
+> | **[§6](#6-ws-federation)–[§9](#9-password-authentication-three-generations)** | Passwords and passwordless taxonomy | **Developers** modernising credential systems |
+> | **[§10](#10-passwordless-methods-taxonomy)–[§13](#13-ocra-challenge-response-authentication-rfc-6287)** | OTP, challenge-response, FIDO2/passkeys | **Implementers** deploying MFA and passwordless |
+> | **[§14](#14-webauthn-and-ctap2-architecture)–[§19](#19-device-attestation-backend-architecture-and-validation)** | Client-side secrets, biometrics, device attestation, tokens, wallet SDKs | **Mobile developers** in banking/fintech |
+> | **[§20](#20-token-form-factor-taxonomy)–[§24](#24-machine-to-machine-authentication)** | Attack taxonomy, M2M, NHI, CIAM/WIAM, adaptive auth | **Security and identity architects** |
+> | **[§25](#25-non-human-identity-governance)–[§26](#26-customer-vs-employee-authentication)** | Advanced crypto (anon creds, ZKP) | **Cryptography engineers** and researchers |
+> | **[§28](#28-risk-based-and-adaptive-authentication)–[§31](#31-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet)** | Cross-device, CIBA | **Architects** designing decoupled auth flows |
+> | **[§32](#32-zero-knowledge-proofs-in-authentication)–[§38](#38-kerberos-deep-dive)** | Session management, OAuth proxy, Kerberos, device-bound sessions, CAEP | **Backend engineers** managing session lifecycle |
 >
 > **Editorial Note:** **Persona-based reading paths:**
 >
@@ -592,7 +592,7 @@ related: []
 > | **Identity Architect** | [§39](#39-device-bound-sessions) (Findings) → [§40](#40-ciam-and-wiam-session-architectures) (Recs) | [§1](#1-authentication-assurance-levels) (AAL) → [§3](#3-openid-connect-and-oauth-20-protocol-foundations) (OIDC/OAuth) → [§13](#13-ocra-challenge-response-authentication-rfc-6287) (FIDO2) → [§23](#23-authentication-attack-taxonomy-defensive-engineering) (CIAM/WIAM) | [§24](#24-machine-to-machine-authentication) (Adaptive) → [§36](#36-session-management-fundamentals) (Device-Bound) → [§38](#38-kerberos-deep-dive) (CAEP) |
 > | **Mobile Banking Dev** | [§14](#14-webauthn-and-ctap2-architecture) (Client Secrets) → [§15](#15-passkey-ecosystem) (Biometrics) | [§17](#17-biometric-authentication-modalities) (Device Attestation) → [§19](#19-device-attestation-backend-architecture-and-validation) (Wallet SDKs) | [§13](#13-ocra-challenge-response-authentication-rfc-6287) (FIDO2) → [§28](#28-risk-based-and-adaptive-authentication) (Cross-Device) |
 > | **Security Engineer** | [§20](#20-token-form-factor-taxonomy) (Attacks) → [§6](#6-ws-federation) (Passwords) | [§21](#21-custom-wallet-sdks-in-banking-applications) (Machine Auth) → [§36](#36-session-management-fundamentals) (Device-Bound Sessions) | [§38](#38-kerberos-deep-dive) (CAEP) → [§25](#25-non-human-identity-governance) (Anon Creds) |
-> | **Backend Developer** | [§33](#33-same-device-and-cross-device-authentication-taxonomy) (Session Fundamentals) → [§34](#34-ciba-client-initiated-backchannel-authentication) (Token Types) | [§3](#3-openid-connect-and-oauth-20-protocol-foundations) (OIDC/OAuth) → [§32](#32-zero-knowledge-proofs-in-authentication) (OAuth Proxy) → [§37](#37-session-token-types) (Session Arches) | [§10](#10-passwordless-methods-taxonomy)–§12 (OTP) → [§31](#31-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet) (CIBA) |
+> | **Backend Developer** | [§33](#33-same-device-and-cross-device-authentication-taxonomy) (Session Fundamentals) → [§34](#34-ciba-client-initiated-backchannel-authentication) (Token Types) | [§3](#3-openid-connect-and-oauth-20-protocol-foundations) (OIDC/OAuth) → [§32](#32-zero-knowledge-proofs-in-authentication) (OAuth Proxy) → [§37](#37-session-token-types) (Session Arches) | [§10](#10-passwordless-methods-taxonomy)–[§12](#12-totp-time-based-one-time-password-rfc-6238) (OTP) → [§31](#31-ecdsa-anonymous-credentials-for-the-eu-verification-app-eudi-wallet) (CIBA) |
 > | **Platform Engineer** | [§21](#21-custom-wallet-sdks-in-banking-applications) (M2M Auth) → [§22](#22-authentication-attack-taxonomy-threat-vectors) (NHI) | [§35](#35-oauth-flow-wrapping-and-proxy-patterns) (Kerberos) → [§38](#38-kerberos-deep-dive) (CAEP) | [§3](#3-openid-connect-and-oauth-20-protocol-foundations) (OIDC/OAuth) → [§24](#24-machine-to-machine-authentication) (Adaptive) |
 
 ---
@@ -10671,7 +10671,7 @@ Production password authentication systems should validate their implementation 
 
 The previous chapter traced the evolution of password storage — from plaintext catastrophes through modern breach-intelligence-driven verification. This chapter shifts focus from *protecting* passwords to *eliminating* them. Passwordless authentication replaces the memorised secret with a different factor — something delivered to the user (a link, a code, a push notification), something the user possesses (a certificate, a hardware token), or something provisioned by an administrator (a bootstrap credential). Each method has distinct security properties, deployment constraints, and assurance-level ceilings.
 
-This chapter surveys the major passwordless authentication methods as a taxonomy, classifying them by mechanism, factor type, phishing resistance, and NIST AAL ceiling. Each method is described as a generic architectural pattern; specific vendor products are mentioned only as illustrative examples. Methods that rely on cryptographic key pairs — FIDO2/WebAuthn, passkeys, TOTP/HOTP — are covered in dedicated chapters ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–§14) and are not repeated here.
+This chapter surveys the major passwordless authentication methods as a taxonomy, classifying them by mechanism, factor type, phishing resistance, and NIST AAL ceiling. Each method is described as a generic architectural pattern; specific vendor products are mentioned only as illustrative examples. Methods that rely on cryptographic key pairs — FIDO2/WebAuthn, passkeys, TOTP/HOTP — are covered in dedicated chapters ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–[§14](#14-webauthn-and-ctap2-architecture)) and are not repeated here.
 
 > **Important**
 >
@@ -17229,7 +17229,7 @@ This distinction has significant implications for credential recovery ([§15.6](
 
 #### 14.17 WebAuthn Security Deep-Dives
 
-DR-0003 covers WebAuthn's security model at the protocol level ([§14.8](#148-platform-authenticators)–§14.10). This section extends that coverage with deeper analysis of three topics that have become critical as WebAuthn adoption has scaled: attestation privacy, clone detection, and the authenticator supply chain.
+DR-0003 covers WebAuthn's security model at the protocol level ([§14.8](#148-platform-authenticators)–[§14.10](#1410-hybrid-transport-fido-cross-device-authentication)). This section extends that coverage with deeper analysis of three topics that have become critical as WebAuthn adoption has scaled: attestation privacy, clone detection, and the authenticator supply chain.
 
 ##### 14.17.1 Attestation Privacy Properties
 
@@ -17667,7 +17667,7 @@ This group addresses the physical and logical architectures required to protect 
 
 ### 16. Client-Side Secret Protection Architectures
 
-Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–§12), OCRA extends secrets with challenge-response ([§13](#13-ocra-challenge-response-authentication-rfc-6287)), and WebAuthn generates asymmetric key pairs bound to authenticators ([§14](#14-webauthn-and-ctap2-architecture)). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
+Authentication credentials — cryptographic keys, PINs, biometric templates — are only as secure as the environment that protects them at rest and during use. The preceding chapters establish that HOTP/TOTP rely on shared secrets ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–[§12](#12-totp-time-based-one-time-password-rfc-6238)), OCRA extends secrets with challenge-response ([§13](#13-ocra-challenge-response-authentication-rfc-6287)), and WebAuthn generates asymmetric key pairs bound to authenticators ([§14](#14-webauthn-and-ctap2-architecture)). This chapter examines the **client-side architectures** that prevent these secrets from being extracted, copied, or misused: hardware security boundaries, custom credential entry mechanisms, certification standards that validate protection claims, and key derivation schemes that transform user-supplied inputs into cryptographic material.
 
 The central principle is **key isolation** — the private key or shared secret must be computationally inaccessible to any software running outside the security boundary, including the application that uses the key. Whether that boundary is a dedicated coprocessor (Secure Enclave, StrongBox), a firmware-partitioned trust zone (TEE), a discrete tamper-resistant chip (TPM, SE), or a software-enforced derivation pipeline, the architecture must ensure that secrets cannot be extracted even by a fully compromised operating system.
 
@@ -21540,7 +21540,7 @@ Microsoft Intune uses TPM-based **Device Health Attestation (DHA)** to verify th
 Similar patterns exist in other enterprise platforms — Workspace ONE evaluates device posture including TPM attestation status, and Google BeyondCorp Enterprise uses device signals (including Chrome Verified Access, which uses TPM-backed certificates) for access tier decisions.
 
 #### 18.4 Device-Bound Keys and Hardware-Backed Credentials
-Device-bound keys — keys where the hardware guarantees non-exportability — are the strongest form of credential binding available on consumer and enterprise devices. This section synthesises the hardware-backed key properties from [§15.2](#152-w3c-credential-management-api) with the attestation mechanisms from [§18.1](#181-android-key-attestation)–§18.3 and the WebAuthn attestation ceremonies from [§14.4](#144-why-webauthn-is-phishing-resistant).
+Device-bound keys — keys where the hardware guarantees non-exportability — are the strongest form of credential binding available on consumer and enterprise devices. This section synthesises the hardware-backed key properties from [§15.2](#152-w3c-credential-management-api) with the attestation mechanisms from [§18.1](#181-android-key-attestation)–[§18.3](#183-tpm-20-attestation) and the WebAuthn attestation ceremonies from [§14.4](#144-why-webauthn-is-phishing-resistant).
 
 ##### 18.4.1 Device-Bound Key Property Summary
 
@@ -21594,7 +21594,7 @@ Rotation triggers include: hardware security advisory (TEE vulnerability requiri
 - **Device loss/theft:** user reports device loss through the IdP's self-service portal or IT helpdesk. The RP revokes all credentials associated with the lost device. This is where **credential inventory** is critical — the RP must maintain a mapping between devices and credentials to enable surgical revocation without affecting the user's other devices
 
 #### 18.5 Device Trust Signals: Integrity Verdicts and Play Integrity
-Attestation ([§18.1](#181-android-key-attestation)–§18.3) answers the question "was this key generated in genuine hardware?" Device trust signals answer a broader question: **"is this device trustworthy right now?"** — encompassing software integrity, jailbreak/root status, app binary authenticity, and compliance with enterprise security policies. Identity providers consume these signals to make **adaptive authentication decisions** ([§25](#25-non-human-identity-governance)).
+Attestation ([§18.1](#181-android-key-attestation)–[§18.3](#183-tpm-20-attestation)) answers the question "was this key generated in genuine hardware?" Device trust signals answer a broader question: **"is this device trustworthy right now?"** — encompassing software integrity, jailbreak/root status, app binary authenticity, and compliance with enterprise security policies. Identity providers consume these signals to make **adaptive authentication decisions** ([§25](#25-non-human-identity-governance)).
 
 ##### 18.5.1 Google Play Integrity API
 
@@ -21717,7 +21717,7 @@ Device compliance signals are evaluated as conditions in Conditional Access poli
 
 ##### 18.5.5 Trust Signal Aggregation in Identity Providers
 
-Identity providers (IdPs) consume device trust signals from multiple sources and combine them into an aggregate trust decision. This aggregation is where attestation ([§18.1](#181-android-key-attestation)–§18.3) meets adaptive authentication ([§25](#25-non-human-identity-governance)):
+Identity providers (IdPs) consume device trust signals from multiple sources and combine them into an aggregate trust decision. This aggregation is where attestation ([§18.1](#181-android-key-attestation)–[§18.3](#183-tpm-20-attestation)) meets adaptive authentication ([§25](#25-non-human-identity-governance)):
 
 **Microsoft Entra ID Conditional Access:**
 
@@ -21774,7 +21774,7 @@ The shared key $K$ used in HOTP or TOTP can typically be reused in an OCRA deplo
 | **Transaction display** | Full transaction details rendered in native UI (WYSIWYS via software) |
 | **Multiple suites** | App supports multiple OCRASuite configurations for different services |
 
-The key tradeoff: hardware tokens offer superior key protection (EMV secure element, no network attack surface) but limited UX (manual challenge entry, small display). Software tokens offer rich UX (push notifications, transaction display, biometric unlock) but the key protection depends on the mobile device's security posture — which is itself subject to the attestation and device trust considerations discussed throughout this chapter ([§18.1](#181-android-key-attestation)–§18.5).
+The key tradeoff: hardware tokens offer superior key protection (EMV secure element, no network attack surface) but limited UX (manual challenge entry, small display). Software tokens offer rich UX (push notifications, transaction display, biometric unlock) but the key protection depends on the mobile device's security posture — which is itself subject to the attestation and device trust considerations discussed throughout this chapter ([§18.1](#181-android-key-attestation)–[§18.5](#185-device-trust-signals-integrity-verdicts-and-play-integrity)).
 
 ##### 18.6.3 Key Management for OTP Tokens
 
@@ -22405,7 +22405,7 @@ NFC tap-to-authenticate is particularly relevant to device attestation because t
 
 ### 20. Token Form Factor Taxonomy
 
-This chapter classifies the physical and logical form factors used for authentication tokens — from software authenticator apps through hardware security keys to smart cards. It serves as the comprehensive reference for choosing the right token type for a given deployment scenario. The preceding chapters establish the cryptographic underpinnings — HOTP/TOTP shared-secret algorithms ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–§12), WebAuthn asymmetric key ceremonies (§14), hardware key storage architectures ([§15](#15-passkey-ecosystem)), and attestation mechanisms ([§18](#18-device-attestation-platform-mechanics)). This chapter maps those capabilities onto the **concrete devices** that users carry, plug in, or tap.
+This chapter classifies the physical and logical form factors used for authentication tokens — from software authenticator apps through hardware security keys to smart cards. It serves as the comprehensive reference for choosing the right token type for a given deployment scenario. The preceding chapters establish the cryptographic underpinnings — HOTP/TOTP shared-secret algorithms ([§11](#11-hotp-hmac-based-one-time-password-rfc-4226)–[§12](#12-totp-time-based-one-time-password-rfc-6238)), WebAuthn asymmetric key ceremonies (§14), hardware key storage architectures ([§15](#15-passkey-ecosystem)), and attestation mechanisms ([§18](#18-device-attestation-platform-mechanics)). This chapter maps those capabilities onto the **concrete devices** that users carry, plug in, or tap.
 
 The central tension in token selection is the tradeoff between **security ceiling** and **deployment friction**. Software authenticators are free and instantly deployable but inherit the security posture of the host device. Hardware security keys provide cryptographic isolation but require physical distribution and carry per-unit cost. Smart cards offer full PKI capabilities but demand reader infrastructure. No single form factor dominates — the optimal choice depends on the threat model, regulatory requirements, user population, and organisational logistics.
 
@@ -26411,7 +26411,7 @@ Despite these takedowns, the PhaaS ecosystem demonstrates significant resilience
 
 ##### 22.10.5 The Identity Attack Kill Chain
 
-The attacks documented in [§22.1](#221-credential-stuffing-and-password-spraying)–§22.8 do not operate in isolation — they form a **multi-stage kill chain** where each attack type feeds into the next. A typical identity compromise chain in 2024–2025:
+The attacks documented in [§22.1](#221-credential-stuffing-and-password-spraying)–[§22.8](#228-account-recovery-attack-trees) do not operate in isolation — they form a **multi-stage kill chain** where each attack type feeds into the next. A typical identity compromise chain in 2024–2025:
 
 ```mermaid
 flowchart TD
@@ -26586,7 +26586,7 @@ Modlishka and Muraena are AiTM tools that operate similarly to Evilginx but with
 ### 23. Authentication Attack Taxonomy: Defensive Engineering
 
 #### 23.1 Authentication Method vs. Attack Resistance Matrix
-The following matrix is the culminating reference of this chapter — a comprehensive mapping of authentication method resilience against every major attack vector documented in [§22.1](#221-credential-stuffing-and-password-spraying)–§22.8. The matrix enables direct comparison across authentication factor types and supports architectural decisions about which methods to deploy for a given threat model.
+The following matrix is the culminating reference of this chapter — a comprehensive mapping of authentication method resilience against every major attack vector documented in [§22.1](#221-credential-stuffing-and-password-spraying)–[§22.8](#228-account-recovery-attack-trees). The matrix enables direct comparison across authentication factor types and supports architectural decisions about which methods to deploy for a given threat model.
 
 The following diagram provides a visual summary of the key resilience patterns:
 
@@ -26696,7 +26696,7 @@ The matrix reveals two structural conclusions that should drive authentication a
 </details>
 
 #### 23.2 Machine-to-Machine Attack Surface
-M2M authentication introduces a distinct threat landscape separate from human-facing authentication attacks ([§22.1](#221-credential-stuffing-and-password-spraying)–§22.7). The following table enumerates the primary threats that M2M authentication mechanisms must defend against:
+M2M authentication introduces a distinct threat landscape separate from human-facing authentication attacks ([§22.1](#221-credential-stuffing-and-password-spraying)–[§22.7](#227-fraudulent-device-registration)). The following table enumerates the primary threats that M2M authentication mechanisms must defend against:
 
 | Threat | Description | Impact if Unmitigated | Primary Defences |
 |:-------|:-----------|:---------------------|:-----------------|
@@ -27368,7 +27368,7 @@ DR-0003's [§23](#23-authentication-attack-taxonomy-defensive-engineering) cover
 
 ### 24. Machine-to-Machine Authentication
 
-Machine-to-machine (M2M) authentication governs how software components — services, APIs, workloads, CI/CD pipelines, batch jobs, and infrastructure automation — establish identity and trust without any human user present. Where human authentication ([§9](#9-password-authentication-three-generations)–§14) involves interactive ceremonies (typing passwords, scanning fingerprints, approving push notifications), M2M authentication is fully automated: one piece of software proves its identity to another using cryptographic credentials, platform-attested identities, or federated trust chains.
+Machine-to-machine (M2M) authentication governs how software components — services, APIs, workloads, CI/CD pipelines, batch jobs, and infrastructure automation — establish identity and trust without any human user present. Where human authentication ([§9](#9-password-authentication-three-generations)–[§14](#14-webauthn-and-ctap2-architecture)) involves interactive ceremonies (typing passwords, scanning fingerprints, approving push notifications), M2M authentication is fully automated: one piece of software proves its identity to another using cryptographic credentials, platform-attested identities, or federated trust chains.
 
 The M2M authentication landscape has undergone a fundamental architectural shift. The legacy model — embedding long-lived API keys or static client secrets in application configuration — is being systematically replaced by patterns that eliminate persistent secrets entirely: platform-assigned managed identities, short-lived cryptographic certificates, and OIDC token federation. The economic driver is compelling: Verizon's Data Breach Investigations Report consistently identifies stolen credentials as a primary attack vector, and when those credentials belong to service accounts with broad permissions — as is common with static API keys — the blast radius can be catastrophic.
 
@@ -28474,7 +28474,7 @@ API keys have fundamental security properties that make them unsuitable as an au
 
 NIST does not classify API keys as an authentication factor. OWASP's API Security Guidelines explicitly warn against using API keys as the sole authentication mechanism for sensitive operations.
 
-**When to use API keys:** Public API rate limiting, usage analytics, developer experience (simple onboarding), and low-sensitivity read-only APIs. For anything requiring actual authentication of the calling service → use OAuth 2.0 Client Credentials (§24.1) or mTLS ([§24.2](#242-mtls-mutual-tls-client-certificate-authentication-rfc-8705)). For anything requiring authentication of a user → use the human authentication mechanisms in [§9](#9-password-authentication-three-generations)–§14.
+**When to use API keys:** Public API rate limiting, usage analytics, developer experience (simple onboarding), and low-sensitivity read-only APIs. For anything requiring actual authentication of the calling service → use OAuth 2.0 Client Credentials (§24.1) or mTLS ([§24.2](#242-mtls-mutual-tls-client-certificate-authentication-rfc-8705)). For anything requiring authentication of a user → use the human authentication mechanisms in [§9](#9-password-authentication-three-generations)–[§14](#14-webauthn-and-ctap2-architecture).
 
 ##### 24.5.4 API Key Mitigation Strategies
 
@@ -34038,7 +34038,7 @@ SD-JWTs support key binding through a holder-signed JWT appended to the credenti
 
 **Over-disclosure.** A poorly designed presentation definition can request more claims than necessary, compromising the holder's privacy. RPs should follow data minimization principles: request only the specific claims needed for the transaction, and always use `limit_disclosure: "required"` when using SD-JWT.
 
-**Device security model.** The security of OpenID4VP/OpenID4VCI ultimately depends on the security of the holder's device and wallet. If the device is compromised, the attacker gains access to all stored credentials. Mitigations include: secure enclave storage for private keys, biometric unlock for the wallet app, remote credential revocation (via status lists), and device attestation ([§18](#18-device-attestation-platform-mechanics)–15) to verify the device's integrity.
+**Device security model.** The security of OpenID4VP/OpenID4VCI ultimately depends on the security of the holder's device and wallet. If the device is compromised, the attacker gains access to all stored credentials. Mitigations include: secure enclave storage for private keys, biometric unlock for the wallet app, remote credential revocation (via status lists), and device attestation ([§18](#18-device-attestation-platform-mechanics)–[15](#15-passkey-ecosystem)) to verify the device's integrity.
 
 | Attack | Impact | Mitigation |
 |:-------|:-------|:-----------|
@@ -34302,7 +34302,7 @@ The security of a digital wallet depends on three layers: device security, appli
 
 **Device security.** The wallet inherits the security properties of the device it runs on. A rooted Android phone or a jailbroken iPhone provides no guarantee that the wallet's key material is protected. Mitigations:
 
-- **Device attestation** ([§18](#18-device-attestation-platform-mechanics)–15): The wallet attests to its device's integrity before accepting credentials or processing presentations. If the device fails attestation (e.g., rooted, modified bootloader), the wallet may refuse to operate or may disable high-assurance features.
+- **Device attestation** ([§18](#18-device-attestation-platform-mechanics)–[15](#15-passkey-ecosystem)): The wallet attests to its device's integrity before accepting credentials or processing presentations. If the device fails attestation (e.g., rooted, modified bootloader), the wallet may refuse to operate or may disable high-assurance features.
 - **Secure enclave / TPM**: Key material is stored in hardware-backed storage (Apple Secure Enclave, Android StrongBox, TPM 2.0), which prevents extraction even with full OS-level access.
 - **Biometric unlock**: The wallet requires biometric authentication (fingerprint, face recognition) to access stored credentials and sign assertions. This provides both convenience and a reasonable level of assurance that the presenter is the legitimate holder.
 
@@ -40546,7 +40546,7 @@ In practice, many production deployments combine multiple patterns. A typical co
 
 ### 36. Session Management Fundamentals
 
-HTTP is a stateless protocol — every request-response pair is independent, carrying no inherent memory of prior interactions. Yet virtually every web application requires the concept of "logged in": once a user authenticates ([§9](#9-password-authentication-three-generations)–§14), the application must remember that authentication across dozens, hundreds, or thousands of subsequent requests without demanding re-authentication on each one. Session management is the mechanism that bridges this gap — it creates, maintains, and eventually destroys the persistent, verifiable proof that authentication has already occurred. The session is the runtime manifestation of authenticated identity: a finite-lifetime binding between a user, a client, and a server that carries the security properties (AAL, authentication methods, authorization context) established during the authentication ceremony.
+HTTP is a stateless protocol — every request-response pair is independent, carrying no inherent memory of prior interactions. Yet virtually every web application requires the concept of "logged in": once a user authenticates ([§9](#9-password-authentication-three-generations)–[§14](#14-webauthn-and-ctap2-architecture)), the application must remember that authentication across dozens, hundreds, or thousands of subsequent requests without demanding re-authentication on each one. Session management is the mechanism that bridges this gap — it creates, maintains, and eventually destroys the persistent, verifiable proof that authentication has already occurred. The session is the runtime manifestation of authenticated identity: a finite-lifetime binding between a user, a client, and a server that carries the security properties (AAL, authentication methods, authorization context) established during the authentication ceremony.
 
 Every subsequent topic in the Session Management group builds on these fundamentals. [§37](#37-session-token-types) examines the specific token types used to materialise sessions (cookies, JWTs, opaque tokens, refresh tokens). [§38](#38-kerberos-deep-dive) deep-dives into Kerberos — the most sophisticated session ticket system in enterprise IT. [§39](#39-device-bound-sessions) covers device-bound sessions (DBSC, DPoP, mTLS certificate binding) that cryptographically prevent session theft. [§40](#40-ciam-and-wiam-session-architectures) compares CIAM and WIAM session architectures. [§41](#41-continuous-access-evaluation) addresses Continuous Access Evaluation — the paradigm shift from point-in-time session validation to real-time, event-driven session revocation. This chapter establishes the foundational model on which all of those depend.
 
@@ -40685,7 +40685,7 @@ The following table consolidates recommended timeout defaults by application typ
 
 Sessions end through one of five mechanisms:
 
-- **Explicit logout** — the user clicks "Sign Out." The server invalidates the session record in the session store (deletes the Redis key, marks the database row as expired) and sends a `Set-Cookie` header with an empty value and a past-date `Expires` attribute to clear the client-side cookie. In federated environments, this may trigger front-channel or back-channel logout across all relying parties ([§40.3](#403-sso-and-logout-protocols)–§40.6). The server should also send the `Clear-Site-Data: "cookies", "storage"` response header (supported by Chromium-based browsers and Firefox) to instruct the browser to clear all client-side state associated with the origin
+- **Explicit logout** — the user clicks "Sign Out." The server invalidates the session record in the session store (deletes the Redis key, marks the database row as expired) and sends a `Set-Cookie` header with an empty value and a past-date `Expires` attribute to clear the client-side cookie. In federated environments, this may trigger front-channel or back-channel logout across all relying parties ([§40.3](#403-sso-and-logout-protocols)–[§40.6](#406-global-logout-vs-single-app-logout)). The server should also send the `Clear-Site-Data: "cookies", "storage"` response header (supported by Chromium-based browsers and Firefox) to instruct the browser to clear all client-side state associated with the origin
 - **Idle timeout** — the session expires after a period of inactivity (no requests received). The session store's TTL mechanism (Redis `EXPIRE`, DynamoDB item TTL) handles automatic cleanup. Typical values vary by application risk profile:
   - **High-security** (banking, healthcare, government) — 5–15 minutes
   - **Enterprise** — 15–30 minutes
@@ -40695,7 +40695,7 @@ Sessions end through one of five mechanisms:
   - **Consumer "remember me"** — 7–30 days (implemented as a separate persistent token that can bootstrap a new short-lived session)
   - **High-security** — 1–4 hours
 - **Server-side revocation** — an administrator (or an automated security system) invalidates a specific session or all sessions for a user. This is critical for incident response — when credential compromise is suspected, revoking all sessions forces the compromised user to re-authenticate. CAEP ([§41](#41-continuous-access-evaluation)) enables real-time revocation across federated applications. Implementation pattern: maintain a Redis set `user_sessions:\{user_id\}` containing all active session IDs for the user → on revocation, iterate the set and `DEL` each session key, then delete the set itself
-- **Federation-wide session termination cascade** — in federated environments (OIDC/SAML), session revocation must propagate across all relying parties. When the IdP terminates a session, two complementary mechanisms coordinate cross-RP revocation: CAEP (Continuous Access Evaluation Protocol) pushes session-level security events (session-revoked, credential-change) to resource servers in near real-time (&lt; 1 second), while RISC (Risk and Incident Sharing and Coordination) pushes account-level events (identifier-recycled, account-disabled) to third-party applications with relaxed latency requirements. CAEP events are scoped to the current session and use pseudonymous subject identifiers (`iss_sub`, `opaque`) to preserve user privacy; RISC events are scoped to the account lifecycle and use directly identifying subject identifiers (`email`, `phone_number`) to enable cross-platform correlation. The session termination cascade is: IdP detects security event → emits CAEP/RISC SETs to all registered receivers → each RP invalidates the affected session(s) → user must re-authenticate at each RP independently. The RISC `identifier-recycled` event is particularly important: when a user deletes their account and the IdP reassigns the identifier to a new user, RPs must be notified to purge data associated with the old user before the new user accesses it — this flow is mandated by GDPR Article 17 (right to erasure). Full CAEP and RISC analysis is in [§41.1](#411-caep-event-types-and-real-time-session-revocation)–§41.3
+- **Federation-wide session termination cascade** — in federated environments (OIDC/SAML), session revocation must propagate across all relying parties. When the IdP terminates a session, two complementary mechanisms coordinate cross-RP revocation: CAEP (Continuous Access Evaluation Protocol) pushes session-level security events (session-revoked, credential-change) to resource servers in near real-time (&lt; 1 second), while RISC (Risk and Incident Sharing and Coordination) pushes account-level events (identifier-recycled, account-disabled) to third-party applications with relaxed latency requirements. CAEP events are scoped to the current session and use pseudonymous subject identifiers (`iss_sub`, `opaque`) to preserve user privacy; RISC events are scoped to the account lifecycle and use directly identifying subject identifiers (`email`, `phone_number`) to enable cross-platform correlation. The session termination cascade is: IdP detects security event → emits CAEP/RISC SETs to all registered receivers → each RP invalidates the affected session(s) → user must re-authenticate at each RP independently. The RISC `identifier-recycled` event is particularly important: when a user deletes their account and the IdP reassigns the identifier to a new user, RPs must be notified to purge data associated with the old user before the new user accesses it — this flow is mandated by GDPR Article 17 (right to erasure). Full CAEP and RISC analysis is in [§41.1](#411-caep-event-types-and-real-time-session-revocation)–[§41.3](#413-risc-risk-incident-sharing-and-coordination)
 - **All-session logout** — the user or administrator terminates all active sessions across all devices. This is the "nuclear option" for suspected account compromise — it invalidates every session associated with the user's account, forcing re-authentication on every device. An alternative implementation uses a per-user **session generation counter** — incrementing the counter invalidates all sessions whose generation number is lower, without requiring enumeration of individual session keys
 
 ##### 36.1.5 Session Concurrency Control
@@ -42212,7 +42212,7 @@ The following table provides a more detailed comparison across architectures, in
 
 ##### 37.5.3 Decentralized Capability Tokens: Biscuits, Macaroons, and UCANs
 
-The token types covered in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–§37.3 (cookies, opaque tokens, JWTs) and the architectural patterns in [§37.5.2](#3752-architectural-context-recommendations) all share a common constraint: **the issuer is a centralized Authorization Server, and every delegation or scope change requires a round-trip to that server.** OAuth 2.0 Token Exchange (RFC 8693) can broker delegation between parties, but the AS remains the mandatory intermediary for each hop.
+The token types covered in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–[§37.3](#373-jwts-as-session-tokens-tradeoffs-and-anti-patterns) (cookies, opaque tokens, JWTs) and the architectural patterns in [§37.5.2](#3752-architectural-context-recommendations) all share a common constraint: **the issuer is a centralized Authorization Server, and every delegation or scope change requires a round-trip to that server.** OAuth 2.0 Token Exchange (RFC 8693) can broker delegation between parties, but the AS remains the mandatory intermediary for each hop.
 
 Decentralized capability tokens offer an alternative paradigm: **offline attenuation**, where the token holder derives a more restricted token locally without contacting any server. The verifying resource server validates the derived token against the issuer's public key (or shared secret), confirming that every intermediate attenuation step is cryptographically sound and that the resulting token cannot grant more authority than the original. This makes them the fourth major token family — after opaque tokens, JWTs, and cookies — and the only one natively designed for decentralized delegation chains.
 
@@ -42409,7 +42409,7 @@ flowchart LR
 
 ##### 37.5.3.4 Comparative Analysis
 
-The following table compares the three decentralized capability systems against the token types already covered in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–§37.3 and the sender-constrained mechanisms in [§3.6](#36-token-exchange-rfc-8693-delegation-impersonation-and-downscoping):
+The following table compares the three decentralized capability systems against the token types already covered in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–[§37.3](#373-jwts-as-session-tokens-tradeoffs-and-anti-patterns) and the sender-constrained mechanisms in [§3.6](#36-token-exchange-rfc-8693-delegation-impersonation-and-downscoping):
 
 | Dimension | Macaroons | Biscuits | UCANs | OAuth 2.0 Bearer (§37.2) | JWT Access Token ([§37.2](#372-opaquereference-tokens)) | DPoP ([§3.6](#36-token-exchange-rfc-8693-delegation-impersonation-and-downscoping)) | mTLS ([§3.6](#36-token-exchange-rfc-8693-delegation-impersonation-and-downscoping)) |
 |:----------|:----------|:---------|:------|:------------------------|:------------------------|:------------|:------------|
@@ -42428,7 +42428,7 @@ The key trade-off is clear: **OAuth bearer tokens and sender-constrained variant
 
 ##### 37.5.3.5 Session Management Applications
 
-Decentralized capability tokens introduce a distinct session management model compared to the cookie and JWT patterns in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–§37.3:
+Decentralized capability tokens introduce a distinct session management model compared to the cookie and JWT patterns in [§37.1](#371-http-cookies-session-cookies-secure-flags-samesite-__host--prefix)–[§37.3](#373-jwts-as-session-tokens-tradeoffs-and-anti-patterns):
 
 **Stateless session tokens.** A Biscuit or Macaroon can serve as a self-contained session credential. The authority block encodes the session's identity and base permissions; subsequent attenuation blocks encode contextual restrictions (IP range, time window, feature flags). The verifier validates the token statelessly — no session store lookup is required. This is particularly attractive for architectures described in [§35.2](#352-token-mediating-backend-tmbbackend-for-frontend-bff) (BFF + microservices) and [§35.4](#354-token-handler-pattern) (API Gateway + phantom token), where stateless validation at the edge reduces latency and operational complexity.
 
@@ -48515,10 +48515,10 @@ Impending NIST PQC mandates (ML-KEM, ML-DSA) violently target the asymmetric cry
 #### OQ9: Can globally federated logout ever truly be architecturally reliable?
 <a id="oq-9"></a>
 
-The inherent architectural fragility of federated global logout remains an unsolved distributed systems challenge ([§40.3](#403-sso-and-logout-protocols)–30.6). While back-channel execution provides the optimal current framework, it fundamentally only guarantees eventual consistency and cannot synchronously force client-side browser cleanups. Is a completely synchronous, deterministic global logout fundamentally impossible within heavily disparate microservice architectures, or can high-throughput CAEP streaming solve the final notification latency?
+The inherent architectural fragility of federated global logout remains an unsolved distributed systems challenge ([§40.3](#403-sso-and-logout-protocols)–[30.6](#306-governance-frameworks)). While back-channel execution provides the optimal current framework, it fundamentally only guarantees eventual consistency and cannot synchronously force client-side browser cleanups. Is a completely synchronous, deterministic global logout fundamentally impossible within heavily disparate microservice architectures, or can high-throughput CAEP streaming solve the final notification latency?
 
 
-- **Evidence base:** Mature. Federated logout has been a persistent architectural challenge for over two decades ([§40.3](#403-sso-and-logout-protocols)–30.6). The fundamental problem is a distributed systems consensus challenge governed by the CAP theorem — best-effort logout leaves orphaned sessions; strict logout introduces user-visible delays. CAEP offers a potential resolution via event-driven notification ([§41.1](#411-caep-event-types-and-real-time-session-revocation)).
+- **Evidence base:** Mature. Federated logout has been a persistent architectural challenge for over two decades ([§40.3](#403-sso-and-logout-protocols)–[30.6](#306-governance-frameworks)). The fundamental problem is a distributed systems consensus challenge governed by the CAP theorem — best-effort logout leaves orphaned sessions; strict logout introduces user-visible delays. CAEP offers a potential resolution via event-driven notification ([§41.1](#411-caep-event-types-and-real-time-session-revocation)).
 
 - **CAEP as a potential resolution:** CAEP's event-driven model transforms logout from a synchronous, coordinated operation into an asynchronous, event-driven notification — when a session is terminated at the IdP, a `session-ended` event is emitted and all subscribed SPs terminate their local sessions independently. However, CAEP does not fully resolve the problem: events may be delayed or lost during network partitions; SPs must implement retry logic and event ordering guarantees; the initial SSE stream establishment has its own reliability challenges.
 
@@ -48725,4 +48725,3 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 ## References
 
 This document uses **narrative-style inline references** throughout. Standards, RFCs, regulations, and specifications are cited in context at the point of discussion — e.g., `(RFC 9449)`, `(NIST SP 800-63B, §11.1)`, `(ISO 18013-5 §14.1.1.5)` — rather than collected in a numbered bibliography. Each chapter's prose contains the full citation context for every source it relies on.
-

@@ -273,12 +273,12 @@ This document is intended to function as a **comprehensive reference** for API t
 
 | Sections | Theme | Best For |
 |:---------|:------|:---------|
-| **[§1](#1-introduction-and-problem-definition)–§2** | Problem definition, GDPR, standards, and regulatory baseline | **Architects**, **security engineers**, **privacy/compliance**, and decision-makers who need the policy and risk foundation |
-| **[§3](#3-architectural-patterns)–§5** | Core remediation patterns: architectural, cryptographic, tokenization, and pseudonymization | **API architects** and **backend engineers** choosing the primary protection model |
-| **[§6](#6-infrastructure-and-operational-patterns)–§8** | Operational controls, design-time governance, and protocol/deployment contexts | **Platform teams**, **security engineers**, and teams implementing enforcement around live APIs |
+| **[§1](#1-introduction-and-problem-definition)–[§2](#2-regulatory-landscape)** | Problem definition, GDPR, standards, and regulatory baseline | **Architects**, **security engineers**, **privacy/compliance**, and decision-makers who need the policy and risk foundation |
+| **[§3](#3-architectural-patterns)–[§5](#5-pseudonymization-and-tokenization-patterns)** | Core remediation patterns: architectural, cryptographic, tokenization, and pseudonymization | **API architects** and **backend engineers** choosing the primary protection model |
+| **[§6](#6-infrastructure-and-operational-patterns)–[§8](#8-protocol-and-deployment-contexts)** | Operational controls, design-time governance, and protocol/deployment contexts | **Platform teams**, **security engineers**, and teams implementing enforcement around live APIs |
 | **[§9](#9-migration-playbook-for-existing-apis)** | Migration and remediation of existing APIs | **Engineering leadership**, **program owners**, and teams fixing live systems |
-| **[§10](#10-tokenization-and-encryption-platforms)–§16** | Vendor platforms, build-vs-buy, auditability, key governance, erasure, and traceability | **Platform owners**, **security architecture**, **compliance**, and **engineering leadership** |
-| **[§17](#17-owasp-asvs-and-cwe-synthesis)–§20** | Standards synthesis, findings, recommendations, and open questions | **Decision-makers** and teams synthesizing the document into action |
+| **[§10](#10-tokenization-and-encryption-platforms)–[§16](#16-call-chain-traceability)** | Vendor platforms, build-vs-buy, auditability, key governance, erasure, and traceability | **Platform owners**, **security architecture**, **compliance**, and **engineering leadership** |
+| **[§17](#17-owasp-asvs-and-cwe-synthesis)–[§20](#20-open-questions)** | Standards synthesis, findings, recommendations, and open questions | **Decision-makers** and teams synthesizing the document into action |
 
 **Persona-based reading paths:**
 
@@ -295,10 +295,10 @@ If you already have live APIs exposing personal data in URLs, skip directly to *
 
 A practical way to use this reference is:
 
-1. Choose the main contract or transformation pattern in **[§3](#3-architectural-patterns)–§5**.
+1. Choose the main contract or transformation pattern in **[§3](#3-architectural-patterns)–[§5](#5-pseudonymization-and-tokenization-patterns)**.
 2. Read **[§7](#7-design-time-api-governance-and-contract-enforcement)** for design-time enforcement and **[§9](#9-migration-playbook-for-existing-apis)** for rollout if the problem exists in production already.
-3. Read only the relevant supporting chapters in **[§10](#10-tokenization-and-encryption-platforms)–§16** based on what your chosen pattern implies operationally.
-4. End with **[§17](#17-owasp-asvs-and-cwe-synthesis)–§20** for the standards map, synthesized findings, recommendations, and unresolved questions.
+3. Read only the relevant supporting chapters in **[§10](#10-tokenization-and-encryption-platforms)–[§16](#16-call-chain-traceability)** based on what your chosen pattern implies operationally.
+4. End with **[§17](#17-owasp-asvs-and-cwe-synthesis)–[§20](#20-open-questions)** for the standards map, synthesized findings, recommendations, and unresolved questions.
 
 ---
 
@@ -316,7 +316,7 @@ This document's central conclusion is straightforward: **the default answer is t
 6. **Use protocol mechanisms only for bounded adjacent problems.** HTTP Message Signing helps request integrity, PAR protects browser-visible OAuth parameters, and mTLS helps in B2B/M2M identity-bound scenarios. None of these is the general default answer to business-data PII in URLs ([§8](#8-protocol-and-deployment-contexts)).
 7. **Enforce the design at contract time, not only at incident time.** API contracts, linting, CI gates, inventory discipline, exception workflows, and migration governance are required to keep the problem from reappearing ([§7](#7-design-time-api-governance-and-contract-enforcement), [§9](#9-migration-playbook-for-existing-apis)).
 8. **Plan remediation for existing APIs explicitly.** The hard part is rarely inventing the safe design; the hard part is migrating live consumers, deprecating bad endpoints, and cleaning up historical observability artifacts ([§9](#9-migration-playbook-for-existing-apis)).
-9. **Keep governance and operating model aligned with the design choice.** Centralized decryption authority, key governance, auditability, erasure capability, and traceability should support the main remediation pattern rather than pull the document away from it ([§13](#13-audit-trails-for-cryptographic-operations)–§16).
+9. **Keep governance and operating model aligned with the design choice.** Centralized decryption authority, key governance, auditability, erasure capability, and traceability should support the main remediation pattern rather than pull the document away from it ([§13](#13-audit-trails-for-cryptographic-operations)–[§16](#16-call-chain-traceability)).
 
 ---
 
@@ -3299,7 +3299,7 @@ In the context of PII in URL parameters, CSE means the client encrypts PII befor
 5. Only the client (or another party with the key) can decrypt
 ```
 
-This is fundamentally different from server-side encryption ([§4.1](#41-jwtjwe-encrypted-parameters)–§4.5), where the server holds the decryption key and can access raw PII. In CSE, the server is **functionally blind** to the data it handles.
+This is fundamentally different from server-side encryption ([§4.1](#41-jwtjwe-encrypted-parameters)–[§4.5](#45-envelope-encryption)), where the server holds the decryption key and can access raw PII. In CSE, the server is **functionally blind** to the data it handles.
 
 ```mermaid
 flowchart TD
@@ -4555,7 +4555,7 @@ Mitigation strategies include using HSM-backed keys, implementing key rotation w
 
 #### §5.6.1 Concept Overview
 
-Unlike the cryptographic and tokenization patterns discussed in [§5.3](#53-vault-based-tokenization)–5.5, which protect PII by *encrypting* or *replacing* it with a surrogate value, generalization protects PII by *reducing its precision*. The underlying value remains in the dataset, but at a coarser granularity that makes individual identification harder.
+Unlike the cryptographic and tokenization patterns discussed in [§5.3](#53-vault-based-tokenization)–[5.5](#55-client-side-pseudonymization), which protect PII by *encrypting* or *replacing* it with a surrogate value, generalization protects PII by *reducing its precision*. The underlying value remains in the dataset, but at a coarser granularity that makes individual identification harder.
 
 Generalization transforms PII into a less specific representation:
 
@@ -4634,7 +4634,7 @@ In practice, generalized datasets with k ≥ 5 or even k ≥ 11 have been re-ide
 
 ### §5.7 Product Landscape: Tokenization and Pseudonymization Platforms
 
-The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–§5.6 are implemented by a range of commercial and open-source platforms. The following table consolidates the key products referenced across this chapter, providing a side-by-side comparison of capabilities, licensing models, and suitability for different PII protection requirements. Detailed technical analysis of each vendor appears in Chapters 10–11.
+The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–[§5.6](#56-k-anonymity-and-generalization) are implemented by a range of commercial and open-source platforms. The following table consolidates the key products referenced across this chapter, providing a side-by-side comparison of capabilities, licensing models, and suitability for different PII protection requirements. Detailed technical analysis of each vendor appears in Chapters 10–11.
 
 | Product | Vendor | Techniques | FPE | Tokenization | Key Management | Licensing | Covered In |
 |:--------|:-------|:-----------|:---:|:------------:|:--------------:|:---------:|:----------:|
@@ -4649,7 +4649,7 @@ The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudon
 | **Cequence UAP** | Cequence | ML-based PII detection, inline FPE masking | ✅ | Partial | Integrates with external KMS | Enterprise / SaaS | [§11.5](#115-cequence-api-security-inline-security-proxy) |
 | **Fortanix DSM** | Fortanix | Encryption, key management, tokenization | ❌ | Partial | HSM-backed (SDKMS) | SaaS / on-premises | [§11.6](#116-fortanix-data-security-manager-dsm-multi-cloud-cryptographic-platform) |
 
-**Selection criteria.** The choice between these platforms depends on several factors that interact with the architectural decisions in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–§5.6:
+**Selection criteria.** The choice between these platforms depends on several factors that interact with the architectural decisions in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–[§5.6](#56-k-anonymity-and-generalization):
 
 - **PII recovery requirement.** If the original PII must be recoverable ([§5.3](#53-vault-based-tokenization) vault-based tokenization), platforms with lookup-table tokenization (HashiCorp Vault, Thales CipherTrust, Protegrity, Skyflow) are appropriate. If irreversibility is acceptable ([§5.5](#55-client-side-pseudonymization) client-side pseudonymization), HMAC-based or one-way transformation suffices.
 - **Format preservation.** FPE ([§5.4](#54-vaultless-tokenization)) is available from HashiCorp Vault (FF1), Thales CipherTrust, Protegrity, Google Cloud DLP, and Cequence. If the downstream system requires the token to match the original format (e.g., a 16-digit credit card number), FPE support is mandatory.
@@ -4657,7 +4657,7 @@ The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudon
 - **Regulatory alignment.** Platforms with FIPS 140-2/3 validated HSMs (Thales, Fortanix, cloud KMS services) are required for PCI DSS Level 1 compliance and recommended for GDPR Article 32 risk assessments involving high-sensitivity PII.
 - **Scale and latency.** Vault-based tokenization adds a round-trip latency (typically 2–10 ms) for every PII-bearing API call. Client-side pseudonymization ([§5.5](#55-client-side-pseudonymization)) eliminates this latency but shifts cryptographic responsibility to the frontend.
 
-If tokenization or pseudonymization becomes the primary design, the most useful follow-on reading is **[§12](#12-build-vs-buy-decision-framework)** for build-vs-buy, **[§13](#13-audit-trails-for-cryptographic-operations)–§14** for auditability and decryption authority, **[§15](#15-right-to-erasure-in-encrypted-contexts)** for mapping-table and erasure lifecycle, and **[§16](#16-call-chain-traceability)** for trace-safe detokenization and observability design.
+If tokenization or pseudonymization becomes the primary design, the most useful follow-on reading is **[§12](#12-build-vs-buy-decision-framework)** for build-vs-buy, **[§13](#13-audit-trails-for-cryptographic-operations)–[§14](#14-key-management-and-governance)** for auditability and decryption authority, **[§15](#15-right-to-erasure-in-encrypted-contexts)** for mapping-table and erasure lifecycle, and **[§16](#16-call-chain-traceability)** for trace-safe detokenization and observability design.
 
 ---
 
@@ -7352,7 +7352,7 @@ flowchart LR
 
 **Layer 1 — Transport (TLS 1.3).** Not covered in this chapter but always assumed: encryption in transit prevents network-level eavesdropping. TLS is the foundation on which all three protocol-level patterns operate.
 
-**Layer 2 — Protocol.** The three mechanisms from [§8.1](#81-http-message-signing)–§8.3. HTTP Message Signing guarantees that PII-bearing parameters were not tampered with. mTLS replaces PII-as-identifier with certificate-based identity. PAR prevents PII from appearing in browser-visible URLs during OAuth flows. These mechanisms are independent and non-overlapping — using all three creates no conflicts.
+**Layer 2 — Protocol.** The three mechanisms from [§8.1](#81-http-message-signing)–[§8.3](#83-oauth-20-pushed-authorization-requests-rfc-9126). HTTP Message Signing guarantees that PII-bearing parameters were not tampered with. mTLS replaces PII-as-identifier with certificate-based identity. PAR prevents PII from appearing in browser-visible URLs during OAuth flows. These mechanisms are independent and non-overlapping — using all three creates no conflicts.
 
 **Layer 3 — Application.** The architectural patterns from previous chapters (POST body migration, opaque tokens, format-preserving encryption) handle PII that remains in the request after protocol-level protections are applied.
 
@@ -7682,7 +7682,7 @@ This part is intentionally **downstream of the core design decision**. Chapters 
 
 This chapter should be read as **platform depth after pattern selection**, not as the place to decide whether personal data should remain in URLs at all. That decision should already have been made in Chapters 3 through 8. This chapter examines five dedicated tokenization and encryption platforms — products whose primary purpose is replacing sensitive data values with cryptographically protected tokens or format-preserving ciphertext. These platforms differ from the cloud-native services and API gateway solutions covered in [§11](#11-cloud-native-and-api-gateway-solutions) in that they are **cloud-agnostic, deployable on-premises or in hybrid configurations**, and focus exclusively on data-level protection rather than infrastructure-level request inspection.
 
-§5 ([§5.3](#53-vault-based-tokenization)–5.4) introduced the architectural patterns — vaulted tokenization, vaultless tokenization, and format-preserving encryption — and briefly mentioned several of these products in an "Example Products" context. This chapter provides the full vendor deep-dive: API design, key management, deployment models, compliance alignment, and practical limitations.
+§5 ([§5.3](#53-vault-based-tokenization)–[5.4](#54-vaultless-tokenization)) introduced the architectural patterns — vaulted tokenization, vaultless tokenization, and format-preserving encryption — and briefly mentioned several of these products in an "Example Products" context. This chapter provides the full vendor deep-dive: API design, key management, deployment models, compliance alignment, and practical limitations.
 
 The five platforms were selected based on market presence, API integration capabilities, and regulatory alignment with GDPR pseudonymisation requirements. They represent the three architectural patterns from [§5](#5-pseudonymization-and-tokenization-patterns): **vaulted** (HashiCorp Vault Transform tokenization mode, Thales CipherTrust vaulted variant), **vaultless** (Thales CipherTrust FPE, Protegrity, Pangea), and **privacy-vault-as-a-service** (Skyflow).
 
@@ -13129,14 +13129,14 @@ HTTP Message Signing, mTLS, and PAR matter, but only inside specific threat mode
 ### F6. Pseudonymization and encryption remain fully inside the GDPR problem space
 <a id="finding-f-6"></a>
 
-The regulatory sections ([§2.3](#23-article-17-right-to-erasure)–§2.4) and the pseudonymization chapters ([§5](#5-pseudonymization-and-tokenization-patterns)) establish a non-negotiable point: pseudonymised and encrypted values remain personal data when re-identification remains possible. That means tokenization, vaultless tokenization, deterministic encryption, and related patterns reduce risk but do not eliminate duties around minimisation, retention, erasure, auditability, or data-subject rights. Any architecture that treats tokenization as a scope-exit from GDPR is conceptually wrong.
+The regulatory sections ([§2.3](#23-article-17-right-to-erasure)–[§2.4](#24-edpb-guidelines-012025-on-pseudonymisation)) and the pseudonymization chapters ([§5](#5-pseudonymization-and-tokenization-patterns)) establish a non-negotiable point: pseudonymised and encrypted values remain personal data when re-identification remains possible. That means tokenization, vaultless tokenization, deterministic encryption, and related patterns reduce risk but do not eliminate duties around minimisation, retention, erasure, auditability, or data-subject rights. Any architecture that treats tokenization as a scope-exit from GDPR is conceptually wrong.
 
 ---
 
 ### F7. Vendor and cloud platforms accelerate implementation, but they do not decide the architecture
 <a id="finding-f-7"></a>
 
-The vendor/platform chapters ([§10](#10-tokenization-and-encryption-platforms)–§11) are useful only after the primary design choice is made. Enterprise tokenization vendors, cloud-native services, and gateway-centric offerings provide useful implementation building blocks, but they cannot rescue a weak resource model by themselves. Their main value is in operational acceleration: managed key handling, transformation services, audit surfaces, compliance reporting, and integration speed. Their main downside is dependency concentration, especially around token mappings, proprietary workflows, and key-management lock-in.
+The vendor/platform chapters ([§10](#10-tokenization-and-encryption-platforms)–[§11](#11-cloud-native-and-api-gateway-solutions)) are useful only after the primary design choice is made. Enterprise tokenization vendors, cloud-native services, and gateway-centric offerings provide useful implementation building blocks, but they cannot rescue a weak resource model by themselves. Their main value is in operational acceleration: managed key handling, transformation services, audit surfaces, compliance reporting, and integration speed. Their main downside is dependency concentration, especially around token mappings, proprietary workflows, and key-management lock-in.
 
 ---
 
@@ -13150,7 +13150,7 @@ The vendor/platform chapters ([§10](#10-tokenization-and-encryption-platforms)�
 ### F9. Once decryption exists, centralized authority, auditability, and key lifecycle become the real trust boundary
 <a id="finding-f-9"></a>
 
-The most consequential downstream operating-model decision is not which vendor logo appears in the stack, but whether decryption is centralized, policy-bound, and fully auditable ([§13](#13-audit-trails-for-cryptographic-operations)–§14). Centralized decryption authority ([§14.3](#143-centralized-decryption-authority)), separation of duties ([§14.2](#142-key-access-control)), complete crypto-operation audit trails ([§13.1](#131-minimum-audit-data)–§13.5), and a coherent key lifecycle ([§14.1](#141-key-lifecycle), [§14.6](#146-cloud-kms-platform-comparison)) determine whether the system behaves like a governable architecture or a scattered set of silent plaintext escape hatches.
+The most consequential downstream operating-model decision is not which vendor logo appears in the stack, but whether decryption is centralized, policy-bound, and fully auditable ([§13](#13-audit-trails-for-cryptographic-operations)–[§14](#14-key-management-and-governance)). Centralized decryption authority ([§14.3](#143-centralized-decryption-authority)), separation of duties ([§14.2](#142-key-access-control)), complete crypto-operation audit trails ([§13.1](#131-minimum-audit-data)–[§13.5](#135-vendor-audit-capabilities)), and a coherent key lifecycle ([§14.1](#141-key-lifecycle), [§14.6](#146-cloud-kms-platform-comparison)) determine whether the system behaves like a governable architecture or a scattered set of silent plaintext escape hatches.
 
 ---
 
@@ -13196,7 +13196,7 @@ Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such
 
 **R4. Prefer cleaner contracts over cryptographic cleverness unless compatibility forces otherwise.**
 
-Use JWE, tokenization, deterministic encryption, or FPE when schema stability, external contracts, or legacy integration truly require them ([§4](#4-cryptographic-patterns)–§5). When a cleaner contract is available, choose the cleaner contract.
+Use JWE, tokenization, deterministic encryption, or FPE when schema stability, external contracts, or legacy integration truly require them ([§4](#4-cryptographic-patterns)–[§5](#5-pseudonymization-and-tokenization-patterns)). When a cleaner contract is available, choose the cleaner contract.
 
 ---
 
@@ -13217,7 +13217,7 @@ Redact or pseudonymize at the edge, sanitize span attributes, constrain retentio
 
 **R8. Use managed KMS by default, but design the key lifecycle and break-glass path explicitly.**
 
-Managed KMS is the practical starting point for most workloads ([§14.5](#145-hsm-vs-software-key-management)–§14.6), but the real design work is in rotation, scope separation, approval paths, emergency access, and audit review ([§14.1](#141-key-lifecycle), [§14.4](#144-break-glass-procedures)).
+Managed KMS is the practical starting point for most workloads ([§14.5](#145-hsm-vs-software-key-management)–[§14.6](#146-cloud-kms-platform-comparison)), but the real design work is in rotation, scope separation, approval paths, emergency access, and audit review ([§14.1](#141-key-lifecycle), [§14.4](#144-break-glass-procedures)).
 
 ---
 
