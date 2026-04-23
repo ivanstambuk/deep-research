@@ -18592,13 +18592,13 @@ flowchart TB
 
 Banks and PSPs are among the first private-sector entities legally obligated to accept EUDI Wallets. This obligation emerges from the intersection of three regulatory frameworks:
 
-##### 24.2.1 Compliance Timeline at a Glance
+##### 24.2.1 Wallet Acceptance Timeline at a Glance
 
-Read the timeline as an **acceptance-status** diagram, not as an internal build plan. It separates what is voluntary or permitted from what is mandatory. Internal implementation preparation is covered in the checklist below the diagram; the visual itself shows that wallet-based CDD becomes available under the AMLR on 10 July 2027, while private-sector EUDI Wallet SCA acceptance becomes mandatory on 24 December 2027.
+Read the timeline as a **wallet-acceptance-status** diagram, not as an internal build plan. It highlights the hard date-driven milestones for Bank/PSP use: when certified wallets become available, when general wallet acceptance becomes practically possible, when PID-based CDD becomes operationally available under the AMLR, and when private-sector EUDI Wallet SCA acceptance becomes mandatory. Pseudonym and progressive-assurance support are part of the same acceptance surface, but they are service-conditional rather than a single fixed milestone, so they are summarised in the use-case matrix below instead of as a separate Gantt bar.
 
 ```mermaid
 gantt
-    title Voluntary vs Mandatory Timeline — Bank/PSP EUDI Wallet Integration
+    title Bank/PSP EUDI Wallet Acceptance Timeline
     dateFormat YYYY-MM-DD
     axisFormat %b %Y
 
@@ -18609,13 +18609,18 @@ gantt
     eIDAS Art. 5f(2) mandatory acceptance             :milestone, m2, 2027-12-24, 0d
 
     section Voluntary / Permitted
-    Voluntary EUDI Wallet acceptance possible         :active, vol, 2026-12-24, 2027-12-24
-    Wallet-based CDD permitted / recommended          :active, cdd, 2027-07-10, 2028-06-30
-    Optional SCA early launch / pilot                 :active, scaearly, 2026-12-24, 2027-12-24
+    Early-adoption window for wallet acceptance       :active, vol, 2026-12-24, 2027-12-24
+    PID-based CDD operationally available             :active, cdd, 2027-07-10, 2028-06-30
 
     section Mandatory
     EUDI Wallet SCA acceptance mandatory              :crit, sca, 2027-12-24, 2028-06-30
 ```
+
+| Use case | Earliest practical use | Mandatory / conditional posture | Legal basis | Detailed coverage |
+|:---------|:-----------------------|:--------------------------------|:------------|:------------------|
+| **PID / CDD onboarding** | **10 July 2027** | Permitted and strongly expected; becomes difficult to justify refusing once the PSP can already verify wallet presentations operationally | AMLR 2024/1624 Art. 22(6)(b), Recital 66 | §24.5.1-§24.5.2 |
+| **Pseudonym / progressive assurance** | **24 December 2026** for services that do not legally require identification | Conditional: RPs must not refuse pseudonyms where identification is not required by Union or national law; step up to PID only when the service requires it | eIDAS Reg. Art. 5b(9); CIR 2024/2979 Art. 14, Annex V; ARF Annex 2 Topic 11 | §24.3.2, §16.13 |
+| **SCA acceptance** | **24 December 2026** for voluntary pilots; **24 December 2027** for mandatory acceptance | Mandatory on user request wherever Art. 5f(2) and the PSD2/PSR SCA triggers apply | eIDAS Reg. Art. 5f(2); PSD2 Art. 97; RTS Art. 13, Art. 24 | §24.2.2-§24.4 |
 
 | Milestone | Date | Source |
 |:----------|:-----|:-------|
@@ -18627,14 +18632,14 @@ gantt
 | Public sector mandatory acceptance | 24 December 2026 | eIDAS Reg. Art. 5f(1): 24 months after IAs |
 | **Private sector (incl. Banks/PSPs) mandatory acceptance** | **24 December 2027** | **eIDAS Reg. Art. 5f(2): 36 months after implementing acts** |
 
-> **Early-adoption window (~12 months):** Art. 5f(2) sets a *deadline* ("no later than 36 months"), not a *start date*. Once certified wallets become available by 24 December 2026, nothing in the regulation prohibits private RPs from accepting them voluntarily. PSPs that go live during this window gain competitive advantage: early movers capture wallet-native customers, build operational experience before the compliance cliff, and can iterate on UX before the mandatory deadline forces a rush deployment. The AMLR CDD enablement date (10 July 2027) falls within this window, further incentivizing early deployment of the PID verification pipeline.
+> **Early-adoption window (~12 months):** Art. 5f(2) sets a *deadline* ("no later than 36 months"), not a *start date*. Once certified wallets become available by 24 December 2026, nothing in the regulation prohibits private RPs from accepting them voluntarily. PSPs that go live during this window gain competitive advantage: early movers capture wallet-native customers, build operational experience before the compliance cliff, and can iterate on UX before the mandatory deadline forces a rush deployment. That same window is where PSPs can bring up pseudonym-friendly pre-identification journeys and prepare the PID verification pipeline before AMLR CDD use becomes operational on 10 July 2027.
 
 > **Registrar timing:** Do not read the Gantt as saying that registration work starts only on 1 January 2027. CIR 2025/848 applies from 24 December 2026, and the Commission's [RP Registration Service Reference Implementation](https://docs.eudi.dev/0.5/build/supporting-ecosystem-services/rp-registration-service/) already supports experimentation, but that service is expressly non-production. The practical plan is therefore: prepare legal identifiers, use-case declarations, contact data, key-management choices, and trust-list integration in Q4 2026; complete production registration and WRPAC onboarding as national registrars and authorised certificate providers open.
 
-Banks and PSPs face two converging regulatory tracks that drive EUDI Wallet integration. Treating the wallet as "SCA-only" is a strategic error — the Anti-Money Laundering Regulation (AMLR 2024/1624) strongly enables wallet-based CDD/KYC five months before the eIDAS SCA mandate takes effect.
+Banks and PSPs face two hard date-driven regulatory tracks, plus a separate service-conditional acceptance surface for pseudonym-friendly journeys. Treating the wallet as "SCA-only" is a strategic error — the Anti-Money Laundering Regulation (AMLR 2024/1624) strongly enables wallet-based CDD/KYC five months before the eIDAS SCA mandate takes effect, while Art. 5b(9) separately prohibits refusing pseudonyms where legal identification is not required.
 
-| Track | Legal Basis | Deadline | Nature | Scope |
-|:------|:-----------|:---------|:-------|:------|
+| Date-driven track | Legal Basis | Deadline | Nature | Scope |
+|:------------------|:-----------|:---------|:-------|:------|
 | **CDD/KYC** | AMLR 2024/1624 Art. 22(6)(b) + Recital 66 | **10 July 2027** | Permitted & recommended | Remote onboarding, identity verification, ongoing CDD |
 | **SCA** | eIDAS Reg. Art. 5f(2) + PSD2 Art. 97 | **24 December 2027** | **Mandatory** | Payment authentication, account access, remote actions, PSC association |
 

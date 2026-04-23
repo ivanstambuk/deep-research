@@ -653,9 +653,9 @@ img {
 }
 
 .chapter-reader[data-layout-width='wide'] {
-  --reader-shell-max-width: 1780px;
+  --reader-shell-max-width: 1880px;
   --reader-nav-recommended-width: clamp(300px, 18vw, 340px);
-  --reader-outline-recommended-width: clamp(280px, 16vw, 320px);
+  --reader-outline-recommended-width: clamp(320px, 18vw, 360px);
   --reader-content-max-width: 1080px;
   --reader-nav-card-padding-y: 20px;
   --reader-nav-card-padding-x: 18px;
@@ -684,9 +684,9 @@ img {
 }
 
 .chapter-reader[data-layout-width='comfort'] {
-  --reader-shell-max-width: 1880px;
+  --reader-shell-max-width: 1960px;
   --reader-nav-recommended-width: clamp(320px, 19vw, 360px);
-  --reader-outline-recommended-width: clamp(300px, 17vw, 340px);
+  --reader-outline-recommended-width: clamp(340px, 18vw, 380px);
   --reader-content-max-width: 1180px;
   --reader-nav-card-padding-y: 21px;
   --reader-nav-card-padding-x: 19px;
