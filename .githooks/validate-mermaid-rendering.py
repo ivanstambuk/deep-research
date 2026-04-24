@@ -5,16 +5,7 @@ import re
 import os
 import uuid
 
-def collect_changed_lines(filepath, full_file=False):
-    if full_file:
-        return None
-
-    # Get staged diff for the file to find changed lines
-    try:
-        diff_output = subprocess.check_output(['git', 'diff', '--cached', '-U0', '--', filepath], text=True)
-    except subprocess.CalledProcessError:
-        return set()
-
+def parse_changed_lines(diff_output):
     changed_lines = set()
     for diff_line in diff_output.splitlines():
         if diff_line.startswith('@@'):
@@ -26,11 +17,32 @@ def collect_changed_lines(filepath, full_file=False):
                     length = 1
                 for i in range(start, start + length):
                     changed_lines.add(i)
+    return changed_lines
+
+def collect_changed_lines(filepath, full_file=False, include_worktree=False):
+    if full_file:
+        return None
+
+    # Get staged diff for the file to find changed lines. The pre-commit hook
+    # uses this mode so validation is anchored to exactly what is being committed.
+    try:
+        diff_output = subprocess.check_output(['git', 'diff', '--cached', '-U0', '--', filepath], text=True)
+    except subprocess.CalledProcessError:
+        return set()
+
+    changed_lines = parse_changed_lines(diff_output)
+
+    if include_worktree:
+        try:
+            worktree_diff = subprocess.check_output(['git', 'diff', '-U0', '--', filepath], text=True)
+            changed_lines.update(parse_changed_lines(worktree_diff))
+        except subprocess.CalledProcessError:
+            pass
 
     return changed_lines
 
-def check_mermaid_blocks(filepath, full_file=False):
-    changed_lines = collect_changed_lines(filepath, full_file=full_file)
+def check_mermaid_blocks(filepath, full_file=False, include_worktree=False):
+    changed_lines = collect_changed_lines(filepath, full_file=full_file, include_worktree=include_worktree)
     if changed_lines == set():
         return True
         
@@ -125,15 +137,23 @@ if __name__ == '__main__':
     args = sys.argv[1:]
     full_file = False
 
-    if args and args[0] == '--full-file':
-        full_file = True
-        args = args[1:]
+    include_worktree = False
+
+    parsed_args = []
+    for arg in args:
+        if arg == '--full-file':
+            full_file = True
+        elif arg == '--include-worktree':
+            include_worktree = True
+        else:
+            parsed_args.append(arg)
+    args = parsed_args
 
     if len(args) != 1:
-        print("Usage: python3 validate-mermaid-rendering.py [--full-file] <file.md>")
+        print("Usage: python3 validate-mermaid-rendering.py [--full-file] [--include-worktree] <file.md>")
         sys.exit(1)
 
-    if not check_mermaid_blocks(args[0], full_file=full_file):
+    if not check_mermaid_blocks(args[0], full_file=full_file, include_worktree=include_worktree):
         sys.exit(1)
 
     sys.exit(0)

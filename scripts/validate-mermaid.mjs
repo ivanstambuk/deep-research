@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import path from 'node:path';
 
 const repoRoot = process.cwd();
 
@@ -42,12 +41,16 @@ function collectChangedFiles() {
 }
 
 function main() {
-  const inputFiles = process.argv.slice(2).map(normalizePath);
+  const rawArgs = process.argv.slice(2);
+  const fullFile = rawArgs.includes('--full') || rawArgs.includes('--full-file');
+  const inputFiles = rawArgs
+    .filter((arg) => arg !== '--full' && arg !== '--full-file')
+    .map(normalizePath);
   const candidateFiles = inputFiles.length ? inputFiles : collectChangedFiles();
 
   if (!candidateFiles.length) {
     console.log('No changed DR Markdown/MDX files found for Mermaid validation.');
-    console.log('Usage: npm run validate:mermaid -- <src/papers/...mdx | papers/...md>');
+    console.log('Usage: npm run validate:mermaid -- [--full] <src/papers/...mdx | papers/...md>');
     return;
   }
 
@@ -69,7 +72,14 @@ function main() {
   }
 
   for (const mirror of mirrors) {
-    run('python3', ['.githooks/validate-mermaid-rendering.py', '--full-file', mirror]);
+    const renderArgs = ['.githooks/validate-mermaid-rendering.py'];
+    if (fullFile) {
+      renderArgs.push('--full-file');
+    } else {
+      renderArgs.push('--include-worktree');
+    }
+    renderArgs.push(mirror);
+    run('python3', renderArgs);
   }
 }
 
