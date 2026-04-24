@@ -21,7 +21,8 @@ const DR2_SOURCE_CHAPTER_ID = '10-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
 const DR2_TARGET_HEADING_ID = '91-flow-description';
 const DR2_MERMAID_CHAPTER_ID = '24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub';
-const DR2_MERMAID_HEADING_ID = '245-psp-specific-threat-profile';
+const DR2_MERMAID_HEADING_ID = '2482-psp-specific-threat-profile';
+const EXPANDED_MERMAID_RESET_ZOOM = 60;
 const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
 const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
 const DR2_MULTI_MERMAID_CHAPTER_ID = '13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
@@ -474,12 +475,12 @@ async function assertArfLinksResolveAsExternalLinks(page) {
     throw new Error(`ARF link was incorrectly marked as an internal cross-reference: data-doc-xref=${qualifiedEaaXref}`);
   }
 
-  const carryForwardLink = page.locator('a[href="https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#71-introduction"]').first();
+  const carryForwardLink = page.locator('a[href="https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#61-scope"]').first();
   await carryForwardLink.waitFor({ state: 'visible', timeout: 20_000 });
 
   const carryForwardText = await carryForwardLink.textContent();
   const carryForwardXref = await carryForwardLink.getAttribute('data-doc-xref');
-  if (carryForwardText?.trim() !== '§7.1') {
+  if (carryForwardText?.trim() !== '§6.1') {
     throw new Error(`ARF carry-forward link rendered unexpected text: ${JSON.stringify(carryForwardText)}`);
   }
   if (carryForwardXref !== null) {
@@ -1045,9 +1046,9 @@ async function assertExpandedMermaidViewer(page) {
   await page.waitForFunction((initialWidth) => {
     const diagram = document.querySelector('.mermaid-modal-diagram');
     const svg = diagram?.querySelector('svg');
-    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 100 &&
-      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 100 &&
-      Number(diagram?.dataset.mermaidZoom ?? '0') === 100 &&
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 60 &&
+      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 60 &&
+      Number(diagram?.dataset.mermaidZoom ?? '0') === 60 &&
       Math.round(svg?.getBoundingClientRect().width ?? 0) < initialWidth;
   }, baselineWidth, { timeout: 20_000 });
 
@@ -1055,21 +1056,21 @@ async function assertExpandedMermaidViewer(page) {
   await page.waitForFunction((initialWidth) => {
     const diagram = document.querySelector('.mermaid-modal-diagram');
     const svg = diagram?.querySelector('svg');
-    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 90 &&
-      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 90 &&
-      Number(diagram?.dataset.mermaidZoom ?? '0') === 90 &&
+    return Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 50 &&
+      Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 50 &&
+      Number(diagram?.dataset.mermaidZoom ?? '0') === 50 &&
       Math.round(svg?.getBoundingClientRect().width ?? 0) < initialWidth;
   }, baselineWidth, { timeout: 20_000 });
 
   await modal.getByRole('button', { name: 'Reset', exact: true }).click();
   await page.waitForFunction(() => (
-    Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 100 &&
-    Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 100 &&
-    Number(document.querySelector('.mermaid-modal-diagram')?.dataset.mermaidZoom ?? '0') === 100
+    Number(window.localStorage.getItem('dr-reader-mermaid-global-zoom') ?? '0') === 60 &&
+    Number(document.querySelector('[data-test-mermaid-target="pilot"]')?.dataset.mermaidZoom ?? '0') === 60 &&
+    Number(document.querySelector('.mermaid-modal-diagram')?.dataset.mermaidZoom ?? '0') === 60
   ), null, { timeout: 20_000 });
 
   const inlineSnapshotWhileModalOpen = await readTaggedMermaidSnapshot(page, 'pilot');
-  if (inlineSnapshotWhileModalOpen.zoom !== 100) {
+  if (inlineSnapshotWhileModalOpen.zoom !== EXPANDED_MERMAID_RESET_ZOOM) {
     throw new Error(`modal zoom did not stay synchronized with inline pilot diagram: ${JSON.stringify(inlineSnapshotWhileModalOpen)}`);
   }
 
@@ -1107,7 +1108,7 @@ async function assertExpandedMermaidViewer(page) {
     throw new Error(`expanded Mermaid modal light snapshot invalid: ${JSON.stringify(lightModalSnapshot)}`);
   }
 
-  if (lightModalSnapshot.modalZoom !== 100) {
+  if (lightModalSnapshot.modalZoom !== EXPANDED_MERMAID_RESET_ZOOM) {
     throw new Error(`expanded Mermaid modal zoom drifted across theme toggle: ${JSON.stringify({ darkModalSnapshot, lightModalSnapshot })}`);
   }
 
@@ -1155,7 +1156,7 @@ async function assertMermaidZoomControlsAndPersistence(page) {
   }, null, { timeout: 20_000 });
 
   await tagMermaidContainerForHeading(page, DR2_MULTI_MERMAID_HEADING_ID, 'primary');
-  await tagMermaidContainerByIndex(page, 1, 'secondary');
+  await tagMermaidContainerByIndex(page, 2, 'secondary');
 
   const initialPrimary = await readTaggedMermaidSnapshot(page, 'primary');
   const initialSecondary = await readTaggedMermaidSnapshot(page, 'secondary');
@@ -1192,7 +1193,7 @@ async function assertMermaidZoomControlsAndPersistence(page) {
   }, null, { timeout: 20_000 });
 
   await tagMermaidContainerForHeading(page, DR2_MULTI_MERMAID_HEADING_ID, 'primary');
-  await tagMermaidContainerByIndex(page, 1, 'secondary');
+  await tagMermaidContainerByIndex(page, 2, 'secondary');
 
   await page.waitForFunction(() => (
     Number(document.querySelector('[data-test-mermaid-target="primary"]')?.dataset.mermaidZoom ?? '0') === 110 &&
@@ -1230,8 +1231,8 @@ async function assertMermaidZoomControlsAndPersistence(page) {
   await page.waitForFunction(() => {
     const container = document.querySelector('.chapter-article .mermaid');
     return Boolean(container?.querySelector('svg')) &&
-      Number(container?.dataset.mermaidZoom ?? '0') === 100 &&
-      window.localStorage.getItem('dr-reader-mermaid-global-zoom') === '100';
+      Number(container?.dataset.mermaidZoom ?? '0') === 60 &&
+      window.localStorage.getItem('dr-reader-mermaid-global-zoom') === '60';
   }, null, { timeout: 20_000 });
 }
 

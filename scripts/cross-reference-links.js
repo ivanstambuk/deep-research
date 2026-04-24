@@ -490,10 +490,29 @@ function targetHeadingStartsWithTrailingTopic({ lookback, target }) {
   return normalizedHeading.startsWith(normalizedTopic);
 }
 
+function lookbackEndsWithTargetHeadingTitle({ lookback, target }) {
+  if (!target?.text) {
+    return false;
+  }
+
+  const normalizedPrefix = normalizeTopicMatchText(normalizeCitationLookback(lookback));
+  const normalizedHeading = normalizeTopicMatchText(stripLeadingSectionEnumeration(target.text));
+
+  if (!normalizedPrefix || !normalizedHeading) {
+    return false;
+  }
+
+  return normalizedPrefix.endsWith(normalizedHeading);
+}
+
 function hasInternalReferenceCue({ lookback, trailingText, target = null }) {
   const normalizedPrefix = normalizeCitationLookback(lookback);
 
   if (INTERNAL_REFERENCE_PREFIX_RE.test(normalizedPrefix) || /DR-\d{4}\s*$/i.test(normalizedPrefix)) {
+    return true;
+  }
+
+  if (lookbackEndsWithTargetHeadingTitle({ lookback: normalizedPrefix, target })) {
     return true;
   }
 

@@ -4047,7 +4047,7 @@ Federation endpoints — metadata URLs, SSO endpoints, discovery documents — a
 
 ##### 2.9.5 OpenID Federation Trust Chain Attacks
 
-OpenID Federation 1.0 (§7) introduces trust chains as a mechanism for automatic trust establishment. Trust chains are powerful but create new attack surfaces.
+OpenID Federation 1.0 ([§7](#7-openid-federation-10)) introduces trust chains as a mechanism for automatic trust establishment. Trust chains are powerful but create new attack surfaces.
 
 **Forged entity statements.** If an intermediate entity's signing key is compromised, the attacker can issue fraudulent entity statements for all entities beneath that intermediate. This is analogous to an intermediate CA compromise in PKI — the impact cascades through the hierarchy.
 
@@ -5991,7 +5991,7 @@ This enables downstream services to enforce agent-specific policies — a worklo
 
 #### 3.7 Protocol Comparison Matrix: SAML vs. OIDC vs. OAuth 2.0
 
-The following matrix compares the three dominant federation and authorization protocols across architectural, security, and operational dimensions. SAML 2.0 is covered in detail in [§2](#2-saml-20); this comparison synthesises the key differences between all three. All three protocols share a fundamental challenge: establishing trust between previously unknown parties across domain boundaries. OpenID Federation 1.0 (§7) addresses this trust establishment challenge by replacing ad-hoc bilateral configuration with cryptographically verifiable trust chains.
+The following matrix compares the three dominant federation and authorization protocols across architectural, security, and operational dimensions. SAML 2.0 is covered in detail in [§2](#2-saml-20); this comparison synthesises the key differences between all three. All three protocols share a fundamental challenge: establishing trust between previously unknown parties across domain boundaries. OpenID Federation 1.0 ([§7](#7-openid-federation-10)) addresses this trust establishment challenge by replacing ad-hoc bilateral configuration with cryptographically verifiable trust chains.
 
 | Dimension | SAML 2.0 | OpenID Connect 1.0 | OAuth 2.0 |
 |:----------|:---------|:-------------------|:----------|
@@ -26646,7 +26646,7 @@ flowchart TD
 | **SIM swap / SS7 interception** ([§22.3](#223-sim-swapping-and-ss7diameter-exploitation)) | N/A | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Push fatigue / prompt bombing** ([§22.4](#224-push-notification-fatiguemfa-prompt-bombing)) | N/A | N/A | N/A | ❌ | ⚠️ | N/A | N/A | N/A |
 | **Token theft (info-stealer)** ([§22.6](#226-token-theft-and-session-hijacking-info-stealer-malware)) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ |
-| **Consent phishing (OAuth)** (§22.2.5) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
+| **Consent phishing (OAuth)** ([§22.2.5](#2225-consent-phishing-oauth)) | N/A | N/A | N/A | N/A | N/A | N/A | N/A | N/A |
 | **Fraudulent device registration** ([§22.7](#227-fraudulent-device-registration)) | ❌ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 
 **Matrix interpretation notes:**
@@ -29456,7 +29456,7 @@ This growth rate vastly exceeds human workforce growth (typically 2–5% CAGR) a
 
 Yet NHIs receive a fraction of the security attention devoted to human identities. Most enterprises have robust processes for onboarding and offboarding human employees — HR-triggered provisioning, regular access reviews, automated deprovisioning on termination (typically via SCIM 2.0 — see [§8](#8-scim-20-system-for-cross-domain-identity-management)). The equivalent processes for NHIs are typically ad-hoc, inconsistent, or nonexistent. The result is a vast, poorly inventoried attack surface composed of long-lived secrets, orphaned credentials, and over-privileged service accounts — precisely the substrate that attackers exploit. The OWASP Non-Human Identity Top 10 (2025) codifies the ten most critical NHI security risks, and specialised vendors — Astrix Security, Oasis Security, CyberArk, Aembit — have emerged to address NHI lifecycle management as a distinct security discipline.
 
-This chapter examines NHI governance from four angles: lifecycle management ([§25.1](#251-nhi-lifecycle-provisioning-rotation-decommissioning)), AI agent authentication patterns ([§25.2](#252-ai-agent-authentication-user-delegation-service-principal-managed-identity)), human-in-the-loop approval via CIBA (§25.3), and service account governance and bot identity ([§25.4](#254-service-account-governance-and-bot-identity)). For the underlying *technical mechanisms* of machine-to-machine authentication — OAuth 2.0 Client Credentials, mTLS, SPIFFE/SPIRE, managed identity, workload identity federation — see [§24](#24-machine-to-machine-authentication).
+This chapter examines NHI governance from four angles: lifecycle management ([§25.1](#251-nhi-lifecycle-provisioning-rotation-decommissioning)), AI agent authentication patterns ([§25.2](#252-ai-agent-authentication-user-delegation-service-principal-managed-identity)), human-in-the-loop approval via CIBA ([§25.3](#253-human-in-the-loop-approval-via-ciba)), and service account governance and bot identity ([§25.4](#254-service-account-governance-and-bot-identity)). For the underlying *technical mechanisms* of machine-to-machine authentication — OAuth 2.0 Client Credentials, mTLS, SPIFFE/SPIRE, managed identity, workload identity federation — see [§24](#24-machine-to-machine-authentication).
 
 #### 25.1 NHI Lifecycle: Provisioning, Rotation, Decommissioning
 ##### 25.1.1 The NHI Scale Challenge
@@ -47650,7 +47650,7 @@ This regulatory gravity is creating a ripple effect: banks implementing FAPI 2.0
 
 #### F27: OpenID Federation 1.0 Solves the O(n²) Trust Problem, but Shifts the Attack Surface
 <a id="finding-f-27"></a>
-The traditional federated identity model requires bilateral trust agreements between every pair of IdP and SP participants — an O(n²) scaling problem that has historically limited federation to tightly governed sectors (higher education via InCommon, national eID via SAML metadata). OpenID Federation 1.0 (§7) replaces bilateral agreements with a hierarchical trust chain anchored by a Trust Anchor and mediated by entity statements and trust marks. This reduces the configuration burden from O(n²) to O(n), enabling federations of hundreds or thousands of participants with automated trust establishment.
+The traditional federated identity model requires bilateral trust agreements between every pair of IdP and SP participants — an O(n²) scaling problem that has historically limited federation to tightly governed sectors (higher education via InCommon, national eID via SAML metadata). OpenID Federation 1.0 ([§7](#7-openid-federation-10)) replaces bilateral agreements with a hierarchical trust chain anchored by a Trust Anchor and mediated by entity statements and trust marks. This reduces the configuration burden from O(n²) to O(n), enabling federations of hundreds or thousands of participants with automated trust establishment.
 However, the trust chain introduces new attack surfaces ([§7.3](#73-entity-configuration)): a compromised intermediate entity can issue fraudulent entity statements that propagate trust to malicious actors; trust mark validation is only as rigorous as the policy operator that issued it; and the trust chain's reliance on DNS and HTTPS for entity statement resolution introduces a dependency on PKI infrastructure that itself is a target. The trade-off is clear — OpenID Federation 1.0 makes large-scale federation operationally feasible but shifts security complexity from bilateral configuration to trust chain integrity validation.
 
 #### F28: Identity Provisioning Standards Have Not Kept Pace with Non-Human Identity Growth

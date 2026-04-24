@@ -582,7 +582,9 @@ This rule applies to any file that is not intended to be committed. If you are u
 - Do not let retros become bureaucracy. This repo is primarily content plus a thin reader wrapper; the workflow should stay lightweight.
 
 **Tailnet-backed dev server freshness.** When the user is testing the reader through the Tailscale-served URL (`:4321 -> 127.0.0.1:4322`), do not assume the currently running Vite dev server reflects the latest local code. The local reader is the primary review surface; updated source files alone are **not** a completed handoff. After any DR article, reader/runtime, or generated-asset change that the user is expected to inspect:
+- run `npm run build` to rebuild the generated Markdown, reader assets, and production bundle before reporting completion,
 - run `npm run refresh:reader:live` before handing the change back,
+- treat `npm run build && npm run refresh:reader:live` as the default local handoff sequence after content or reader changes unless the user explicitly asks not to rebuild,
 - do this after every completed batch or plan-execution step that changes what the reader displays,
 - for content edits in `src/papers/**/*.mdx`, treat regeneration + live refresh as mandatory, not optional; do not stop at editing the source or even the generated `papers/**/*.md`,
 - do not rely on hot reload, `--skip-prepare`-style shortcuts, or tell the user to refresh first,
@@ -709,6 +711,20 @@ The resource server validates the DPoP proof (RFC 9449) against the token's `cnf
 When the exact standard is known, **name the document, not just the standards body**. For example, write `ETSI TS 119 475 clause 4.6.1`, `ETSI TS 119 475 Annex D`, or `ETSI TS 119 475 Table 7` — not bare formulations like `ETSI clause 4.6.1`, `ETSI Annex D`, `ETSI says`, or `ETSI explicitly ...`. Use the organization name alone only when the statement is genuinely about the organization rather than a specific published document.
 
 **Do not** use numbered citation styles like `[1]`, `[2]` or footnote references. **Do not** append a global reference list at the end of individual sections — references are woven into the narrative.
+
+#### Inline Reference Tables
+
+In DR tables whose purpose is to point readers to related sections, such as `Primary DR References`, `Further discussion`, `See also`, or `DR-000X Reference` columns, avoid dense bare lists like `§7.7.4, §9, §26.1.2` unless the table is an index or coverage matrix where the section number itself is the key.
+
+In explanatory, threat, recommendation, and design-decision tables, place inline reference columns last so the reader can scan the operational argument before using the navigational support. Use an earlier reference column only when the table is primarily a mapping, index, or coverage matrix where the reference is the row key.
+
+Use a short reader-facing target name followed by the section reference in parentheses:
+
+```markdown
+Same-Device Remote Presentation (§9); Cross-Device Remote Presentation (§10); Assurance Profiles and Channel Policy (§26.1.2)
+```
+
+Prefer the actual subsection title when it is short. If the title is too long, use a concise concept label that preserves the same meaning. Separate multiple entries with semicolons rather than comma-only lists so the reader can scan each target independently.
 
 ### Document Self-Reference
 

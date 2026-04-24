@@ -553,6 +553,8 @@ function testTargetHeadingCueOverridesExternalCitationSkip() {
     { headingId: '2665-callback-payload-requirements', text: '26.6.5 Callback Payload Requirements' },
     { headingId: '2661-integration-models-and-callback-layers', text: '26.6.1 Integration Models and Callback Layers' },
     { headingId: '2664-reverse-proxy-integration-pattern', text: '26.6.4 Reverse-Proxy Integration Pattern' },
+    { headingId: '774-arf-oia_08-privacy-and-support-boundary', text: '7.7.4 ARF OIA_08 Privacy and Support Boundary' },
+    { headingId: '3041-sd-jwt-vc-verification-signals', text: '30.4.1 SD-JWT VC Verification Signals' },
   ]);
 
   const chainedInternalRefs = linkifyTextValue(
@@ -575,6 +577,26 @@ function testTargetHeadingCueOverridesExternalCitationSkip() {
       targetIndex,
     },
   );
+  const arfTitleLabelCue = linkifyTextValue(
+    'ARF OIA_08 Privacy and Support Boundary (§7.7.4); Same-Device Remote Presentation (§9)',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
+  const standardsNamedInternalCue = linkifyTextValue(
+    'SD-JWT VC Verification Signals (§30.4.1); JWE/JARM Response Encryption Signals (§30.4.3)',
+    {
+      buildHref: (target) => `#${target.headingId}`,
+      diagnosticBase: {
+        documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+      },
+      targetIndex,
+    },
+  );
 
   assert.equal(chainedInternalRefs.changed, true);
   assert.equal(chainedInternalRefs.diagnostics.length, 0);
@@ -589,6 +611,12 @@ function testTargetHeadingCueOverridesExternalCitationSkip() {
     modelLabelCue.parts.some((part) => part.type === 'link' && part.href === '#2661-integration-models-and-callback-layers'),
     true,
   );
+
+  assert.equal(arfTitleLabelCue.changed, true);
+  assert.equal(arfTitleLabelCue.parts.some((part) => part.type === 'link' && part.href === '#774-arf-oia_08-privacy-and-support-boundary'), true);
+
+  assert.equal(standardsNamedInternalCue.changed, true);
+  assert.equal(standardsNamedInternalCue.parts.some((part) => part.type === 'link' && part.href === '#3041-sd-jwt-vc-verification-signals'), true);
 }
 
 function testSectionRangesLinkBothEndpointsWhenResolvable() {
