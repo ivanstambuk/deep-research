@@ -172,6 +172,38 @@ function createRoot(children) {
   };
 }
 
+function wrapTablesForHorizontalScroll(tree) {
+  function visit(parent) {
+    if (!parent || typeof parent !== 'object' || !Array.isArray(parent.children)) {
+      return;
+    }
+
+    const parentIsTableScroll = parent.type === 'element' && nodeClassList(parent).includes('table-scroll');
+
+    parent.children = parent.children.map((child) => {
+      if (!child || typeof child !== 'object') {
+        return child;
+      }
+
+      if (isElementTag(child, 'table') && !parentIsTableScroll) {
+        return {
+          type: 'element',
+          tagName: 'div',
+          properties: {
+            className: ['table-scroll'],
+          },
+          children: [child],
+        };
+      }
+
+      visit(child);
+      return child;
+    });
+  }
+
+  visit(tree);
+}
+
 function cleanDocument(raw, fallback) {
   const { data, content } = matter(raw);
   let body = content.replace(/\r\n/g, '\n').trim();
@@ -648,6 +680,7 @@ async function build() {
     });
     const bodyWithLabelAnchors = applyTextReplacements(cleaned.body, labelTargets.anchorReplacements);
     const tree = await processor.run(processor.parse(bodyWithLabelAnchors));
+    wrapTablesForHorizontalScroll(tree);
     let sections = createSectionsFromTree(tree, {
       allowSecondarySplit: cleaned.frontmatter.reader_allow_h3_chapter_split !== false,
     });

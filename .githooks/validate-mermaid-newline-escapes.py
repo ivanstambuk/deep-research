@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Validate that Mermaid diagrams do not contain literal \\n escape sequences.
+"""Validate that Mermaid diagrams do not contain visible escape sequences.
 
 Mermaid flowcharts, graphs, and most diagram types treat \\n as literal text
 (the two characters backslash + n), NOT as a line break. This produces ugly
 rendered output like "Layer 1\\nProtocol Errors" instead of a proper multiline
 label.
+
+Literal Unicode escapes such as \\u0026nbsp; and \\u0026amp; are also rendered
+as visible text in Mermaid labels, producing viewer output like
+"1.\\u0026nbsp;Build\\u0026nbsp;Request".
 
 For actual line breaks inside Mermaid node labels, use <br> or <br/>.
 For simple separation, replace \\n with a space.
@@ -12,6 +16,8 @@ For simple separation, replace \\n with a space.
 
 import sys
 import re
+
+UNICODE_ESCAPE_RE = re.compile(r'\\u[0-9a-fA-F]{4}')
 
 
 def validate_mermaid_newline_escapes(filepath):
@@ -37,30 +43,41 @@ def validate_mermaid_newline_escapes(filepath):
             continue
 
         if in_mermaid:
-            # Detect literal \n (the two-character sequence: backslash + n).
-            # In Python strings read from file, this appears as '\\n'.
+            # Detect visible escape sequences:
+            # - literal \n (the two-character sequence: backslash + n)
+            # - literal \uXXXX Unicode escapes such as \u0026nbsp;
             # Skip comment lines (starting with %% in Mermaid).
-            if not stripped.startswith('%%') and '\\n' in line:
-                failures.append((i, stripped))
+            if stripped.startswith('%%'):
+                continue
+            matched = []
+            if '\\n' in line:
+                matched.append(r'\n')
+            matched.extend(sorted(set(UNICODE_ESCAPE_RE.findall(line))))
+            if matched:
+                failures.append((i, ', '.join(matched), stripped))
 
     if failures:
         print("╔══════════════════════════════════════════════════════════════════╗")
-        print("║  ❌ MERMAID LITERAL \\n ESCAPE DETECTED                          ║")
+        print("║  ❌ MERMAID VISIBLE ESCAPE SEQUENCE DETECTED                    ║")
         print("╚══════════════════════════════════════════════════════════════════╝")
         print(f"\nAffected file: {filepath}\n")
         print("WHAT HAPPENED:")
-        print("  You used literal \\n (backslash + n) inside a Mermaid diagram.")
-        print("  Mermaid renders this as the two visible characters '\\n' instead")
-        print("  of creating a line break. This produces ugly labels like:")
+        print("  You used a literal escape sequence inside a Mermaid diagram.")
+        print("  Mermaid renders escapes as visible text instead of decoding them.")
+        print("  This produces ugly labels like:")
         print('    "Layer 1\\nProtocol Errors" instead of a proper multiline label.\n')
+        print('    "1.\\u0026nbsp;Build\\u0026nbsp;Request" instead of "1. Build Request".\n')
         print("HOW TO FIX:")
         print("  • If no line break is needed: replace \\n with a space")
         print("    Example: Layer 1\\nProtocol Errors  →  Layer 1 Protocol Errors")
         print("  • To force a line break in a node label: use <br> or <br/>")
         print("    Example: Layer 1\\nProtocol Errors  →  Layer 1<br>Protocol Errors\n")
+        print("  • Replace literal Unicode escapes with the intended character")
+        print("    Example: \\u0026nbsp;  →  space")
+        print("    Example: \\u0026amp;   →  &\n")
 
-        for line_num, content in failures:
-            print(f"   Line {line_num}: {content}")
+        for line_num, matched, content in failures:
+            print(f"   Line {line_num} ({matched}): {content}")
         print("")
         return False
 

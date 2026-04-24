@@ -1896,8 +1896,14 @@ img {
   background: transparent;
 }
 
-.table-scroll {
+.doc-article .table-scroll {
+  margin: 0.72rem 0 0.88rem;
   overflow-x: auto;
+  max-width: 100%;
+}
+
+.doc-article .table-scroll > table {
+  margin: 0;
 }
 
 .doc-article table {

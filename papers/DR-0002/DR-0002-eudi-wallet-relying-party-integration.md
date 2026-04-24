@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-24 · ~37,300 lines
+**DR-0002** · Published · Last updated 2026-04-24 · ~37,500 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -163,19 +163,18 @@ related: []
   </details>
   - <details><summary><a href="#12-cryptographic-verification-pipeline-deep-dive">12. Cryptographic Verification Pipeline Deep-Dive</a></summary>
 
-    - [12.1 Scope, Use Cases, and Cross-Reference Map](#121-scope-use-cases-and-cross-reference-map)
-    - [12.2 End-to-End Verification Pipeline](#122-end-to-end-verification-pipeline)
-    - [12.3 Response Envelope and Session Binding](#123-response-envelope-and-session-binding)
-    - [12.4 Format Router and Request/Response Correlation](#124-format-router-and-requestresponse-correlation)
-    - [12.5 Trust Material Resolution](#125-trust-material-resolution)
-    - [12.6 SD-JWT VC Verification Pipeline](#126-sd-jwt-vc-verification-pipeline)
-    - [12.7 mdoc/COSE/MSO Verification Pipeline](#127-mdoccosemso-verification-pipeline)
-    - [12.8 Status, Revocation, and Freshness](#128-status-revocation-and-freshness)
-    - [12.9 Holder Binding, Combined Presentations, and Cross-Format Keys](#129-holder-binding-combined-presentations-and-cross-format-keys)
-    - [12.10 Failure Semantics and Verification Signals](#1210-failure-semantics-and-verification-signals)
-    - [12.11 Verification Result Object and Audit Evidence](#1211-verification-result-object-and-audit-evidence)
-    - [12.12 Conformance, Test Fixtures, and Operational Gates](#1212-conformance-test-fixtures-and-operational-gates)
-    - [12.13 Implementation Checklist](#1213-implementation-checklist)
+    - [12.1 Verifier Contract and Scope Boundary](#121-verifier-contract-and-scope-boundary)
+    - [12.2 Normal Path: Opaque Response to Decision-Grade Result](#122-normal-path-opaque-response-to-decision-grade-result)
+    - [12.3 Intake Boundary: Response Envelope and Session Binding](#123-intake-boundary-response-envelope-and-session-binding)
+    - [12.4 Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)
+    - [12.5 Trust Material, Status Sources, and Algorithm Governance](#125-trust-material-status-sources-and-algorithm-governance)
+    - [12.6 SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)
+    - [12.7 mdoc Branch: CBOR, MSO, and SessionTranscript Evidence](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)
+    - [12.8 Status, Revocation, and Temporal Freshness](#128-status-revocation-and-temporal-freshness)
+    - [12.9 Holder Binding, Combined Presentations, and Transaction Intent](#129-holder-binding-combined-presentations-and-transaction-intent)
+    - [12.10 Failure Semantics and External Error Contracts](#1210-failure-semantics-and-external-error-contracts)
+    - [12.11 Canonical Verification Result and Audit Evidence](#1211-canonical-verification-result-and-audit-evidence)
+    - [12.12 Conformance Fixtures and Operational Release Gates](#1212-conformance-fixtures-and-operational-release-gates)
   </details>
 - [Proximity and Specialized Flows](#proximity-and-specialized-flows)
   - <details><summary><a href="#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised">13. Proximity Presentation Flows: ISO 18013-5, Supervised, and Unsupervised</a></summary>
@@ -10286,103 +10285,57 @@ For verifier RPs, the operational check remains indirect: validate the QEAA issu
 
 ### 12. Cryptographic Verification Pipeline Deep-Dive
 
-This chapter is the RP backend's verification-engine contract. It starts where a Wallet, browser, operating-system credential API, or verifier facade has delivered an opaque presentation response, and it ends when the RP has a policy-ready, auditable `verification_result`. It does not replace the higher-level presentation walkthroughs in [§9](#9-same-device-remote-presentation)-[§11](#11-rp-authentication-and-presentation-verification), the credential-format background in [§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), the combined-presentation policy model in [§18](#18-combined-presentations-lpid-and-mandate-credentials), the architecture patterns in [§26](#26-rp-verification-architecture-patterns), or the signal and audit chapters in [§30](#30-verification-signal-intelligence)-[§31](#31-monitoring-observability-and-operational-readiness).
+A verifier receives an opaque Wallet, browser, operating-system credential API, or facade response and must turn it into a decision-grade, auditable `verification_result`. That is the chapter's spine. The RP is not asking only whether a parsing library returned `true`; it is preserving the chain from transport receipt through session binding, format routing, credential cryptography, trust evidence, status, holder binding, RP policy, and finally a result object that business, audit, and incident-response systems can defend later.
 
-#### 12.1 Scope, Use Cases, and Cross-Reference Map
+This chapter is therefore the RP backend's verifier-engine contract. It starts after the presentation walkthroughs in [§9](#9-same-device-remote-presentation)-[§11](#11-rp-authentication-and-presentation-verification) have delivered a response, and it stops before downstream business policy, architecture deployment, signal intelligence, and audit operations take over. The verifier owns the evidence boundary: it decides what can safely be considered proven and what remains a policy, architecture, monitoring, or business decision elsewhere.
 
-§12 covers **verifier mechanics**: response envelope handling, request/response correlation, credential format routing, issuer trust, status and freshness, holder binding, policy inputs, failure signals, and evidence output. It also covers verifier-engine reuse when an RP is acting as an issuer or onboarding authority, but only at the boundary where an inbound credential, Wallet attestation, key proof, or trust signal must be verified before a separate issuance or business process continues.
+#### 12.1 Verifier Contract and Scope Boundary
 
-The second boundary is important: this chapter is not only a standards checklist. It is also the place where implementation failures discovered in connector, facade, and conformance-style testing become verifier requirements. A verifier that accepts a malformed wallet POST, stalls without a terminal state, reports only a lifecycle label, or lets one tenant's request material bleed into another tenant is not merely an integration inconvenience. It has failed to produce a decision-grade verification result.
+The verifier's first responsibility is to avoid category mistakes. A wallet POST is not verification success. A valid issuer signature is not policy satisfaction. A trusted credential is not automatically the right credential for this request. A terminal callback label is not decision-grade evidence. Each of those facts can be true while the RP still has no defensible result.
 
-Read the chapter through this boundary map first. The tables that follow are reference surfaces for the same model, not separate mini-chapters.
+The chapter follows one response through the complete verification journey: intake and session binding, DCQL and format routing, trust and status resolution, SD-JWT VC and mdoc branch verification, holder and transaction binding, failure classification, canonical result emission, and conformance fixtures. The reference surfaces later in the chapter are there to support that journey; they should not be read as separate mini-chapters.
 
 ```mermaid
 flowchart LR
-    A["Opaque presentation response<br/>Wallet, browser, OS API, or verifier facade"]
-    B["Verifier intake boundary<br/>envelope, channel, tenant, request snapshot"]
-    C["Verification engine<br/>format routing, crypto, trust, status, holder binding"]
+    A["Opaque response<br/>Wallet, browser, OS API, or verifier facade"]
+    B["Intake boundary<br/>response mode, endpoint/origin, tenant, request snapshot"]
+    C["Verifier engine<br/>routing, crypto, trust, status, holder binding"]
     D["Canonical verification_result<br/>policy-ready, auditable, redacted"]
     E["Consumers<br/>business policy, audit, VSI, SIEM"]
-    F["Out-of-scope workflows<br/>wallet UX, OID4VCI issuance, vendor scoring"]
+    F["Neighboring workflows<br/>wallet UX, issuance, architecture, monitoring"]
 
     A --> B --> C --> D --> E
-    F -. "covered in other chapters" .-> B
+    F -. "covered elsewhere" .-> B
 ```
 
-| Coverage layer | In §12 | Not in §12 |
-|:---------------|:--------------|:------------------|
-| Protocol intake | `direct_post.jwt`, `dc_api.jwt`, delegated callback intake, response-mode handling, request snapshot matching, URL-surface binding, and single-use session material. | Wallet UX, QR rendering ergonomics, native app dispatch, and browser feature detection beyond verifier-relevant origin and response evidence. |
-| Credential verification | SD-JWT VC, mdoc, status, issuer trust, holder binding, disclosure integrity, parser hardening, and failure evidence. | Credential-format primers, Rulebook catalogues, or proximity ceremony walkthroughs already covered in dedicated chapters. |
-| Policy after crypto | DCQL satisfaction, predicate/schema checks, over-disclosure, same-person/same-wallet evidence inputs, and transaction/intent binding evidence. | Full combined-presentation business semantics, mandate policy, PSP programme governance, or account-opening decision policy. |
-| Delegated verification | Result-object completeness, webhook/callback authenticity, idempotent terminal state, tenant partitioning, and audit parity. | Vendor scoring, commercial connector selection, deployment topology, or enterprise integration ownership. |
-| Issuance-adjacent reuse | Verifying inbound PID/QEAA, Wallet/key-attestation evidence, and proof-of-possession before a separate issuance or onboarding action continues. | Credential Offer creation, Token Endpoint choreography, Credential Endpoint response handling, Wallet storage, and issuer lifecycle operations. |
+§12 owns verifier mechanics: response-mode intake, request snapshot matching, credential-format routing, issuer trust, status and freshness, holder binding, request-policy inputs, failure semantics, and the evidence bundle emitted as the canonical result object. It does not own the surrounding product journey.
 
-| Reader question | §12 answer | Full treatment lives in |
-|:----------------|:------------------|:------------------------|
-| How does my backend turn a Wallet response into a verified result? | In scope: envelope handling, session binding, format routing, credential verification, status, holder binding, policy input, and evidence output. | This chapter. |
-| How do WUA/WIA, certified Wallet status, and breach status affect acceptance? | In scope only as verifier inputs, pre-presentation gates, failure signals, and evidence fields. | Wallet Unit Attestation (WUA): RP Perspective ([§5.4](#54-wallet-unit-attestation-wua-rp-perspective)); Trust Boundaries ([§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap)); Pre-Presentation Trust Checks ([§11.13](#1113-pre-presentation-trust-checks-cir-2025847-cir-20251569)); Wallet Solution Security Breach Response ([§21.7](#217-wallet-solution-security-breach-response-cir-2025847)). |
-| How does a bank or RP issue credentials with OID4VCI? | Out of scope except for reusable verifier gates before or around issuance. | SCA Attestation Issuance Overview ([§15.3](#153-sca-attestation-issuance-overview)); OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)). |
-| How do PSP SCA programme duties and RTS evidence work? | In scope only where generic verifier evidence includes transaction or intent binding. | SCA for Electronic Payments ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); SCA Programme ([§24.4](#244-sca-programme-issuance-presentation-dynamic-linking-and-rts-evidence)). |
-| Does the verifier call authentic sources during presentation? | Normally no. Verifier-only RPs consume upstream QEAA assurance through issuer trust, qualified-status evidence where applicable, Rulebook/schema evidence, credential signature, holder binding, and status checks. | Rulebook-Aware Verification Pipeline ([§6.18](#618-rulebook-aware-verification-pipeline)); Authentic-Source Verification Is Upstream QEAA Issuance Evidence ([§11.13.5](#11135-authentic-source-verification-is-upstream-qeaa-issuance-evidence)). |
-| Does an embedded Wallet SDK change backend verification? | Only if the response format, trust evidence, or Wallet attestation surface differs. Otherwise the same verifier engine handles external and embedded wallets. | Embedded Wallet SDK Integration Pattern ([§9.4](#94-embedded-wallet-sdk-integration-pattern)); Embedded Wallet SDK Capability Assessment ([§27.7](#277-embedded-wallet-sdk-capability-assessment)). |
-| Where do callbacks, reverse proxies, session delivery, and enterprise integration live? | §12 defines verifier results and evidence; deployment architecture lives elsewhere. | RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)); Vendor Integration Delivery Mode Matrix ([§27.8](#278-vendor-integration-delivery-mode-matrix)). |
-| Where are threats, signals, SIEM, and audit operations defined? | §12 emits failure codes, evidence, and signal inputs. | Threat Catalogue ([§29](#29-security-threat-catalogue)); Verification Signal Intelligence ([§30](#30-verification-signal-intelligence)); Monitoring, Alerts, and Audit Trail ([§31](#31-monitoring-observability-and-operational-readiness)). |
+The neighboring handoffs are deliberate. Wallet UX and presentation ceremonies live in Same-Device Remote Presentation ([§9](#9-same-device-remote-presentation)), Cross-Device Remote Presentation ([§10](#10-cross-device-remote-presentation)), RP Authentication and Presentation Verification ([§11](#11-rp-authentication-and-presentation-verification)), and Proximity Presentation Flows ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). Credential-format primers live in Credential Formats: SD-JWT VC, mdoc, and Format Selection ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection)). Combined-presentation business semantics live in Combined Presentations, LPID, and Mandate Credentials ([§18](#18-combined-presentations-lpid-and-mandate-credentials)). Architecture, connector ownership, and deployment topology live in RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)) and Vendor Evaluation ([§27](#27-vendor-evaluation)). Threats, signals, monitoring, and audit projections live in Security Threat Catalogue ([§29](#29-security-threat-catalogue)), Verification Signal Intelligence ([§30](#30-verification-signal-intelligence)), and Monitoring, Alerts, and Audit Trail ([§31](#31-monitoring-observability-and-operational-readiness)).
 
-**Canonical verifier invariants.**
+That boundary is narrow, but it is reusable. When the RP acts only as a verifier, the engine consumes a presentation response. When the RP also acts as an issuer or onboarding authority, the same verifier vocabulary can validate inbound PID/QEAA, Wallet attestation, key attestation, and proof-of-possession evidence before a separate issuance workflow continues. The issuance ceremony itself remains in SCA Attestation Issuance Overview ([§15.3](#153-sca-attestation-issuance-overview)), OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)), and RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)).
 
-The rest of this chapter should be read as a set of invariants for any RP-owned, delegated, or facade-mediated verifier engine. §26 may choose an architecture, and §31 may consume audit events, but this chapter defines the minimum engine contract that makes a verification result decision-grade.
+##### 12.1.1 Canonical Verifier Invariants
 
-| Invariant | Why it matters | Evidence the engine should emit |
-|:----------|:---------------|:--------------------------------|
-| One request snapshot produces at most one terminal result. | Mutable request refetch, duplicate callbacks, and retry races otherwise become policy-bypass paths. | Request-object hash, nonce/state consumption result, terminal result id, duplicate-event evidence. |
-| Transport acceptance is not verification success. | A wallet POST, callback, or `202 Accepted` only proves receipt unless the engine has completed checks. | Accepted-for-processing state, final terminal state, elapsed time, stalled/timeout evidence. |
-| Cryptographic validity is not policy satisfaction. | A valid issuer signature can still fail DCQL, credential-set, predicate, minimization, transaction, or business policy. | Per-check result array separating crypto, trust, status, holder binding, DCQL, and policy. |
-| Tenant/RP context is mandatory at every boundary. | Multi-tenant verifiers and facades can otherwise accept sibling-tenant state, callbacks, trust material, or result lookups. | Tenant id, RP/legal-entity id, endpoint ownership class, partition result. |
-| Verifier output is the canonical result object. | APIs, webhooks, operator UI, audit export, and SIEM should redact differently, not disagree. | Result-object schema version, policy id/version, surface-parity assertion. |
-| Cryptographic identifiers are evidence, not user identifiers. | Keys, salts, status indices, certificate serials, and signatures can become tracking handles if reused casually. | Redaction policy, hashed evidence, retention class, lawful-basis marker where raw retention is approved. |
+The contract is governed by six invariants that recur throughout the chapter. They are deliberately phrased as operating rules rather than checklist items, because each one constrains several later stages of the pipeline.
+
+- **One request snapshot, one terminal result.** The request object, nonce, `state`, response mode, tenant context, expiry, and policy version form the immutable comparison point for the Wallet response. Mutable request refetch, duplicate callbacks, and retry races should resolve to the original terminal result or a typed rejection, not to a second verification run with changed policy inputs.
+- **Transport acceptance is not verification success.** A POST, callback, or `202 Accepted` proves only that an endpoint received material for processing. Business logic should wait for the verifier's terminal result, because envelope binding, credential cryptography, trust resolution, status, holder binding, and policy evaluation can still fail after transport receipt.
+- **Cryptographic validity is not policy satisfaction.** A credential can be genuinely signed, current, and holder-bound while still being the wrong credential for this DCQL query, missing a mandatory claim, over-disclosing PII, failing a predicate, or lacking transaction-binding evidence. The result object should preserve this distinction so support and audit can tell "valid credential, unsatisfied request" apart from "invalid credential."
+- **Tenant and RP context must travel through every boundary.** Multi-tenant verifiers, connector facades, reverse proxies, and delegated callbacks cannot rely on hostnames or session ids alone. Request state, response keys, trust material, callbacks, result APIs, audit records, and subject namespaces all need an explicit tenant/RP partition result.
+- **The canonical result object is the verifier's product.** APIs, webhooks, operator UI, audit export, and SIEM events may redact differently, but they should derive from the same result id, schema version, policy id, terminal state, and per-check evidence. A lifecycle label such as `complete` or `verified` is not enough unless it reconciles to that canonical object.
+- **Cryptographic identifiers are evidence, not user identifiers.** Key thumbprints, disclosure salts, status-list indices, certificate serials, JWT ids, device keys, and signature bytes can become tracking handles if retained or reused casually. The verifier should treat them as short-lived or redacted evidence unless a documented RP policy and lawful basis justify stronger retention.
 
 > **Note — Issuance Boundary**
 >
-> When an RP also acts as an issuer, this chapter covers reusable inbound verification and evidence gates: validating a PID/QEAA before account creation, checking WIA/WUA or key-attestation evidence before issuing a device-bound credential, and recording proof-of-possession results. Credential Offer creation, Token Endpoint behavior, Credential Endpoint responses, Wallet storage, and issuer lifecycle operations remain in OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) and RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)).
+> When an RP also acts as an issuer, this chapter covers only reusable inbound verification and evidence gates: validating a PID/QEAA before account creation, checking WIA/WUA or key-attestation evidence before issuing a device-bound credential, and recording proof-of-possession results. Credential Offer creation, Token Endpoint behavior, Credential Endpoint responses, Wallet storage, and issuer lifecycle operations remain outside §12. Detailed issuance-adjacent negative cases are handled in the conformance fixture catalogue in [§12.12](#1212-conformance-fixtures-and-operational-release-gates).
 
-For issuance-adjacent flows, the verifier engine should expose the same result vocabulary rather than inventing a separate issuer-side error language:
-
-```mermaid
-flowchart LR
-    A["Inbound PID, QEAA, WUA/WIA,<br/>key attestation, or proof JWT"]
-    B["Reusable verifier gates<br/>signature, trust, status, PoP, freshness, tenant"]
-    C["Verifier-style evidence<br/>pass, fail, indeterminate, not_required"]
-    D["Separate issuance or onboarding workflow<br/>OID4VCI, account creation, credential lifecycle"]
-
-    A --> B --> C --> D
-```
-
-| Issuance-adjacent gate | Verifier-style evidence to reuse | Where full issuance remains |
-|:-----------------------|:---------------------------------|:----------------------------|
-| Account creation before RP-issued credential | Presented PID/QEAA signature, issuer trust, status, holder binding, LoA, disclosed-claim inventory, and minimization result. | OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)). |
-| Wallet or key-attestation admission | Attestation signature, `cnf` / PoP key match, nonce/audience/freshness result, and attestation trust source. | Wallet Unit Attestation (WUA): RP Perspective ([§5.4](#54-wallet-unit-attestation-wua-rp-perspective)); Trust Boundaries ([§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap)). |
-| Proof-of-possession before device-bound issuance | Proof JWT signature, `aud`, nonce or `c_nonce`, `iat`, algorithm allowlist, DPoP `jti` replay result, and key-attestation linkage where used. | SCA Attestation Issuance Overview ([§15.3](#153-sca-attestation-issuance-overview)); OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)). |
-| Deferred or asynchronous issuance handoff | Accepted-but-not-complete state, transaction id, poll interval, final credential material presence, and notification evidence. | OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)). |
-
-The issuance-adjacent negative vocabulary should still be verifier-grade:
-
-| Proof / issuance-adjacent case | Verifier-engine requirement | Result class |
-|:--------------------------------|:-----------------------------|:-------------|
-| Proof JWT signature bytes tampered | Verify proof over exact signed input using the declared wallet key. | proof-signature failure. |
-| Proof JWT carries wrong nonce or `c_nonce` | Bind the proof to the current issuance or onboarding session. | session-binding failure. |
-| Proof JWT carries wrong audience | Bind the proof to the expected issuer/verifier endpoint, not only to a broad tenant domain. | audience-binding failure. |
-| Proof JWT has stale or future `iat` | Apply clock and skew policy and record the evaluated time window. | freshness failure. |
-| Proof JWT uses `alg=none` or an unsupported algorithm | Enforce proof algorithm allowlist. | algorithm-policy failure. |
-| DPoP or equivalent proof `jti` replay | Deduplicate sequential and concurrent replays for the proof lifetime. | replay failure. |
-| Pre-authorized code is paired with another session's PIN/transaction code | Bind transaction code, access token, proof, and credential configuration to the same session. | session-mix-up failure. |
-| Credential configuration id differs from the authorized session | Reject even if access token and proof are otherwise well formed. | policy or authorization failure. |
-| Cross-tenant subject override before auth credential issuance | Reject caller-supplied subject material outside the issuing tenant's namespace. | tenant-policy failure. |
-
-#### 12.2 End-to-End Verification Pipeline
+#### 12.2 Normal Path: Opaque Response to Decision-Grade Result
 
 A production verifier should not collapse verification into a single `true` / `false` library call. It should preserve each decision dimension so policy, fraud, audit, and incident-response systems can explain what happened.
 
 Operationally, the pipeline is a chain of gates. Early gates decide whether the response belongs to this request at all; middle gates decide whether each credential is authentic, current, and holder-bound; later gates decide whether the authentic evidence satisfies the RP's policy and can be emitted safely. This ordering matters because every downstream decision is only as strong as the preserved evidence from the previous gate.
+
+##### 12.2.1 Pipeline Stages and Decision Dimensions
 
 ```mermaid
 flowchart TD
@@ -10424,6 +10377,8 @@ flowchart TD
 | Holder binding | Did the presenter prove possession of the bound key for this session? | KB-JWT or mdoc DeviceAuth result, nonce, audience, `sd_hash` or SessionTranscript |
 | Policy satisfaction | Did the response satisfy the DCQL request and RP business policy? | claim paths, credential-set result, over-disclosure result, policy id/version |
 | Evidence output | Can the RP reconstruct the decision without retaining raw PII by default? | per-check results, redaction decisions, signals, audit correlation id |
+
+##### 12.2.2 Normal-Path Sequence Walkthrough
 
 ```mermaid
 ---
@@ -10714,7 +10669,7 @@ Fail closed when the external response reveals low-level parser or cryptographic
 
 </details>
 
-<br/>
+##### 12.2.3 Transaction State and Async Outcomes
 
 The transaction state machine should preserve transport and asynchronous outcomes separately from cryptographic outcomes:
 
@@ -10752,13 +10707,15 @@ The verifier state machine must treat HTTP transport acceptance as a separate fa
 | Callback/webhook arrives out of order | Correlate and hold or reject based on state preconditions. | Received timestamp, expected predecessor state, and resulting state transition. |
 | Result API returns success with no parsed evidence | Verification result is not decision-grade. | Defect signal requiring missing parsed credential, trust, status, holder-binding, or policy evidence to be filled before business use. |
 
-#### 12.3 Response Envelope and Session Binding
+#### 12.3 Intake Boundary: Response Envelope and Session Binding
 
 OpenID4VP 1.0 encrypted responses are not a generic "JWE containing a signed JWS response" pattern. In the common EUDI / HAIP path, the encrypted response is a JWE whose payload contains the authorization response parameters as top-level JSON members. The credential issuer and holder signatures are inside the credential-specific pipeline: SD-JWT VC issuer JWT and KB-JWT, or mdoc `issuerAuth` and `DeviceAuth`.
 
 Envelope binding is the intake decision that determines whether the verifier may safely look inside the credential at all.
 
 At this stage, the verifier is proving provenance of the response, not truth of the claims. A correctly signed credential is still irrelevant if it arrived through the wrong endpoint, was bound to another tenant, reused another session's nonce, or answered a request object that has since expired. The output should therefore be a bound verification transaction or a terminal intake rejection, with no partial claim acceptance in between.
+
+##### 12.3.1 Response-Mode Branches
 
 ```mermaid
 flowchart TD
@@ -10782,6 +10739,124 @@ flowchart TD
 | `dc_api.jwt` | Browser/OS mediated same-device response returns to the RP origin through the Digital Credentials API path. | origin / `expected_origins`, request snapshot, response-encryption private key, nonce, tenant/RP id. | Validate origin binding; decrypt/unwrap response data; route `vp_token`; do not assume `state` behaves like redirect/direct-post flows. |
 | Delegated verifier callback | Vendor or intermediary sends L2/L3 result to RP after protocol-layer verification. | callback authentication, tenant/RP id, session id, result signature or webhook authentication, evidence payload. | Verify callback authenticity and evidence completeness. A terminal label alone is not enough for high-assurance decisions. |
 
+The intake distinction is easiest to implement correctly when `direct_post.jwt` and `dc_api.jwt` are treated as different delivery branches that converge only after the response is decrypted, parsed, and bound to the retained request snapshot.
+
+##### 12.3.2 Intake Sequence and Binding Evidence
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Wallet as Wallet or OS API
+    participant Edge as RP Intake Boundary
+    participant Store as Request Snapshot Store
+    participant Keys as Response Key Store
+    participant Engine as Verifier Engine
+    participant Audit as Audit Sink
+
+    Wallet->>Edge: Submit direct-post form or DC API result
+    Edge->>Store: Resolve snapshot by state, origin, or transaction id
+    Store-->>Edge: Return expected mode, nonce, tenant, and expiry
+    Edge->>Keys: Load ephemeral response key by kid
+    Keys-->>Edge: Return key or missing-key failure
+    Edge->>Engine: Decrypt response and parse response JSON
+    Engine->>Engine: Bind state, nonce, origin, target, and tenant
+    Engine->>Audit: Persist envelope binding evidence
+    Engine-->>Edge: Return bound response or intake rejection
+    Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+<details><summary><strong>1. Wallet or OS API submits the response to RP Intake Boundary</strong></summary>
+
+In a direct-post branch, the Wallet sends a form-encoded response to the configured `response_uri`. In a same-device branch, the browser or operating-system credential API returns the encrypted result through the RP origin. The intake boundary should record which branch produced the response before trying to interpret credential content.
+
+This distinction matters because the two branches do not expose the same binding evidence. Direct-post branches have a Wallet-to-endpoint submission target and usually `state`; DC API branches have browser/origin mediation and `expected_origins`-style evidence.
+
+**Artifact Produced:** Intake branch evidence with endpoint or origin class, tenant/RP context, receipt timestamp, and raw-response reference.
+
+</details>
+
+<details><summary><strong>2. RP Intake Boundary resolves the request snapshot</strong></summary>
+
+The intake layer resolves the retained request snapshot using the strongest branch-appropriate handle: `state` for redirect/direct-post branches, origin and transaction state for DC API branches, or a signed session/result id for delegated callbacks. It should not reconstruct request policy from current configuration.
+
+This is the session-mix-up guard. A response that is cryptographically valid but tied to another request, origin, or tenant should stop here rather than entering SD-JWT VC or mdoc validation.
+
+</details>
+
+<details><summary><strong>3. Request Snapshot Store returns the expected binding material</strong></summary>
+
+The snapshot store returns the expected response mode, nonce, tenant/RP id, expiry, request-object hash, credential query ids, accepted formats, and response-encryption key id. The verifier now has a stable point of comparison for the response the Wallet actually saw.
+
+If this material is missing, expired, already terminal, or mutated after request publication, the correct result is an intake or evidence failure. The engine should not try to repair the session by loading a newer policy or neighboring tenant state.
+
+**Artifact Produced:** Immutable snapshot comparison input for the envelope verifier.
+
+</details>
+
+<details><summary><strong>4. RP Intake Boundary loads the ephemeral response key</strong></summary>
+
+Encrypted response modes use a per-request response-encryption key. The intake boundary loads the corresponding private key by `kid` or request snapshot reference, and it should reject unknown, reused, expired, or sibling-tenant key material.
+
+This keeps response encryption tied to the request lifecycle. A successful credential signature later in the pipeline cannot compensate for a response encrypted to the wrong key or decrypted with a key outside the expected tenant partition.
+
+</details>
+
+<details><summary><strong>5. Response Key Store returns a key or missing-key failure</strong></summary>
+
+The key store either returns the exact session key or returns a typed failure. Missing key material, unknown `kid`, expired key retention, and key-tenant mismatch should be recorded separately from JWE cryptographic failure.
+
+That distinction helps incident response: an unknown `kid` may indicate a malicious envelope, while an expired key can indicate a delayed Wallet response, operational cleanup race, or stale callback.
+
+**Artifact Produced:** Key-resolution evidence with key id, tenant match, and retention outcome.
+
+</details>
+
+<details><summary><strong>6. RP Intake Boundary passes decrypted response JSON to Verifier Engine</strong></summary>
+
+After successful decryption or permitted unencrypted protocol-error handling, the intake layer parses the authorization response parameters as JSON and passes the response plus snapshot to the verifier engine. Credential validation still has not happened; this step only produces a structured response candidate.
+
+The parser should enforce response shape, duplicate-key policy, expected top-level members, and payload size before the engine routes `vp_token` entries. A malformed response JSON is an intake failure, not an SD-JWT VC or mdoc failure.
+
+</details>
+
+<details><summary><strong>7. Verifier Engine binds state, nonce, origin, target, and tenant</strong></summary>
+
+The engine compares the structured response against the snapshot: `state` where applicable, nonce availability for holder binding, DC API origin evidence, direct-post response target, expected response mode, request expiry, tenant/RP id, and transaction id.
+
+Only after this binding succeeds should credential-specific verifiers run. This prevents a valid credential from one flow being injected into another flow that asked for different claims, used a different policy, or belongs to another tenant.
+
+</details>
+
+<details><summary><strong>8. Verifier Engine persists envelope binding evidence to Audit Sink</strong></summary>
+
+The verifier records the envelope decision before later credential outcomes can obscure it. The record should include the response mode, endpoint or origin class, key-resolution result, decryption result, `state`/nonce consumption result, request-object hash, tenant match, and expiry result.
+
+This evidence is useful even when later credential validation fails. It lets operators distinguish malformed response handling from genuine credential-level failure, and it gives §30 and §31 surfaces stable signal inputs.
+
+**Artifact Produced:** Envelope and session-binding evidence attached to the canonical verification result.
+
+</details>
+
+<details><summary><strong>9. Verifier Engine returns a bound response or intake rejection</strong></summary>
+
+The engine returns either a bound response ready for format routing or a terminal intake rejection. A bound response is not verification success; it only means the response is safe enough to enter DCQL routing and credential-specific verification.
+
+If the engine rejects the intake, the external response should remain generic while the internal record preserves the exact signal, such as decryption failure, response-mode mismatch, wrong origin, expired request, duplicate state, or tenant mismatch.
+
+</details>
+
+##### 12.3.3 Request Snapshot Retention
+
 The verifier must retain the original request snapshot until the response is processed. Re-fetching mutable `request_uri` material during callback processing can create false failures or accept a response against the wrong request state.
 
 | Retained field | Source | Why it is needed | Disposal rule |
@@ -10799,7 +10874,7 @@ The verifier must retain the original request snapshot until the response is pro
 >
 > Nonce, `state`, response-encryption keys, and request-object snapshots are single-session material. Duplicate callbacks should become idempotent terminal-state lookups, not a second verification attempt with fresh or mutated policy inputs.
 
-**Request-object and URL-surface lifecycle.**
+##### 12.3.4 Request-Object and URL-Surface Lifecycle
 
 Request-by-reference flows create a second attack surface before the wallet even submits a credential. The public `request_uri` must be unpredictable, scoped to one verifier transaction, governed by expiry, and resilient to benign prefetching by browsers, link scanners, or mobile operating systems. If a single unauthenticated fetch exhausts the request object, a prefetcher can deny service to the legitimate wallet; if guessed sibling URLs return wallet-usable artifacts, an attacker can enumerate live sessions.
 
@@ -10822,11 +10897,13 @@ By-value and by-reference presentation definitions need separate evidence. A by-
 | Snapshot immutability | Callback processing compares against the retained request snapshot. | Verifier re-fetches mutable request material and accepts against changed policy. |
 | Host control | Wallet-facing URLs, verifier identity URLs, callback URLs, and result URLs satisfy the RP deployment model. | Callback URL is RP-owned but the signed wallet-facing submission target remains uncontrolled where facade deployment requires RP ownership. |
 
-#### 12.4 Format Router and Request/Response Correlation
+#### 12.4 Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto
 
 After envelope processing, the verifier treats the response JSON as untrusted structured input. For DCQL-native OpenID4VP 1.0 responses, `vp_token` is a JSON object keyed by credential query id; each value contains one or more presentations for that query. Legacy PEX-style `presentation_submission` may appear in compatibility contexts, but the EUDI/HAIP path should be DCQL-first.
 
 This stage is the switchyard between protocol intake and credential-specific cryptography. The router should not try to "make sense" of a credential until it knows which DCQL query the credential claims to satisfy, which format was requested, and whether the cardinality matches the request. That separation is what lets the result distinguish a bad credential from a good credential returned for the wrong request.
+
+##### 12.4.1 DCQL Format Router
 
 ```mermaid
 flowchart TD
@@ -10862,7 +10939,7 @@ flowchart TD
 
 Cryptographic success does not imply policy success. A credential can be signed by a trusted issuer, current in the status list, and holder-bound to the session while still failing the RP's DCQL, minimization, credential-set, or business-policy requirements.
 
-**Policy-after-crypto enforcement.**
+##### 12.4.2 Policy-After-Crypto Enforcement
 
 The format router should emit two separate products: a cryptographic credential result and a request-policy result. Collapsing them creates false positives, especially for credentials that are genuine but not responsive to the request.
 
@@ -10878,13 +10955,15 @@ The format router should emit two separate products: a cryptographic credential 
 
 The verifier should evaluate policy failures fail-closed for the requested transaction, but it should not necessarily label the credential itself invalid. For support and audit, "valid credential, unsatisfied request policy" is different from "invalid credential." This difference matters when a user selects the wrong credential, when an RP over-specifies a presentation definition, or when a wallet correctly minimizes disclosure.
 
-#### 12.5 Trust Material Resolution
+#### 12.5 Trust Material, Status Sources, and Algorithm Governance
 
 Trust resolution is a verifier subsystem, not a side effect of JWT or COSE parsing. The verifier needs an explicit trust-material policy for issuer metadata, certificates, key identifiers, Type Metadata, Status List Tokens, LoTE material, and authenticated trusted-list material where qualified-status conclusions matter.
 
 The trust resolver should be understood as a governed evidence service. It accepts references from credentials, but it does not let those references choose arbitrary network paths or trust anchors.
 
 The practical question at this stage is not simply "can I find a key?" It is whether the key, metadata, status source, and qualified-status evidence came from a source the RP is allowed to trust for this profile at this time. A verifier that fetches a convenient key from an attacker-controlled URL has not resolved trust; it has delegated trust policy to the credential.
+
+##### 12.5.1 Trust Material Resolver
 
 ```mermaid
 flowchart LR
@@ -10909,6 +10988,8 @@ flowchart LR
 | Status List Token | `status.status_list.uri` or COSE equivalent | `exp`/`ttl` inside signed token governs over HTTP cache headers. | Use valid cache or apply fail-closed/degraded policy. | `status_uri`, `status_idx`, `status_cache_age` |
 | Wallet solution status | Certified wallet list and breach notification feeds | Refresh at least daily or event-driven where available. | Reject/suspend acceptance where status is suspended or withdrawn. | `wallet_solution_status` |
 
+##### 12.5.2 Runtime Retrieval Guardrails
+
 Runtime-discovered URIs are part of the attack surface. A credential, JOSE header, COSE header, Type Metadata reference, or status claim must not be allowed to make the verifier fetch arbitrary network resources.
 
 | Retrieval surface | Guardrail for high-assurance RPs |
@@ -10923,7 +11004,7 @@ Runtime-discovered URIs are part of the attack surface. A credential, JOSE heade
 >
 > Treat every URI discovered from a wallet response, credential, JOSE/COSE header, Type Metadata document, or status claim as untrusted until it passes the RP retrieval policy. A cryptographically valid credential can still be rejected or marked evidence-incomplete if required remote material cannot be fetched safely.
 
-**Trust cache and retrieval failure taxonomy.**
+##### 12.5.3 Trust Cache and Retrieval Failure Taxonomy
 
 Trust material has different lifetimes. A verifier should not apply one generic cache rule to issuer keys, LoTE entity statements, Type Metadata, status lists, and trusted-list qualified-status material.
 
@@ -10947,13 +11028,32 @@ Retrieval failures should be typed precisely:
 | `network_unavailable` | DNS, TCP, TLS, timeout, or upstream outage blocked retrieval. | Use valid cache if permitted; otherwise evidence-incomplete. |
 | `ambiguous_trust_source` | Multiple trust paths disagree or credential points to a trust source outside the selected profile. | Reject or require explicit policy escalation; do not auto-select the most permissive source. |
 
+##### 12.5.4 Algorithm and Key-Governance Matrix
+
+The verifier should enforce algorithm policy in two layers: first the ecosystem/profile allowlist described in ARF Algorithm Governance: ECCG v2.0 Allowlist ([§8.3.2](#832-arf-algorithm-governance-eccg-v20-allowlist)), then the narrower request snapshot and RP policy for the specific credential type, response mode, and tenant. The token header may identify which key or algorithm is being requested; it must not decide which algorithms or trust sources are acceptable.
+
+| Verification surface | Governed input | Accept only when | Reject or flag | Result evidence |
+|:---------------------|:---------------|:-----------------|:---------------|:----------------|
+| Response encryption JWE | `alg`, `enc`, `kid`, ephemeral public key, target private key | JWE algorithms match the profile and the `kid` resolves to the session's tenant-scoped ephemeral key. | unsupported `alg`/`enc`, unknown `kid`, reused or expired response key, wrong-tenant key, plaintext success response. | `envelope.jwe_alg`, `envelope.jwe_enc`, `envelope.kid_match`, key-retention result. |
+| Request snapshot / signed request object | JAR signature algorithm, WRPAC / verifier key, `x509_hash` or related client-id evidence | The original request was signed and retained under the same tenant, response mode, policy id, nonce, and credential query. | unsigned or mutated request object, algorithm outside request-signing allowlist, callback compared against freshly fetched mutable policy. | request-object hash, signing key fingerprint, request policy version. |
+| SD-JWT VC issuer JWT | JOSE `typ`, `alg`, `kid`, `x5c` / issuer key material | `typ` and media type match the SD-JWT VC profile, `alg` is allowed, and key material resolves through the configured issuer trust source. | `alg=none`, symmetric/asymmetric confusion, unexpected `typ`, rogue `kid`, arbitrary `jku`/`x5u`, untrusted certificate chain. | issuer algorithm, key fingerprint, trust source, `typ` result. |
+| SD-JWT disclosure hashing | `_sd_alg`, disclosure digest input, original base64url disclosure string | Digest algorithm is allowed and each digest is computed over the exact received disclosure string. | unsupported digest, re-serialized-disclosure hashing, duplicate digest, malformed or recursive disclosure set. | disclosure algorithm, disclosure count, digest-match result. |
+| KB-JWT and issuance-adjacent proof JWT | JOSE `typ`, `alg`, signing key, `cnf`, nonce/`c_nonce`, `aud`, `iat` | Proof algorithm is allowed, key matches the bound credential or issuance session, and temporal/session claims match the snapshot. | `alg=none`, wrong key, unsupported curve, stale/future `iat`, wrong audience, nonce mismatch, DPoP `jti` replay. | proof algorithm, key thumbprint hash, audience/nonce result, replay result. |
+| mdoc issuerAuth / MSO | COSE algorithm, MSO `digestAlgorithm`, certificate chain, IACA/document-signer profile | COSE and digest algorithms are allowed, `issuerAuth` verifies over exact MSO bytes, and the chain resolves to the selected trust source. | unsupported COSE algorithm, digest downgrade, untrusted IACA/DS chain, protected/unprotected header confusion. | COSE algorithm, digest algorithm, issuer cert fingerprint, trust source. |
+| mdoc DeviceAuth | `deviceSignature` / `deviceMac`, device key, curve, SessionTranscript input | DeviceAuth method is allowed for the topology/profile and validates against MSO `deviceKeyInfo` over the reconstructed transcript. | method mismatch, unsupported curve/key type, missing proof where required, transcript mismatch, malformed Tag 24 input. | DeviceAuth method, device-key thumbprint, transcript-binding result. |
+| Status List Token | JWT/CWT signing algorithm, status authority key, content type, signed `exp`/`ttl` | Token is signed by the expected status issuer or trust path, uses an accepted algorithm, and is fresh enough under signed-token policy. | unsigned list, unexpected signing algorithm, wrong content type, stale signed token, index outside decoded list bounds. | status-token algorithm, status issuer fingerprint, freshness result. |
+| Runtime metadata/key retrieval | `kid`, `jku`, `x5u`, issuer metadata URL, Type Metadata URL, status URI | Lookup path is configured, pinned, or allowlisted; redirects, content type, size, TLS, and IP ranges satisfy retrieval policy. | credential-controlled trust root, private/link-local host, DNS rebinding, looped redirect, oversized JWKS, HTML served as JSON. | retrieval policy result, source host class, redirect count, object hash. |
+| WUA/WIA and key attestation | attestation signature algorithm, attestation issuer, wallet/key certificate chain | Attestation profile, issuer, algorithm, key type, nonce/audience, and freshness match the RP's verifier or issuance-adjacent policy. | unsupported attestation profile, stale attestation, wrong audience, untrusted wallet-solution status, cross-tenant key admission. | attestation issuer, wallet-solution status, key-attestation result. |
+
 For incident response, the verifier should be able to answer: which trust cache version was used, whether a live fetch happened, which redirects were followed or blocked, whether the final object was signed by the expected trust source, and whether the business decision consumed cached, live, degraded, or incomplete evidence.
 
-#### 12.6 SD-JWT VC Verification Pipeline
+#### 12.6 SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence
 
 The SD-JWT VC verifier receives a presentation selected by the DCQL format router, not an arbitrary string in isolation. It should parse the SD-JWT family first, then apply the RP's profile: whether key binding is required, which `vct` values are accepted, what algorithms are allowed, which status mechanism is expected, and which claims are lawful for the requested purpose.
 
 The SD-JWT VC stage is byte-sensitive and policy-sensitive at the same time. The verifier must preserve exact signed inputs for issuer signatures and disclosure hashes, while also keeping a separate policy view of what was requested, what was disclosed, and what should be redacted. Treating this as a generic JWT validation step loses the selective-disclosure and holder-binding evidence that the RP needs later.
+
+##### 12.6.1 SD-JWT VC Verification Stages
 
 ```mermaid
 flowchart TD
@@ -10991,13 +11091,15 @@ flowchart TD
 | Status | `status.status_list` | verify signed Status List Token, freshness, index, status value | `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_SUSPENDED`, `SDJWT_STATUS_FETCH_FAILED` | URI, index, status value, cache age |
 | Holder binding | `cnf` + KB-JWT | if policy requires binding, verify signature, `typ`, `iat`, `aud`, nonce, `sd_hash` | `KBJWT_MISSING`, `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `KBJWT_NONCE_MISMATCH` | key thumbprint, nonce id, audience |
 
+##### 12.6.2 Key Binding and Disclosure Integrity
+
 > **Important — Hash the Original Disclosure String**
 >
 > For SD-JWT disclosures, hash the exact base64url disclosure string received in the presentation. Do not parse JSON, normalize whitespace, or re-serialize and then hash; re-serialization changes the committed bytes and can turn a valid disclosure into a false mismatch.
 
 Key binding is a policy decision. RFC 9901 allows a verifier to receive either an SD-JWT or an SD-JWT+KB. If the RP profile or credential type requires holder binding, an absent KB-JWT is a verification failure. If the profile intentionally accepts an unbound credential, the result object must record that holder binding was **not required**, not that it passed.
 
-**SD-JWT VC adversarial cases.**
+##### 12.6.3 SD-JWT VC Adversarial Cases
 
 A high-assurance verifier should carry fixture coverage for at least the following SD-JWT VC cases. The point is not to expose all of these details to the user; the point is to prove that the verifier differentiates parse failure, issuer failure, holder-binding failure, trust failure, policy failure, and result-fidelity failure.
 
@@ -11021,11 +11123,13 @@ A high-assurance verifier should carry fixture coverage for at least the followi
 
 Do not infer that a verifier passed SD-JWT VC validation merely because it returned a terminal success status. The result surface must include at least the credential type, issuer trust result, status result, holder-binding result or explicit non-requirement, requested/disclosed claim inventory, policy result, and redaction decision.
 
-#### 12.7 mdoc/COSE/MSO Verification Pipeline
+#### 12.7 mdoc Branch: CBOR, MSO, and SessionTranscript Evidence
 
 The mdoc verifier operates over binary CBOR and COSE structures. It should be implemented with strict CBOR/COSE libraries and bounded input sizes; hand-rolled parsers are not acceptable for high-assurance RP deployments.
 
 The mdoc stage has the same business goal as SD-JWT VC verification but a very different failure surface. Binary parser limits, COSE header handling, MSO value digests, and SessionTranscript reconstruction all have to pass before the RP can trust a document result. The narrative to preserve is: parse safely, verify issuer evidence, reconstruct the session, verify DeviceAuth, then emit a per-document result.
+
+##### 12.7.1 mdoc Verification Stages
 
 ```mermaid
 flowchart TD
@@ -11063,11 +11167,13 @@ flowchart TD
 | SessionTranscript | OpenID4VP or DC API handover inputs | `MDOC_SESSION_TRANSCRIPT_MISMATCH` | nonce, audience/origin class, handover type |
 | DeviceAuth | `deviceSignature` COSE_Sign1 or `deviceMac` COSE_Mac0 | `MDOC_DEVICE_SIG_INVALID`, `MDOC_DEVICE_MAC_INVALID` | auth method and algorithm |
 
+##### 12.7.2 SessionTranscript and DeviceAuthentication
+
 Remote mdoc through OpenID4VP / ISO 18013-7 and proximity mdoc through ISO/IEC 18013-5 share the MSO and DeviceAuth concepts, but the handover material differs. §13 remains the full proximity walkthrough. §12 owns the remote verifier obligation: reconstruct the exact `SessionTranscript` from the request snapshot, topology, nonce, verifier encryption-key thumbprint where applicable, response URI or redirect URI, and DC API origin where that branch is used.
 
 One implementation trap is Tag 24 / `DeviceAuthentication` encoding. The verifier must feed the CBOR/COSE library the exact encoded structure expected by the relevant mdoc profile, not an ad hoc decoded array that happens to contain the same semantic fields.
 
-**mdoc / COSE adversarial cases.**
+##### 12.7.3 mdoc/COSE Adversarial Cases
 
 mdoc verification fails in places that do not exist for JWT-based credentials: binary parser strictness, COSE protected/unprotected header handling, digest namespaces, MSO validity, and `DeviceAuthentication` encoding. The verifier should preserve those failure boundaries rather than collapsing them into "invalid credential."
 
@@ -11089,7 +11195,26 @@ mdoc verification fails in places that do not exist for JWT-based credentials: b
 
 For remote mdoc, the verifier should log enough evidence to reproduce the SessionTranscript inputs without storing the raw CBOR document by default: nonce, client identifier or origin class, response target hash, verifier encryption-key thumbprint where used, handover type, `docType`, namespace names, and device-key thumbprint.
 
-#### 12.8 Status, Revocation, and Freshness
+##### 12.7.4 SD-JWT VC and mdoc Primitive Comparison
+
+Implementers often build SD-JWT VC and mdoc support in different libraries, but the RP result object should still expose comparable verifier dimensions. The table below is the bridge: it does not mean the primitives are byte-equivalent, only that they answer the same verifier question.
+
+| Verifier question | SD-JWT VC surface | mdoc / COSE surface | Common result dimension |
+|:------------------|:------------------|:--------------------|:------------------------|
+| What response branch delivered the credential? | `direct_post.jwt` or `dc_api.jwt` encrypted response containing a DCQL `vp_token` map. | Same OpenID4VP / DC API response envelope, with mdoc presentation value under the query id. | `envelope` and `format_routing`. |
+| What is the credential container? | Issuer-signed JWT plus zero or more disclosures and optional KB-JWT. | CBOR `DeviceResponse` with `documents`, `issuerSigned`, `issuerAuth`, and `deviceSigned`. | `credential_format`, `query_id`, container parse result. |
+| How is issuer authenticity proven? | JWS signature over the issuer JWT using trusted issuer key/certificate material. | COSE_Sign1 over MSO inside `issuerAuth`, with IACA/document-signer trust material. | `issuer_signature`, `issuer_trust`. |
+| How are disclosed attributes protected? | `_sd` digests commit to disclosure strings hashed with `_sd_alg`. | MSO `valueDigests` commit to issuer-signed namespace items. | `attribute_integrity`, disclosed claim/namespace inventory. |
+| How is credential type checked? | `vct`, Type Metadata, `vct#integrity`, and DCQL `vct_values`. | `docType`, namespace/element identifiers, and DCQL `doctype_value` / claim path. | `credential_type`, schema/type policy result. |
+| How is holder binding proven? | KB-JWT signed by the key referenced by `cnf`, including `aud`, nonce, `iat`, and `sd_hash`. | `DeviceAuth` `deviceSignature` or `deviceMac` over reconstructed SessionTranscript using MSO `deviceKeyInfo`. | `holder_binding` with method and key thumbprint. |
+| How is session binding reconstructed? | Request nonce and audience are checked in the KB-JWT; `sd_hash` binds proof to the presented SD-JWT. | SessionTranscript is reconstructed from OpenID4VP or DC API handover material and bound into DeviceAuth. | `session_binding` and replay evidence. |
+| How is status handled? | `status.status_list.uri` and `idx` route to JWT Status List Token verification. | COSE/status equivalent or profile-defined status material routes to CWT/JWT Status List Token verification where available. | `status` result, source, index, cache age. |
+| How are temporal limits enforced? | Issuer JWT `iat`/`nbf`/`exp`, KB-JWT `iat`, request expiry, and status-list freshness. | MSO `validityInfo`, request expiry, status-list freshness, and profile-specific DeviceAuth timing. | `freshness` and clock/skew evidence. |
+| What parser risks dominate? | Tilde segmentation, base64url, duplicate JSON keys, disclosure recursion, JWT header confusion. | CBOR size/depth, duplicate map keys, COSE protected headers, Tag 24 / DeviceAuthentication encoding. | `parser_policy` and resource-limit result. |
+| What policy stage follows cryptography? | DCQL claim paths, predicates, credential sets, over-disclosure, and business policy. | DCQL namespace/element paths, `docType`, predicates where profiled, over-disclosure, and business policy. | `policy_result` separate from `crypto_result`. |
+| What audit evidence should survive redaction? | Token hash, issuer key fingerprint, `vct`, claim names, disclosure count, holder-binding result. | CBOR hash, issuer cert fingerprint, `docType`, namespace names, digest results, DeviceAuth result. | redacted per-credential evidence. |
+
+#### 12.8 Status, Revocation, and Temporal Freshness
 
 Status is a verification stage, not a post-processing decoration. A credential with a valid signature and holder proof may still be unusable if its status evidence is revoked, suspended, stale, unavailable beyond policy, or fetched through an unsafe retrieval path.
 
@@ -11098,6 +11223,8 @@ As of 2026-04-24, the relevant IETF Token Status List baseline is `draft-ietf-oa
 Status handling is a small pipeline inside the larger verifier pipeline: extract the reference, fetch through policy, validate the signed list, evaluate freshness, then map the value into a terminal or continuing state.
 
 The main operational choice is how to handle unavailable or stale evidence without pretending it is the same as a clean status value. Revoked and suspended credentials are negative evidence; blocked, stale, or unreachable status sources are missing evidence. The verifier should encode that difference because it changes retry behavior, user messaging, audit review, and whether high-risk flows must fail closed.
+
+##### 12.8.1 Status Verification Pipeline
 
 ```mermaid
 flowchart LR
@@ -11127,7 +11254,7 @@ flowchart LR
 
 For privacy, high-volume RPs should prefer batch/prefetch models and internal distribution of cached Status List Tokens. Per-presentation fetches can reveal timing signals to issuers or status providers. Where a credential type or risk policy requires fresher evidence, the result object should record the reason for bypassing or tightening ordinary cache policy.
 
-**Status failure modes and policy actions.**
+##### 12.8.2 Status Failure Modes and Policy Actions
 
 Status handling should distinguish "bad status value" from "missing status evidence." These cases lead to different user messaging, retry behavior, and incident triage.
 
@@ -11144,15 +11271,35 @@ Status handling should distinguish "bad status value" from "missing status evide
 | `status_stale` | Status evidence exists but violates signed or policy freshness bounds. | Refresh or fail/degrade by risk profile. | Verification temporarily unavailable. |
 | `status_index_invalid` | Status index is out of range, malformed, or causes unsafe decompression/indexing behavior. | Reject and alert as parser/security failure. | Credential could not be verified. |
 
+##### 12.8.3 Clock, Freshness, and Skew Controls
+
+Time checks should use a single verifier clock source and a documented skew policy. Do not silently widen skew per Wallet, tenant, or credential type to make failing fixtures pass; if a profile needs a broader window, record it as policy.
+
+| Time or freshness input | Applies to | Evaluation rule | Failure / evidence output |
+|:------------------------|:-----------|:----------------|:--------------------------|
+| Request snapshot expiry | All response modes | Response must arrive and reach terminal verification before the retained request expiry, subject only to explicit async policy. | `expired`; request expiry, received time, terminal transition time. |
+| Nonce and `state` lifetime | Direct-post, KB-JWT, mdoc handover, delegated callbacks | Nonce and `state` are single-use and bound to one tenant/session; duplicate use becomes idempotency or replay evidence. | nonce/state consumption result, duplicate id, replay signal. |
+| Response-encryption key retention | `direct_post.jwt`, `dc_api.jwt` | Ephemeral private key remains available only until terminal state or cleanup deadline; it must not be reused across sessions. | key id, cleanup result, unknown/expired key failure. |
+| SD-JWT VC issuer temporal claims | Issuer JWT `iat`, `nbf`, `exp` | Evaluate against the verifier clock and profile-configured skew; preserve whether the claim was absent, present, or policy-required. | `SDJWT_IAT_FUTURE`, `SDJWT_NBF_NOT_YET_VALID`, `SDJWT_EXP_EXPIRED`, skew seconds. |
+| KB-JWT / proof JWT `iat` | Holder binding and issuance-adjacent proofs | Proof must be fresh enough for the request and not materially future-dated; freshness cannot be inferred from signature validity alone. | `KBJWT_CLOCK_SKEW`, stale/future proof, evaluated window. |
+| mdoc MSO `validityInfo` | mdoc issuer evidence | `validFrom` / `validUntil` are evaluated at the verifier's time of interest with configured skew. | `MDOC_VALIDITY_EXPIRED`, not-yet-valid result, evaluated time. |
+| mdoc SessionTranscript material | Remote mdoc and DC API mdoc | Handover inputs must match the current request; stale or proximity-style transcript material is not fresh for a remote session. | `MDOC_SESSION_TRANSCRIPT_MISMATCH`, handover type, nonce/origin evidence. |
+| Status List Token `exp` / `ttl` | SD-JWT VC and mdoc status where profiled | Signed-token freshness controls list use; HTTP cache headers cannot extend signed freshness. | status stale, cache age, token issue/expiry, refresh attempt result. |
+| LoTE, trusted-list, and Type Metadata cache age | Trust resolution and qualified-status conclusions | Cache must be inside signed and RP-policy freshness bounds; ordinary issuer trust and qualified-status evidence have separate freshness paths. | trust cache age, source version, `Indeterminate` or evidence-incomplete result. |
+| Async verifier timeout | Delegated, queued, or slow verification paths | Accepted-for-processing sessions must reach terminal state before timeout or become `stalled`; transport 2xx is not success. | stalled state, elapsed time, last completed gate, alert id. |
+| Audit event timestamp | Result object, SIEM, dispute reconstruction | Every gate uses a consistent clock source and records enough timestamps to reconstruct ordering. | clock source id, verifier node id, event timestamps, skew policy id. |
+
 When multiple credentials are presented, status must be evaluated per credential. A valid PID status does not rescue a revoked mandate credential; a stale supplementary attestation status may make only that business-policy branch unavailable. The combined result should record whether the whole presentation failed, a required credential failed, an optional credential was ignored, or a fallback credential-set option remains satisfiable.
 
-#### 12.9 Holder Binding, Combined Presentations, and Cross-Format Keys
+#### 12.9 Holder Binding, Combined Presentations, and Transaction Intent
 
 Holder binding answers a narrow cryptographic question: did the presenter possess the private key bound to this credential for this verifier session? It is an input to user binding, not a complete proof that the human user is the lawful subject in every business context.
 
 Keep holder binding at the engine boundary and combined-presentation semantics at the policy boundary.
 
 This stage deliberately stops short of business identity conclusions. The engine can say whether a KB-JWT or mdoc DeviceAuth proof was present, valid, and bound to the exact request; §18 or the RP policy layer decides what that means for same-person, same-wallet, mandate, or payment intent. Keeping those layers separate prevents device possession from being mistaken for full authorization.
+
+##### 12.9.1 Holder-Binding Evidence
 
 ```mermaid
 flowchart TD
@@ -11176,12 +11323,14 @@ flowchart TD
 | SD-JWT VC single credential | KB-JWT signature over `sd_hash`, nonce, and audience using `cnf.jwk`. | Verification Checklist for SD-JWT VC ([§11.3](#113-verification-checklist-for-sd-jwt-vc)). |
 | mdoc single credential | `DeviceAuth` signature/MAC over the reconstructed `SessionTranscript` using MSO `deviceKeyInfo`. | Verification Checklist for mdoc ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)); Proximity Presentation Flows ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). |
 | Multiple SD-JWT VCs | Verify each credential independently; compare holder-binding keys only if the credential/profile supports that same-wallet claim. | Combined Presentations ([§18](#18-combined-presentations-lpid-and-mandate-credentials)). |
-| SD-JWT VC + mdoc | Verify both independently; compare cross-format key material only where a profile defines how to bridge JWK and COSE keys. | Combined Presentations ([§18](#18-combined-presentations-lpid-and-mandate-credentials)); mdoc / COSE details in [§12.7](#127-mdoccosemso-verification-pipeline). |
+| SD-JWT VC + mdoc | Verify both independently; compare cross-format key material only where a profile defines how to bridge JWK and COSE keys. | Combined Presentations ([§18](#18-combined-presentations-lpid-and-mandate-credentials)); mdoc / COSE details in [§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence). |
 | Payment/SCA transaction | Verify holder binding plus transaction-data or intent-binding material where TS12/OpenID4VP profile requires it. | SCA for Electronic Payments ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); SCA Programme ([§24.4](#244-sca-programme-issuance-presentation-dynamic-linking-and-rts-evidence)). |
+
+##### 12.9.2 Combined-Presentation and Transaction-Binding Handoff
 
 For combined presentations, §12 emits the per-credential evidence: issuer result, status result, holder-binding result, disclosed claim names, and key fingerprints where retention policy allows. §18 decides whether those credentials satisfy same-person, same-wallet, person-to-entity, or mandate-authority policy.
 
-**Holder-binding policy matrix.**
+##### 12.9.3 Holder-Binding Policy Matrix
 
 The verifier should never report "holder binding passed" when the credential was intentionally unbound or when the profile did not require binding. Use explicit values.
 
@@ -11194,6 +11343,8 @@ The verifier should never report "holder binding passed" when the credential was
 | `not_evaluated` | Earlier parser/envelope failure prevented meaningful holder-binding evaluation. | Do not infer anything about holder possession. |
 | `indeterminate` | Required trust or metadata needed to evaluate binding was unavailable. | Fail closed or route to fallback by risk profile. |
 
+##### 12.9.4 Cross-Credential Comparison Boundaries
+
 Cross-credential comparison is also policy-sensitive:
 
 | Comparison | Safe engine output | Avoid |
@@ -11204,13 +11355,15 @@ Cross-credential comparison is also policy-sensitive:
 | Mandate credential to PID/LPID | Per-credential checks plus mandate-scope evidence for §18 policy. | Letting a valid mandate credential bypass PID/LPID identity matching. |
 | Payment/SCA evidence | Holder binding plus transaction/intent binding. | Treating device possession alone as PSD2 dynamic-linking evidence. |
 
-#### 12.10 Failure Semantics and Verification Signals
+#### 12.10 Failure Semantics and External Error Contracts
 
 A verifier should separate external messages from internal diagnostic precision. Users and Wallets should receive generic, non-oracular failures; internal audit, SIEM, and support tooling should receive exact signals and per-check outcomes.
 
 Failure handling should be read as a classifier before it is read as a table of codes.
 
 The point of the classifier is to preserve the first meaningful boundary that failed. Intake failures should not masquerade as credential failures; missing trust evidence should not look like revocation; and a policy miss should not imply that the credential itself is fraudulent. That classification gives operations teams useful signals while keeping user-facing responses deliberately bland.
+
+##### 12.10.1 Failure Classifier
 
 ```mermaid
 flowchart TD
@@ -11248,7 +11401,7 @@ flowchart TD
 
 Aggregate validation is useful only where later checks remain meaningful. If JWE decryption fails, no credential checks can run. If a token is parseable but holder binding fails, status and policy checks may still be evaluated if the RP wants a richer VSI record. The result object should mark skipped checks as `not_evaluated` or `skipped_due_to_prerequisite_failure`, not silently omit them.
 
-**Failure-state handling matrix.**
+##### 12.10.2 Failure-State Handling Matrix
 
 | Final state | Meaning | Retry / fallback behavior | Audit requirement |
 |:------------|:--------|:--------------------------|:------------------|
@@ -11260,15 +11413,19 @@ Aggregate validation is useful only where later checks remain meaningful. If JWE
 | `stalled` | Transport accepted but no terminal verifier decision occurred before timeout. | Alert and route to fallback; do not treat as neutral. | Store last state, elapsed time, timeout policy, and missing transition. |
 | `verified` | All required checks passed and policy is satisfied. | Business handoff can proceed. | Store per-check result, policy id/version, and redaction decisions. |
 
+##### 12.10.3 External Error Contracts
+
 External error contracts should be stable but not attacker-oracular. For example, a user-facing message can say "credential could not be verified" while the internal result records `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_NONCE_MISMATCH`, or `MDOC_SESSION_TRANSCRIPT_MISMATCH`. Wallet-facing protocol errors should follow the relevant protocol, but support, SIEM, and audit surfaces should carry the precise verifier signal.
 
-#### 12.11 Verification Result Object and Audit Evidence
+#### 12.11 Canonical Verification Result and Audit Evidence
 
 The verifier's output should be a decision-grade result object shared by APIs, webhooks, operator UI, audit trails, and SIEM emission. A single lifecycle status such as `complete`, `success`, or `verified` is not enough unless it can be reconciled to per-check evidence.
 
 The result object is the hub. Every reporting surface can redact differently, but each should derive from the same canonical evidence bundle.
 
 This is the stage where the verifier stops being a protocol adapter and becomes an accountable decision system. The result object should be complete enough for a future reviewer to understand which request was answered, which checks ran, which checks were skipped, which policy version applied, and what data was intentionally not retained. Without that object, downstream systems can only report lifecycle labels, not verification evidence.
+
+##### 12.11.1 Canonical Result Object
 
 ```mermaid
 flowchart LR
@@ -11344,9 +11501,43 @@ flowchart LR
 }
 ```
 
+##### 12.11.2 Result Schema and Enum Contract
+
+The example above is illustrative. Production implementations should treat the result object as a versioned contract with stable enums, not as a free-form JSON log. New fields can be added compatibly, but existing state and check-result meanings should not drift between API, webhook, UI, audit, and SIEM surfaces.
+
+| Field group | Required content | Stable values or shape | Why it matters |
+|:------------|:-----------------|:-----------------------|:---------------|
+| Schema and identity | `result_schema_version`, `canonical_result_id`, `session_id`, `transaction_id` where used. | Versioned string plus opaque ids. | Lets downstream systems parse the object and reconcile all reporting surfaces to one result. |
+| Tenant and RP context | `tenant_id`, RP/legal-entity id where applicable, endpoint ownership class. | Opaque ids plus `rp_owned`, `delegated`, `vendor_owned`, or `mixed` ownership labels. | Prevents cross-tenant result lookup, trust-source bleed, and facade ambiguity. |
+| Transaction state | Current state and terminal boolean. | Non-terminal: `accepted`, `verification_running`; terminal: `intake_rejected`, `verified`, `verification_failed`, `evidence_incomplete`, `expired`, `duplicate`, `stalled`. | Prevents transport acceptance from being treated as verification success. |
+| Failure and policy class | `failure_class`, `retryable`, `policy_action`, `user_message_class`. | `none`, `intake`, `session_binding`, `parser`, `crypto`, `trust`, `status`, `holder_binding`, `dcql_policy`, `privacy`, `tenant_policy`, `timeout`, `evidence`. | Lets support, audit, and user-facing surfaces explain the same terminal state at different detail levels. |
+| Request evidence | response mode, request-object hash, nonce/state consumption result, query ids, accepted formats, policy id/version. | Hashes and ids by default; raw request material only under controlled retention. | Proves which request the Wallet answered and which policy was in force. |
+| Credential results | array keyed by query id and credential index. | Each item records `format`, `credential_type`, issuer, trust, status, holder binding, disclosure, and policy summaries. | Supports combined presentations and partial failures without flattening evidence. |
+| Per-check results | stage/check id, result, prerequisite, signal id, evidence completeness. | `pass`, `fail`, `indeterminate`, `not_required`, `not_evaluated`, `skipped_due_to_prerequisite_failure`. | Makes skipped and unavailable checks explicit instead of silently missing. |
+| Algorithms and keys | observed algorithms, accepted policy id, key/cert fingerprints, trust source. | Fingerprints and policy ids, not private/session keys. | Supports algorithm-downgrade detection and future audits. |
+| Freshness and clock | evaluated timestamps, clock source, skew policy, cache ages. | ISO 8601 timestamps plus bounded numeric durations. | Reconstructs temporal decisions and detects clock/environment anomalies. |
+| Redaction and retention | raw-artifact retention flags, evidence bundle reference, attribute value logging flag. | `raw_credential_stored`, `raw_disclosures_stored`, `attribute_values_logged`, `retention_class`. | Enforces privacy and makes deviations auditable. |
+| Surface parity | API/webhook/UI/audit/SIEM parity status. | `complete`, `redacted`, `delayed`, `not_available`, with reason where not complete. | Detects product or integration surfaces that report terminal states without decision-grade evidence. |
+
+The following enum meanings should be stable across implementations:
+
+| Enum | Meaning | Not equivalent to |
+|:-----|:--------|:------------------|
+| `pass` | The check ran and satisfied the applicable requirement. | `not_required`; an intentionally skipped check is not a pass. |
+| `fail` | The check ran and found negative evidence. | `indeterminate`; missing evidence is not the same as failure. |
+| `indeterminate` | The verifier could not obtain or trust required evidence within policy. | `pass` with degraded confidence. |
+| `not_required` | The RP profile explicitly did not require the check for this credential or journey. | Absence of implementation support. |
+| `not_evaluated` | A prerequisite failure made the check meaningless. | A silent omission. |
+| `skipped_due_to_prerequisite_failure` | The verifier deliberately skipped a later check after an earlier fail-fast boundary. | A successful aggregate validation. |
+| `verified` | All required checks passed and policy was satisfied. | Transport `accepted` or delegated callback receipt. |
+| `evidence_incomplete` | Required evidence could not be safely obtained, retained, or reconciled. | A revoked or cryptographically invalid credential. |
+| `stalled` | The verifier accepted processing but did not reach a terminal decision before timeout. | A neutral pending state that business logic may treat as success. |
+
+##### 12.11.3 Evidence Bundle
+
 Evidence should include:
 
-- per-credential and per-check outcome: `pass`, `fail`, `indeterminate`, `not_required`, or `not_evaluated`;
+- per-credential and per-check outcome: `pass`, `fail`, `indeterminate`, `not_required`, `not_evaluated`, or `skipped_due_to_prerequisite_failure`;
 - trust source and key/certificate fingerprints, not raw key material by default;
 - status-list URI/index evidence hashed or otherwise protected;
 - algorithms accepted and algorithms observed;
@@ -11356,7 +11547,7 @@ Evidence should include:
 - VSI signal ids and severity where applicable;
 - policy id/version and clock source/skew decisions.
 
-**Artifact retention and privacy posture.**
+##### 12.11.4 Artifact Retention and Privacy Posture
 
 The verifier should define retention classes per artifact type before production. "Do not log values" is not enough; implementers need to know whether an artifact may be retained raw, retained only as a hash, retained for a short diagnostic window, or never stored outside volatile processing.
 
@@ -11371,7 +11562,7 @@ The verifier should define retention classes per artifact type before production
 | Nonce, `state`, request URI, response URI | Retain hashes, endpoint ownership class, consumption result, expiry, and duplicate evidence. | These values are session secrets or replay handles. | Plain values may exist only in the active session store until terminal state. |
 | Audit and SIEM event | Emit stable signal ids, severity, policy version, and redacted evidence. | Operations need searchable signals without raw credentials or attacker-oracular text. | Escalated incident channels may attach encrypted evidence bundles with retention timers. |
 
-**Result fidelity and surface parity.**
+##### 12.11.5 Result Fidelity and Surface Parity
 
 Every surface that reports a verification outcome should derive from the same result object. An operator UI, audit export, webhook, result API, and SIEM event may redact different fields, but they should not disagree about whether a credential was verified, which query id it satisfied, which policy version ran, or why a presentation failed.
 
@@ -11384,7 +11575,7 @@ Every surface that reports a verification outcome should derive from the same re
 | Audit export | Preserves request snapshot hash, state transitions, verifier version, and redacted result evidence. | Audit records cannot connect request initiation to terminal verification result. |
 | SIEM/VSI event | Emits stable internal signal ids and severity without raw PII by default. | Alert contains exact attacker-oracular failure text or raw credential values. |
 
-**Tenant, facade, and callback isolation.**
+##### 12.11.6 Tenant, Facade, and Callback Isolation
 
 Many RP deployments will place a verifier behind an intermediary, connector, reverse proxy, or multi-tenant facade. The verifier engine still needs a first-class tenant/RP context; it cannot rely on hostnames, callback URLs, or management API credentials alone as implicit partitioning.
 
@@ -11403,11 +11594,13 @@ Facade deployments also need to distinguish callback ownership from wallet-facin
 >
 > Do not use `cnf.jwk` thumbprints, status-list indices, disclosure salts, JWT IDs, device keys, certificate serials, or issuer signature bytes as long-term user correlation identifiers unless a lawful, documented RP policy explicitly permits it. Store hashes or short-lived evidence where possible.
 
-#### 12.12 Conformance, Test Fixtures, and Operational Gates
+#### 12.12 Conformance Fixtures and Operational Release Gates
 
 Verifier quality should be proven through fixtures, not only by manual interoperability tests. The fixture catalogue should include known-good presentations, known-bad presentations, parser fuzzing, async state transitions, tenant isolation, and result-fidelity assertions.
 
 The fixture catalogue should mirror the verifier architecture, so each stage has both positive fixtures and adversarial fixtures.
+
+##### 12.12.1 Fixture Catalogue
 
 ```mermaid
 ---
@@ -11430,7 +11623,7 @@ flowchart LR
     E --> F
 ```
 
-**Parser and resource-exhaustion hardening.**
+##### 12.12.2 Parser and Resource-Exhaustion Hardening
 
 Malformed inputs should be tested as first-class verifier behavior rather than left to library defaults. The goal is not only to reject bad input, but to reject it predictably, cheaply, and without leaking parser internals.
 
@@ -11444,6 +11637,8 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 | Status list and compressed data | Enforce URI policy, content type, signature before use, compressed-size ratio, index bounds, and cache freshness. | Zip/decompression bomb, out-of-bounds index, unsigned list, private-IP redirect, stale signed token. |
 | Trust metadata retrieval | Enforce allowlists, TLS, redirect count, DNS rebinding defense, content length/type, and parse timeout. | Attacker `jku`/`x5u`, looped redirects, private-address metadata, oversized JWKS, HTML instead of JSON. |
 | Callback/result API input | Require authentication, replay/idempotency key, tenant binding, schema validation, and terminal-state preconditions. | Unsigned callback, sibling-tenant session id, duplicate after terminal state, out-of-order failure after verified. |
+
+##### 12.12.3 Verifier Fixture Families
 
 | Fixture family | Positive fixture | Negative fixture | Evidence assertion |
 |:---------------|:-----------------|:-----------------|:-------------------|
@@ -11463,54 +11658,55 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 | Rate limit and double submission | Bounded invalid bursts do not degrade valid traffic; duplicate submissions are idempotent. | Invalid burst has no measurable throttle and harms valid traffic; double submission causes duplicate side effects. | Rate-limit decision, retry-after evidence, duplicate submission result. |
 | Issuance-adjacent verifier reuse | Proof signature, nonce, audience, `iat`, DPoP `jti`, and key-attestation checks pass before issuance handoff. | Tampered proof, wrong nonce/audience, stale `iat`, `alg=none`, replay, PIN/session mix-up, cross-tenant subject override. | Proof-check result, replay decision, session-binding evidence, tenant policy result. |
 
-Operational gates:
+##### 12.12.4 Issuance-Adjacent Negative Fixtures
 
-1. Pin verifier libraries and track SBOM exposure for JOSE, COSE, CBOR, compression, DEFLATE/ZLIB, X.509, and URL parsing dependencies.
-2. Run known-good, known-bad, parser-fuzz, async-state, tenant-isolation, and result-fidelity fixtures in CI.
-3. Keep status-list, trust-cache, Type Metadata, LoTE, and trusted-list fixtures independent from live network availability.
-4. Keep at least one live interoperability suite, but do not let live-vendor instability replace deterministic fixtures.
-5. Require release approval when algorithm allowlists, trust-source fetchers, status retrieval, request-object lifecycle, result-object schema, or callback authentication changes.
-6. Drill a bad-verifier release: rollback, blocklist affected version, reconcile affected verification results, and identify which business decisions consumed incomplete evidence.
-7. Add regression tests for every production incident, conformance failure, or connector-evaluation failure that could have led to an accepted-invalid or accepted-stalled presentation.
+Issuance-adjacent verifier reuse needs the same negative-fixture discipline as presentation verification. The issuance flow may be owned by §15, but the proof and attestation gates still need deterministic verifier failures before any credential issuance, onboarding, or device admission step proceeds.
 
-#### 12.13 Implementation Checklist
+| Proof / issuance-adjacent case | Verifier-engine requirement | Result class |
+|:--------------------------------|:-----------------------------|:-------------|
+| Proof JWT signature bytes tampered | Verify proof over exact signed input using the declared wallet key. | proof-signature failure. |
+| Proof JWT carries wrong nonce or `c_nonce` | Bind the proof to the current issuance or onboarding session. | session-binding failure. |
+| Proof JWT carries wrong audience | Bind the proof to the expected issuer/verifier endpoint, not only to a broad tenant domain. | audience-binding failure. |
+| Proof JWT has stale or future `iat` | Apply clock and skew policy and record the evaluated time window. | freshness failure. |
+| Proof JWT uses `alg=none` or an unsupported algorithm | Enforce proof algorithm allowlist. | algorithm-policy failure. |
+| DPoP or equivalent proof `jti` replay | Deduplicate sequential and concurrent replays for the proof lifetime. | replay failure. |
+| Pre-authorized code is paired with another session's PIN/transaction code | Bind transaction code, access token, proof, and credential configuration to the same session. | session-mix-up failure. |
+| Credential configuration id differs from the authorized session | Reject even if access token and proof are otherwise well formed. | policy or authorization failure. |
+| Cross-tenant subject override before auth credential issuance | Reject caller-supplied subject material outside the issuing tenant's namespace. | tenant-policy failure. |
 
-The checklist is a release gate, not the chapter's primary explanation. Read it as the compressed implementation view of the diagrams and evidence contract above.
+##### 12.12.5 Requirement-to-Evidence Traceability
 
-```mermaid
-flowchart LR
-    A["Parser and algorithm gates"]
-    B["Request/session gates"]
-    C["Credential and trust gates"]
-    D["Policy and result gates"]
-    E["Observability and privacy gates"]
-    F["Verifier release approval"]
+Every release gate should trace a requirement or RP policy choice to a verifier stage, deterministic fixtures, result-object evidence, and downstream signal or audit output. This prevents prose-only requirements from being lost between standards analysis, implementation, and monitoring.
 
-    A --> B --> C --> D --> E --> F
-```
+| Requirement or policy source | Verifier stage | Positive fixture | Negative fixture | Result-object field | Signal / audit output | Primary cross-reference |
+|:-----------------------------|:---------------|:-----------------|:-----------------|:--------------------|:----------------------|:------------------------|
+| HAIP encrypted response profile and topology-specific response modes | Envelope and session binding | Valid `direct_post.jwt` form response and valid `dc_api.jwt` response for the same DCQL request. | Unencrypted success response, unsupported JWE `alg`/`enc`, unknown `kid`, or response submitted to wrong branch. | `envelope.response_mode`, `envelope.jwe_alg`, `envelope.kid_match`. | `JWE_DECRYPT_FAILED`, `JWE_ALG_UNEXPECTED`, response-mode audit event. | HAIP Requirements for RPs (§8.3); Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)). |
+| Single-use request snapshot, nonce, and tenant binding | Request snapshot and intake state | Response matches retained request-object hash, nonce, `state` or origin, response target, tenant, and expiry. | Reused nonce, wrong `state`, expired snapshot, sibling-tenant session id, or callback compared against mutable policy. | `request.snapshot_hash`, `binding.nonce_result`, `tenant_id`, `transaction_state`. | `JARM_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, duplicate/expired audit event. | Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)); RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)). |
+| DCQL query-id, format, cardinality, and minimization policy | Format router and policy evaluation | `vp_token` map satisfies known query ids, expected formats, cardinality, required claims, and minimization. | Unknown query id, wrong format, `multiple=false` violation, missing required claim, or over-disclosure. | `credentials[].query_id`, `policy_result`, `disclosure.over_disclosure`. | `DCQL_QUERY_ID_UNKNOWN`, `DCQL_FORMAT_MISMATCH`, `DISCLOSURE_POLICY_VIOLATION`. | Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)); DCQL Query Model ([§17](#17-dcql-query-language-and-request-construction)). |
+| SD-JWT VC issuer authenticity, disclosure integrity, and key-binding policy | SD-JWT VC verifier | Trusted issuer JWT, valid disclosures, accepted `vct`, fresh status, and valid KB-JWT where required. | `alg=none`, invalid issuer signature, duplicate disclosure digest, missing required KB-JWT, wrong `sd_hash`, or wrong `aud`. | `issuer_trust`, `disclosure`, `holder_binding`, `credential_type`. | `SDJWT_SIG_INVALID`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_AUD_MISMATCH`. | SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)); Verification Checklist for SD-JWT VC ([§11.3](#113-verification-checklist-for-sd-jwt-vc)). |
+| mdoc issuerAuth, MSO, DeviceAuth, and remote handover policy | mdoc / COSE verifier | Valid DeviceResponse, trusted issuerAuth/MSO, value digests, and DeviceAuth over reconstructed remote SessionTranscript. | CBOR parse failure, wrong `docType`, MSO expired, digest mismatch, malformed Tag 24, or proximity transcript used in remote flow. | `mdoc.docType`, `issuer_trust`, `attribute_integrity`, `holder_binding.session_transcript`. | `MDOC_CBOR_PARSE_ERROR`, `MDOC_MSO_SIG_INVALID`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`. | mdoc Branch: CBOR, MSO, and SessionTranscript Evidence ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)); Proximity Presentation Flows ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). |
+| Status and freshness requirement for the credential type | Status verifier | Fresh signed Status List Token, allowed retrieval path, in-bounds index, and valid status value. | Revoked/suspended value, unsafe status URI, stale signed token, invalid signature, decompression bomb, or out-of-bounds index. | `status.result`, `status.uri_hash`, `status.index_hash`, `status.cache_age_seconds`. | `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_FETCH_FAILED`, status-freshness audit event. | Status, Revocation, and Temporal Freshness ([§12.8](#128-status-revocation-and-temporal-freshness)); Status List Verification Deep-Dive (Appendix B). |
+| ECCG/profile algorithm governance and key-source control | Trust material and algorithm governance | Each JOSE/COSE/status/proof surface uses an allowed algorithm and governed key source. | Symmetric/asymmetric confusion, `alg=none`, rogue `jku`/`x5u`, unsupported COSE algorithm, or wrong trust root. | `algorithms_observed`, `algorithms_accepted`, `trust_source`, `retrieval_policy`. | `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`. | ARF Algorithm Governance: ECCG v2.0 Allowlist ([§8.3.2](#832-arf-algorithm-governance-eccg-v20-allowlist)); Trust Material, Status Sources, and Algorithm Governance ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)). |
+| Holder binding and transaction or intent binding policy | Holder-binding stage | KB-JWT or DeviceAuth proof binds the credential to this request, and transaction-data evidence matches where profiled. | Missing proof where required, stale proof, wrong nonce/audience, transcript mismatch, or transaction hash mismatch. | `holder_binding.result`, `transaction_binding`, `proof_iat_window`. | `KBJWT_NONCE_MISMATCH`, `MDOC_DEVICE_SIG_INVALID`, transaction-binding audit event. | Holder Binding, Combined Presentations, and Transaction Intent ([§12.9](#129-holder-binding-combined-presentations-and-transaction-intent)); SCA for Electronic Payments ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)). |
+| Canonical result object and surface parity | Result object and audit emission | API, webhook, UI, audit export, and SIEM all reference the same canonical result id and schema version. | Terminal label without parsed evidence, API/UI disagreement, webhook success while result API is pending, or missing audit snapshot. | `canonical_result_id`, `result_schema_version`, `surface_parity`, `evidence_completeness`. | result-fidelity defect, SIEM correlation event, audit parity alert. | Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)); Audit Trail Requirements ([§31.3](#313-audit-trail-requirements)). |
+| Tenant/facade isolation in delegated verifier deployments | Intake, trust, callback, and result partitioning | Tenant-scoped request state, keys, trust stores, callback authentication, result APIs, audit records, and subject namespace. | Cross-tenant trust anchor, sibling callback target, result enumeration, wallet-login subject impersonation, or vendor-owned wallet-facing URL hidden from RP risk model. | `tenant_id`, `endpoint_ownership`, `partition_result`, `subject_namespace`. | tenant-policy failure, cross-tenant access audit event. | RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)); Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)). |
+| Issuance-adjacent verifier reuse before RP issuance or onboarding | Proof and attestation gates | Inbound PID/QEAA, WUA/WIA, key attestation, proof JWT, DPoP `jti`, nonce/`c_nonce`, and tenant policy pass before issuance handoff. | Tampered proof, wrong `c_nonce`, stale `iat`, replayed DPoP `jti`, PIN/session mix-up, or cross-tenant subject override. | `proof_check`, `attestation_result`, `replay_result`, `tenant_policy`. | proof replay signal, issuance-gate audit event. | OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)). |
 
-| Area | Checklist |
-|:-----|:----------|
-| Parser safety | Use strict JOSE/COSE/CBOR libraries; reject duplicate JSON keys where policy requires; enforce base64url, token size, CBOR size, disclosure count, recursion depth, decompression size, and URL length limits. |
-| Algorithm governance | Maintain allowlists for JWE `alg`/`enc`, JWS `alg`, COSE algorithms, curves, key types, proof JWT algorithms, and trust-source constraints; reject `none`, symmetric confusion, and unsupported encryption modes. |
-| Request snapshot | Persist nonce, state, response mode, response URI/origin, request object hash, DCQL query, accepted formats, accepted algorithms, tenant id, expiry, transaction data, ephemeral key id, and verifier version until terminal state. |
-| Request lifecycle | Enforce `request_uri` entropy, expiry, prefetch tolerance, enumeration resistance, by-value/by-reference integrity, and immutable callback comparison against the retained snapshot. |
-| Envelope handling | Distinguish `direct_post.jwt`, `dc_api.jwt`, unencrypted error responses, delegated callbacks, and connector/facade surfaces; never treat transport 2xx as verification success. |
-| URL ownership | Record wallet-facing `request_uri`, wallet-facing response target, verifier identity URL, callback URL, post-wallet return URL, and result/audit URL ownership class where facade deployment matters. |
-| Format routing | Route by DCQL query id and expected format before credential-specific validation; record unknown ids, wrong formats, cardinality violations, and credential-set failures. |
-| SD-JWT VC | Validate issuer signature, `typ`, `vct`, Type Metadata, `x5c`/DID trust material, disclosures, salt/digest hygiene, temporal claims, status, `cnf`, KB-JWT, `aud`, nonce, `iat`, and `sd_hash`. |
-| mdoc | Validate CBOR, `docType`, namespaces, `issuerAuth`, certificate chain, MSO, `validityInfo`, value digests, DeviceAuth, Tag 24 `DeviceAuthentication`, SessionTranscript, and status/freshness. |
-| Status/freshness | Prioritize signed-token `exp`/`ttl`, cache safely, block unsafe retrieval, bound decompression and index access, distinguish revoked/suspended/stale/unavailable, and record retrieval/cache evidence. |
-| Trust retrieval | Govern issuer metadata, JWKS, Type Metadata, status, LoTE, and trusted-list retrieval with allowlists, TLS validation, content types, size limits, redirect rules, DNS rebinding defense, and cache provenance. |
-| Holder binding | Emit `pass`, `fail`, `not_required`, or `not_evaluated`; require explicit policy for unbound credentials and record cross-format key evidence only where a profile supports it. |
-| Policy after crypto | Separate cryptographic verification from DCQL/policy satisfaction, predicates, schema/type filters, credential-set logic, data minimization, and business authorization. |
-| Async state | Model intake, running, verified, failed, indeterminate, expired, duplicate, and stalled states; make duplicates idempotent and alerts explicit for accepted-but-stalled sessions. |
-| Result object | Emit decision-grade per-check evidence shared by APIs, webhooks, UI, audit export, and SIEM; a terminal label alone is insufficient. |
-| Tenant/facade isolation | Scope request state, keys, trust stores, callbacks, webhooks, result APIs, audit records, and subject mapping to tenant/RP boundaries. |
-| Issuance-adjacent reuse | Reuse verifier result vocabulary for inbound PID/QEAA checks, Wallet/key-attestation checks, proof JWT validation, DPoP replay checks, PIN/session binding, and deferred handoff evidence. |
-| Observability | Emit stable internal failure codes, VSI signals, redacted audit evidence, versioned policy ids, clock/skew decisions, and transaction-state transitions. |
-| Privacy | Log claim names and outcomes by default, not attribute values or raw credentials; hash or redact status indices, salts, certificate serials, keys, and raw cryptographic identifiers. |
-| Cross-references | Keep detailed issuance, authentic-source, SDK, architecture, threat, signal, monitoring, and audit material in their dedicated chapters, but ensure §12 emits the evidence they consume. |
+##### 12.12.6 Operational Release Gates
+
+The fixture catalogue becomes operational only when it can stop a bad verifier release. A high-assurance RP should treat verifier release approval as an evidence decision: the release candidate either proves that the verifier can reject bad inputs, preserve tenant boundaries, emit a canonical result, and recover from faults, or it does not ship.
+
+**Fixture evidence gate.** The first gate is deterministic fixture evidence. Known-good, known-bad, parser and resource-exhaustion, async-state, tenant-isolation, result-fidelity, and issuance-adjacent verifier fixtures should run in CI against the exact verifier build, policy bundle, trust-cache snapshot, and result schema version proposed for release. A passing gate produces a fixture run id, verifier version, policy version, and evidence summary that can be attached to the release record. A failing gate blocks release even if a live wallet happens to complete one happy-path presentation.
+
+**Trust and status data gate.** The second gate is reproducible trust evidence. LoTE material, trusted lists, Type Metadata, issuer metadata, and Status List Tokens should be versioned, freshness-checked, and testable without depending on live network availability. If a release changes cache policy, retrieval policy, freshness windows, status interpretation, or trusted-list processing, the release evidence should show both the old and new behavior against deterministic fixtures. Network availability can be an operational condition; it cannot be the only proof that the trust pipeline works.
+
+**Algorithm and dependency gate.** The third gate treats verifier dependencies as part of the cryptographic surface. JOSE, COSE, CBOR, compression, X.509, URL parsing, DNS/HTTP retrieval, and metadata parsing libraries should be reviewed alongside algorithm allowlists, key-source policy, and status retrieval behavior. A release that upgrades one of these components should carry SBOM and vulnerability evidence, fixture deltas, and an explicit approval record for any accepted algorithm, parser, or retrieval-policy change.
+
+**Interoperability and delegation gate.** The fourth gate checks that deterministic evidence still matches live ecosystem behavior. At least one live Wallet, browser/OS credential API branch, or delegated-verifier integration should be exercised before release where the deployment depends on that path. Live interoperability does not replace fixtures; it proves that fixture assumptions have not drifted away from production protocol behavior, connector callbacks, or wallet-facing response modes.
+
+**Incident and rollback gate.** The final gate asks what happens if the verifier is wrong after release. The release record should identify how to roll back the verifier version, blocklist an affected build, reconcile verification results that consumed incomplete or incorrect evidence, and create a regression fixture for every production incident, conformance failure, or connector-evaluation failure. A release that cannot be rolled back, explained, or converted into a deterministic regression is not ready for high-assurance use.
+
+Release approval should therefore be based on artifacts, not confidence: fixture evidence, trust-cache versions, dependency review, live interop notes, rollback instructions, and audit reconstruction inputs. The release gate is where §12's verifier contract becomes enforceable in engineering operations.
 
 ---
 
@@ -14060,25 +14256,25 @@ config:
     rankSpacing: 40
 ---
 flowchart TD
-    subgraph RP["`**RP\u0026nbsp;(PSP\u0026nbsp;/\u0026nbsp;Verifier)**`"]
-        A["`**1.\u0026nbsp;Build\u0026nbsp;Request**
+    subgraph RP["`**RP (PSP / Verifier)**`"]
+        A["`**1. Build Request**
         Include *transaction_data*
         in OpenID4VP request`"]
-        D["`**4.\u0026nbsp;Verify\u0026nbsp;Dynamic\u0026nbsp;Linking**
+        D["`**4. Verify Dynamic Linking**
         Check KB-JWT signature
         + *transaction_data_hashes*
         = PSD2 auth code bound
         to amount + payee`"]
     end
 
-    subgraph WALLET["`**Wallet\u0026nbsp;Unit**`"]
-        B["`**2.\u0026nbsp;Display\u0026nbsp;Transaction**
+    subgraph WALLET["`**Wallet Unit**`"]
+        B["`**2. Display Transaction**
         Render amount + payee
         under TS12 / profile rules *(SUA_01, SUA_06)*`"]
     end
 
-    subgraph USER["`**User\u0026nbsp;+\u0026nbsp;WSCA/WSCD**`"]
-        C["`**3.\u0026nbsp;Approve\u0026nbsp;\u0026amp;\u0026nbsp;Sign**
+    subgraph USER["`**User + WSCA/WSCD**`"]
+        C["`**3. Approve & Sign**
         User approves → WSCA signs
         KB-JWT including
         *transaction_data_hashes* *(SUA_05)*`"]
@@ -21892,7 +22088,7 @@ Every OpenID4VP verification interaction is a **stateful session** with a define
 
 ##### 26.5.1 Session Lifecycle States
 
-The lifecycle below is an **architecture/session view**, not a replacement for the verifier-engine state model. The canonical terminal states and evidence requirements live in Cryptographic Verification Pipeline Deep-Dive ([§12](#12-cryptographic-verification-pipeline-deep-dive)), especially Failure Semantics and Verification Signals ([§12.10](#1210-failure-semantics-and-verification-signals)) and Verification Result Object and Audit Evidence ([§12.11](#1211-verification-result-object-and-audit-evidence)). Architecture code can expose simpler UI/session states, but it should map them back to §12's decision-grade result object before any business decision consumes the result.
+The lifecycle below is an **architecture/session view**, not a replacement for the verifier-engine state model. The canonical terminal states and evidence requirements live in Cryptographic Verification Pipeline Deep-Dive ([§12](#12-cryptographic-verification-pipeline-deep-dive)), especially Failure Semantics and External Error Contracts ([§12.10](#1210-failure-semantics-and-external-error-contracts)) and Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)). Architecture code can expose simpler UI/session states, but it should map them back to §12's decision-grade result object before any business decision consumes the result.
 
 | Architecture state | Trigger | RP action | §12 mapping |
 |:-------------------|:--------|:----------|:-------------------|
@@ -22930,7 +23126,7 @@ The main architecture arguments are summarised below:
 | 2 | **PID and authentication results must bind to the same product journey** — a valid presentation is only useful if it is tied to the correct user session, account, transaction, or recovery flow. The orchestrator preserves that RP-side binding across identification, step-up, and downstream decisioning. | Pseudonym and attribute flow ([§16.7](#167-use-case-b-pseudonym-and-attributes-age-verification)); progressive assurance journey ([§16.13](#1613-progressive-assurance-register-low-verify-identity-authenticate-high)); payment-SCA evidence ([§24.4](#244-sca-programme-issuance-presentation-dynamic-linking-and-rts-evidence)); CDD / KYC and identity assurance ([§24.5](#245-cddkyc-and-identity-assurance)) |
 | 3 | **The RP needs HTTP context for fraud scoring** — source IP, TLS fingerprint, device / browser context, and timing signals are only available when the RP owns the wallet-facing edge. That context lets the RP enrich wallet outcomes with first-party fraud, anomaly, and abuse signals before any internal product acts on them. | Reverse-proxy integration pattern ([§26.6.4](#2664-reverse-proxy-integration-pattern)); deployment topology ([§26.7.2](#2672-deployment-topology-proxy-vs-direct)); contextual and behavioural signals ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) |
 | 4 | **Internal identity and authentication products should not be externally exposed** — the orchestrator keeps the wallet-facing URL surface first-party while translating wallet outcomes into internal product contracts. This preserves a stable RP-owned facade while allowing internal security products to remain private and independently evolvable. Many wallet connectors also require backend application authentication such as API keys, OAuth client credentials or access tokens, or mutual TLS / client certificates, which are not appropriate to distribute to frontend applications. | Financial-sector high-assurance profile ([§24.8.1](#2481-financial-sector-high-assurance-wallet-profile)); reverse-proxy backend connection and mTLS ([§26.6.4](#2664-reverse-proxy-integration-pattern)); callback authentication patterns ([§26.6.5](#2665-callback-payload-requirements)); URL surface ownership and RP bindability ([§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)) |
-| 5 | **The wallet does more than one exchange** — request-object retrieval, wallet submission, response processing, and status progression must be mediated without forcing each internal product to speak OID4VP / OID4VCI / SD-JWT VC / mdoc directly. The orchestrator absorbs that ceremony and presents one RP-specific workflow instead of protocol-specific handoffs. | OpenID4VP and HAIP protocol foundations ([§8](#8-openid4vp-and-haip-protocol-foundations)); response envelope handling and format routing ([§12.3](#123-response-envelope-and-session-binding), [§12.4](#124-format-router-and-requestresponse-correlation)); SD-JWT VC and mdoc verification ([§12.6](#126-sd-jwt-vc-verification-pipeline), [§12.7](#127-mdoccosemso-verification-pipeline)); payment-SCA lifecycle flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); session management and result delivery ([§26.5](#265-session-management-and-result-delivery)) |
+| 5 | **The wallet does more than one exchange** — request-object retrieval, wallet submission, response processing, and status progression must be mediated without forcing each internal product to speak OID4VP / OID4VCI / SD-JWT VC / mdoc directly. The orchestrator absorbs that ceremony and presents one RP-specific workflow instead of protocol-specific handoffs. | OpenID4VP and HAIP protocol foundations ([§8](#8-openid4vp-and-haip-protocol-foundations)); Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)); Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)); SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)); mdoc Branch: CBOR, MSO, and SessionTranscript Evidence ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)); payment-SCA lifecycle flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); session management and result delivery ([§26.5](#265-session-management-and-result-delivery)) |
 | 6 | **Request scope and intended use need a control point** — the RP needs one place to reconcile registered scope, WRPRC / Registrar evidence, product purpose, and requested attributes before the wallet request is built. The same control point keeps disclosure minimised and ensures the request matches the RP's authorised purpose. | RP registration data model ([§4](#4-rp-registration-data-model-and-registrar-api)); HAIP request profile (§17.2.2); verification gates and forwarding requirements ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-rpi_08rpi_09)) |
 | 7 | **The public edge should be sync-first, while async connector modes stay internal** — push, ping, callback, or polling may exist behind the orchestrator, but they should usually not define the public frontend contract. The orchestrator can hide those delivery mechanics while still supporting connector-specific completion modes internally. | Result-delivery modes ([§26.5.2](#2652-result-delivery-polling-vs-callbacks)); callback payload requirements ([§26.6.5](#2665-callback-payload-requirements)); delivery-mode taxonomy ([§26.7.3](#2673-result-delivery-mode-taxonomy)); mode deep dives ([§26.7.5](#2675-mode-deep-dives)) |
 | 8 | **Connector internals should not leak to attackers** — replay, duplicate-state, or malformed-submission reasons can be translated into generic user-facing failure while the precise signal is escalated internally. This reduces attacker feedback while preserving detailed telemetry for fraud, monitoring, and investigation. | OpenID4VP error responses ([§11.6](#116-openid4vp-error-responses)); callback security and error handling ([§26.6.7](#2667-callback-security-and-error-handling)); security error discrepancy oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)); signal severity classification ([§30.6](#306-signal-severity-classification)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
@@ -23544,7 +23740,7 @@ The following errors are commonly encountered during EUDI Wallet integration, co
 | **Wallet cannot reach Verifier** | In development environments, the Verifier's `response_uri` is not publicly accessible (e.g., `localhost`). In production, DNS or firewall misconfiguration blocks the Wallet's `direct_post` callback. | Use tunnelling (ngrok, Cloudflare Tunnel) for local development. In production, ensure the `response_uri` domain is publicly resolvable and accepts POST requests. |
 | **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc (§17.2). |
 | **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.4). |
-| **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction against SD-JWT VC Verification Pipeline ([§12.6](#126-sd-jwt-vc-verification-pipeline)). Ensure the Wallet is using the correct device key for signing. |
+| **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction against SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)). Ensure the Wallet is using the correct device key for signing. |
 | **Clock skew rejection** | The Verifier rejects a credential or KB-JWT because the system clocks of the Wallet and Verifier differ by more than the allowed skew window (typically 30–60 seconds). | Implement NTP synchronisation. Allow a configurable clock skew tolerance in the verification pipeline ([§31.2](#312-alert-triggers) alert triggers). |
 
 #### 27.6 Unified Vendor Capability Matrix
@@ -24178,7 +24374,7 @@ The RP Server detects that the `nonce` inside the payload does not match the Att
 
 - **Primary**: The KB-JWT (SD-JWT VC) or `DeviceSignature` (mdoc) contains a `nonce` claim that must match the unique, cryptographically random nonce generated by the RP in step 3 of the presentation flow ([§9.2](#92-detailed-sequence-diagram-direct-rp-model), [§10.2](#102-detailed-sequence-diagram-direct-rp-model-non-api-qr-fallback)). Each session gets a fresh nonce with ≥128 bits of entropy, making replay of a captured presentation infeasible against a different session.
 - **Secondary**: The KB-JWT `aud` claim must match the RP's `client_id` — preventing cross-RP replay even if nonces collide.
-- **Tertiary**: Short JAR `exp` (recommended ≤5 minutes, [§11.3](#113-verification-checklist-for-sd-jwt-vc)) and KB-JWT `iat` freshness checks bound the window of opportunity. For mdoc, the `SessionTranscript` reconstruction covered in mdoc/COSE/MSO Verification Pipeline ([§12.7](#127-mdoccosemso-verification-pipeline)) incorporates session-specific ephemeral keys, mathematically invalidating replay.
+- **Tertiary**: Short JAR `exp` (recommended ≤5 minutes, [§11.3](#113-verification-checklist-for-sd-jwt-vc)) and KB-JWT `iat` freshness checks bound the window of opportunity. For mdoc, the `SessionTranscript` reconstruction covered in mdoc Branch: CBOR, MSO, and SessionTranscript Evidence ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) incorporates session-specific ephemeral keys, mathematically invalidating replay.
 - **Critical implementation note** ([§11.8](#118-pre-production-conformance-testing)): When retrying after errors, the RP **MUST** generate a new nonce per retry — reusing nonces across retries opens a replay window.
 - **SD-JWT–specific**: RPs MUST verify the KB-JWT `sd_hash` claim (per [SD-JWT VC §4.3](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-08.html)) — this claim contains the hash over the Issuer-signed JWT and the specific set of disclosed claims (`~`-delimited Base64URL strings), binding the exact disclosure set to the KB-JWT signature. Without `sd_hash` verification, an attacker can remix individual disclosures from different presentation contexts: cherry-picking high-value disclosures from one captured presentation and combining them with the KB-JWT from another session. The `sd_hash` makes each presentation's disclosure set atomic and non-transferable.
 
@@ -33021,7 +33217,7 @@ GDPR Art. 30 and DORA Art. 28 require RPs to maintain records of processing. For
 
 ##### 31.3.1 Verification Result Object Structure
 
-The canonical verifier-engine result object is defined in Verification Result Object and Audit Evidence ([§12.11](#1211-verification-result-object-and-audit-evidence)). This section covers the **audit and SIEM projection** of that object: the fields that should be preserved when the result is exported into monitoring, incident response, GDPR processing records, or DORA evidence. Audit systems may redact or aggregate the canonical result, but they should not invent a separate truth about terminal state, policy version, credential-check outcomes, or evidence completeness.
+The canonical verifier-engine result object is defined in Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)). This section covers the **audit and SIEM projection** of that object: the fields that should be preserved when the result is exported into monitoring, incident response, GDPR processing records, or DORA evidence. Audit systems may redact or aggregate the canonical result, but they should not invent a separate truth about terminal state, policy version, credential-check outcomes, or evidence completeness.
 
 ```json
 {

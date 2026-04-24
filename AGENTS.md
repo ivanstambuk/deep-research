@@ -275,12 +275,13 @@ This repository contains **Deep Research (DR)** documents — exhaustive, long-f
 This repo may contain **local, gitignored workflow guides** for recurring DR maintenance tasks. Do **not** rely only on `rg --files` or `git ls-files` to discover them, because those commands can hide files ignored by `.gitignore`. Before any DR refresh, run an explicit filesystem search such as:
 
 ```bash
-find . -maxdepth 3 \( -name 'DR_REFRESH_WORKFLOW.md' -o -name 'SEQUENCE_DIAGRAM_HOUSE_STYLE.md' -o -name 'DIRECTIVES.md' \) -print
+find . -maxdepth 3 \( -name 'DR_REFRESH_WORKFLOW.md' -o -name 'DR_NARRATIVE_HOUSE_STYLE.md' -o -name 'SEQUENCE_DIAGRAM_HOUSE_STYLE.md' -o -name 'DIRECTIVES.md' \) -print
 ```
 
 When a user asks to **refresh an existing DR document, chapter, appendix, or subsection**, check for and follow:
 
 - `DR_REFRESH_WORKFLOW.md` — the default five-step workflow for refreshing existing DR content: research report + claim ledger, integration edits, cross-reference/matrix sweep, style-normalization sweep, then verification/commit.
+- `DR_NARRATIVE_HOUSE_STYLE.md` — the chapter-agnostic narrative house style for DR prose: thesis, boundary, diagram-before-table pacing, table discipline, flow/consequence/evidence structure, and rewrite-quality checks.
 - `SEQUENCE_DIAGRAM_HOUSE_STYLE.md` — the editorial house style for Mermaid `sequenceDiagram` walkthroughs. Use it when the target scope includes diagrams or when walkthrough quality/style consistency matters.
 - `scripts/lint-sequence-house-style.py` — an **advisory, non-blocking** checker for obvious sequence-walkthrough style drift.
 
@@ -684,6 +685,10 @@ The following **content quality** rules cannot be mechanically enforced and must
 3. **Payload embedding.** If a step involves a protocol message with a defined payload structure (e.g., a JSON request body, a CBOR DeviceRequest, an HTTP API call), embed a representative code block inside the collapsible step.
 
 ## Manual of Style
+
+### Narrative Chapter Style
+
+For chapter-level narrative structure, follow [DR_NARRATIVE_HOUSE_STYLE.md](/home/ivan/dev/deep-research/DR_NARRATIVE_HOUSE_STYLE.md:1). Use it when drafting or rewriting substantive DR sections, especially when material is technically correct but table-heavy, checklist-heavy, or not readable as a top-to-bottom story.
 
 ### Inline References
 
