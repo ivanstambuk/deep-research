@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-04-23
+date_updated: 2026-04-27
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 
 ---
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-04-23 · ~27,100 lines
+**DR-0001** · Published · Last updated 2026-04-27 · ~27,100 lines
 
 > Exhaustive investigation of authentication, authorization, and identity management patterns for AI agents using the Model Context Protocol (MCP). Covers MCP spec evolution across four iterations (March 2025, June 2025, November 2025, Draft) including RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, and Client ID Metadata Documents (CIMD). Analyzes MCP over Streamable HTTP transport-layer security (bearer tokens, session-token binding, CSRF mitigation), scope lifecycle (discovery, selection, challenge via RFC 6750), and the identity trilemma (impersonation vs. delegation vs. direct grant). Investigates OAuth Token Exchange (RFC 8693) and OBO patterns, agent vs. user identity separation, NHI governance (OWASP NHI Top 10), A2A/AP2 agent-to-agent authentication and payment protocols, and credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation). Details gateway-mediated MCP architecture with thirteen product deep-dives (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, IBM ContextForge, WSO2 IS/Asgardeo, Auth0/Okta, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) and four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation). Covers user consent models (first-party vs. third-party), seven-tier human oversight architecture with CIBA out-of-band authorization, Task-Based Access Control (TBAC), API→MCP tool scope mapping, policy engines (Cedar, OPA/Rego, OpenFGA), Rich Authorization Requests (RAR vs. OAuth scopes), JWT session enrichment, refresh token lifecycle for long-lived agent sessions, and emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0). Includes exact protocol payloads, annotated Mermaid sequence diagrams, session-token binding reference implementations (hash-based, JWT-as-Session-ID, DPoP), and regulatory compliance mapping (EU AI Act Articles 9/12/14/15/26/50, GDPR, eIDAS 2.0 cross-border identity). Applicable to both CIAM (customer-facing) and WIAM (workforce/employee) deployment models.
 
@@ -3416,7 +3416,7 @@ In the current MCP spec, the MCP client (which hosts the agent) is treated as an
 The consequence: an OAuth `client_id` identifies the **application** hosting agents, but it does NOT identify which **specific agent** performed an action. If multiple agents run inside the same MCP client, they all share one `client_id` — making audit attribution impossible.
 
 **Industry Alignment: "Agents as Actors" (Ping Identity 2026)**
-This requirement to separate the agent from the application is heavily validated by Ping Identity's 2026 "Identity for AI" framework (see Appendix B). Ping's architecture explicitly defines AI agents not as tools using shared service accounts, but as distinct **actors** operating on behalf of humans. To close the governance gap, the IAM control plane must issue unique **delegated tokens** to specific agents, replacing legacy shared-credential models and establishing distinct accountability.
+This requirement to separate the agent from the application is heavily validated by Ping Identity's 2026 "Identity for AI" framework (see §B). Ping's architecture explicitly defines AI agents not as tools using shared service accounts, but as distinct **actors** operating on behalf of humans. To close the governance gap, the IAM control plane must issue unique **delegated tokens** to specific agents, replacing legacy shared-credential models and establishing distinct accountability.
 
 #### 6.3 Three Architectural Approaches to Agent Identity
 
@@ -9239,7 +9239,7 @@ With identity established (§4–§8) and its token representation defined (§9�
 
 ### 13. Gateway-Mediated MCP Architecture
 
-> **See also**: §13.6 (Reference Architecture Profiles), §23 (Comparison Matrix), Appendix A (Gateway Deep-Dives)
+> **See also**: §13.6 (Reference Architecture Profiles), §23 (Comparison Matrix), §A (Gateway Deep-Dives)
 
 A recurring pattern across all enterprise implementations is the placement of a centralized gateway between the MCP client (AI Agent) and the MCP server (backend tools). Before delving into specific pipeline stages, it is critical to distinguish between the two distinct gateway topologies that manage AI workloads: the **API Gateway** and the **AI Gateway**.
 
@@ -18707,7 +18707,7 @@ The strongest predictor of vendor lock-in is **where agent identities live**:
 > **Recommendation**: When evaluating MCP gateways, assess the **identity layer dependency** as the primary lock-in vector. Policy engines (Cedar, OPA, XACML) and protocol adapters (REST→MCP) can be rewritten in weeks. But migrating thousands of agent identities — with their sponsor relationships, Conditional Access policies, delegation chains, and audit history — from a proprietary cloud directory to a new platform is measured in **months**, not days. Organizations requiring multi-cloud or hybrid deployments should prefer gateways that delegate identity to an **external, gateway-agnostic IdP** or use **open standards** (SPIFFE/WIMSE, standard OAuth 2.0) for agent identity.
 
 
-> **Gateway Deep-Dives**: The detailed architectural analysis for all thirteen gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) has been moved to **Appendix A** to improve document scannability. For the consolidated comparison, see §23 above. For reference architecture profiles recommending specific gateway combinations, see §13.6.
+> **Gateway Deep-Dives**: The detailed architectural analysis for all thirteen gateway implementations (Azure APIM, PingGateway, Kong, TrueFoundry, AgentGateway, ContextForge, WSO2 IS, Auth0, Traefik Hub, Docker MCP, Cloudflare, Red Hat MCP, LiteLLM) has been moved to **§A** to improve document scannability. For the consolidated comparison, see §23 above. For reference architecture profiles recommending specific gateway combinations, see §13.6.
 
 ---
 
@@ -25939,7 +25939,7 @@ The credential isolation model is fundamentally different from other approaches:
 
 Cloudflare's current MCP stack still embodies the **Edge-Native / Zero Trust** archetype, but the present-day docs make the model more concrete than the older "portal-only" framing implied. The platform combines Cloudflare Access / Cloudflare One policy enforcement at the edge with remote MCP server hosting in Workers via `createMcpHandler` and `McpAgent`. Unlike the origin-side gateways in §A–§J, Cloudflare can both terminate remote MCP traffic at the edge and, in many deployments, run the MCP server itself on the same platform. Within the Token Treatment Spectrum (§11.1), this still maps most closely to **Token Stripping / Isolation**: external authentication and policy happen at the edge, while downstream business authorization remains in the Worker, the origin API, or an attached IdP / policy engine.
 
-The transport story is also clearer in the current docs. **Streamable HTTP** is now the standard remote MCP transport. **SSE** remains a legacy compatibility path rather than the preferred design center. For simple remote servers, Cloudflare recommends `createMcpHandler`; for stateful remote servers, `McpAgent` binds each client session to a Durable Object-backed instance with persisted state, SQL access, and optional jurisdiction pinning. That makes Cloudflare materially stronger for **stateful remote MCP hosting** than the older Appendix K wording suggested, even though it still stops short of deep origin-side entitlement logic.
+The transport story is also clearer in the current docs. **Streamable HTTP** is now the standard remote MCP transport. **SSE** remains a legacy compatibility path rather than the preferred design center. For simple remote servers, Cloudflare recommends `createMcpHandler`; for stateful remote servers, `McpAgent` binds each client session to a Durable Object-backed instance with persisted state, SQL access, and optional jurisdiction pinning. That makes Cloudflare materially stronger for **stateful remote MCP hosting** than the older §K wording suggested, even though it still stops short of deep origin-side entitlement logic.
 
 :::note[Cloudflare's strongest control here is edge-enforced zero trust, not deep origin-side authorization semantics]
 This appendix is strongest where Cloudflare shifts authentication, policy, filtering, and observability to the nearest edge PoP before traffic reaches the MCP origin. That edge advantage should not be confused with full business-logic authorization inside the origin system: Cloudflare can strongly gate access and inspect traffic in transit, but fine-grained downstream entitlement still depends on the origin MCP server, attached APIs, or a separate policy engine.

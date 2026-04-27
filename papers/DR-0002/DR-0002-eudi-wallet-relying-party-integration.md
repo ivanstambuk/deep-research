@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-24
+date_updated: 2026-04-27
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-24 · ~37,500 lines
+**DR-0002** · Published · Last updated 2026-04-27 · ~40,700 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -420,6 +420,21 @@ related: []
     - [B.3 RP Status List Verification Flow (Agnostic: Applies to Direct RP and Intermediary)](#b3-rp-status-list-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)
     - [B.4 RP Implementation Considerations](#b4-rp-implementation-considerations)
   </details>
+  - <details><summary><a href="#appendix-c-verifier-failure-catalogue">Appendix C: Verifier Failure Catalogue</a></summary>
+
+    - [C.1 Envelope and Intake Failures](#c1-envelope-and-intake-failures)
+    - [C.2 Protocol Error Handling](#c2-protocol-error-handling)
+    - [C.3 Session Binding Failures](#c3-session-binding-failures)
+    - [C.4 Format Router Failures](#c4-format-router-failures)
+    - [C.5 SD-JWT VC Verification Failures](#c5-sd-jwt-vc-verification-failures)
+    - [C.6 mdoc/COSE Verification Failures](#c6-mdoccose-verification-failures)
+    - [C.7 Trust and Status Failures](#c7-trust-and-status-failures)
+    - [C.8 Policy and DCQL Failures](#c8-policy-and-dcql-failures)
+    - [C.9 Result and Audit Failures](#c9-result-and-audit-failures)
+    - [C.10 OID4VCI Verification Failures](#c10-oid4vci-verification-failures)
+    - [C.11 Step-Up Verification Failures](#c11-step-up-verification-failures)
+    - [C.12 Cross-Reference Matrix](#c12-cross-reference-verify-threat-29-signal-30-alert-31)
+  </details>
 - [References](#references)
 
 ---
@@ -455,7 +470,7 @@ related: []
 > | **Mobile Developer** | [§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection) (Formats) → [§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised) (Proximity) | [§8](#8-openid4vp-and-haip-protocol-foundations)–[§11](#11-rp-authentication-and-presentation-verification) (Remote) → [§14](#14-w2w-presentation-flow-ts9) (W2W) | [§17](#17-dcql-query-language-and-request-construction) (DCQL) → [§11](#11-rp-authentication-and-presentation-verification) (Verification) |
 > | **Security Engineer** | [§29](#29-security-threat-catalogue) (Threat Model) → [§30](#30-verification-signal-intelligence) (Verification Signals) | [§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists) (Trust) → [§11](#11-rp-authentication-and-presentation-verification) (Verification) → [§31](#31-monitoring-observability-and-operational-readiness) (Monitoring) | [§23](#23-cross-border-presentation-scenarios) (Cross-Border) → [§16.12](#1612-security-considerations) (Pseudonym Security) |
 > | **DevOps / SRE** | [§31](#31-monitoring-observability-and-operational-readiness) (Monitoring) → [§30](#30-verification-signal-intelligence) (Verification Signals) | [§26](#26-rp-verification-architecture-patterns) (Verification Architecture) → [§28](#28-ecosystem-readiness-and-testing) (Readiness) | [§21.7](#217-wallet-solution-security-breach-response-cir-2025847) (Breach Response) → [§29](#29-security-threat-catalogue) (Threat Model) |
-> | **QA / Test Engineer** | [§11](#11-rp-authentication-and-presentation-verification) (Verification Checklist) → [§30](#30-verification-signal-intelligence) (Verification Signals) | [§31](#31-monitoring-observability-and-operational-readiness) (Monitoring) → [§17](#17-dcql-query-language-and-request-construction) (DCQL queries) → Appendix A (Payloads) | [§11.6](#116-openid4vp-error-responses) (Error Handling) → [§23](#23-cross-border-presentation-scenarios) (Cross-Border) |
+> | **QA / Test Engineer** | [§11](#11-rp-authentication-and-presentation-verification) (Verification Checklist) → [§30](#30-verification-signal-intelligence) (Verification Signals) | [§31](#31-monitoring-observability-and-operational-readiness) (Monitoring) → [§17](#17-dcql-query-language-and-request-construction) (DCQL queries) → [§A](#appendix-a-exact-response-payloads) (Payloads) | [§11.6](#116-openid4vp-error-responses) (Error Handling) → [§23](#23-cross-border-presentation-scenarios) (Cross-Border) |
 > | **Data Protection Officer** | [§21.3](#213-gdpr-obligations-for-rps) (GDPR) → [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy) (RP Obligations) | [§21.4](#214-dora-considerations-for-financial-rps) (DORA) → [§4](#4-rp-registration-data-model-and-registrar-api) (Registration Data) | [§16](#16-pseudonym-based-authentication-and-webauthn) (Pseudonyms) → [§22](#22-amlkyc-onboarding-via-eudi-wallet) (AML/KYC) |
 
 ---
@@ -560,7 +575,7 @@ This research formalizes every RP-facing integration flow in the EUDI Wallet eco
 **Protocol & Verification**
 
 5. **Implement HAIP 1.0 compliant OpenID4VP, then tighten it with the `ETSI TS 119 472-2` presentation profile** — this means JAR-based authorization requests, `x509_hash` Client ID mode, topology-appropriate encrypted response modes (`dc_api.jwt` and `direct_post.jwt`), DCQL queries, registrar-backed `verifier_info` / `requestInfo`, and ephemeral key management for response encryption ([§8](#8-openid4vp-and-haip-protocol-foundations), [§9](#9-same-device-remote-presentation), [§10](#10-cross-device-remote-presentation), [§17](#17-dcql-query-language-and-request-construction)).
-6. **Build a dedicated Status List verification pipeline** — despite conceptual simplicity, this requires HTTP caching, DEFLATE decompression, JWT/CWT signature verification, and bit-index mapping. Do not underestimate this ([Finding 14](#finding-14), Appendix B).
+6. **Build a dedicated Status List verification pipeline** — despite conceptual simplicity, this requires HTTP caching, DEFLATE decompression, JWT/CWT signature verification, and bit-index mapping. Do not underestimate this ([Finding 14](#finding-14), [§B](#appendix-b-status-list-verification-deep-dive)).
 7. **Implement pseudonym support with progressive assurance** — build the WebAuthn/passkey route first because it is the current interoperable path, but keep the abstraction open for other [Topic 11](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a238-topic-11-pseudonyms)-compliant pseudonym technologies. Upgrade via PID, age-attestation, or other step-up verification when needed. Never refuse pseudonyms where identification is not legally required ([§16](#16-pseudonym-based-authentication-and-webauthn), Art. 5b(9), [Finding 24](#finding-24)).
 8. **Implement anti-linkability controls from the start** — never persist unique attestation elements (salts, hash arrays, signatures) beyond the verification session. Credential churn is a designed privacy feature, not a bug ([§11.10](#1110-linkability-resistant-verification-practices), [Finding 20](#finding-20)).
 
@@ -614,7 +629,7 @@ Each quadrant implies a deployment model: **bottom-left** → SaaS Intermediary 
 3. **W2W Verifier authentication is a fundamental gap** — in Wallet-to-Wallet flows, the Verifier has no WRPAC and no registration certificate. Most RP trust infrastructure does not apply ([Finding 13](#finding-13), [OQ #1](#oq-1)).
 4. **ZKP-based selective disclosure is on the roadmap but not generally production-ready** — [Annex Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs) defines current `ZKP_01`-`ZKP_09` HLR functions and constraints, while TS4/TS13/TS14 remain technical-profile workstreams. The Age Verification App has its own ECDSA Anonymous Credential path for non-KYC age checks, but RPs should still design pluggable proof-type interfaces for future EUDI Wallet ZKP profiles ([Finding 19](#finding-19), [OQ #12](#oq-12)).
 5. **Data deletion API is not standardised** — TS7 defines 9 interfaces spanning browser, email, and phone channels, but no machine-readable API. Each RP's deletion process is bespoke ([Finding 16](#finding-16), [OQ #11](#oq-11)).
-6. **SCA attestation type identification is profile- and rulebook-driven, not fixed** — [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) points payment SUA processing to TS12 and future non-TS12 SUA profiles to their own Rulebooks/specifications; RPs must dispatch by requested attestation type and profile rather than one hard-coded VCT ([Finding 12](#finding-12), [OQ #15](#oq-15)).
+6. **SCA attestation type identification is profile- and rulebook-driven, not fixed** — the ARF defines "SUA attestation" as the generic credential class ([Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments)); TS12 scopes this to "SCA attestation" for PSD2 payments, identified by `category: urn:eu:europa:ec:eudi:sua:sca`. RPs must dispatch by requested attestation type and profile rather than one hard-coded VCT ([Finding 12](#finding-12), [OQ #15](#oq-15); full terminology frame in [§15.1](#151-sca-attestation-context)).
 7. **Device binding is recommended, not mandatory** — RPs must handle both device-bound (`cnf` + KB-JWT) and non-device-bound attestations. High-assurance use cases cannot enforce device binding via DCQL queries ([Finding 18](#finding-18), [OQ #13](#oq-13)).
 8. **QES architecture still has non-standard seams beyond the mandated CSC happy path** — `ETSI TS 119 432` clarifies the normative request/result/client-security profile, but it still leaves open ecosystem questions around Document Retrieval stability, Annex `A` `qesRequest` vs Annex `B` `qesApprovalRequest` deployment choice, wallet/`SCA`/`SSA` linkage, and the gap between CIR pinning to `CSC API v2.0` and the broader `v2.2`-style runtime surface. RPs should track these as architecture risks rather than assuming they are already standardized ([Finding 33](#finding-33), [OQ #21](#oq-21), [OQ #24](#oq-24), [OQ #25](#oq-25)).
 
@@ -669,6 +684,7 @@ This investigation examines the EUDI Wallet ecosystem **exclusively from the Rel
 - PID Provider and Attestation Provider issuance internals (covered only where they intersect RP flows)
 - Wallet Solution certification by CABs (covered at a high level for RP trust assessment)
 - National-level implementation variations (each Member State's specific registration procedures)
+- Cross-surface consistency monitoring (read-replica lag, cache invalidation, webhook/API timing discrepancies between downstream surfaces — these are infrastructure/observability concerns, not verifier-engine defects; the verifier writes one canonical result and downstream disagreement is detected externally)
 
 ---
 
@@ -1092,7 +1108,7 @@ The European Commission published **COM(2025) 838** proposing a dedicated **Euro
 | **PID / LPID Provider** | PID Providers (civil registries) | LPID Providers (business registers via BRIS) | ❌ No |
 | **CAB certification** | Certifies Wallet Solutions | Certifies EBW Wallet Solutions separately | Partial |
 
-RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. Structurally, that flexibility comes from the shared `LegalEntity` superclass inherited from TS2 and reused by the TS5/TS6 registration baseline (§4.2.1).
+RP registration is unchanged: the same MS Registrar handles RP registration for both natural person and legal person attribute requests. An RP requesting LPID attributes must register an `intendedUse` / `credential` entry that includes `EWC_LPID_Attestation` (or the future standardised VCT) alongside `eu.europa.ec.eudi.pid.1` if it accepts both entity types. Structurally, that flexibility comes from the shared `LegalEntity` superclass inherited from TS2 and reused by the TS5/TS6 registration baseline ([§4.2.1](#421-walletrelyingparty-data-model)).
 
 #### 3.3 Legal Person Identification Data (LPID)
 
@@ -4137,7 +4153,7 @@ sequenceDiagram
     RPI->>RPI: Verify PID issuer signature
     Note right of RPI: Trust anchor from PID Provider<br/>LoTE (§5.5.3)
     RPI->>SL: Check PID revocation status
-    Note right of RPI: Applicable Topic 7<br/>status evidence<br/>See Appendix B.3 for full flow
+    Note right of RPI: Applicable Topic 7<br/>status evidence<br/>See §B.3 for full flow
     SL-->>RPI: Status: VALID
     Note right of RPI: PID valid → Wallet Unit not<br/>revoked (CIR 2024/2977<br/>Art. 5.4(b) cascade obligation)
     RPI->>RPI: Verify device binding
@@ -4212,7 +4228,7 @@ The Relying Party evaluates the PID Provider's applicable [Topic 7](https://eudi
 }
 ```
 
-The Relying Party fetches the Status List Token JWT from the `uri`, decompresses the DEFLATE-compressed bitstring, and checks the bit at index `idx`. A value of `0` means VALID; `1` means REVOKED/SUSPENDED. See §B.3.1 for the complete Status List verification procedure with decompression and bit extraction detail.
+The Relying Party fetches the Status List Token JWT from the `uri`, decompresses the DEFLATE-compressed bitstring, and checks the bit at index `idx`. A value of `0` means VALID; `1` means REVOKED/SUSPENDED. See [§B.3.1](#b31-status-list-verification-payload-walkthrough) for the complete Status List verification procedure with decompression and bit extraction detail.
 
 **Failure Path:** If the token status returns `1` (REVOKED), the Relying Party halts the verification pipeline and rejects the presentation.
 
@@ -5422,7 +5438,7 @@ Attestation Rulebooks define the complete lifecycle and presentation rules for s
 
 #### 6.12 RP-Relevant Rulebook Content
 
-A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model (§6.16). The `Rulebook Chapter` links point to the corresponding chapter in the official EC Rulebook template:
+A Rulebook follows a standardised Chapter structure (template v1.4). The table below maps each Rulebook aspect to its machine-readable counterpart in the TS11 Catalogue of Schemes `SchemaMeta` model ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)). The `Rulebook Chapter` links point to the corresponding chapter in the official EC Rulebook template:
 
 | Aspect | Rulebook Chapter | What It Defines | `SchemaMeta` Field | RP Impact |
 |:-------|:-----------------|:----------------|:-------------------|:----------|
@@ -5562,7 +5578,7 @@ EWC RFC005 §6.10.4 defines the LPID attestation with VCT value `EWC_LPID_Attest
 
 Key observations for RPs:
 - **VCT value**: `EWC_LPID_Attestation` — distinct from `eu.europa.ec.eudi.pid.1`. RPs must check the `vct` claim to distinguish natural person from legal person credentials.
-- **Format**: `dc+sd-jwt` — identical format profile to natural person PID. The same SD-JWT VC verification pipeline applies (§11.3).
+- **Format**: `dc+sd-jwt` — identical format profile to natural person PID. The same SD-JWT VC verification pipeline applies ([§11.3](#113-verification-checklist-for-sd-jwt-vc)).
 - **Selective disclosure**: All claims are independently disclosable via SD-JWT's `_sd` mechanism.
 - **Key binding**: Uses the same `cnf` claim as natural person SD-JWT VCs — same `cnf.jwk` device binding model.
 
@@ -5840,7 +5856,7 @@ flowchart TD
 |:---------|:--------|:---------------|
 | **Schema caching** | Cache `SchemaMeta` locally vs. always query | Cache with TTL (e.g., 24h), invalidate on version change. The Catalogue API has rate limits ([§6.16.5](#6165-caching-strategy)). |
 | **Trust model plugin** | Hardcode vs. pluggable trust resolvers | Pluggable — implement `TrustResolver` interface with `X509AKIResolver`, `TrustedListResolver`, `LoTEResolver`, `OpenIDFederationResolver` implementations |
-| **Format routing** | Separate pipelines vs. unified | Separate: mdoc ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) and SD-JWT VC (§11.3) parsing are fundamentally different. Use a `FormatHandler` abstraction. |
+| **Format routing** | Separate pipelines vs. unified | Separate: mdoc ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) and SD-JWT VC ([§11.3](#113-verification-checklist-for-sd-jwt-vc)) parsing are fundamentally different. Use a `FormatHandler` abstraction. |
 | **Subject / PID binding** | Always verify PID vs. per-Rulebook | Per-Rulebook. Check the current Rulebook's usage chapter for user-subject, object-subject, bearer, PID co-verification, and representation requirements. |
 | **Obligation engine** | Static rules vs. Rulebook-derived | Hybrid: static rules for regulation-mandated obligations (revocation check), Rulebook-derived for sector-specific subject binding, selective-disclosure, binding type, and trust-anchor rules. |
 
@@ -5877,9 +5893,9 @@ The critical first-order decision is not about credential formats or technical a
 - **Regulatory regime**: Non-qualified EAA, QEAA, or PuB-EAA — without this determination, downstream decisions cannot be made correctly
 - **Subject, attributes, and source**: Which person or entity is the subject, which attributes are attested, from which authentic source each attribute is obtained, and how the issuer verifies correctness before issuance (for QEAAs, this is part of the issuance regime per CIR 2025/1569 Art. 9)
 - **EUDI Wallet issuance scope**: Whether the attestation must be issued into an EUDI Wallet — if yes, CIR 2024/2977 applies (format, namespace, binding); if the attestation targets a proprietary wallet, the EUDI legal framework does not automatically apply
-- **Attestation Rulebook and scheme registration**: A human-readable specification plus a machine-readable definition (§6.16), with attestation type and namespace registered in the Catalogue of Schemes ([§6.16.3](#6163-rest-api))
+- **Attestation Rulebook and scheme registration**: A human-readable specification plus a machine-readable definition ([§6.16](#616-rulebook-discovery-via-catalogue-of-schemes-ts11)), with attestation type and namespace registered in the Catalogue of Schemes ([§6.16.3](#6163-rest-api))
 - **Trust infrastructure**: How issuing parties, relying parties, trust anchors, and registrations are published and discovered — including RP registration ([§4](#4-rp-registration-data-model-and-registrar-api)), access certificates ([§5.2](#52-access-certificates-wrpac)), and LoTE publication ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities))
-- **Validity and revocation model**: Short-lived, ASL, ARL, or hybrid — chosen early in the design, not retrofitted (see Appendix B.1 for the binding legal framework)
+- **Validity and revocation model**: Short-lived, ASL, ARL, or hybrid — chosen early in the design, not retrofitted (see [§B.1](#b1-binding-legal-baseline-cir-20251569-art-4-revocation-framework) for the binding legal framework)
 
 **[Topic 42](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2324-topic-42-requirements-for-qtsps-to-access-authentic-sources) authentic-source access for QEAAs**: [Annex Topic 42](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2324-topic-42-requirements-for-qtsps-to-access-authentic-sources) describes an upstream **QTSP/QEAA issuance** path, not an ordinary verifier-RP lookup right. A verifier RP consumes the resulting QEAA through issuer signature validation, Trusted List qualification/status, Rulebook/schema metadata, holder binding, and revocation status. It should not query civil, business, or sector authentic sources during presentation verification unless a separate sector law and integration profile explicitly creates that path.
 
@@ -5894,7 +5910,7 @@ The critical first-order decision is not about credential formats or technical a
 
 > **Dual-role RP impact**: If the organisation is only a verifier RP, [Topic 42](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2324-topic-42-requirements-for-qtsps-to-access-authentic-sources) is consumed as upstream assurance embedded in the QEAA ecosystem. If the organisation also operates as a QTSP/QEAA issuer, [Topic 42](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2324-topic-42-requirements-for-qtsps-to-access-authentic-sources) becomes an issuer-side integration requirement that must be designed before issuance goes live.
 
-**QEAA identity verification hardening**: For QEAAs, the main identity verification obligation derives from eIDAS Art. 24: before issuing a qualified certificate or QEAA, the QTSP must verify the identity and relevant attributes of the person concerned. CIR 2025/1566 makes this concrete by designating **ETSI TS 119 461 V2.1.1 (2025-02)** as the reference standard, specifically Annex C, clause C.3, with EU-specific adaptations. CIR 2025/1566 entered into force but becomes applicable on **19 August 2027**. Specific hardenings include:
+**QEAA identity verification hardening**: For QEAAs, the main identity verification obligation derives from eIDAS Art. 24: before issuing a qualified certificate or QEAA, the QTSP must verify the identity and relevant attributes of the person concerned. CIR 2025/1566 makes this concrete by designating **ETSI TS 119 461 V2.1.1 (2025-02)** as the reference standard, specifically Annex C, clause C.4, with EU-specific adaptations. CIR 2025/1566 entered into force but becomes applicable on **19 August 2027**. Specific hardenings include:
 
 - Identity proofing connected to authoritative evidence must be peer reviewed or certified at assurance level *high* under eIDAS, or comply with ETSI TS 119 461 C3.1–C3.6
 - Independent conformity assessment bodies must be accredited; certification must reference eIDAS assurance levels for notified eID means or certified EUDI Wallets
@@ -7302,7 +7318,7 @@ This means:
 
 **For EUDI mandatory flows (PID, QEAA, PuB-EAA): SIOPv2 is not required.**
 
-RPs implementing HAIP-compliant OpenID4VP (§8.3) with `response_type=vp_token`, DCQL, and encrypted response return cover the EUDI presentation flows; the exact response mode is topology-specific (`dc_api.jwt` for browser/OS API mediation, `direct_post.jwt` for direct-post branches). Pseudonymous authentication is handled by WebAuthn passkeys (§16), not by Self-Issued ID Tokens.
+RPs implementing HAIP-compliant OpenID4VP ([§8.3](#83-haip-10-requirements-for-rps)) with `response_type=vp_token`, DCQL, and encrypted response return cover the EUDI presentation flows; the exact response mode is topology-specific (`dc_api.jwt` for browser/OS API mediation, `direct_post.jwt` for direct-post branches). Pseudonymous authentication is handled by WebAuthn passkeys ([§16](#16-pseudonym-based-authentication-and-webauthn)), not by Self-Issued ID Tokens.
 
 SIOPv2 may be encountered in the following non-EUDI contexts:
 
@@ -7361,7 +7377,7 @@ An RP strictly implementing ISO 18013-7 Annex B will generate OpenID4VP requests
 
 **RP Mitigation Strategies & Timeline:** 
 The ISO/IEC committee (JTC 1/SC 17/WG 10) has committed to updating ISO 18013-7 Annex B to align with OID4VP 1.0. This third edition is expected in **Q2 2026**. Until then, RPs should mitigate the gap by:
-1. **Using ISO 18013-7 Annex C (DC API)**: For browser-based flows, ISO 18013-7 Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* ISO 18013-7 Annex C (§27.1).
+1. **Using ISO 18013-7 Annex C (DC API)**: For browser-based flows, ISO 18013-7 Annex C avoids OID4VP protocol versioning entirely by delegating presentation to the browser API. Note that Safari 26 currently supports *only* ISO 18013-7 Annex C ([§27.1](#271-vendor-detail-profiles)).
 2. **Targeting OID4VP 1.0 directly**: Do not strictly conform to ISO 18013-7 Annex B. Generate HAIP 1.0 / OID4VP 1.0 requests with DCQL; any standards-compliant EUDI Wallet will accept them for mdoc presentation. ISO 18013-7 Annex B compliance is primarily relevant for non-EUDI deployments (e.g., US mDL programs).
 
 ---
@@ -7937,7 +7953,7 @@ Both signatures must pass for the verification to succeed. See [§5.4.2](#542-im
 
 The Relying Party queries the PID Provider's Token Status List using the `status` claim from the Issuer-JWT ([§5.4.2](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary) step 3). The Relying Party extracts `status.status_list.uri` and `status.status_list.idx`, fetches the Status List Token JWT from the URI, decompresses the DEFLATE-compressed bitstring, and checks the bit at the specified index. The Status List Token JWT itself is signed by the PID Provider — the Relying Party must verify this signature before trusting the result.
 
-For production deployments, the Relying Party should **cache** the Status List Token with a TTL matching the `exp` claim (typically 15 minutes to 1 hour), avoiding redundant fetches for concurrent verifications of credentials from the same PID Provider. See §B.3.1 for the complete Status List verification procedure.
+For production deployments, the Relying Party should **cache** the Status List Token with a TTL matching the `exp` claim (typically 15 minutes to 1 hour), avoiding redundant fetches for concurrent verifications of credentials from the same PID Provider. See [§B.3.1](#b31-status-list-verification-payload-walkthrough) for the complete Status List verification procedure.
 
 **Artifact Produced:** Fetched Status List Token JWT.
 
@@ -8457,7 +8473,7 @@ Similarly, on Android, when the RP's **website** invokes the DC API via `navigat
 | **Single verification backend** | One OID4VP + DCQL pipeline serves both embedded and external wallets. No protocol branching. |
 | **Early adoption** | Banks/PSPs can issue RP-specific credentials (SCA attestations, loyalty cards) via OID4VCI into the embedded wallet *before* MS EUDI Wallets reach wide deployment. Protocol experience gained now transfers directly to external wallet integration. |
 | **UX continuity** | The user never leaves the RP app. For banking apps where session continuity is critical (e.g., mid-transaction authentication), the embedded wallet eliminates the jarring context switch to a separate wallet app. |
-| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI (§15.4), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
+| **RP as issuer** | The embedded wallet can hold credentials issued *by* the RP itself. Example: A bank issues an SCA attestation to its own embedded wallet via OID4VCI ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)), then requests that attestation during payment confirmation via OID4VP — all within the same app. |
 | **Fallback for wallet-less users** | If a user has not installed the standalone EUDI Wallet, the embedded SDK in the RP app can still hold and present RP-specific credentials. This reduces friction during the ecosystem ramp-up period (2026–2028). |
 | **Branded consent screens** | Vendors like Verimi offer three UI modes: Generic (standard UI), Customised (RP-branded), and Headless (no UI — RP provides all rendering). This gives the RP full design control over the credential presentation experience. |
 
@@ -9066,7 +9082,7 @@ The Relying Party Backend retrieves the previously stored ephemeral private key 
 <details>
 <summary><strong>20. Relying Party Backend verifies SD-JWT and KB-JWT signatures</strong></summary>
 
-The Relying Party Backend runs the full SD-JWT VC verification pipeline (§5.4.2): 
+The Relying Party Backend runs the full SD-JWT VC verification pipeline ([§5.4.2](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)): 
 1. Verify the Issuer-JWT ES256 signature against the PID Provider's LoTE trust anchor.
 2. For each disclosed attribute, compute `SHA-256(base64url(disclosure))` and strictly match it against the `_sd` array hashes.
 3. Verify the KB-JWT signature against the `cnf.jwk` public key extracted from the Issuer-JWT.
@@ -9359,7 +9375,7 @@ Multiple independent timers interact in the cross-device flow. Misaligned timeou
 
 **Key constraint:** `request_uri` TTL ≥ JAR `exp` ≥ QR display TTL. The `request_uri` must remain fetchable for slightly longer than the JAR is valid, and the JAR must remain valid for at least as long as the QR is displayed. Violating this ordering creates a window where the QR is visible but the JAR behind it has already expired.
 
-**Relationship to [§11.5](#115-edge-cases-and-error-handling):** The error codes surfaced when these timers expire are handled by the RP's OpenID4VP error handling pipeline (§11.6). Specifically, an expired JAR results in the Wallet never reaching `response_uri` — the RP detects this as a session timeout rather than an explicit error response. The RP should treat any session that reaches the overall 300s timeout without a VP Token as an implicit `access_denied` and offer the user a fresh QR code.
+**Relationship to [§11.5](#115-edge-cases-and-error-handling):** The error codes surfaced when these timers expire are handled by the RP's OpenID4VP error handling pipeline ([§11.6](#116-openid4vp-error-responses)). Specifically, an expired JAR results in the Wallet never reaching `response_uri` — the RP detects this as a session timeout rather than an explicit error response. The RP should treat any session that reaches the overall 300s timeout without a VP Token as an implicit `access_denied` and offer the user a fresh QR code.
 
 #### 10.6 Cross-Device vs. Same-Device Decision Logic
 
@@ -9554,13 +9570,15 @@ When the Wallet Unit cannot fulfil a presentation request, it returns an error r
 | Error Code | Root Cause | Graceful Degradation / UI Strategy |
 |:-----------|:-----------|:-----------------------------------|
 | `access_denied` | The User explicitly declined the presentation or consent | **Halt**: Display "Consent declined" message. Do not automatically retry. Offer fallback manual verification options (e.g., document upload). |
-| `presentation_rejected` | Wallet evaluated RP request against local policy and rejected it | **Halt**: Inform User that their Wallet security policy blocked the request. Log incident; do not retry immediately. |
 | `temporarily_unavailable` | Wallet is locked, busy, or missing backend connectivity | **Soft Retry**: Display "Wallet busy/unavailable". Show a manual "Try Again" button. |
 | `invalid_client` | RP authentication failed (e.g., invalid client_id or revoked WRPAC) | **Fatal Error**: Show "Service configuration error". Alert RP DevOps immediately via monitoring. |
 | `invalid_request` | The JAR is malformed, expired, or has invalid parameters | **Fatal Error**: Show "Service configuration error". Fix JAR construction; do not retry with the same request. |
 | `vp_formats_not_supported` | The Wallet does not support the requested credential format | **Auto-Fallback**: Silently retry with an alternative format (e.g., if mdoc `mso_mdoc` fails, request `dc+sd-jwt`). |
 | `invalid_scope` | The requested credentials/attributes are missing from Wallet | **Degrade**: Wait for timeout, or gracefully prompt User that they lack required credentials. Offer option to retry with a reduced attribute scope if acceptable for business logic. |
 | `server_error` | Internal Wallet crash or unknown error | **Auto-Retry**: Retry under-the-hood (max 2 times, 2–5s delay) before showing a generic "Wallet encountered an error" message with a "Try Again" button. |
+| `invalid_transaction_data` | Wallet rejected the `transaction_data` binding — hash mismatch between signed request and wallet's validation (OID4VP §6.3) | **Fatal — Block**: Do not retry the same transaction. Show "Transaction could not be verified". Emit S1 SIEM alert immediately — possible dynamic linking manipulation ([§29.2.8](#2928-jar-modification-in-transit)). Critical for SCA flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); assess NIS2 reportability. |
+| `invalid_request_uri_method` | RP sent the request object via an unsupported URI method (e.g., `POST` when wallet only supports `GET`) | **Fatal Error**: Show "Service configuration error". Fix `request_uri_method` in RP configuration; do not retry with the same method. |
+| `wallet_unavailable` | Wallet app cannot be invoked — not installed, platform cannot translate the URI, or an intermediary component received the request (OID4VP §8.5) | **Soft Retry**: Display "Wallet not available" with a manual "Try Again" button. Log per platform type for operational visibility. If persistent on a specific platform, suggest alternative engagement method (e.g., cross-device QR if same-device DC API fails). |
 
 The error is posted to `response_uri` as form-encoded:
 
@@ -9573,6 +9591,8 @@ error=access_denied&error_description=User+declined+the+request&state=af0ifjsldk
 ```
 
 > **Implementation note**: The `state` parameter is always included in error responses, allowing the RP to correlate the error with the originating session. RPs should implement a separate error handling path on their `response_uri` endpoint to distinguish error responses from successful presentations.
+
+> **Test fixtures:** Every protocol error code above has a corresponding test fixture in [§C.2](#c2-protocol-error-handling) (Protocol Error Handling) that specifies the verifier's signal mapping, severity classification, evidence capture, and failure-mode analysis.
 
 #### 11.7 Error Recovery and Retry Strategies
 
@@ -9587,6 +9607,7 @@ Production RP implementations must handle failure modes gracefully. The followin
 | `vp_formats_not_supported` | ✅ Yes (once) | Retry with alternative format (`dc+sd-jwt` ↔ `mso_mdoc`) | Reuse session state; generate new nonce |
 | `invalid_scope` | ✅ Yes (once) | Retry with reduced attribute set (e.g., drop optional claims) | Reuse session state; generate new nonce |
 | `server_error` | ✅ Yes (limited) | Retry after 2–5 second delay; maximum 2 retries | Generate fresh nonce **and** ephemeral keys per retry |
+| `wallet_unavailable` | ✅ Yes (user-initiated) | Display "Wallet not available"; user taps "Try Again" to retry | Generate fresh nonce per retry; reuse session state |
 
 **Timeout and Orphaned Session handling:**
 
@@ -9755,13 +9776,13 @@ The following checklist maps each RP verification aspect to a specific test tool
 | 9 | **Certificate revocation checking** | Self-signed test CA + CRL/OCSP | Issue CRL; verify RP correctly rejects revoked certs |
 | 10 | **Status List verification** | Reference Issuer Status List API | Issue credential, revoke it, verify RP detects revocation ([§11.8.4](#1184-obtaining-test-credentials)) |
 | 11 | **mdoc (ISO 18013-5/7) verification** | EU Reference Wallet + Verifier | Test COSE_Sign1, MSO, DeviceAuth validation ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp)) |
-| 12 | **Cross-device flow (QR/BLE)** | EU Reference Wallet (mobile) | Scan QR from RP, complete OID4VP flow cross-device (§10) |
+| 12 | **Cross-device flow (QR/BLE)** | EU Reference Wallet (mobile) | Scan QR from RP, complete OID4VP flow cross-device ([§10](#10-cross-device-remote-presentation)) |
 | 13 | **Same-device DC API flow** | Chrome Canary + Android 16 | Test `navigator.credentials.get()` with DC API ([§9](#9-same-device-remote-presentation)) |
 | 14 | **Error response handling** | OIDF Conformance Suite | Suite sends `access_denied`, `invalid_request`, `vp_formats_not_supported` ([§11.6](#116-openid4vp-error-responses)) |
 | 15 | **Timeout and orphaned sessions** | Manual testing | Simulate wallet crash mid-flow; verify RP session cleanup ([§11.7](#117-error-recovery-and-retry-strategies)) |
 | 16 | **Multi-Wallet interoperability** | German sandbox + French playground + Reference Wallet | Test against 2+ different Wallet implementations ([§28.3](#283-wallet-interoperability-testing)) |
 | 17 | **Combined presentation (multi-credential)** | EU Reference Wallet | Request PID + QEAA; verify same `cnf` binding ([§18.1.10](#18110-cross-format-identity-matching)) |
-| 18 | **HAIP profile compliance** | OIDF Conformance Suite | Run HAIP-specific test plan (§11.8.1) |
+| 18 | **HAIP profile compliance** | OIDF Conformance Suite | Run HAIP-specific test plan ([§11.8.1](#1181-oidf-oid4vphaip-conformance-suite-and-self-certification)) |
 | 19 | **RP registration (CIR 2025/848)** | Registrar test environment (when available) | Verify WRPRC issuance and Registrar API integration ([§4](#4-rp-registration-data-model-and-registrar-api)) |
 | 20 | **Accessibility verification** | WCAG 2.2 audit tools | Verify consent UX, error messages, verification results meet WCAG 2.1 AA ([§21.5](#215-eaa-and-accessibility-compliance-for-rp-uis)) |
 
@@ -9932,7 +9953,7 @@ Current mitigations are **organisational**, not technical:
 
 The ARF's ZKP roadmap ([§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap), [Annex Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs), TS4, TS13, TS14) aims to technically eliminate this residual risk by letting the Wallet generate unlinkable derived proofs rather than replaying issuer-visible credential artefacts. Until a production [Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs)-compatible profile is available, the organisational mitigations remain the primary safeguard.
 
-> **Cross-references**: [§29.2](#292-threat-catalogue) (threat catalogue — RP-Side Attestation Linkability through Over-Identification), [§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap) (ZKP roadmap), Appendix B (Status List verification pipeline), [§31.3](#313-audit-trail-requirements) (audit trail requirements — note: log attribute *names* not values).
+> **Cross-references**: [§B](#appendix-b-status-list-verification-deep-dive) (Status List verification pipeline), [§31.3](#313-audit-trail-requirements) (audit trail requirements — note: log attribute *names* not values).
 
 #### §11.11 Level of Assurance Verification
 
@@ -10328,6 +10349,10 @@ The contract is governed by six invariants that recur throughout the chapter. Th
 > **Note — Issuance Boundary**
 >
 > When an RP also acts as an issuer, this chapter covers only reusable inbound verification and evidence gates: validating a PID/QEAA before account creation, checking WIA/WUA or key-attestation evidence before issuing a device-bound credential, and recording proof-of-possession results. Credential Offer creation, Token Endpoint behavior, Credential Endpoint responses, Wallet storage, and issuer lifecycle operations remain outside §12. Detailed issuance-adjacent negative cases are handled in the conformance fixture catalogue in [§12.12](#1212-conformance-fixtures-and-operational-release-gates).
+
+> **Note — Failure Catalogue**
+>
+> Every failure condition discussed in this chapter — from intake rejection through cryptographic failure to policy violation — has a stable, cross-referenceable identifier in [§C](#appendix-c-verifier-failure-catalogue): the **Verifier Failure Catalogue** (`VERIFY-{STAGE}-{NNNN}`). Each entry records the triggering condition, correct verifier behavior, severity, and STRIDE classification. When this chapter says "the verifier must reject," the corresponding `VERIFY-*` entry in [§C.1](#c1-envelope-and-intake-failures)–[§C.10](#c10-oid4vci-verification-failures) provides the exact test fixture and evidence contract.
 
 #### 12.2 Normal Path: Opaque Response to Decision-Grade Result
 
@@ -10884,7 +10909,7 @@ Request-by-reference flows create a second attack surface before the wallet even
 | Wallet-facing `response_uri` / direct-post target | Expected host, path, response mode, tenant, session id, and callback intake policy. | Host-swapped replay, wrong endpoint, response-mode downgrade, cross-tenant submission. | endpoint hash, expected/actual host class, response mode, tenant match result. |
 | Verifier identity material | `client_id`, DID/JWKS/metadata URL, x509 hash mode, RP access-certificate material, and key id. | Vendor-owned or wrong-tenant identity emitted where RP-owned facade is required; stale or untrusted verifier key. | identity mode, key fingerprint, host control class, certificate hash. |
 | Post-wallet return target | User-agent return URL after wallet action. | Open redirect, attacker-controlled return, mismatch with registered RP purpose. | return URL hash, allowlist result, registered service binding. |
-| Callback/webhook target | Authenticated delivery endpoint for delegated verifier results. | Callback-only control mistaken for wallet-facing URL control; sibling-tenant callback relay; unsigned webhook. | callback signature result, target owner, tenant id, replay/idempotency result. |
+| Callback/webhook target | Authenticated delivery endpoint for delegated verifier results. | Callback-only control mistaken for wallet-facing URL control; sibling-tenant callback relay; unauthenticated notification delivery. | callback signature result, target owner, tenant id, replay/idempotency result. |
 | Result, audit, deferred, or notification URL | Follow-up retrieval or event surfaces after presentation. | Cross-tenant result lookup, 403-based existence leak, missing audit evidence, stale deferred result. | object partition result, response class, audit correlation id, terminal state. |
 
 By-value and by-reference presentation definitions need separate evidence. A by-value request object should record the exact signed request hash and policy version. A by-reference request should record the resolved request-object hash, retrieval policy, cache behavior, and whether later callback processing used the retained snapshot rather than a fresh fetch.
@@ -10896,6 +10921,8 @@ By-value and by-reference presentation definitions need separate evidence. A by-
 | Expiry | Expired request objects cannot be used to submit valid cryptography into a stale session. | Cryptographically valid credential is accepted after request expiry or after a newer session superseded it. |
 | Snapshot immutability | Callback processing compares against the retained request snapshot. | Verifier re-fetches mutable request material and accepts against changed policy. |
 | Host control | Wallet-facing URLs, verifier identity URLs, callback URLs, and result URLs satisfy the RP deployment model. | Callback URL is RP-owned but the signed wallet-facing submission target remains uncontrolled where facade deployment requires RP ownership. |
+
+For the exhaustive failure catalogue covering every intake, protocol error, and session-binding failure scenario — wrong content type, unknown `kid`, JWE decryption failure, wallet error responses, state mismatch, nonce reuse, origin mismatch, and response-mode downgrades — see [§C.1](#c1-envelope-and-intake-failures), [§C.2](#c2-protocol-error-handling), and [§C.3](#c3-session-binding-failures). Each entry carries a stable `VERIFY-*` identifier, triggering condition, expected verifier behavior, severity, and STRIDE classification.
 
 #### 12.4 Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto
 
@@ -10929,7 +10956,7 @@ flowchart TD
 
 | Router check | Failure example | Evidence output |
 |:-------------|:----------------|:----------------|
-| `vp_token` shape | scalar string returned where DCQL map is required | `VP_TOKEN_SHAPE_INVALID`, expected/actual type |
+| `vp_token` shape | scalar string returned where DCQL map is required | `ROUTING_VP_TOKEN_NOT_OBJECT`, expected/actual type |
 | Query id known | `age_credential` returned when request had only `pid` | `DCQL_QUERY_ID_UNKNOWN`, returned id |
 | Format expected | mdoc returned for `dc+sd-jwt` query | `DCQL_FORMAT_MISMATCH`, query id and formats |
 | Cardinality | multiple presentations where `multiple=false` | `DCQL_MULTIPLE_VIOLATION`, count |
@@ -10954,6 +10981,8 @@ The format router should emit two separate products: a cryptographic credential 
 | No-disclosure credential | Request intentionally asks only for credential type/trust and no claim values. | Verifier rejects a valid no-disclosure credential or leaks dropped claims into the result surface. | disclosed-claim inventory and envelope-field retention result. |
 
 The verifier should evaluate policy failures fail-closed for the requested transaction, but it should not necessarily label the credential itself invalid. For support and audit, "valid credential, unsatisfied request policy" is different from "invalid credential." This difference matters when a user selects the wrong credential, when an RP over-specifies a presentation definition, or when a wallet correctly minimizes disclosure.
+
+For the exhaustive failure catalogue covering every routing and policy failure scenario — unknown query id, format mismatch, cardinality violation, missing required claim, predicate failure, over-disclosure, and policy-engine fidelity issues — see [§C.4](#c4-format-router-failures) and [§C.8](#c8-policy-and-dcql-failures).
 
 #### 12.5 Trust Material, Status Sources, and Algorithm Governance
 
@@ -11047,6 +11076,8 @@ The verifier should enforce algorithm policy in two layers: first the ecosystem/
 
 For incident response, the verifier should be able to answer: which trust cache version was used, whether a live fetch happened, which redirects were followed or blocked, whether the final object was signed by the expected trust source, and whether the business decision consumed cached, live, degraded, or incomplete evidence.
 
+For the exhaustive failure catalogue covering every trust and status failure scenario — retrieval blocked by policy, attacker-controlled `jku`/`x5u`, DNS rebinding, cache expiration, revoked/suspended status, status list signature invalid, LoTE poisoning, and decompression bombs — see [§C.7](#c7-trust-and-status-failures).
+
 #### 12.6 SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence
 
 The SD-JWT VC verifier receives a presentation selected by the DCQL format router, not an arbitrary string in isolation. It should parse the SD-JWT family first, then apply the RP's profile: whether key binding is required, which `vct` values are accepted, what algorithms are allowed, which status mechanism is expected, and which claims are lawful for the requested purpose.
@@ -11122,6 +11153,8 @@ A high-assurance verifier should carry fixture coverage for at least the followi
 | Status-list index out of bounds or status URI blocked by retrieval policy | Fail closed or mark indeterminate by RP risk policy; never read past list bounds. | status failure or evidence incomplete. |
 
 Do not infer that a verifier passed SD-JWT VC validation merely because it returned a terminal success status. The result surface must include at least the credential type, issuer trust result, status result, holder-binding result or explicit non-requirement, requested/disclosed claim inventory, policy result, and redaction decision.
+
+For the exhaustive failure catalogue covering every SD-JWT VC verification failure scenario — `alg=none`, issuer signature tampering, disclosure hash mismatch, missing `cnf`, KB-JWT signed by wrong key, nonce mismatch, `aud` mismatch, `sd_hash` mismatch, WUA/WIA validation, and parser resource exhaustion — see [§C.5](#c5-sd-jwt-vc-verification-failures).
 
 #### 12.7 mdoc Branch: CBOR, MSO, and SessionTranscript Evidence
 
@@ -11214,11 +11247,13 @@ Implementers often build SD-JWT VC and mdoc support in different libraries, but 
 | What policy stage follows cryptography? | DCQL claim paths, predicates, credential sets, over-disclosure, and business policy. | DCQL namespace/element paths, `docType`, predicates where profiled, over-disclosure, and business policy. | `policy_result` separate from `crypto_result`. |
 | What audit evidence should survive redaction? | Token hash, issuer key fingerprint, `vct`, claim names, disclosure count, holder-binding result. | CBOR hash, issuer cert fingerprint, `docType`, namespace names, digest results, DeviceAuth result. | redacted per-credential evidence. |
 
+For the exhaustive failure catalogue covering every mdoc verification failure scenario — CBOR parse error, `issuerAuth` signature corruption, value digest mismatch, SessionTranscript reconstruction failure, Tag 24 malformation, DeviceAuth method mismatch, and parser limit exhaustion — see [§C.6](#c6-mdoccose-verification-failures).
+
 #### 12.8 Status, Revocation, and Temporal Freshness
 
 Status is a verification stage, not a post-processing decoration. A credential with a valid signature and holder proof may still be unusable if its status evidence is revoked, suspended, stale, unavailable beyond policy, or fetched through an unsafe retrieval path.
 
-As of 2026-04-24, the relevant IETF Token Status List baseline is `draft-ietf-oauth-status-list-20`. That draft defines Status List Tokens in JWT and CWT form, signed status-list bodies, `exp` and `ttl` freshness claims, content types, DEFLATE/ZLIB-compatible decompression, status-value extraction by index, and privacy caveats for historical status requests. Appendix B remains the low-level status-list walkthrough; this subsection defines where status fits into the verifier pipeline.
+As of 2026-04-24, the relevant IETF Token Status List baseline is `draft-ietf-oauth-status-list-20`. That draft defines Status List Tokens in JWT and CWT form, signed status-list bodies, `exp` and `ttl` freshness claims, content types, DEFLATE/ZLIB-compatible decompression, status-value extraction by index, and privacy caveats for historical status requests. [§B](#appendix-b-status-list-verification-deep-dive) remains the low-level status-list walkthrough; this subsection defines where status fits into the verifier pipeline.
 
 Status handling is a small pipeline inside the larger verifier pipeline: extract the reference, fetch through policy, validate the signed list, evaluate freshness, then map the value into a terminal or continuing state.
 
@@ -11291,6 +11326,8 @@ Time checks should use a single verifier clock source and a documented skew poli
 
 When multiple credentials are presented, status must be evaluated per credential. A valid PID status does not rescue a revoked mandate credential; a stale supplementary attestation status may make only that business-policy branch unavailable. The combined result should record whether the whole presentation failed, a required credential failed, an optional credential was ignored, or a fallback credential-set option remains satisfiable.
 
+For the exhaustive failure catalogue covering every status and temporal freshness failure scenario — revoked, suspended, stale token, index out of bounds, and clock/skew handling — see [§C.7](#c7-trust-and-status-failures) (status entries).
+
 #### 12.9 Holder Binding, Combined Presentations, and Transaction Intent
 
 Holder binding answers a narrow cryptographic question: did the presenter possess the private key bound to this credential for this verifier session? It is an input to user binding, not a complete proof that the human user is the lawful subject in every business context.
@@ -11355,6 +11392,8 @@ Cross-credential comparison is also policy-sensitive:
 | Mandate credential to PID/LPID | Per-credential checks plus mandate-scope evidence for §18 policy. | Letting a valid mandate credential bypass PID/LPID identity matching. |
 | Payment/SCA evidence | Holder binding plus transaction/intent binding. | Treating device possession alone as PSD2 dynamic-linking evidence. |
 
+For the exhaustive failure catalogue covering every holder-binding failure scenario — missing `cnf`, symmetric key confusion, KB-JWT wrong key, and DeviceAuth signature corruption — see [§C.5](#c5-sd-jwt-vc-verification-failures) (holder-binding entries) and [§C.6](#c6-mdoccose-verification-failures) (DeviceAuth entries).
+
 #### 12.10 Failure Semantics and External Error Contracts
 
 A verifier should separate external messages from internal diagnostic precision. Users and Wallets should receive generic, non-oracular failures; internal audit, SIEM, and support tooling should receive exact signals and per-check outcomes.
@@ -11376,7 +11415,11 @@ flowchart TD
     X1["intake_rejected"]
     X2["verification_failed"]
     X3["evidence_incomplete"]
-    X4["policy_failed"]
+    S["Session lifecycle"]
+    X5["expired"]
+    X6["duplicate"]
+    X7["stalled"]
+    X8["data_request_denied"]
 
     A --> B
     B -- "no" --> X1
@@ -11385,14 +11428,21 @@ flowchart TD
     C -- "yes" --> D
     D -- "no" --> X3
     D -- "yes" --> E
-    E -- "no" --> X4
+    E -- "no" --> X2
     E -- "yes" --> F
+    S --> X5
+    S --> X6
+    S --> X7
+    S --> X8
+    X5 ~~~ X6
+    X6 ~~~ X7
+    X7 ~~~ X8
 ```
 
 | Failure class | Example | Mode | User-facing class | Internal signal / evidence |
 |:--------------|:--------|:-----|:------------------|:---------------------------|
-| Intake rejection | malformed form body, wrong response mode | fail-fast | "Verification response could not be processed" | `JWE_DECRYPT_FAILED`, `VP_TOKEN_SHAPE_INVALID` |
-| Session binding failure | wrong `state`, nonce reuse, wrong origin | fail-fast | "Verification session expired or invalid" | `JARM_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, origin mismatch |
+| Intake rejection | malformed form body, wrong response mode | fail-fast | "Verification response could not be processed" | `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED`, `ROUTING_VP_TOKEN_NOT_OBJECT` |
+| Session binding failure | wrong `state`, nonce reuse, wrong origin | fail-fast | "Verification session expired or invalid" | `SESSION_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, origin mismatch |
 | Cryptographic failure | issuer signature invalid, disclosure hash mismatch | fail-fast plus safe aggregate | "Credential could not be verified" | `SDJWT_SIG_INVALID`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `MDOC_MSO_SIG_INVALID` |
 | Trust indeterminate | LoTE fetch unavailable and cache expired | indeterminate | "Verification temporarily unavailable" | `LOTE_FETCH_FAILED`, cache age, policy result |
 | Status failure | revoked, suspended, stale, unsafe retrieval | policy-defined | "Credential is not acceptable for this service" | `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_FETCH_FAILED` |
@@ -11406,16 +11456,21 @@ Aggregate validation is useful only where later checks remain meaningful. If JWE
 | Final state | Meaning | Retry / fallback behavior | Audit requirement |
 |:------------|:--------|:--------------------------|:------------------|
 | `intake_rejected` | Response could not be parsed, decrypted, bound to a session, or accepted under response-mode policy. | User may retry with a fresh request if the flow is still valid. | Store request/session id if known, failure class, and intake timestamp. |
-| `verification_failed` | Credential or proof was parseable but failed cryptographic, trust, status, holder-binding, or policy checks. | Retry only with a new presentation or fallback identity path. | Store failed check, internal signal, and evidence redaction decision. |
+| `verification_failed` | Credential or proof was parseable but failed cryptographic, trust, status, holder-binding, policy, or step-up checks. | Retry only with a new presentation or fallback identity path. | Store failed check, internal signal, and evidence redaction decision. |
 | `evidence_incomplete` | Required trust, status, metadata, or result evidence could not be obtained safely. | Retry may be allowed after outage/cache refresh; high-risk services should fail closed. | Store missing evidence type, retrieval result, cache age, and policy decision. |
 | `expired` | Request/session expired before acceptable verification completed. | Start a fresh request; do not reuse nonce, state, or response-encryption keys. | Store expiry policy and final transition time. |
 | `duplicate` | A repeated callback/submission arrived after terminal state. | Return or emit the original terminal result idempotently. | Store duplicate event without mutating the terminal result. |
 | `stalled` | Transport accepted but no terminal verifier decision occurred before timeout. | Alert and route to fallback; do not treat as neutral. | Store last state, elapsed time, timeout policy, and missing transition. |
+| `data_request_denied` | mdoc holder exercised their right to deny a data request (holder action, not a verifier failure). | Log for analytics; do not treat as a security event. | Store denied data element names and request parameters. |
 | `verified` | All required checks passed and policy is satisfied. | Business handoff can proceed. | Store per-check result, policy id/version, and redaction decisions. |
+
+Emission-layer defects — where the verification decision was already made but the surface representation is defective (notification delivery without authentication, open redirect) — are not terminal states. They are covered separately in [§C.9](#c9-result-and-audit-failures) and carry `N/A` as the Decision value in their test fixtures.
 
 ##### 12.10.3 External Error Contracts
 
 External error contracts should be stable but not attacker-oracular. For example, a user-facing message can say "credential could not be verified" while the internal result records `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_NONCE_MISMATCH`, or `MDOC_SESSION_TRANSCRIPT_MISMATCH`. Wallet-facing protocol errors should follow the relevant protocol, but support, SIEM, and audit surfaces should carry the precise verifier signal.
+
+For the exhaustive failure catalogue covering every result-fidelity and error-contract failure scenario — terminal status without evidence, open redirects, and unstable error contracts — see [§C.9](#c9-result-and-audit-failures).
 
 #### 12.11 Canonical Verification Result and Audit Evidence
 
@@ -11509,7 +11564,7 @@ The example above is illustrative. Production implementations should treat the r
 |:------------|:-----------------|:-----------------------|:---------------|
 | Schema and identity | `result_schema_version`, `canonical_result_id`, `session_id`, `transaction_id` where used. | Versioned string plus opaque ids. | Lets downstream systems parse the object and reconcile all reporting surfaces to one result. |
 | Tenant and RP context | `tenant_id`, RP/legal-entity id where applicable, endpoint ownership class. | Opaque ids plus `rp_owned`, `delegated`, `vendor_owned`, or `mixed` ownership labels. | Prevents cross-tenant result lookup, trust-source bleed, and facade ambiguity. |
-| Transaction state | Current state and terminal boolean. | Non-terminal: `accepted`, `verification_running`; terminal: `intake_rejected`, `verified`, `verification_failed`, `evidence_incomplete`, `expired`, `duplicate`, `stalled`. | Prevents transport acceptance from being treated as verification success. |
+| Transaction state | Current state and terminal boolean. | Non-terminal: `accepted`, `verification_running`; terminal: `intake_rejected`, `verified`, `verification_failed`, `evidence_incomplete`, `expired`, `duplicate`, `stalled`, `data_request_denied`. | Prevents transport acceptance from being treated as verification success. |
 | Failure and policy class | `failure_class`, `retryable`, `policy_action`, `user_message_class`. | `none`, `intake`, `session_binding`, `parser`, `crypto`, `trust`, `status`, `holder_binding`, `dcql_policy`, `privacy`, `tenant_policy`, `timeout`, `evidence`. | Lets support, audit, and user-facing surfaces explain the same terminal state at different detail levels. |
 | Request evidence | response mode, request-object hash, nonce/state consumption result, query ids, accepted formats, policy id/version. | Hashes and ids by default; raw request material only under controlled retention. | Proves which request the Wallet answered and which policy was in force. |
 | Credential results | array keyed by query id and credential index. | Each item records `format`, `credential_type`, issuer, trust, status, holder binding, disclosure, and policy summaries. | Supports combined presentations and partial failures without flattening evidence. |
@@ -11654,9 +11709,9 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 | DCQL and minimization | Required claims/predicates satisfied and no unrequested claim values surfaced. | Valid credential with missing required claim, wrong value/schema, over-disclosure, no-disclosure claim leakage. | Requested/received claim names, predicate result, over-disclosure result, redaction result. |
 | Async state | Valid submission reaches terminal verified state; duplicate callback returns original terminal result. | Accepted-but-stalled session, 2xx submission with later failed state missing evidence, duplicate mutates request snapshot. | State transitions, timeout policy, idempotency result, terminal evidence completeness. |
 | Tenant and facade isolation | Tenant-specific request state, callbacks, trust stores, result APIs, and subject namespaces. | Host-swapped response endpoint, sibling-tenant callback target, cross-tenant trust anchor, result enumeration, wallet-login subject impersonation. | Tenant partition result, endpoint ownership class, non-enumerating lookup result. |
-| Result fidelity | Result API, webhook, UI, audit export, and SIEM derive from the same result object. | Terminal status without parsed evidence, API/UI disagreement, audit export missing request snapshot or terminal claims. | Result-object schema version, evidence completeness, surface parity assertion. |
+| Result fidelity | Result API, webhook, UI, audit export, and SIEM derive from the same result object. | Terminal status without parsed evidence, audit export missing request snapshot or terminal claims. | Result-object schema version, evidence completeness, surface parity assertion. |
 | Rate limit and double submission | Bounded invalid bursts do not degrade valid traffic; duplicate submissions are idempotent. | Invalid burst has no measurable throttle and harms valid traffic; double submission causes duplicate side effects. | Rate-limit decision, retry-after evidence, duplicate submission result. |
-| Issuance-adjacent verifier reuse | Proof signature, nonce, audience, `iat`, DPoP `jti`, and key-attestation checks pass before issuance handoff. | Tampered proof, wrong nonce/audience, stale `iat`, `alg=none`, replay, PIN/session mix-up, cross-tenant subject override. | Proof-check result, replay decision, session-binding evidence, tenant policy result. |
+| Issuance-adjacent verifier reuse | Proof signature, nonce, audience, `iat`, DPoP `jti`, and key-attestation checks pass before issuance handoff. | Tampered proof, wrong nonce/audience, stale `iat`, `alg=none`, replay, PIN/session mix-up. | Proof-check result, replay decision, session-binding evidence. |
 
 ##### 12.12.4 Issuance-Adjacent Negative Fixtures
 
@@ -11672,7 +11727,6 @@ Issuance-adjacent verifier reuse needs the same negative-fixture discipline as p
 | DPoP or equivalent proof `jti` replay | Deduplicate sequential and concurrent replays for the proof lifetime. | replay failure. |
 | Pre-authorized code is paired with another session's PIN/transaction code | Bind transaction code, access token, proof, and credential configuration to the same session. | session-mix-up failure. |
 | Credential configuration id differs from the authorized session | Reject even if access token and proof are otherwise well formed. | policy or authorization failure. |
-| Cross-tenant subject override before auth credential issuance | Reject caller-supplied subject material outside the issuing tenant's namespace. | tenant-policy failure. |
 
 ##### 12.12.5 Requirement-to-Evidence Traceability
 
@@ -11680,33 +11734,33 @@ Every release gate should trace a requirement or RP policy choice to a verifier 
 
 | Requirement or policy source | Verifier stage | Positive fixture | Negative fixture | Result-object field | Signal / audit output | Primary cross-reference |
 |:-----------------------------|:---------------|:-----------------|:-----------------|:--------------------|:----------------------|:------------------------|
-| HAIP encrypted response profile and topology-specific response modes | Envelope and session binding | Valid `direct_post.jwt` form response and valid `dc_api.jwt` response for the same DCQL request. | Unencrypted success response, unsupported JWE `alg`/`enc`, unknown `kid`, or response submitted to wrong branch. | `envelope.response_mode`, `envelope.jwe_alg`, `envelope.kid_match`. | `JWE_DECRYPT_FAILED`, `JWE_ALG_UNEXPECTED`, response-mode audit event. | HAIP Requirements for RPs (§8.3); Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)). |
-| Single-use request snapshot, nonce, and tenant binding | Request snapshot and intake state | Response matches retained request-object hash, nonce, `state` or origin, response target, tenant, and expiry. | Reused nonce, wrong `state`, expired snapshot, sibling-tenant session id, or callback compared against mutable policy. | `request.snapshot_hash`, `binding.nonce_result`, `tenant_id`, `transaction_state`. | `JARM_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, duplicate/expired audit event. | Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)); RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)). |
+| HAIP encrypted response profile and topology-specific response modes | Envelope and session binding | Valid `direct_post.jwt` form response and valid `dc_api.jwt` response for the same DCQL request. | Unencrypted success response, unsupported JWE `alg`/`enc`, unknown `kid`, or response submitted to wrong branch. | `envelope.response_mode`, `envelope.jwe_alg`, `envelope.kid_match`. | `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED`, `ENVELOPE_JWE_ALG_UNSUPPORTED`, response-mode audit event. | HAIP Requirements for RPs ([§8.3](#83-haip-10-requirements-for-rps)); Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)). |
+| Single-use request snapshot, nonce, and tenant binding | Request snapshot and intake state | Response matches retained request-object hash, nonce, `state` or origin, response target, tenant, and expiry. | Reused nonce, wrong `state`, expired snapshot, sibling-tenant session id, or callback compared against mutable policy. | `request.snapshot_hash`, `binding.nonce_result`, `tenant_id`, `transaction_state`. | `SESSION_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, duplicate/expired audit event. | Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)); RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)). |
 | DCQL query-id, format, cardinality, and minimization policy | Format router and policy evaluation | `vp_token` map satisfies known query ids, expected formats, cardinality, required claims, and minimization. | Unknown query id, wrong format, `multiple=false` violation, missing required claim, or over-disclosure. | `credentials[].query_id`, `policy_result`, `disclosure.over_disclosure`. | `DCQL_QUERY_ID_UNKNOWN`, `DCQL_FORMAT_MISMATCH`, `DISCLOSURE_POLICY_VIOLATION`. | Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)); DCQL Query Model ([§17](#17-dcql-query-language-and-request-construction)). |
 | SD-JWT VC issuer authenticity, disclosure integrity, and key-binding policy | SD-JWT VC verifier | Trusted issuer JWT, valid disclosures, accepted `vct`, fresh status, and valid KB-JWT where required. | `alg=none`, invalid issuer signature, duplicate disclosure digest, missing required KB-JWT, wrong `sd_hash`, or wrong `aud`. | `issuer_trust`, `disclosure`, `holder_binding`, `credential_type`. | `SDJWT_SIG_INVALID`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_AUD_MISMATCH`. | SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)); Verification Checklist for SD-JWT VC ([§11.3](#113-verification-checklist-for-sd-jwt-vc)). |
 | mdoc issuerAuth, MSO, DeviceAuth, and remote handover policy | mdoc / COSE verifier | Valid DeviceResponse, trusted issuerAuth/MSO, value digests, and DeviceAuth over reconstructed remote SessionTranscript. | CBOR parse failure, wrong `docType`, MSO expired, digest mismatch, malformed Tag 24, or proximity transcript used in remote flow. | `mdoc.docType`, `issuer_trust`, `attribute_integrity`, `holder_binding.session_transcript`. | `MDOC_CBOR_PARSE_ERROR`, `MDOC_MSO_SIG_INVALID`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`. | mdoc Branch: CBOR, MSO, and SessionTranscript Evidence ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)); Proximity Presentation Flows ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). |
-| Status and freshness requirement for the credential type | Status verifier | Fresh signed Status List Token, allowed retrieval path, in-bounds index, and valid status value. | Revoked/suspended value, unsafe status URI, stale signed token, invalid signature, decompression bomb, or out-of-bounds index. | `status.result`, `status.uri_hash`, `status.index_hash`, `status.cache_age_seconds`. | `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_FETCH_FAILED`, status-freshness audit event. | Status, Revocation, and Temporal Freshness ([§12.8](#128-status-revocation-and-temporal-freshness)); Status List Verification Deep-Dive (Appendix B). |
+| Status and freshness requirement for the credential type | Status verifier | Fresh signed Status List Token, allowed retrieval path, in-bounds index, and valid status value. | Revoked/suspended value, unsafe status URI, stale signed token, invalid signature, decompression bomb, or out-of-bounds index. | `status.result`, `status.uri_hash`, `status.index_hash`, `status.cache_age_seconds`. | `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_FETCH_FAILED`, status-freshness audit event. | Status, Revocation, and Temporal Freshness ([§12.8](#128-status-revocation-and-temporal-freshness)); Status List Verification Deep-Dive ([§B](#appendix-b-status-list-verification-deep-dive)). |
 | ECCG/profile algorithm governance and key-source control | Trust material and algorithm governance | Each JOSE/COSE/status/proof surface uses an allowed algorithm and governed key source. | Symmetric/asymmetric confusion, `alg=none`, rogue `jku`/`x5u`, unsupported COSE algorithm, or wrong trust root. | `algorithms_observed`, `algorithms_accepted`, `trust_source`, `retrieval_policy`. | `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`. | ARF Algorithm Governance: ECCG v2.0 Allowlist ([§8.3.2](#832-arf-algorithm-governance-eccg-v20-allowlist)); Trust Material, Status Sources, and Algorithm Governance ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)). |
 | Holder binding and transaction or intent binding policy | Holder-binding stage | KB-JWT or DeviceAuth proof binds the credential to this request, and transaction-data evidence matches where profiled. | Missing proof where required, stale proof, wrong nonce/audience, transcript mismatch, or transaction hash mismatch. | `holder_binding.result`, `transaction_binding`, `proof_iat_window`. | `KBJWT_NONCE_MISMATCH`, `MDOC_DEVICE_SIG_INVALID`, transaction-binding audit event. | Holder Binding, Combined Presentations, and Transaction Intent ([§12.9](#129-holder-binding-combined-presentations-and-transaction-intent)); SCA for Electronic Payments ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)). |
-| Canonical result object and surface parity | Result object and audit emission | API, webhook, UI, audit export, and SIEM all reference the same canonical result id and schema version. | Terminal label without parsed evidence, API/UI disagreement, webhook success while result API is pending, or missing audit snapshot. | `canonical_result_id`, `result_schema_version`, `surface_parity`, `evidence_completeness`. | result-fidelity defect, SIEM correlation event, audit parity alert. | Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)); Audit Trail Requirements ([§31.3](#313-audit-trail-requirements)). |
+| Canonical result object and surface parity | Result object and audit emission | API, webhook, UI, audit export, and SIEM all reference the same canonical result id and schema version. | Terminal label without parsed evidence or missing audit snapshot. | `canonical_result_id`, `result_schema_version`, `surface_parity`, `evidence_completeness`. | result-fidelity defect, SIEM correlation event, audit parity alert. | Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)); Audit Trail Requirements ([§31.3](#313-audit-trail-requirements)). |
 | Tenant/facade isolation in delegated verifier deployments | Intake, trust, callback, and result partitioning | Tenant-scoped request state, keys, trust stores, callback authentication, result APIs, audit records, and subject namespace. | Cross-tenant trust anchor, sibling callback target, result enumeration, wallet-login subject impersonation, or vendor-owned wallet-facing URL hidden from RP risk model. | `tenant_id`, `endpoint_ownership`, `partition_result`, `subject_namespace`. | tenant-policy failure, cross-tenant access audit event. | RP Verification Architecture Patterns ([§26](#26-rp-verification-architecture-patterns)); Canonical Verification Result and Audit Evidence ([§12.11](#1211-canonical-verification-result-and-audit-evidence)). |
-| Issuance-adjacent verifier reuse before RP issuance or onboarding | Proof and attestation gates | Inbound PID/QEAA, WUA/WIA, key attestation, proof JWT, DPoP `jti`, nonce/`c_nonce`, and tenant policy pass before issuance handoff. | Tampered proof, wrong `c_nonce`, stale `iat`, replayed DPoP `jti`, PIN/session mix-up, or cross-tenant subject override. | `proof_check`, `attestation_result`, `replay_result`, `tenant_policy`. | proof replay signal, issuance-gate audit event. | OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)). |
+| Issuance-adjacent verifier reuse before RP issuance or onboarding | Proof and attestation gates | Inbound PID/QEAA, WUA/WIA, key attestation, proof JWT, DPoP `jti`, nonce/`c_nonce` pass before issuance handoff. | Tampered proof, wrong `c_nonce`, stale `iat`, replayed DPoP `jti`, PIN/session mix-up. | `proof_check`, `attestation_result`, `replay_result`. | proof replay signal, issuance-gate audit event. | OID4VCI Issuance Flow for SCA Attestations ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)); RP as Credential Issuer ([§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern)). |
 
 ##### 12.12.6 Operational Release Gates
 
-The fixture catalogue becomes operational only when it can stop a bad verifier release. A high-assurance RP should treat verifier release approval as an evidence decision: the release candidate either proves that the verifier can reject bad inputs, preserve tenant boundaries, emit a canonical result, and recover from faults, or it does not ship.
+A high-assurance RP treats verifier release approval as an evidence decision: the release candidate either proves it can reject bad inputs, preserve tenant boundaries, emit a canonical result, and recover from faults — or it does not ship. The five gates below must all pass before a verifier build enters production.
 
-**Fixture evidence gate.** The first gate is deterministic fixture evidence. Known-good, known-bad, parser and resource-exhaustion, async-state, tenant-isolation, result-fidelity, and issuance-adjacent verifier fixtures should run in CI against the exact verifier build, policy bundle, trust-cache snapshot, and result schema version proposed for release. A passing gate produces a fixture run id, verifier version, policy version, and evidence summary that can be attached to the release record. A failing gate blocks release even if a live wallet happens to complete one happy-path presentation.
+| Gate | What it checks | Required evidence | Blocks release if |
+|:-----|:---------------|:------------------|:------------------|
+| **Fixture evidence** | Deterministic fixture pass-rate against the exact verifier build, policy bundle, trust-cache snapshot, and result schema proposed for release | Fixture run ID, verifier version, policy version, evidence summary attached to the release record | Any known-good, known-bad, parser, resource-exhaustion, async-state, tenant-isolation, result-fidelity, or issuance-adjacent fixture fails — even if a live wallet completes a happy-path presentation |
+| **Trust and status data** | Reproducible trust evidence for LoTE material, trusted lists, Type Metadata, issuer metadata, and Status List Tokens — versioned, freshness-checked, testable offline | Old-vs-new behavior comparison against deterministic fixtures when cache policy, retrieval policy, freshness windows, status interpretation, or trusted-list processing changes | Network availability is the only proof that the trust pipeline works |
+| **Algorithm and dependency** | Verifier dependencies (JOSE, COSE, CBOR, compression, X.509, URL parsing, DNS/HTTP retrieval, metadata parsing) reviewed as part of the cryptographic surface | SBOM, vulnerability scan, fixture deltas, explicit approval record for any algorithm allowlist, key-source policy, or retrieval-policy change | A dependency upgrade ships without SBOM evidence or fixture-delta review |
+| **Interoperability and delegation** | Deterministic evidence matches live ecosystem behavior | At least one live Wallet, browser/OS credential API branch, or delegated-verifier integration exercised before release where the deployment depends on that path | Fixture assumptions have drifted from production protocol behavior, connector callbacks, or wallet-facing response modes |
+| **Incident and rollback** | The verifier can be reversed, explained, and converted into regression evidence after a production incident | Rollback procedure, build blocklist mechanism, result-reconciliation plan, regression fixture for every production incident, conformance failure, or connector-evaluation failure | The build cannot be rolled back, explained, or converted into a deterministic regression |
 
-**Trust and status data gate.** The second gate is reproducible trust evidence. LoTE material, trusted lists, Type Metadata, issuer metadata, and Status List Tokens should be versioned, freshness-checked, and testable without depending on live network availability. If a release changes cache policy, retrieval policy, freshness windows, status interpretation, or trusted-list processing, the release evidence should show both the old and new behavior against deterministic fixtures. Network availability can be an operational condition; it cannot be the only proof that the trust pipeline works.
+Release approval is therefore based on artifacts, not confidence: fixture evidence, trust-cache versions, dependency review, live interop notes, rollback instructions, and audit reconstruction inputs. The release gate is where the verifier contract from this chapter becomes enforceable in engineering operations.
 
-**Algorithm and dependency gate.** The third gate treats verifier dependencies as part of the cryptographic surface. JOSE, COSE, CBOR, compression, X.509, URL parsing, DNS/HTTP retrieval, and metadata parsing libraries should be reviewed alongside algorithm allowlists, key-source policy, and status retrieval behavior. A release that upgrades one of these components should carry SBOM and vulnerability evidence, fixture deltas, and an explicit approval record for any accepted algorithm, parser, or retrieval-policy change.
-
-**Interoperability and delegation gate.** The fourth gate checks that deterministic evidence still matches live ecosystem behavior. At least one live Wallet, browser/OS credential API branch, or delegated-verifier integration should be exercised before release where the deployment depends on that path. Live interoperability does not replace fixtures; it proves that fixture assumptions have not drifted away from production protocol behavior, connector callbacks, or wallet-facing response modes.
-
-**Incident and rollback gate.** The final gate asks what happens if the verifier is wrong after release. The release record should identify how to roll back the verifier version, blocklist an affected build, reconcile verification results that consumed incomplete or incorrect evidence, and create a regression fixture for every production incident, conformance failure, or connector-evaluation failure. A release that cannot be rolled back, explained, or converted into a deterministic regression is not ready for high-assurance use.
-
-Release approval should therefore be based on artifacts, not confidence: fixture evidence, trust-cache versions, dependency review, live interop notes, rollback instructions, and audit reconstruction inputs. The release gate is where §12's verifier contract becomes enforceable in engineering operations.
+For OID4VCI issuance-adjacent verification failures — proof JWT tampering, DPoP replay, attestation validation, pre-auth code reuse, and scope exceedance — see [§C.10](#c10-oid4vci-verification-failures).
 
 ---
 
@@ -13128,6 +13182,32 @@ The SCA attestation:
 - Enables the Wallet to generate dynamic authentication codes for transactions
 - Must satisfy PSD2 dynamic linking requirements (binding authentication to transaction amount and payee)
 
+> **Note — SUA Attestation Is the Generic ARF Class; SCA Attestation Is the TS12 Payment Subtype**
+>
+> The ARF defines **SUA attestation** as the generic credential class for strong user authentication with transactional data ([Annex 2 Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments), HLRs `SUA_01`–`SUA_07`). TS12 scopes this to **SCA attestation** — the PSD2/payment-specific subtype. They are not two parallel concepts; one is a subset of the other:
+>
+> ```
+> SUA attestation (ARF generic class, Topic 20, HLRs SUA_01–SUA_07)
+>  ├── SCA attestation (PSD2/payment-specific, defined by TS12)
+>  │    ├── SCA Attestation Rulebook(s) — sector-specific, issued by financial schemes
+>  │    └── category: "urn:eu:europa:ec:eudi:sua:sca" in SD-JWT VC Type Metadata
+>  └── Future non-PSD2 SUA attestations (SUA_02 — other Rulebooks/TS, not yet defined)
+> ```
+>
+> This document uses "SCA attestation" throughout [§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking) and [§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub) for consistency with TS12 and PSD2, but the underlying ARF credential class is SUA attestation. Future non-PSD2 SUA attestation types (SUA_02) may exist with different category URNs and their own Rulebooks; RPs should dispatch by category URN, not by hardcoded VCT.
+>
+> The EUDI Wallet ecosystem uses **"SCA" in three completely different senses** — a collision that can confuse readers arriving at different chapters:
+>
+> | Sense | Full Name | Domain | Source |
+> |:------|:----------|:-------|:-------|
+> | **SCA ①** | Strong Customer Authentication | PSD2 payment authentication | PSD2 Art. 97; RTS SCA (Commission Delegated Regulation (EU) 2018/389) |
+> | **SCA ②** | SCA Attestation (the credential) | EUDI Wallet credential for payment SCA | TS12 §1.4, [§2.2](#22-rp-instances) |
+> | **SCA ③** | Signature Creation Application | Qualified Electronic Signatures | ETSI TS 119 432; ARF QES_02 |
+>
+> SCA ① and SCA ② are directly related (the attestation is the vehicle for the authentication), but they are not the same thing. SCA ③ is entirely unrelated — it is the software component that creates QES signatures, and appears in [§32](#32-qes-signing-flow-patterns)–[§34](#34-findings). Where ambiguity exists in those chapters, "SCA (Signature)" or "SCA (Payment)" is used.
+>
+> For the authentication-concept synonym (eIDAS "strong *user* authentication" = PSD2 "strong *customer* authentication"), see [§24.2.3](#2423-psd2psr-bridge-sca-as-the-trigger).
+
 #### 15.2 SCA Attestation Types
 
 TS12 specifies that SCA Attestations are identified by the `category` claim in the SD-JWT VC Type Metadata, not by separate VCT identifiers:
@@ -13146,6 +13226,8 @@ The actual VCT values are defined by sector-specific **SCA Attestation Rulebooks
 | Card-based | Specific card belonging to a User | `pan_last_four`, `scheme`, `scheme_logo` |
 | Account-based | Specific account belonging to a User | `iban`, `bic`, `currency` |
 | User-only | The User/PSU themselves | `sub` only (no instrument details) |
+
+These three types are all subtypes of the broader **SUA attestation** class defined by [ARF Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments), distinguished from other future SUA types by the `category: "urn:eu:europa:ec:eudi:sua:sca"` claim. `SUA_02` envisions Scheme Providers defining non-TS12 SUA attestation types with their own Rulebooks and different category URNs — RPs should dispatch by category URN, not by hardcoded VCT, and should not treat TS12 as the only possible SUA family.
 
 #### 15.3 SCA Attestation Issuance Overview
 
@@ -13664,7 +13746,7 @@ The EAA Provider registration requires:
 
 1. **Provider Information** — identity, supported attestation types, issuance policies, data sources, geographic scope (Annex I data model, CIR 2024/2981)
 2. **Attestation type definition** — registered in the Common Catalogue (TS11) with claims schema, format support, and revocation mechanism
-3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` (§15.5.3) and linked from the Provider Information's `providesAttestations` field (TS2)
+3. **Credential Issuer Metadata** — published at `/.well-known/openid-credential-issuer` ([§15.5.3](#1553-credential-issuer-metadata)) and linked from the Provider Information's `providesAttestations` field (TS2)
 4. **Non-discrimination** — per AS-AP-10-044, an EAA Provider must support all Wallet Solutions and must not discriminate between them
 
 > **Compliance note**: Qualified EAAs (QEAAs) can only be issued by Qualified Trust Service Providers (QTSPs) under eIDAS 2.0 Art. 45d. Public-body EAAs (PuB-EAAs) can only be issued by or on behalf of public sector bodies responsible for authentic sources. Non-qualified EAAs have no such restriction — any registered entity can issue them. Most RPs acting as issuers will issue non-qualified EAAs.
@@ -14224,7 +14306,7 @@ The exact JSON Schema from `ts12-urn-eudi-sca-payment-1-data-model.json`:
 
 ##### 15.15.1 Context
 
-Current [Annex 2 Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) is the active HLR source for Strong User Authentication (SUA) transactional data. The historical [Topic W](https://eudi.dev/2.8.0/discussion-topics/w-transactional-data-for-payments-and-other-use-cases/) discussion paper is useful background, but the integrated requirement IDs are now `SUA_01`-`SUA_07`. TS12 remains the detailed payment SCA technical specification; [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) defines how Wallet Units process, display, sign, log, and validate transactional data for TS12 and for any future non-TS12 SUA attestation profile.
+Current [Annex 2 Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) is the active HLR source for Strong User Authentication (SUA) transactional data. The historical [Topic W](https://eudi.dev/2.8.0/discussion-topics/w-transactional-data-for-payments-and-other-use-cases/) discussion paper is useful background, but the integrated requirement IDs are now `SUA_01`-`SUA_07`. TS12 remains the detailed payment SCA technical specification; [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) defines how Wallet Units process, display, sign, log, and validate transactional data for TS12 and for any future non-TS12 SUA attestation profile. The ARF uses "SUA attestation" as the generic credential class; TS12 scopes this to "SCA attestation" specifically for PSD2 payments (identified by `category: "urn:eu:europa:ec:eudi:sua:sca"`). This chapter uses both terms — "SUA" when referencing [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) HLRs, "SCA attestation" when referencing the TS12 payment-specific subtype. For the full terminology frame, see [§15.1](#151-sca-attestation-context).
 
 The Wallet Unit's role in transactional data handling spans three lifecycle phases:
 
@@ -14307,7 +14389,9 @@ This satisfies all three PSD2 Dynamic Linking requirements:
 
 ##### 15.15.5 Non-Payment Use Cases
 
-The transactional-data mechanism is not limited to payments. [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) allows SUA attestations outside TS12 when a Scheme Provider defines the Rulebook and technical profile. A related but separate signing use case appears in [§32](#32-qes-signing-flow-patterns)-[§33](#33-csc-api-signature-formats-and-rp-signing-obligations):
+The transactional-data mechanism is not limited to payments. [Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) allows SUA attestations outside TS12 when a Scheme Provider defines the Rulebook and technical profile. The `category` claim in the SD-JWT VC Type Metadata identifies the SUA subtype — `urn:eu:europa:ec:eudi:sua:sca` for TS12 payments; future SUA types will use different category URNs. RPs should dispatch by category URN, not by hardcoded VCT or by assuming TS12 is the universal profile.
+
+A related but separate signing use case appears in [§32](#32-qes-signing-flow-patterns)-[§33](#33-csc-api-signature-formats-and-rp-signing-obligations) (note: "SCA" in those sections refers to **Signature Creation Application** per ETSI TS 119 432 — a completely different concept from the Strong Customer Authentication discussed here):
 
 - **Remote Qualified Electronic Signature (QES)**: A signing service RP can include document context in the signing request / approval model so the Wallet or SCA shows the User what will be signed. Do not treat the payment SCA `transaction_data` profile as the universal QES transport; [§32](#32-qes-signing-flow-patterns)-[§33](#33-csc-api-signature-formats-and-rp-signing-obligations) distinguish the CSC / ETSI TS 119 432 signing model, `qesRequest` / `qesApprovalRequest` options, and the still-evolving EUDI document-retrieval bridge.
 
@@ -15735,7 +15819,7 @@ The browser POSTs the `vp_token` to the RP's OpenID4VP response endpoint (via th
 <details>
 <summary><strong>24. RP Server verifies SD-JWT VC and cross-ceremony binding</strong></summary>
 
-The RP's backend performs the standard SD-JWT VC verification (§14.3) and additionally:
+The RP's backend performs the standard SD-JWT VC verification ([§14.3](#143-w2w-interaction-flow-ts9-wallet-to-wallet-model---no-intermediary)) and additionally:
 
 1. **Verifies the nonce** matches the expected challenge material — confirming cross-ceremony binding between the WebAuthn session and this OpenID4VP presentation
 2. **Verifies session continuity** — the OpenID4VP response arrived within the same TLS session as the active pseudonym login
@@ -16556,7 +16640,7 @@ The RP verifies that the credential was presented by the device to which it was 
 <details>
 <summary><strong>7. RP Instance queries Status List for revocation check</strong></summary>
 
-The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See Appendix B (§B.3.1) for the full Status List verification procedure with payload examples.
+The RP queries the issuer's Token Status List endpoint for each credential to verify it has not been revoked or suspended since issuance. The RP extracts the `status` claim from the credential (containing the `status_list.uri` and `status_list.idx`), fetches the Status List Token from the URI, and checks the bit at the specified index. See [§B](#appendix-b-status-list-verification-deep-dive) ([§B.3.1](#b31-status-list-verification-payload-walkthrough)) for the full Status List verification procedure with payload examples.
 
 > **Batch optimisation**: When verifying multiple credentials from the same issuer, the Status List Token may be shared — the RP should cache it after the first fetch to avoid redundant HTTP requests. The cache TTL should respect the `exp` claim in the Status List Token JWT.
 
@@ -16979,7 +17063,7 @@ The KB-JWT for each credential is verified against the credential's `cnf.jwk`. T
 <details>
 <summary><strong>7. RP Instance queries Status List for each credential's revocation status</strong></summary>
 
-The RP checks each credential's Status List. For the mandate credential, the RP should use a **freshness policy stricter than ordinary PID caching** where the operation has legal or financial exposure. For high-value operations, this can mean bypassing a stale local cache and forcing a fresh Status List retrieval, subject to the privacy-preserving batch-list model described in Appendix B. See [§18.2.7](#1827-mandate-revocation-model) for mandate-specific revocation guidance.
+The RP checks each credential's Status List. For the mandate credential, the RP should use a **freshness policy stricter than ordinary PID caching** where the operation has legal or financial exposure. For high-value operations, this can mean bypassing a stale local cache and forcing a fresh Status List retrieval, subject to the privacy-preserving batch-list model described in [§B](#appendix-b-status-list-verification-deep-dive). See [§18.2.7](#1827-mandate-revocation-model) for mandate-specific revocation guidance.
 
 </details>
 <details>
@@ -17240,11 +17324,11 @@ The **EU Age Verification Solution** is a privacy-preserving age verification sy
 
 ##### 19.1.2 ZKP Cryptographic Scheme
 
-The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" (Appendix B §B.4) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
+The Age Verification Solution's ZKP feature uses **ECDSA Anonymous Credentials** (Frigo & shelat, ePrint 2024/2010) as its cryptographic foundation. The EU Commission evaluated five alternative schemes — BBS+, BBS+ with ECDSA proof-of-possession, Pairing-free BBS+ (also known as **BBS#** — a pairing-free variant that replaces BLS12-381 pairings with ECDSA/ECSchnorr on classical curves, enabling SOG-IS certification and Secure Element compatibility; IACR ePrint 2024), ECDSA Anonymous Credentials, and Crescent — and identified ECDSA Anonymous Credentials as "the most promising" ([§B](#appendix-b-status-list-verification-deep-dive) [§B.4](#b4-rp-implementation-considerations)) due to its compatibility with existing ECDSA P-256 issuer infrastructure. No changes to Hardware Security Modules (HSMs) or Secure Elements (SEs) are required, and the scheme is fully compatible with SOG-IS certified cryptographic modules. BBS+, by contrast, would require issuers to adopt pairing-friendly curves (e.g., BLS12-381) and implement new signing algorithms, a significant infrastructure migration.
 
 This is an **AV App implementation choice**, not the general EUDI Wallet [Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs) answer. [Annex Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs) stays scheme-neutral; TS4/TS13/TS14 remain the source-watch layer for production EUDI Wallet ZKP profiles.
 
-> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (Appendix B §B.3.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
+> **⚠️ Maturity caveat**: The ECDSA Anonymous Credentials scheme has **not been peer-reviewed** as of the current specification version (§B §B.3.4). The `longfellow-zk` implementation underwent a security audit in mid-2025, but results have not been publicly published. RPs should monitor the IETF `draft-google-cfrg-libzk` draft and the ePrint paper's citation history for independent cryptanalysis before relying on this scheme in high-assurance contexts.
 
 **Cryptographic foundations.** The ZKP system builds on three layered protocols:
 
@@ -18070,7 +18154,7 @@ The AP generates the OID4VCI pre-authorized code flow credentials (identical to 
 <details>
 <summary><strong>6. Attestation Provider returns Credential Offer to Banking App</strong></summary>
 
-The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format (§15.4) with the `eu.europa.ec.av.1` credential type:
+The AP sends the credential offer back to the bank's backend. The credential offer follows the standard OID4VCI format ([§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)) with the `eu.europa.ec.av.1` credential type:
 
 ```json
 {
@@ -18691,7 +18775,7 @@ Current [Annex Topic 50](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-
 
 ##### 21.2.1 Context
 
-PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for electronic payments. The upcoming Payment Services Regulation (PSR) will replace PSD2 and continue these requirements. TS12 defines how the EUDI Wallet satisfies SCA requirements.
+PSD2 (Directive 2015/2366/EU) requires Strong Customer Authentication (SCA) for electronic payments. The upcoming Payment Services Regulation (PSR) will replace PSD2 and continue these requirements. TS12 defines how the EUDI Wallet satisfies SCA requirements. eIDAS 2.0 uses "strong *user* authentication" while PSD2 uses "strong *customer* authentication" — the EC FAQ confirms these are synonyms (see [§24.2.3](#2423-psd2psr-bridge-sca-as-the-trigger) for the full clarification).
 
 This wallet-side SCA flow is separate from the PSD2/open-banking institution certificate stack. `ETSI TS 119 495` governs the bank/PSP certificate-profile layer around `QWAC`, `QSealC`, open-banking `QCStatement` content, and NCA/EBA register-backed role semantics; it does **not** replace TS12, `transaction_data`, or the KB-JWT-based dynamic-linking proof inside the Wallet-facing SCA runtime.
 
@@ -19045,7 +19129,7 @@ The consolidated ARF state diagrams translate into an RP response matrix:
 
 ##### 21.7.1 Breach Lifecycle
 
-CIR 2025/847 defines a three-phase lifecycle for security breaches. The Member State assesses the breach against the Annex I criteria (§21.7.2), and based on proportionality decides whether to suspend the affected wallet solution. If suspended, the breach must be remedied within 3 months — otherwise withdrawal is automatic.
+CIR 2025/847 defines a three-phase lifecycle for security breaches. The Member State assesses the breach against the Annex I criteria ([§21.7.2](#2172-annex-i-assessment-criteria)), and based on proportionality decides whether to suspend the affected wallet solution. If suspended, the breach must be remedied within 3 months — otherwise withdrawal is automatic.
 
 ```mermaid
 ---
@@ -19143,7 +19227,7 @@ Upon receiving a breach notification, the RP must execute the following response
 
 ##### 21.7.5 NIS2 and DORA Cross-Reference
 
-CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive 2022/2555), the Cybersecurity Act (Regulation 2019/881), and the Cyber Resilience Act (Regulation 2024/2847). For NIS2-covered RPs (§21.6), a wallet solution security breach may trigger **parallel incident reporting obligations** under NIS2 Art. 23 — particularly if the breach materially affects the RP's service availability or data integrity. For DORA-covered financial RPs ([§21.4](#214-dora-considerations-for-financial-rps)), it may trigger ICT incident reporting under DORA Art. 17–23, especially if the RP treats the wallet integration infrastructure as a critical third-party ICT service.
+CIR 2025/847 Recital 4 states it operates "without prejudice to" NIS2 (Directive 2022/2555), the Cybersecurity Act (Regulation 2019/881), and the Cyber Resilience Act (Regulation 2024/2847). For NIS2-covered RPs ([§21.6](#216-nis2-considerations-for-critical-sector-rps)), a wallet solution security breach may trigger **parallel incident reporting obligations** under NIS2 Art. 23 — particularly if the breach materially affects the RP's service availability or data integrity. For DORA-covered financial RPs ([§21.4](#214-dora-considerations-for-financial-rps)), it may trigger ICT incident reporting under DORA Art. 17–23, especially if the RP treats the wallet integration infrastructure as a critical third-party ICT service.
 
 > **⚠️ 3-Month Withdrawal Cliff:** If the breach is not remedied within **3 months**, withdrawal is automatic per Art. 8(1). Withdrawal **permanently** revokes all wallet unit attestations — they cannot revert to valid. RPs must have contingency plans for the sudden loss of an entire wallet solution from their accepted set. Single-wallet-solution dependency creates unacceptable residual risk; RPs should maintain multi-wallet verification capability and ensure fallback authentication paths exist for all user segments.
 
@@ -19386,7 +19470,7 @@ Key Binding JWT payload (proves Wallet Unit possesses the device key):
 <details>
 <summary><strong>7. Bank verifies PID signature, disclosures, and device binding</strong></summary>
 
-The Bank performs the complete SD-JWT VC verification pipeline (§5.4.2):
+The Bank performs the complete SD-JWT VC verification pipeline ([§5.4.2](#542-implications-for-rp-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)):
 
 1. **Issuer signature** — verify the Issuer-JWT ES256 signature against the PID Provider's trust anchor from the LoTE cache ([§5.5.10](#5510-trust-chain-resolution-wallet-verifying-an-rp-oid-fed-model))
 2. **Disclosure integrity** — for each disclosed attribute, compute `SHA-256(base64url(disclosure))` and match against the `_sd` array in the Issuer-JWT
@@ -21065,11 +21149,11 @@ The following threats from the Security Threat Catalogue ([§29](#29-security-th
 | Threat / Attack Surface | PSP-Specific Risk | Profile / Control Response | VSI / Evidence Hooks | Primary DR References |
 |:------------------------|:------------------|:---------------------------|:---------------------|:----------------------|
 | **Credential / SCA attestation replay** | Replayed SCA response authorises a second payment or reuses a prior authentication result. | Enforce nonce and audience binding, consumed-nonce storage, short TTLs, and `transaction_data_hashes` verification. | `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `KBJWT_EXPIRED` | Credential Replay ([§29.2.2](#2922-credential-replay)); Transactional Data HLRs ([§15.15](#1515-transactional-data-hlrs-topic-20)); SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)) |
-| **Dynamic-linking request tampering** | The amount, payee, IBAN, merchant identity, or transaction hash seen by the Wallet no longer matches the PSP's authorisation decision. | Sign and verify the request object; validate end-to-end `transaction_data` integrity before authorisation. | `PROTO_INVALID_TRANSACTION_DATA`, `JARM_SIG_INVALID`, `JARM_STATE_MISMATCH` | Transactional Data HLRs ([§15.15](#1515-transactional-data-hlrs-topic-20)); JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)); Protocol Error Signals ([§30.3](#303-signal-inventory-layer-1-protocol-errors)) |
+| **Dynamic-linking request tampering** | The amount, payee, IBAN, merchant identity, or transaction hash seen by the Wallet no longer matches the PSP's authorisation decision. | Sign and verify the request object; validate end-to-end `transaction_data` integrity before authorisation. | `PROTO_INVALID_TRANSACTION_DATA`, `JARM_SIG_INVALID`, `SESSION_STATE_MISMATCH` | Transactional Data HLRs ([§15.15](#1515-transactional-data-hlrs-topic-20)); JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)); Protocol Error Signals ([§30.3](#303-signal-inventory-layer-1-protocol-errors)) |
 | **Cross-device relay / proxy attack** | Fraudster relays a Wallet interaction to a legitimate device and lands the result in the attacker's RP session. | Prefer DC API where available; use controlled proximity for selected lifecycle events; correlate TLS fingerprint, timing, velocity, and geolocation. | `KBJWT_AUD_MISMATCH`, `CTX_TLS_FINGERPRINT_ANOMALY`, `CTX_SESSION_DURATION_ANOMALY` | Security Considerations for Cross-Device Flows ([§10.4](#104-security-considerations-for-cross-device-flows)); Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)); Layer 3 Contextual and Behavioural Signals ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) |
 | **Unbound or forwarded credential sharing** | Shared or bearer-style credentials are reused across users, devices, accounts, or fraud-ring infrastructure. | Require device binding for RP-issued high-risk credentials; downgrade or step up externally issued credentials that lack holder binding. | `SDJWT_CNF_MISSING`, `KBJWT_MISSING`, `CTX_VELOCITY_EXCEED` | Device Binding Is Recommended, Not Mandatory ([§11.9.3](#1193-device-binding-is-recommended-not-mandatory)); Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)); SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)) |
 | **WRPAC private key compromise** | Attacker impersonates the bank or PSP to Wallet Users and obtains valid wallet presentations. | Store WRPAC keys in HSM-backed infrastructure; monitor certificate transparency and revocation; preserve signing and request-object audit evidence. | WRPAC / CT alerts, trust-material audit trail, anomalous `invalid_client` patterns | WRPAC Private Key Compromise ([§29.2.3](#2923-wrpac-private-key-compromise)); Trust Management and PKI Anchors ([§31.2.2](#3122-trust-management-and-pki-anchors)); Audit Trail Requirements ([§31.3](#313-audit-trail-requirements)) |
-| **Status-list outage or stale revocation state** | RP uses stale or unavailable status data and accepts revoked PID, SCA, or other attestation material. | Validate HTTP caching semantics, status-list freshness, DEFLATE integrity, and fail-open/fail-closed policy per credential class. | `SDJWT_STATUS_FETCH_FAILED`, `SDJWT_STATUS_REVOKED`, status-list freshness deltas | Status List Denial of Service ([§29.2.6](#2926-status-list-denial-of-service)); Status List Verification Deep-Dive (Appendix B); SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)) |
+| **Status-list outage or stale revocation state** | RP uses stale or unavailable status data and accepts revoked PID, SCA, or other attestation material. | Validate HTTP caching semantics, status-list freshness, DEFLATE integrity, and fail-open/fail-closed policy per credential class. | `SDJWT_STATUS_FETCH_FAILED`, `SDJWT_STATUS_REVOKED`, status-list freshness deltas | Status List Denial of Service ([§29.2.6](#2926-status-list-denial-of-service)); Status List Verification Deep-Dive ([§B](#appendix-b-status-list-verification-deep-dive)); SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)) |
 | **Intermediary over-retention, over-requesting, or injection** | SaaS verifier stores PID data, over-requests attributes, or mutates query / forwarding semantics in violation of Art. 5b(10) and the end-RP contract. | Contractually bind deletion, forwarding, audit, and DORA Art. 28 controls; verify [Topic 52](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2330-topic-52-relying-party-intermediaries) relationship setup and forwarding gates. | Intermediary audit trail, DCQL policy logs, forwarding-result evidence | Intermediary Constraints ([§25.3](#253-intermediary-constraints-art-5b10)); Intermediary Attribute Forwarding ([§25.4](#254-intermediary-to-intermediated-rp-attribute-forwarding)); RP-Side Data Breach ([§29.2.19](#29219-rp-side-data-breach-stored-pid-attributes)); DCQL Query Injection via Intermediary ([§29.2.32](#29232-dcql-query-injection-via-intermediary)) |
 
 **PSP-Specific Verification Signal Intelligence (VSI):**
@@ -21078,7 +21162,7 @@ The VSI pipeline ([§30](#30-verification-signal-intelligence)) is particularly 
 
 | VSI Signal / Evidence Family | Layer | PSP Application | Primary DR References |
 |:-----------------------------|:------|:----------------|:----------------------|
-| `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `JARM_STATE_MISMATCH` | L2 | Detect replay, session fixation, and payment-authorisation reuse. | SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)); JWE/JARM Response Encryption Signals ([§30.4.3](#3043-jwejarm-response-encryption-signals)); Alert Triggers ([§31.2](#312-alert-triggers)) |
+| `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `SESSION_STATE_MISMATCH` | L2 | Detect replay, session fixation, and payment-authorisation reuse. | SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)); JWE/JARM Response Encryption Signals ([§30.4.3](#3043-jwejarm-response-encryption-signals)); Alert Triggers ([§31.2](#312-alert-triggers)) |
 | `PROTO_INVALID_TRANSACTION_DATA` and `transaction_data_hashes` verification | L1 / L2 | Detect dynamic-linking mismatch between the Wallet ceremony and the PSP authorisation decision. | Transactional Data HLRs ([§15.15](#1515-transactional-data-hlrs-topic-20)); Protocol Error Signals ([§30.3](#303-signal-inventory-layer-1-protocol-errors)) |
 | `SDJWT_CNF_MISSING`, `KBJWT_MISSING`, WUA validation outcomes | L2 | Feed binding strength and wallet-environment confidence into SCA exemption and TRA scoring. | Trust Boundaries and Device Binding ([§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap)); SD-JWT VC Verification Signals ([§30.4.1](#3041-sd-jwt-vc-verification-signals)); Trust Infrastructure Signals ([§30.4.4](#3044-trust-infrastructure-signals)) |
 | `CTX_GEO_MISMATCH` | L3 | Cross-reference source geography with customer baseline, beneficiary geography, and travel / VPN context. | Layer 3 Contextual and Behavioural Signals ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)); Signal Composition and Risk Scoring ([§30.7](#307-signal-composition-and-risk-scoring)) |
@@ -22074,7 +22158,7 @@ A refinement of the policy engine pattern separates the verification pipeline in
 | Stage | Question Answered | EUDI-Specific Checks |
 |:------|:-----------------|:---------------------|
 | **Validation** | "Does this credential conform to the expected format and come from a trusted issuer?" | Schema validation, DCQL compliance, Trusted List anchor check, credential type matching (`vct` / `doctype`), presentation structure |
-| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification ([§12](#12-cryptographic-verification-pipeline-deep-dive)), expiry/not-before, TokenStatusList check (Appendix B), device/key binding (`cnf.jwk`, KB-JWT, `DeviceAuth`) |
+| **Verification** | "Is the cryptographic proof valid and is the credential not revoked?" | Signature verification ([§12](#12-cryptographic-verification-pipeline-deep-dive)), expiry/not-before, TokenStatusList check ([§B](#appendix-b-status-list-verification-deep-dive)), device/key binding (`cnf.jwk`, KB-JWT, `DeviceAuth`) |
 
 This maps directly to the structure of DR-0002 itself: [§11](#11-rp-authentication-and-presentation-verification) covers validation-level checks, [§12](#12-cryptographic-verification-pipeline-deep-dive) covers cryptographic verification. Separating these stages in the RP's architecture enables:
 
@@ -22094,7 +22178,7 @@ The lifecycle below is an **architecture/session view**, not a replacement for t
 |:-------------------|:--------|:----------|:-------------------|
 | **Created** | RP calls verifier API (e.g., `POST /openid4vc/verify`) | Store session ID; generate QR code or redirect URI. | Request snapshot created but no verifier terminal state exists yet. |
 | **Pending** | Wallet has not yet responded, or a delegated verifier has accepted the request for processing. | Display loading state; enforce timeout; avoid implying verification success. | `RequestPublished`, `WalletResponseReceived`, or `VerificationRunning`. |
-| **Result available** | Wallet posts `vp_token`, callback arrives, or result API returns a terminal object. | Fetch or process the canonical result object and branch on its terminal state. | `verified`, `verification_failed`, `evidence_incomplete`, `intake_rejected`, `duplicate`, or `stalled`. |
+| **Result available** | Wallet posts `vp_token`, callback arrives, or result API returns a terminal object. | Fetch or process the canonical result object and branch on its terminal state. | `verified`, `verification_failed`, `evidence_incomplete`, `intake_rejected`, `duplicate`, `stalled`, or `data_request_denied`. |
 | **Expired** | Timeout reached before acceptable verification completed. | Clean up session; prompt user to retry with fresh nonce/state. | `expired` with expiry policy and final transition time. |
 | **Failed / fallback** | Wallet returns an error, verifier rejects, evidence is incomplete, or the session stalls. | Log internal signal; show non-oracular user error; route to retry, fallback, or review. | `verification_failed`, `evidence_incomplete`, `intake_rejected`, or `stalled`. |
 
@@ -22664,7 +22748,7 @@ If any **agreed** verification dimension fails, the intermediary `SHALL NOT` for
 <details>
 <summary><strong>9. Intermediary forwards verified attributes to End-RP Backend via L2 callback</strong></summary>
 
-The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification (§26.6.5):
+The intermediary POSTs a signed JWT to the end-RP's `callbackUri` (configured in step 2). The payload follows the L2 callback specification ([§26.6.5](#2665-callback-payload-requirements)):
 
 ```json
 {
@@ -23051,7 +23135,7 @@ The L2 result delivery is not always a webhook push. Across this chapter, six me
 | **Server-Sent Events (SSE)** | RP holds a persistent HTTP connection; verifier pushes status updates as SSE events | ~100ms | Low — no RP endpoint needed; browser-native | Same-device browser flows; real-time UX |
 | **WebSocket** | RP maintains a bidirectional persistent connection; verifier pushes events in real-time | ~50ms | Medium — RP manages WebSocket lifecycle | Real-time dashboards; mobile app integration; bidirectional communication |
 
-> The OpenID4VP reference design (§15.7) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.5.1](#26751-push-vs-ping-the-payload-trade-off)). Separately, the RP may deploy a reverse proxy ([§26.7.2](#2672-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.3](#2673-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
+> The OpenID4VP reference design ([§15.7](#157-issuer-requested-sca-flow-description)) uses a polling model: the Verifier's frontend polls the Response URI using a `transaction-id` to retrieve the VP Token (steps 8–9). This maps to L2 polling in Model A. For Models B and C, the SaaS verifier or intermediary typically offers multiple mechanisms — the RP chooses based on its architecture. For same-device browser flows, SSE is particularly useful for real-time session status. For server-side backend integration, the push vs. ping decision is the primary architectural choice ([§26.7.5.1](#26751-push-vs-ping-the-payload-trade-off)). Separately, the RP may deploy a reverse proxy ([§26.7.2](#2672-deployment-topology-proxy-vs-direct)) to capture the wallet's HTTP context — this is a deployment topology decision that is independent of the L2 delivery mode choice. When the proxy topology is combined with the sync inline delivery mode ([§26.7.3](#2673-result-delivery-mode-taxonomy)), the RP receives the verification result within the wallet's HTTP round-trip, eliminating the need for asynchronous L2 delivery.
 
 ###### 26.6.5.2 Multi-Entity Callback Routing
 
@@ -23127,7 +23211,7 @@ The main architecture arguments are summarised below:
 | 3 | **The RP needs HTTP context for fraud scoring** — source IP, TLS fingerprint, device / browser context, and timing signals are only available when the RP owns the wallet-facing edge. That context lets the RP enrich wallet outcomes with first-party fraud, anomaly, and abuse signals before any internal product acts on them. | Reverse-proxy integration pattern ([§26.6.4](#2664-reverse-proxy-integration-pattern)); deployment topology ([§26.7.2](#2672-deployment-topology-proxy-vs-direct)); contextual and behavioural signals ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) |
 | 4 | **Internal identity and authentication products should not be externally exposed** — the orchestrator keeps the wallet-facing URL surface first-party while translating wallet outcomes into internal product contracts. This preserves a stable RP-owned facade while allowing internal security products to remain private and independently evolvable. Many wallet connectors also require backend application authentication such as API keys, OAuth client credentials or access tokens, or mutual TLS / client certificates, which are not appropriate to distribute to frontend applications. | Financial-sector high-assurance profile ([§24.8.1](#2481-financial-sector-high-assurance-wallet-profile)); reverse-proxy backend connection and mTLS ([§26.6.4](#2664-reverse-proxy-integration-pattern)); callback authentication patterns ([§26.6.5](#2665-callback-payload-requirements)); URL surface ownership and RP bindability ([§26.8](#268-url-surface-ownership-facade-deployment-and-rp-bindability)) |
 | 5 | **The wallet does more than one exchange** — request-object retrieval, wallet submission, response processing, and status progression must be mediated without forcing each internal product to speak OID4VP / OID4VCI / SD-JWT VC / mdoc directly. The orchestrator absorbs that ceremony and presents one RP-specific workflow instead of protocol-specific handoffs. | OpenID4VP and HAIP protocol foundations ([§8](#8-openid4vp-and-haip-protocol-foundations)); Intake Boundary: Response Envelope and Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)); Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)); SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)); mdoc Branch: CBOR, MSO, and SessionTranscript Evidence ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)); payment-SCA lifecycle flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)); session management and result delivery ([§26.5](#265-session-management-and-result-delivery)) |
-| 6 | **Request scope and intended use need a control point** — the RP needs one place to reconcile registered scope, WRPRC / Registrar evidence, product purpose, and requested attributes before the wallet request is built. The same control point keeps disclosure minimised and ensures the request matches the RP's authorised purpose. | RP registration data model ([§4](#4-rp-registration-data-model-and-registrar-api)); HAIP request profile (§17.2.2); verification gates and forwarding requirements ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-rpi_08rpi_09)) |
+| 6 | **Request scope and intended use need a control point** — the RP needs one place to reconcile registered scope, WRPRC / Registrar evidence, product purpose, and requested attributes before the wallet request is built. The same control point keeps disclosure minimised and ensures the request matches the RP's authorised purpose. | RP registration data model ([§4](#4-rp-registration-data-model-and-registrar-api)); HAIP request profile ([§17.2.2](#1722-etsi-ts-119-472-2-openid4vc-haip-request-profile)); verification gates and forwarding requirements ([§25.4.1](#2541-verification-gates-and-forwarding-requirements-rpi_08rpi_09)) |
 | 7 | **The public edge should be sync-first, while async connector modes stay internal** — push, ping, callback, or polling may exist behind the orchestrator, but they should usually not define the public frontend contract. The orchestrator can hide those delivery mechanics while still supporting connector-specific completion modes internally. | Result-delivery modes ([§26.5.2](#2652-result-delivery-polling-vs-callbacks)); callback payload requirements ([§26.6.5](#2665-callback-payload-requirements)); delivery-mode taxonomy ([§26.7.3](#2673-result-delivery-mode-taxonomy)); mode deep dives ([§26.7.5](#2675-mode-deep-dives)) |
 | 8 | **Connector internals should not leak to attackers** — replay, duplicate-state, or malformed-submission reasons can be translated into generic user-facing failure while the precise signal is escalated internally. This reduces attacker feedback while preserving detailed telemetry for fraud, monitoring, and investigation. | OpenID4VP error responses ([§11.6](#116-openid4vp-error-responses)); callback security and error handling ([§26.6.7](#2667-callback-security-and-error-handling)); security error discrepancy oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)); signal severity classification ([§30.6](#306-signal-severity-classification)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
 | 9 | **Audit and compliance evidence must be assembled in one place** — request purpose, verification result, HTTP context, fraud score, and final decision need one correlated evidence trail. The orchestrator is the natural point to stamp that evidence with one RP-side workflow and decision record. | Regulatory compliance mapping ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2)); bank and PSP integration blueprint ([§24](#24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub)); SIEM integration event schema ([§30.8](#308-siem-integration-event-schema)); audit trail requirements ([§31.3](#313-audit-trail-requirements)) |
@@ -23738,7 +23822,7 @@ The following errors are commonly encountered during EUDI Wallet integration, co
 | **"Invalid Request"** during verification | The `x509_hash` in the `client_id` does not match the leaf certificate actually used to sign the request, or the `x5c` array is in the wrong order. | Recalculate the `x509_hash` from the leaf certificate ([§7.3.2](#732-ebsi-the-eus-own-did-infrastructure)). Verify `x5c` ordering: `[leaf, intermediate, root]`. |
 | **"Certificate Validation Failed"** | The verifier certificate has expired, or the certificate chain has a broken signing relationship (intermediate not signed by root). | Check certificate expiry dates. Regenerate the chain if signing relationships are broken. If your Access CA / ecosystem profile uses CT, ensure the required SCT / transparency evidence and policy conditions are met ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)). |
 | **Wallet cannot reach Verifier** | In development environments, the Verifier's `response_uri` is not publicly accessible (e.g., `localhost`). In production, DNS or firewall misconfiguration blocks the Wallet's `direct_post` callback. | Use tunnelling (ngrok, Cloudflare Tunnel) for local development. In production, ensure the `response_uri` domain is publicly resolvable and accepts POST requests. |
-| **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc (§17.2). |
+| **"Unsupported credential format"** | The DCQL query requests a format string the Wallet does not recognise (e.g., `vc+sd-jwt` instead of `dc+sd-jwt`). | Use HAIP-mandated format identifiers: `dc+sd-jwt` for SD-JWT VC, `mso_mdoc` for mdoc ([§17.2](#172-dcql-structure)). |
 | **Silent verification failure** | The verification SDK defaults to a W3C-era status list standard (StatusList2021) instead of IETF TokenStatusList, causing a parsing mismatch. | Explicitly configure the SDK to use IETF TokenStatusList for EUDI credentials (Annex B.4). |
 | **"Holder binding failed"** | The Key Binding JWT (`KB-JWT`) is malformed, or the `cnf.jwk` thumbprint in the SD-JWT VC does not match the key that signed the KB-JWT. | Verify KB-JWT construction against SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)). Ensure the Wallet is using the correct device key for signing. |
 | **Clock skew rejection** | The Verifier rejects a credential or KB-JWT because the system clocks of the Wallet and Verifier differ by more than the allowed skew window (typically 30–60 seconds). | Implement NTP synchronisation. Allow a configurable clock skew tolerance in the verification pipeline ([§31.2](#312-alert-triggers) alert triggers). |
@@ -23758,7 +23842,7 @@ The following matrix consolidates all vendor evaluation criteria — both core p
 | **SCA (TS 12)** | Roadmap | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ |
 | **Intermediary model** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ⚠️ |
 | **Policy engine** ([§26.1](#261-verification-policy-engine)) | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
-| **Status list default** (Appendix B) | ✅ | 🟡 | 🟡 | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
+| **Status list default** ([§B](#appendix-b-status-list-verification-deep-dive)) | ✅ | 🟡 | 🟡 | 🟡 | N/A | 🟡 | 🟡 | 🟡 | 🟡 | N/A | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ |
 | **Webhook delegation** ([§26.2](#262-webhook-and-callback-delegation)) | ✅ | 🟡 | 🟡 | 🟡 | N/A | ✅ | ✅ | 🟡 | 🟡 | N/A | ❌ | ❓ | ❓ | ✅ | 🟡 | ❓ |
 | **Policy-as-code** ([§26.3](#263-policy-as-code-for-auditable-verification)) | ✅ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | N/A | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Session management API** ([§26.5](#265-session-management-and-result-delivery)) | ✅ | 🟡 | ✅ | 🟡 | N/A | ✅ | 🟡 | ✅ | 🟡 | N/A | 🟡 | ❓ | 🟡 | 🟡 | 🟡 | ❓ |
@@ -24105,14 +24189,14 @@ The catalogue intentionally stays separate from the RP's **assurance-profile** d
 |:----------------------|:---------------------------------------|
 | **Risk Register scope** | Use R/SR/TT/TR identifiers as the common vocabulary for harms, techniques, and scenarios. Treat the register as a taxonomy and certification input, not as a complete RP control catalogue. |
 | **Scheme owner / Wallet Provider / CAB refinement** | Certification actors refine the common register into scheme-specific and implementation-specific mitigations. RPs consume the resulting official status, certification, WUA/WIA, issuer-trust, and breach evidence rather than reviewing the CAB risk file directly. |
-| **[§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection) mitigation families** | Existing DR controls map to mutual authentication, encryption, authenticated messages, WSCA/WSCD / keystore protection, Wallet Provider and RP authorisation checks, selective disclosure, registered-attribute checks, and Embedded Disclosure Policy evaluation. |
+| **ARF [§6](https://eudi.dev/2.8.0/architecture-and-reference-framework-main/#6-trust-model) mitigation families** | Existing DR controls map to mutual authentication, encryption, authenticated messages, WSCA/WSCD / keystore protection, Wallet Provider and RP authorisation checks, selective disclosure, registered-attribute checks, and Embedded Disclosure Policy evaluation. |
 | **Annex 6 TR clusters** | Some TRs are direct RP threats and get threat cards below; others are upstream trust assumptions, wallet/provider certification threats, logging/repudiation threats, QES-consent threats, or already covered by lifecycle/status controls. Do not create 133 duplicate RP alerts. |
 | **HSM/KMS nuance** | ARF treats HSM-like controls as typical for providers and trust infrastructure but not formally required for ordinary RPs/RP Instances. For RPs, HSM/KMS use remains a prudent WRPAC/JAR-signing key-management control, especially in DORA/NIS2-regulated environments. |
 
 **Nomenclature & Threat Tagging**: 
 Each threat in the catalogue below incorporates technical tagging in its title (e.g., `TT5.3, CWE-294`). Three identifier systems are used:
 
-- **EU Risk Register ([CIR 2024/2981](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I), Annex I)**: Official identifiers from the European Commission's Risk Register for European Digital Identity Wallets. The ARF (§7.4.2) defers entirely to this register as the single authoritative threat taxonomy — it reproduces the same identifiers verbatim and defines no additional codes. The register defines four identifier families organised in a layered hierarchy:
+- **EU Risk Register ([CIR 2024/2981](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202402981#anx_I), Annex I)**: Official identifiers from the European Commission's Risk Register for European Digital Identity Wallets. The ARF ([§7.4.2](#742-google-wallet)) defers entirely to this register as the single authoritative threat taxonomy — it reproduces the same identifiers verbatim and defines no additional codes. The register defines four identifier families organised in a layered hierarchy:
   - **R** = High-level Risk (R1–R14) — abstract harm categories describing *what* can go wrong: *R3: Creation or use of fake attributes*, *R6: Data disclosure*, *R9: Unauthorised transaction*
   - **SR** = System-related Risk (SR1–SR3) — emergent systemic consequences arising from combinations of threats at scale: *SR1: Wholesale surveillance*, *SR3: Legal non-compliance*
   - **TT** = Technical Threat (TT1–TT5, with subcategories) — attack technique classifications describing *how* an attack is carried out: *TT5.3: Replay of messages*, *TT5.5: Software vulnerabilities*, *TT5.7: Malware*
@@ -24124,14 +24208,16 @@ Each threat in the catalogue below incorporates technical tagging in its title (
 
 > **Coverage note**: Not every entry carries all three identifier types. Risk register codes (`TR`/`TT`/`SR`) are present only where the threat traces directly to a CIR 2024/2981 Annex I entry. CWE codes are present where a MITRE weakness mapping exists. Some threats (e.g., insider threats, regulatory suspension scenarios) are organisational rather than technical and may carry neither. STRIDE classification is applied universally.
 
-**Sources and Methodology**: The threat scenarios in this catalogue are derived from the following sources, in addition to the ARF Risk Register:
+##### 29.1.1 Sources and Methodology
+
+The threat scenarios in this catalogue are derived from the following sources, in addition to the ARF Risk Register:
 
 - **Protocol-level formal analysis**: The [University of Stuttgart formal security analysis of OID4VC](https://sec.ise.uni-stuttgart.de/research/oid4vc/) (Hauck, Fett et al., 2023–2025), which applies the Web Infrastructure Model (WIM) to prove security properties and identify vulnerabilities in OID4VP and OID4VCI flows — including credential injection attacks in the Pre-Authorized Code flow and cross-device session confusion.
-- **OID4VP Security Considerations**: The [OpenID for Verifiable Presentations 1.0 specification](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) (§13), covering `response_uri` validation, session binding, nonce freshness, and `aud` enforcement.
-- **OID4VCI Security Considerations**: The [OpenID for Verifiable Credential Issuance 1.0 specification](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) (§13), covering pre-authorized code interception, `tx_code` enforcement, and credential offer delivery channel security.
+- **OID4VP Security Considerations**: The [OpenID for Verifiable Presentations 1.0 specification](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)), covering `response_uri` validation, session binding, nonce freshness, and `aud` enforcement.
+- **OID4VCI Security Considerations**: The [OpenID for Verifiable Credential Issuance 1.0 specification](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) ([§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)), covering pre-authorized code interception, `tx_code` enforcement, and credential offer delivery channel security.
 - **OpenID Federation 1.0**: The [OpenID Federation specification](https://openid.net/specs/openid-federation-1_0.html) (§8 Security Considerations), covering trust chain validation, subordinate statement integrity, and Trust Mark spoofing.
 - **ISO/IEC 18013-5**: The [mobile document standard](https://www.iso.org/standard/69084.html) ([§9](#9-same-device-remote-presentation)), covering `SessionTranscript` binding, reader authentication requirements, and proximity relay attack characteristics.
-- **SD-JWT VC Security Considerations**: The [SD-JWT-based Verifiable Credentials specification](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) (§10), covering `sd_hash` verification, Key Binding JWT validation, and algorithm enforcement.
+- **SD-JWT VC Security Considerations**: The [SD-JWT-based Verifiable Credentials specification](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) ([§10](#10-cross-device-remote-presentation)), covering `sd_hash` verification, Key Binding JWT validation, and algorithm enforcement.
 - **Cryptographic standards**: [RFC 6979](https://www.rfc-editor.org/rfc/rfc6979) (deterministic ECDSA nonce generation) and [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700.html) for redirect URI validation and open redirector prevention.
 - **ETSI TS 119 602**: The [Lists of Trusted Entities data model](https://www.etsi.org/deliver/etsi_ts/119600_119699/119602/01.01.01_60/) for LoTE integrity verification and cache poisoning prevention.
 - **ANSSI / BSI remote identity proofing guidance**: The joint paper [Remote Identity Proofing for EUDI Wallet Onboarding: Strengthening Assurance Against Evolving Threats](https://cyber.gouv.fr/documents/329/ANSSI_BSI_Joint_Paper_remote_identity_proofing_for_EUDI.pdf) (July 2025), which separates biometric genuineness, document authenticity, face matching, and capture-integrity concerns, and distinguishes presentation attacks from capture-pipeline injection attacks in remote onboarding ceremonies.
@@ -24141,6 +24227,18 @@ Each threat in the catalogue below incorporates technical tagging in its title (
 The catalogue covers both verification-side threats (OID4VP presentation flow), issuance-side threats (OID4VCI credential issuance flow where the RP acts as issuer per [§15.4](#154-oid4vci-issuance-flow-for-sca-attestations)–[§15.15](#1515-transactional-data-hlrs-topic-20)), and RP-invoked **supplementary proofing / step-up** threats where the RP adds its own remote selfie, video, portrait, or document ceremony on top of upstream wallet assurances.
 
 Each threat's detection signals are systematically classified in the **Verification Signal Intelligence taxonomy ([§30](#30-verification-signal-intelligence))**, which provides the structured signal IDs, severity levels (S0–S4), STRIDE classifications, and SIEM event schemas that operationalise this catalogue. The [§30.9](#309-cross-reference-map-signal-to-threat-to-alert-to-regulation) cross-reference map closes the traceability loop: Threat ([§29](#29-security-threat-catalogue)) → Signal ([§30](#30-verification-signal-intelligence)) → Alert ([§31.2](#312-alert-triggers)) → Regulatory Obligation.
+
+##### 29.1.2 Threat Model Boundary
+
+The 45 threat cards below model *external attackers exploiting RP-side protocol, cryptographic, or implementation weaknesses* during the EUDI Wallet credential verification flow. The following categories are explicitly **out of scope** and must not receive new threat cards or be re-introduced into the catalogue:
+
+1. **Verification pipeline correctness checks** — Missing holder binding (`cnf`), wrong `vct`/`docType`, duplicate disclosures, extra disclosures, missing KB-JWT fields, presentation/query mismatches. These are verifier implementation bugs or malformed-input rejections, not adversarial threats. They belong in [§C](#appendix-c-verifier-failure-catalogue) (`VERIFY-*` fixtures) with `Threat (§29): none directly`, not in [§29](#29-security-threat-catalogue).
+2. **Infrastructure and deployment security** — SSRF protection (private/link-local IP in trust-fetch URLs), DNS rebinding, trust root poisoning via cache corruption, container orchestration attacks, Kubernetes/KMS misconfiguration, CI/CD pipeline compromise, secrets management failures. These are platform-layer concerns addressed by SecOps hardening, network segmentation, and infrastructure-as-code reviews, not by credential-protocol threat modelling.
+3. **Multi-tenant architecture isolation** — Cross-tenant trust anchor injection, sibling-tenant callback targeting, result enumeration across tenant boundaries, host-swapped response endpoints, shared-facade trust-source bleed. These are architecture and deployment patterns covered by [§26](#26-rp-verification-architecture-patterns) (Verification Architecture Patterns) and [§12.1](#121-verifier-contract-and-scope-boundary) (Verifier Contract and Scope Boundary invariant: "Tenant and RP context must travel through every boundary"), not by individual threat cards.
+4. **Operational monitoring and webhook integrity** — Unsigned webhook payloads, stale webhook secrets, callback authentication failures, event-delivery ordering guarantees, idempotency enforcement. These are operational reliability concerns for the result-delivery and notification layer ([§12.11](#1211-canonical-verification-result-and-audit-evidence), [§31](#31-monitoring-observability-and-operational-readiness)), not cryptographic or protocol attacks.
+5. **Privacy policy enforcement edge cases** — Over-disclosure beyond DCQL request scope, disclosure brute-force via enumeration, policy-violating attribute combinations, privacy leaks through verbose error messages. These are DCQL/policy-engine correctness issues handled by the policy stage ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto), C.8 fixtures) and the RP's data-minimisation configuration, not external attacks.
+
+When a new scenario falls into one of these categories, the correct home is a [§C](#appendix-c-verifier-failure-catalogue) fixture with `Threat (§29): none directly`, a `VERIFY-*` identifier, and a cross-reference to the relevant [§12](#12-cryptographic-verification-pipeline-deep-dive) implementation section — not a new [§29](#29-security-threat-catalogue) threat card.
 
 #### 29.2 Threat Catalogue
 
@@ -25419,7 +25517,7 @@ Although the Network Eavesdropper intercepted both the outbound JAR (containing 
 **Mitigation**:
 
 - **By design**: The ECDH-ES key agreement (RFC 7518 §5.6) ensures that even if the JAR (containing the public key) is intercepted, the attacker cannot derive the content encryption key without the RP's ephemeral private key.
-- **Implementation requirements**: The RP must generate a fresh ECDH key pair per session ([§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp) — P-256 curve, `use: enc`); the private key must exist only in server memory and be destroyed after JWE decryption; the private key must never be logged, serialised, or persisted to disk.
+- **Implementation requirements**: The RP must generate a fresh ECDH key pair per session (§11.4 — P-256 curve, `use: enc`); the private key must exist only in server memory and be destroyed after JWE decryption; the private key must never be logged, serialised, or persisted to disk.
 - **Additional layer**: The Wallet also applies its own content encryption (the SD-JWT VC disclosures are selectively revealed, and the response itself is JWE-wrapped), creating a double encryption layer that makes interception futile.
 
 ##### 29.2.8 JAR Modification in Transit
@@ -25896,7 +25994,7 @@ The RP Application layer, acting implicitly on the corrupted assertion from the 
 </details>
 <br/>
 
-**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction ([§11.5](#115-edge-cases-and-error-handling) / Appendix A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem ([§26](#26-rp-verification-architecture-patterns) — most SDKs are pre-1.0) makes this threat elevated.
+**Attack Vector**: An accidental bug (not intentional compromise — see Verification Stack Supply Chain Attack for that) in the RP's credential verification library causes incorrect verification outcomes. Examples: (a) a parsing error in the SD-JWT VC disclosure validation that accepts a disclosure with a mismatched hash, (b) an off-by-one error in Status List bit-index extraction ([§11.5](#115-edge-cases-and-error-handling) / §A) that reads the wrong revocation status, (c) a certificate chain validation bug that accepts expired intermediate certificates, (d) a CBOR parsing error in the mdoc DeviceResponse that skips the `DeviceSignature` check, (e) a DCQL query evaluation error that accepts a credential missing required attributes. The nascent state of the EUDI verification ecosystem ([§26](#26-rp-verification-architecture-patterns) — most SDKs are pre-1.0) makes this threat elevated.
 
 **Impact**: The RP accepts forged, expired, or revoked credentials as valid — potentially onboarding a fraudulent identity ([§22](#22-amlkyc-onboarding-via-eudi-wallet) KYC), granting access to protected resources, or authorising a payment ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking) SCA). Alternatively, a false-*negative* bug (rejecting valid credentials) causes service disruption for legitimate users (R13). The impact is proportional to the RP's reliance on the EUDI Wallet as an identity assertion — for a bank using it as primary KYC, a verification bypass is catastrophic.
 
@@ -27801,9 +27899,9 @@ The RP's verification pipeline validates the issuer's signature against the trus
 - **Tertiary**: Fetch the LoTE from multiple independent sources (e.g., both the national LoTE endpoint and the [European Commission EFDA dashboard](https://eidas.ec.europa.eu/efda/wallet)) and compare the entity sets. Divergence between sources indicates potential compromise of one endpoint.
 - **Detective**: The [§31.2.2](#3122-trust-management-and-pki-anchors) `Trust Anchor key rotation failure` alert trigger already detects the *downstream* effect of this attack (LoTE signature unverifiable). Extend with a new alert: `LoTE entity count changed` — any addition or removal of entities in the trust set triggers an immediate human-reviewed escalation.
 
-##### 29.2.23 JWT Algorithm Confusion/Type Confusion
+##### 29.2.23 Algorithm Confusion/Type Confusion
 
-**Threat Summary**: The attacker exploits JWT implementation vulnerabilities (CVE-2015-9235) where the RP’s verification library trusts the `alg` header rather than enforcing a strict allowlist. By substituting `ES256` with `HS256` and using the issuer’s public key as the HMAC secret, the attacker forges credentials that pass cryptographic verification. This is the JWT equivalent of SQL injection — a single implementation failure that collapses the entire security model.
+**Threat Summary**: The attacker exploits algorithm-implementation vulnerabilities where the RP’s verification library trusts the declared algorithm header rather than enforcing a strict allowlist. In the JWT layer, this manifests as CVE-2015-9235: substituting `ES256` with `HS256` and using the issuer’s public key as the HMAC secret to forge credentials that pass cryptographic verification. In the COSE/CBOR layer (mdoc), the same pattern applies to digest algorithm substitution in the Mobile Security Object or COSE algorithm header manipulation. This is the cryptographic-equivalent of SQL injection — a single implementation failure that collapses the entire security model.
 
 **Classification**:
 
@@ -27999,16 +28097,19 @@ The RP's business logic receives a "verified" credential from the SDK and procee
 </details>
 <br/>
 
-**Attack Vector**: The attacker exploits a well-documented class of JWT implementation vulnerabilities (CVE-2015-9235 and descendants, CWE-345) where the RP's verification library trusts the `alg` (algorithm) header in incoming JWTs rather than enforcing a strict allowlist. Three variants exist: (a) **HS256 substitution** — switching from asymmetric `ES256` to symmetric `HS256` and using the publicly available issuer key as the HMAC secret, causing HMAC verification to succeed with the attacker's signature; (b) **`alg: none`** — specifying no algorithm to bypass signature verification entirely; (c) **algorithm downgrade** — forcing `RS256` with weak key lengths or deprecated curves. This affects every JWT-bearing artifact in the EUDI verification pipeline: JARs ([§8](#8-openid4vp-and-haip-protocol-foundations)), KB-JWTs ([§10](#10-cross-device-remote-presentation)), SD-JWT VCs ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection)), and `client_assertion` JWTs.
+**Attack Vector**: The attacker exploits a well-documented class of algorithm-implementation vulnerabilities (CVE-2015-9235 and descendants, CWE-345) where the RP's verification library trusts the declared algorithm rather than enforcing a strict allowlist. Three variants exist: (a) **HS256 substitution** — switching from asymmetric `ES256` to symmetric `HS256` and using the publicly available issuer key as the HMAC secret, causing HMAC verification to succeed with the attacker's signature; (b) **`alg: none`** — specifying no algorithm to bypass signature verification entirely; (c) **algorithm downgrade** — forcing `RS256` with weak key lengths or deprecated curves. This affects every JWT-bearing artifact in the EUDI verification pipeline: JARs ([§8](#8-openid4vp-and-haip-protocol-foundations)), KB-JWTs ([§10](#10-cross-device-remote-presentation)), SD-JWT VCs ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection)), and `client_assertion` JWTs.
 
-**Impact**: Critical — complete verification bypass. The RP accepts forged credentials with arbitrary attribute values. The attacker can impersonate any identity, fabricate any PID or EAA attribute, and bypass all downstream access controls. This is the JWT equivalent of SQL injection: a single implementation failure that collapses the entire security model. The impact is amplified in the EUDI context because JWTs are used at every layer — authorisation requests (JAR), credential format (SD-JWT VC), key binding (KB-JWT), and client authentication (`client_assertion`).
+The same attack pattern applies to the COSE/CBOR layer in mdoc verification. The Mobile Security Object (MSO) specifies a `digestAlgorithm` (e.g., SHA-256) used for `ValueDigests`. An attacker who controls or intercepts the mdoc may substitute a broken digest algorithm (e.g., SHA-1) to create collision-based forgeries of individual data elements — the MSO signature remains valid because the attacker recomputes the digests with the weaker algorithm. Similarly, the COSE `alg` header in `issuerAuth` or `DeviceSignature` can be manipulated if the verifier does not enforce a strict algorithm allowlist. The RP's mdoc verifier MUST reject any MSO with a `digestAlgorithm` outside the profile-mandated set (SHA-256 for HAIP) and must enforce COSE algorithm constraints just as strictly as JWT algorithm constraints.
+
+**Impact**: Critical — complete verification bypass. The RP accepts forged credentials with arbitrary attribute values. The attacker can impersonate any identity, fabricate any PID or EAA attribute, and bypass all downstream access controls. This is the cryptographic equivalent of SQL injection: a single implementation failure that collapses the entire security model. The impact is amplified in the EUDI context because the pattern appears across both credential formats: JWTs are used at every layer (authorisation requests via JAR, credential format via SD-JWT VC, key binding via KB-JWT, client authentication via `client_assertion`), while mdoc uses COSE algorithm headers and MSO digest algorithms that are equally vulnerable to the same confusion pattern.
 
 **Mitigation**:
 
-- **Primary**: The RP's verification library MUST enforce an explicit algorithm allowlist per token type, bounded first by the ARF/ECCG v2.0 allowlist and then narrowed by the applicable profile. For SD-JWT VCs and KB-JWTs: only `ES256` in the HAIP branch. For JARs: only `ES256` in the HAIP branch. The allowlist must be configured at the application layer, NOT derived from the JWT header. Any JWT with an unexpected `alg` value must be rejected without attempting verification.
+- **Primary (JWT layer)**: The RP's verification library MUST enforce an explicit algorithm allowlist per token type, bounded first by the ARF/ECCG v2.0 allowlist and then narrowed by the applicable profile. For SD-JWT VCs and KB-JWTs: only `ES256` in the HAIP branch. For JARs: only `ES256` in the HAIP branch. The allowlist must be configured at the application layer, NOT derived from the JWT header. Any JWT with an unexpected `alg` value must be rejected without attempting verification.
+- **Primary (COSE/CBOR layer)**: The RP's mdoc verifier MUST enforce an explicit COSE algorithm allowlist and reject any MSO with a `digestAlgorithm` outside the profile-mandated set (SHA-256 for HAIP). COSE algorithm headers in `issuerAuth` and `DeviceSignature` must be validated against the same strict allowlist principle — never derive the expected algorithm from the mdoc itself.
 - **Secondary**: Use the `typ` header parameter to route JWTs to type-specific verification logic: `oauth-authz-req+jwt` (JAR), `kb+jwt` (KB-JWT), `vc+sd-jwt` (SD-JWT VC). Each type handler should have its own fixed algorithm set.
-- **Tertiary**: Automated test suite must include algorithm confusion test vectors — JWTs with `alg: HS256`, `alg: none`, `alg: RS256`, and unexpected `alg` values. These tests should be part of the RP's CI/CD pipeline and run against every SDK update.
-- **Detective**: Log the `alg` header of every processed JWT to the SIEM. Alert on any `alg` value other than `ES256` — this is a zero-false-positive indicator of an algorithm confusion attempt in a HAIP-compliant deployment.
+- **Tertiary**: Automated test suite must include algorithm confusion test vectors — JWTs with `alg: HS256`, `alg: none`, `alg: RS256`, and unexpected `alg` values; mdocs with non-SHA-256 `digestAlgorithm` values and unexpected COSE algorithm headers. These tests should be part of the RP's CI/CD pipeline and run against every SDK update.
+- **Detective**: Log the `alg` header of every processed JWT and the `digestAlgorithm`/COSE algorithm of every processed mdoc to the SIEM. Alert on any value outside the profile-mandated set — this is a zero-false-positive indicator of an algorithm confusion attempt in a HAIP-compliant deployment.
 
 ##### 29.2.24 OID4VCI Credential Offer Interception: Pre-Authorized Code Flow
 
@@ -30114,7 +30215,7 @@ Accept: application/oauth-authz-req+jwt
 <details>
 <summary><strong>5. Attacker harvests valid JARs containing session metadata</strong></summary>
 
-For each valid `request_uri` path, the RP returns the full signed JAR. The attacker collects these JARs and extracts the metadata: session nonces, `client_id`, requested attributes, and timing patterns. Even though JARs contain no user credentials, the leaked metadata enables: (a) competitive intelligence (which attributes the RP requests and how often); (b) nonce harvesting (for use in combination with other vulnerabilities such as [§29.2.2](#2922-credential-replay) Credential Replay); (c) traffic analysis (verification volume reveals business patterns).
+For each valid `request_uri` path, the RP returns the full signed JAR. The attacker collects these JARs and extracts the metadata: session nonces, `client_id`, requested attributes, and timing patterns. Even though JARs contain no user credentials, the leaked metadata enables: (a) competitive intelligence (which attributes the RP requests and how often); (b) nonce harvesting (for use in combination with other vulnerabilities such as Credential Replay ([§29.2.2](#2922-credential-replay))); (c) traffic analysis (verification volume reveals business patterns).
 
 **Artifact Produced:** Collection of valid JARs from enumerated `request_uri` paths — session metadata leakage at scale.
 
@@ -30567,9 +30668,9 @@ If the RP's `request_uri` endpoint shares infrastructure with other services, th
 - **Tertiary**: Use a DDoS protection service (Cloudflare, AWS Shield, Akamai) with rules specifically tuned for the `request_uri` endpoint's traffic pattern — high-entropy paths, no caching, mobile Wallet user-agents.
 - **Detective**: Monitor `request_uri` endpoint volumetrics in real-time. Alert on request rates exceeding 10× normal baseline, high `404`-to-`200` ratios (enumeration signal), and requests from known botnet IP ranges.
 
-##### 29.2.36 SD-JWT VC Credential Forgery
+##### 29.2.36 Credential Forgery
 
-**Threat Summary**: An adversary manufactures an SD-JWT VC credential outside the legitimate PID/QEAA Provider infrastructure — generating their own signing key, constructing a JWT body with correct schema and a forged `iss` claim pointing to a real issuer, and signing with the wrong key. This is the digital equivalent of physical document counterfeiting. A compliant RP always detects this via LoTE-anchored signature verification; the threat exists primarily as a validation target for pipeline correctness.
+**Threat Summary**: An adversary manufactures a verifiable credential outside the legitimate PID/QEAA Provider infrastructure — generating their own signing key, constructing a credential payload with correct schema and a forged issuer identifier, and signing with the wrong key. In SD-JWT VC, this means constructing a JWT body with a forged `iss` claim and signing with an attacker-controlled ES256 key. In mdoc, this means constructing a `MobileSecurityObject` with a fabricated `authority` field and signing with a key not in the IACA trust chain. Both formats are the digital equivalent of physical document counterfeiting. A compliant RP always detects this via trust-anchored signature verification (LoTE for SD-JWT VC, IACA chain for mdoc); the threat exists primarily as a validation target for pipeline correctness.
 
 **Classification**:
 
@@ -30722,7 +30823,7 @@ const result = crypto.verify('ES256', jwtSignatureBytes, issuerKey);
 // ECDSA(attacker_priv, payload) ≠ ECDSA(issuer_priv, payload)
 ```
 
-**Failure Path:** A vulnerable RP that skips signature verification, uses a permissive `alg` configuration ([§29.2.23](#29223-jwt-algorithm-confusiontype-confusion)), or accepts self-asserted issuer keys without LoTE resolution would accept the forged credential. The LoTE trust infrastructure is the primary defense.
+**Failure Path:** A vulnerable RP that skips signature verification, uses a permissive `alg` configuration ([§29.2.23](#29223-algorithm-confusiontype-confusion)), or accepts self-asserted issuer keys without LoTE resolution would accept the forged credential. The LoTE trust infrastructure is the primary defense.
 
 **Artifact Produced:** Signature verification failure (`SDJWT_SIG_INVALID`).
 
@@ -30739,15 +30840,16 @@ The RP emits the `SDJWT_SIG_INVALID` signal at severity **S0 (Critical)** — th
 </details>
 <br/>
 
-**Attack Vector**: An adversary manufactures an SD-JWT VC credential outside the legitimate PID/QEAA Provider infrastructure. The attacker generates their own signing key, constructs a JWT body that mimics a real PID credential (with correct schema, valid JSON structure, and a forged `iss` claim pointing to a real issuer), and signs it with their own key. This is the digital equivalent of physical document counterfeiting. The attack is distinct from algorithm confusion ([§29.2.23](#29223-jwt-algorithm-confusiontype-confusion)) where the attacker exploits algorithm negotiation — here, the attacker uses the correct algorithm (`ES256`) but signs with the wrong key.
+**Attack Vector**: An adversary manufactures a verifiable credential outside the legitimate PID/QEAA Provider infrastructure. The attacker generates their own signing key, constructs a credential payload that mimics a real credential (with correct schema, valid structure, and a forged issuer identifier), and signs it with their own key. In SD-JWT VC, the attacker constructs a JWT body with a forged `iss` claim pointing to a real issuer (e.g., `https://pid.bund.de`) and signs with an attacker-controlled key. In mdoc (ISO 18013-5), the attacker constructs a `MobileSecurityObject` (MSO) with a fabricated `authority` field, signs the `MobileSecurityObjectBytes` with an ES256 key not in the IACA trust chain, and wraps the result in a CBOR `DeviceResponse`. Both formats produce structurally valid credentials that fail trust-anchored signature verification. This is the digital equivalent of physical document counterfeiting. The attack is distinct from algorithm confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) where the attacker exploits algorithm negotiation — here, the attacker uses the correct algorithm (`ES256`) but signs with the wrong key.
 
-**Impact**: If the RP's verification pipeline is correctly implemented (mandatory LoTE-anchored signature verification per [§11.3](#113-verification-checklist-for-sd-jwt-vc)), the forged credential is **always detected**. The impact is therefore **Low** in a compliant RP. However, if the RP has a verification bug ([§29.2.10](#29210-verification-sdk-vulnerability)) that skips or weakens the signature check, the impact escalates to **Critical** — the attacker gains authenticated access under a fabricated identity. The threat exists primarily as a validation target: every RP's verification pipeline must reliably detect forged signatures as the most basic correctness requirement.
+**Impact**: If the RP's verification pipeline is correctly implemented (mandatory trust-anchored signature verification per [§11.3](#113-verification-checklist-for-sd-jwt-vc) — LoTE for SD-JWT VC, IACA chain for mdoc), the forged credential is **always detected**. The impact is therefore **Low** in a compliant RP. However, if the RP has a verification bug ([§29.2.10](#29210-verification-sdk-vulnerability)) that skips or weakens the signature check, the impact escalates to **Critical** — the attacker gains authenticated access under a fabricated identity. The threat exists primarily as a validation target: every RP's verification pipeline must reliably detect forged signatures as the most basic correctness requirement.
 
 **Mitigation**:
 
-- **Primary**: Mandatory issuer signature verification against LoTE-resolved public keys ([§11.3](#113-verification-checklist-for-sd-jwt-vc) verification checklist step 1). Never accept self-asserted issuer keys or skip signature verification.
-- **Testing**: Include forged credentials (signed with test keys not in the LoTE) in the RP's regression test suite. Every CI/CD run must verify that forged signatures are rejected.
-- **Defence in depth**: Log all signature verification outcomes (pass and fail) per [§31.3.1](#3131-verification-result-object-structure). Monitor for any `SDJWT_SIG_INVALID` signals — even one occurrence in production warrants investigation.
+- **Primary (SD-JWT VC)**: Mandatory issuer signature verification against LoTE-resolved public keys ([§11.3](#113-verification-checklist-for-sd-jwt-vc) verification checklist step 1). Never accept self-asserted issuer keys or skip signature verification.
+- **Primary (mdoc)**: Mandatory MSO signature verification against the IACA trust chain per ISO 18013-5 §9.2.4. The `MobileSecurityObjectBytes` must be verified against the IACA certificate resolved from the trust infrastructure; the `deviceKey` must match the `deviceKeyInfo` in the MSO. For mdoc ReaderAuth, the reader's certificate chain must also validate.
+- **Testing**: Include forged credentials in both formats in the RP's regression test suite — SD-JWT VCs signed with test keys not in the LoTE, and mdocs with MSOs signed by keys not in the IACA trust chain. Every CI/CD run must verify that forged signatures are rejected in both credential formats.
+- **Defence in depth**: Log all signature verification outcomes (pass and fail) for both formats per [§31.3.1](#3131-verification-result-object-structure). Monitor for any `SDJWT_SIG_INVALID` or `MDOC_MSO_SIG_INVALID` signals — even one occurrence in production warrants investigation.
 - **Regulatory**: eIDAS Art. 5b (RP obligations) implicitly requires signature verification; DORA Art. 17 requires incident classification for signature forgery attempts detected in production.
 
 ##### 29.2.37 Selective Disclosure Tampering
@@ -30906,7 +31008,7 @@ for (const disclosure of receivedDisclosures) {
 <details>
 <summary><strong>6. RP detects disclosure hash mismatch</strong></summary>
 
-The RP's hash verification produces a mismatch: the SHA-256 digest of the tampered disclosure (`x8Q2kmp4PDf...`) does not match any entry in the `_sd` array of the issuer-signed JWT body. The original digest (`dBjftJeZ4CVP...`) was committed by the issuer over the **unmodified** disclosure — any single-bit change in the disclosure value produces a completely different SHA-256 output. The mismatch is deterministic and cannot be circumvented without breaking the issuer's JWT signature (which would be caught by [§29.2.36](#29236-sd-jwt-vc-credential-forgery)'s signature verification).
+The RP's hash verification produces a mismatch: the SHA-256 digest of the tampered disclosure (`x8Q2kmp4PDf...`) does not match any entry in the `_sd` array of the issuer-signed JWT body. The original digest (`dBjftJeZ4CVP...`) was committed by the issuer over the **unmodified** disclosure — any single-bit change in the disclosure value produces a completely different SHA-256 output. The mismatch is deterministic and cannot be circumvented without breaking the issuer's JWT signature (which would be caught by [§29.2.36](#29236-credential-forgery)'s signature verification).
 
 **Failure Path:** An RP that extracts claim values directly from disclosures without first verifying their hashes against the `_sd` array would accept tampered values. The hash check must occur **before** any claim value is used for business logic.
 
@@ -32196,16 +32298,16 @@ Before reading the matrix, keep one distinction in mind: an assurance profile do
 
 | Profile Lever ([§26.1.2](#2612-assurance-profiles-and-channel-policy)) | Exposure Reduced by Design | Representative Threats | Boundary |
 |:------------------------|:---------------------------|:-----------------------|:---------|
-| **DC API-first browser policy** | Reduces QR / out-of-band invocation abuse by making same-device origin-bound presentation the default path | [§29.2.4](#2924-relay-attack-cross-device) Relay Attack: Cross-Device; [§29.2.5](#2925-malicious-rp-endpoint-phishing) Malicious RP Endpoint: Phishing; [§29.2.18](#29218-cross-device-qr-code-substitution) Cross-Device QR Code Substitution | Does not eliminate all presentation abuse; fallback channels still require their own controls |
-| **Controlled proximity for selected lifecycle events** | Reduces relay opportunity and remote social-engineering exposure for issuance, recovery, rebinding, and other high-risk ceremonies | [§29.2.4](#2924-relay-attack-cross-device) Relay Attack: Cross-Device; [§29.2.25](#29225-credential-injection-into-victim-wallet) Credential Injection into Victim Wallet; [§29.2.16](#29216-user-device-malware-consent-manipulation) User Device Malware: Consent Manipulation | Applies only to the flows where the RP actually invokes proximity or supervised ceremony |
-| **Device-binding-required for RP-issued high-risk credentials** | Reduces forwarding, replay-adjacent reuse, and credential-sharing risk when the RP controls issuance policy | [§29.2.2](#2922-credential-replay) Credential Replay; [§29.2.39](#29239-unbound-credential-forwarding) Unbound Credential Forwarding; [§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure) Compromised Wallet Environment: WUA Verification Failure | Cannot be retroactively forced on third-party credentials that arrive without holder binding |
-| **Profile-defined supplementary binding ceremony** | Reduces spoofing and weak-evidence acceptance when the RP deliberately invokes selfie / portrait / extra-document proofing for onboarding, recovery, or rebinding | [§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack) Remote Live-Person Step-Up: Biometric Presentation Attack; [§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack) Remote Live-Person Step-Up: Capture-Pipeline Injection Attack; [§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure) Fallback Document Proofing: OCR / Document Authenticity Failure | Only works if the profile separately defines biometric genuineness, capture integrity, and document-authenticity controls; a generic "selfie check" is not enough |
-| **VSI-driven assurance escalation** | Reduces dwell time and repeated low-friction abuse by routing suspicious sessions into stronger channels or stronger review paths | [§29.2.17](#29217-browser-side-session-hijacking-post-verification) Browser-Side Session Hijacking: Post-Verification; [§29.2.33](#29233-request_uri-session-id-enumeration) `request_uri` Endpoint Abuse; [§29.2.40](#29240-clock-manipulationenvironment-emulation) Clock Manipulation / Environment Emulation | It is a runtime containment control, not a substitute for preventive protocol validation |
+| **DC API-first browser policy** | Reduces QR / out-of-band invocation abuse by making same-device origin-bound presentation the default path | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)); Malicious RP Endpoint: Phishing ([§29.2.5](#2925-malicious-rp-endpoint-phishing)); Cross-Device QR Code Substitution ([§29.2.18](#29218-cross-device-qr-code-substitution)) | Does not eliminate all presentation abuse; fallback channels still require their own controls |
+| **Controlled proximity for selected lifecycle events** | Reduces relay opportunity and remote social-engineering exposure for issuance, recovery, rebinding, and other high-risk ceremonies | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)); Credential Injection into Victim Wallet ([§29.2.25](#29225-credential-injection-into-victim-wallet)); User Device Malware: Consent Manipulation ([§29.2.16](#29216-user-device-malware-consent-manipulation)) | Applies only to the flows where the RP actually invokes proximity or supervised ceremony |
+| **Device-binding-required for RP-issued high-risk credentials** | Reduces forwarding, replay-adjacent reuse, and credential-sharing risk when the RP controls issuance policy | Credential Replay ([§29.2.2](#2922-credential-replay)); Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)); Compromised Wallet Environment: WUA Verification Failure ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)) | Cannot be retroactively forced on third-party credentials that arrive without holder binding |
+| **Profile-defined supplementary binding ceremony** | Reduces spoofing and weak-evidence acceptance when the RP deliberately invokes selfie / portrait / extra-document proofing for onboarding, recovery, or rebinding | Remote Live-Person Step-Up: Biometric Presentation Attack ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)); Remote Live-Person Step-Up: Capture-Pipeline Injection Attack ([§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack)); Fallback Document Proofing: OCR and Document Authenticity Failure ([§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)) | Only works if the profile separately defines biometric genuineness, capture integrity, and document-authenticity controls; a generic "selfie check" is not enough |
+| **VSI-driven assurance escalation** | Reduces dwell time and repeated low-friction abuse by routing suspicious sessions into stronger channels or stronger review paths | Browser-Side Session Hijacking: Post-Verification ([§29.2.17](#29217-browser-side-session-hijacking-post-verification)); `request_uri` Endpoint Abuse ([§29.2.33](#29233-request_uri-session-id-enumeration)); Clock Manipulation / Environment Emulation ([§29.2.40](#29240-clock-manipulationenvironment-emulation)) | It is a runtime containment control, not a substitute for preventive protocol validation |
 
 | Scenario | Threat | Likelihood | Impact | Residual Risk |
 |:---------|:-------|:-----------|:-------|:--------------|
 | [§29.2.22](#29222-lote-cache-poisoning) | LoTE Cache Poisoning | Low | Critical | 🔴 High — if the RP accepts unsigned LoTE updates or discovers the TA key dynamically; 🟡 Medium if LoTE responses are cryptographically signed by the Trust Anchor and the RP verifies against a pinned bootstrap key |
-| [§29.2.23](#29223-jwt-algorithm-confusiontype-confusion) | JWT Algorithm Confusion / Type Confusion | Medium | Critical | 🔴 Critical — if the verification library accepts `alg` from the token itself (CVE-2015-9235 class); 🟢 Low if the RP enforces an explicit algorithm allowlist (e.g., only `ES256`) and never derives the verification algorithm from the JWT header |
+| [§29.2.23](#29223-algorithm-confusiontype-confusion) | Algorithm Confusion/Type Confusion | Medium | Critical | 🔴 Critical — if the verification library accepts `alg` from the token itself (CVE-2015-9235 class); 🟢 Low if the RP enforces an explicit algorithm allowlist (e.g., only `ES256`) and never derives the verification algorithm from the JWT header |
 | [§29.2.3](#2923-wrpac-private-key-compromise) | WRPAC Private Key Compromise | Low | Critical | 🟡 Medium — depends entirely on whether the RP stores the WRPAC private key in an HSM (not mandated by ARF for RPs); without HSM, a single server breach exposes the key. CT monitoring ([§5.2.4](#524-status-services-revocation-and-certificate-transparency-signals)) provides detection but not prevention |
 | [§29.2.9](#2929-insider-threat-privileged-access-to-pid-data) | Insider Threat: Privileged Access to PID Data | Medium | Critical | 🟡 Medium — RBAC, encryption at rest, and audit logging mitigate but cannot eliminate the risk from privileged insiders. The silent, long-lasting nature of insider exfiltration means detection may lag months. DORA Art. 9(4)(c) imposes HR-level controls for financial RPs |
 | [§29.2.13](#29213-cross-rp-collusion) | Cross-RP Collusion | Low | Critical | 🟡 Medium — organisational and enforcement measures (WRPAC revocation, GDPR supervisory authority enforcement) are the primary deterrent; full technical prevention requires [Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs)-compatible ZKP adoption, whose production EUDI Wallet proof profiles are still under development |
@@ -32365,7 +32467,7 @@ flowchart TB
 
 | Layer | Producer | When | Signal Source | Example Signals |
 |:------|:---------|:-----|:-------------|:----------------|
-| **Layer 1** — Protocol Errors | Wallet Response Handler | On receiving a Wallet error through the selected response channel | OID4VP §6.3 error codes; mdoc ISO 18013-5 status codes | `access_denied`, `invalid_request`, `presentation_rejected` |
+| **Layer 1** — Protocol Errors | Wallet Response Handler | On receiving a Wallet error through the selected response channel | OID4VP §6.3/§8.5 error codes; mdoc ISO 18013-5 status codes | `access_denied`, `invalid_request`, `wallet_unavailable` |
 | **Layer 2** — Verification Pipeline | RP's Verification Engine (§11.3/§11.4/§12) | During VP Token validation | SD-JWT VC signature, disclosure, temporal, revocation, KB-JWT checks; mdoc MSO, IACA, DeviceAuth checks; JWE decryption; trust infrastructure; optional supplementary remote proofing checks | `SDJWT_SIG_INVALID`, `KBJWT_NONCE_REUSE`, `MDOC_DEVICE_SIG_INVALID`, `STEPUP_CAPTURE_INJECTION_DETECTED` |
 | **Layer 3** — Contextual & Behavioural | API Gateway ([§26.6.4](#2664-reverse-proxy-integration-pattern)) | On receiving a direct-post HTTP request or browser-forwarded API result | HTTP headers, TLS fingerprint, IP geolocation, device fingerprint, velocity counters, temporal patterns | `CTX_GEO_MISMATCH`, `CTX_VELOCITY_EXCEED`, `CTX_TLS_FINGERPRINT_ANOMALY` |
 
@@ -32381,16 +32483,16 @@ Layer 1 signals originate from the **wallet's error response** to the RP's prese
 
 | Signal ID | OID4VP Error Code | Source | VSI Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-----------------|:-------|:------------:|:------------------------------|:---------------|
-| `PROTO_ACCESS_DENIED` | `access_denied` | OID4VP §6.3 | S4 | User declined consent. Benign in isolation. **Spike from same RP instance = possible consent screen manipulation or social engineering campaign** ([§29.2.16](#29216-user-device-malware-consent-manipulation)). Monitor decline rate per RP Instance. | [§29.2.16](#29216-user-device-malware-consent-manipulation) |
-| `PROTO_PRESENTATION_REJECTED` | `presentation_rejected` | OID4VP | S3 | Wallet policy blocked the RP — possible WRPAC revocation, attribute scope violation, or RP not in wallet's trusted list. **Correlate with WRPAC validity status and Registrar attribute scope.** | [§29.2.15](#29215-over-identification) |
+| `PROTO_ACCESS_DENIED` | `access_denied` | OID4VP §6.3 | S4 | User declined consent. Benign in isolation. **Spike from same RP instance = possible consent screen manipulation or social engineering campaign** ([§29.2.16](#29216-user-device-malware-consent-manipulation)). Monitor decline rate per RP Instance. | User Device Malware: Consent Manipulation ([§29.2.16](#29216-user-device-malware-consent-manipulation)) |
 | `PROTO_TEMPORARILY_UNAVAILABLE` | `temporarily_unavailable` | OID4VP | S4 | Wallet temporarily busy. Benign. **Sustained spike from same IP range = possible DoS probe against wallet infrastructure.** | — |
-| `PROTO_INVALID_CLIENT` | `invalid_client` | OID4VP | S1 | RP's client authentication failed at wallet side. **Critical misconfiguration or WRPAC compromise** — the wallet does not recognise the RP's credentials. Immediate investigation required. | [§29.2.3](#2923-wrpac-private-key-compromise) |
+| `PROTO_INVALID_CLIENT` | `invalid_client` | OID4VP | S1 | RP's client authentication failed at wallet side. **Critical misconfiguration or WRPAC compromise** — the wallet does not recognise the RP's credentials. Immediate investigation required. | WRPAC Private Key Compromise ([§29.2.3](#2923-wrpac-private-key-compromise)) |
 | `PROTO_INVALID_REQUEST` | `invalid_request` | OID4VP | S2 | Malformed JAR or request parameters. Isolated = RP bug. **Pattern from unknown sources = fuzzing/probing attempt** against the RP's OID4VP endpoint. | — |
 | `PROTO_VP_FORMATS_NOT_SUPPORTED` | `vp_formats_not_supported` | OID4VP | S3 | Wallet doesn't support the requested VP format. Benign if from heterogeneous wallet ecosystem. **Repeated pattern = probing for format-specific vulnerabilities.** | — |
-| `PROTO_INVALID_SCOPE` | `invalid_scope` | OID4VP | S3 | Wallet cannot satisfy the requested credential scope. Benign if isolated. **Spike = credential harvesting probe** testing which credential types the RP accepts. | [§29.2.15](#29215-over-identification) |
+| `PROTO_INVALID_SCOPE` | `invalid_scope` | OID4VP | S3 | Wallet cannot satisfy the requested credential scope. Benign if isolated. **Spike = credential harvesting probe** testing which credential types the RP accepts. | Over-Identification ([§29.2.15](#29215-over-identification)) |
 | `PROTO_SERVER_ERROR` | `server_error` | OID4VP | S2 | Internal wallet error. **Spike from same wallet provider = possible exploit attempt** against wallet software. Correlate with WUA `wallet_provider` field. | — |
-| `PROTO_INVALID_TRANSACTION_DATA` | `invalid_transaction_data` | OID4VP §6.3 | S1 | Wallet rejected the `transaction_data` binding. **Critical for SCA flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking))**: possible dynamic linking manipulation — the transaction amount, IBAN, or merchant identity in the signed request may have been tampered with. | [§29.2.8](#2928-jar-modification-in-transit) |
+| `PROTO_INVALID_TRANSACTION_DATA` | `invalid_transaction_data` | OID4VP §6.3 | S1 | Wallet rejected the `transaction_data` binding. **Critical for SCA flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking))**: possible dynamic linking manipulation — the transaction amount, IBAN, or merchant identity in the signed request may have been tampered with. | JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)) |
 | `PROTO_INVALID_REQUEST_URI_METHOD` | `invalid_request_uri_method` | OID4VP | S2 | Wallet received request via an unsupported URI method. **Indicates non-compliant or malicious client** constructing requests outside protocol boundaries. | — |
+| `PROTO_WALLET_UNAVAILABLE` | `wallet_unavailable` | OID4VP §8.5 | S3 | Wallet app not reachable — platform cannot invoke it, or an intermediary component received the request instead. **Spike per platform/channel = wallet adoption or deployment issue, not a security concern.** Monitor per platform type for operational visibility. | — |
 
 #### 30.4 Signal Inventory: Layer 2: Verification Pipeline
 
@@ -32402,48 +32504,48 @@ Layer 2 signals are produced by the RP's own verification engine ([§11.3](#113-
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `SDJWT_SIG_INVALID` | Issuer JWT signature fails verification against the issuer's public key from the LoTE trust anchor | Tampering | **S0** | **Forged credential or tampered payload.** The signature over the JWT body does not match the issuer's key. This is the highest-severity signal — it means either the credential was manufactured outside a legitimate PID/QEAA Provider, or the payload was modified after issuance. Quarantine source IP; log the raw JWT for forensic analysis. | [§29.2.36](#29236-sd-jwt-vc-credential-forgery) |
-| `SDJWT_SIG_ALG_UNEXPECTED` | JWS `alg` header value not in RP's algorithm allowlist (e.g., `RS256` instead of `ES256`) | Tampering | **S0** | **Algorithm confusion attack** (CVE-2015-9235 class). The credential uses an algorithm the RP does not expect. HAIP mandates `ES256`; any other algorithm is suspicious. Block and alert security team. | [§29.2.23](#29223-jwt-algorithm-confusiontype-confusion) |
-| `SDJWT_SIG_ALG_NONE` | `alg: "none"` in JWS header | Tampering | **S0** | **Critical exploit attempt.** The `alg: none` attack bypasses signature verification entirely. Immediate block; this is always malicious. Log full request context for incident response. | [§29.2.23](#29223-jwt-algorithm-confusiontype-confusion) |
-| `SDJWT_DISCLOSURE_HASH_MISMATCH` | Disclosure hash does not match the corresponding `_sd` digest in the JWT body | Tampering | **S1** | **Tampered selective disclosure.** An attacker has modified a disclosed attribute value after issuance — the hash of the disclosure (salt + claim name + value) no longer matches the digest committed in the issuer-signed JWT body. This indicates targeted attribute manipulation. | [§29.2.37](#29237-selective-disclosure-tampering) |
-| `SDJWT_DISCLOSURE_DUPLICATE_SALT` | Duplicate salt values detected across disclosures in the same SD-JWT | Tampering | **S1** | **Fuzzing or manipulation attempt.** Salt values MUST be unique per disclosure (SD-JWT VC §5.2.5). Duplicates indicate either a faulty issuer implementation or deliberate structure manipulation. Reject and log raw disclosure array. | [§29.2.37](#29237-selective-disclosure-tampering) |
+| `SDJWT_SIG_INVALID` | Issuer JWT signature fails verification against the issuer's public key from the LoTE trust anchor | Tampering | **S0** | **Forged credential or tampered payload.** The signature over the JWT body does not match the issuer's key. This is the highest-severity signal — it means either the credential was manufactured outside a legitimate PID/QEAA Provider, or the payload was modified after issuance. Quarantine source IP; log the raw JWT for forensic analysis. | Credential Forgery ([§29.2.36](#29236-credential-forgery)) |
+| `SDJWT_SIG_ALG_UNEXPECTED` | JWS `alg` header value not in RP's algorithm allowlist (e.g., `RS256` instead of `ES256`) | Tampering | **S0** | **Algorithm confusion attack** (CVE-2015-9235 class). The credential uses an algorithm the RP does not expect. HAIP mandates `ES256`; any other algorithm is suspicious. Block and alert security team. | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| `SDJWT_SIG_ALG_NONE` | `alg: "none"` in JWS header | Tampering | **S0** | **Critical exploit attempt.** The `alg: none` attack bypasses signature verification entirely. Immediate block; this is always malicious. Log full request context for incident response. | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| `SDJWT_DISCLOSURE_HASH_MISMATCH` | Disclosure hash does not match the corresponding `_sd` digest in the JWT body | Tampering | **S1** | **Tampered selective disclosure.** An attacker has modified a disclosed attribute value after issuance — the hash of the disclosure (salt + claim name + value) no longer matches the digest committed in the issuer-signed JWT body. This indicates targeted attribute manipulation. | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
+| `SDJWT_DISCLOSURE_DUPLICATE_SALT` | Duplicate salt values detected across disclosures in the same SD-JWT | Tampering | **S1** | **Fuzzing or manipulation attempt.** Salt values MUST be unique per disclosure (SD-JWT VC §5.2.5). Duplicates indicate either a faulty issuer implementation or deliberate structure manipulation. Reject and log raw disclosure array. | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
 | `SDJWT_EXP_EXPIRED` | `exp` claim is in the past (beyond RP's clock skew tolerance) | — | **S3** | **Stale credential.** Benign if isolated — the user's PID may have expired naturally. **Spike from multiple sources = possible credential database leak** being tested against RPs. Monitor for patterns. | — |
 | `SDJWT_NBF_NOT_YET_VALID` | `nbf` claim is in the future | — | **S3** | **Premature credential or clock manipulation.** The credential is not yet valid. Could indicate a time zone issue, clock skew, or a credential issued for future activation. Flag for review. | — |
-| `SDJWT_IAT_FUTURE` | `iat` claim is in the future (beyond clock skew tolerance) | Spoofing | **S2** | **Clock manipulation.** The issuance timestamp is in the future, suggesting an emulated wallet environment with a manipulated system clock, or a rogue issuer backdating credentials for future use. | [§29.2.40](#29240-clock-manipulationenvironment-emulation) |
-| `SDJWT_ISSUER_UNTRUSTED` | Issuer `iss` claim does not match any entry in the RP's LoTE trust anchor cache | Spoofing | **S1** | **Unknown issuer.** The credential claims to be from an issuer not in the RP's trusted set. Could be a legitimate new Member State PID Provider not yet cached, or a spoofed issuer. Cross-check against a fresh LoTE fetch before blocking. | [§29.2.27](#29227-oid-fed-trust-chain-spoofing) |
-| `SDJWT_ISSUER_CHAIN_INVALID` | Issuer's X.509 certificate chain does not validate to any LoTE root anchor | Spoofing | **S0** | **Certificate chain attack.** The issuer presents a certificate chain that doesn't terminate at a trusted root. Critical — possible MITM, rogue CA, or self-signed chain. Block immediately. | [§29.2.27](#29227-oid-fed-trust-chain-spoofing) |
+| `SDJWT_IAT_FUTURE` | `iat` claim is in the future (beyond clock skew tolerance) | Spoofing | **S2** | **Clock manipulation.** The issuance timestamp is in the future, suggesting an emulated wallet environment with a manipulated system clock, or a rogue issuer backdating credentials for future use. | Clock Manipulation/Environment Emulation ([§29.2.40](#29240-clock-manipulationenvironment-emulation)) |
+| `SDJWT_ISSUER_UNTRUSTED` | Issuer `iss` claim does not match any entry in the RP's LoTE trust anchor cache | Spoofing | **S1** | **Unknown issuer.** The credential claims to be from an issuer not in the RP's trusted set. Could be a legitimate new Member State PID Provider not yet cached, or a spoofed issuer. Cross-check against a fresh LoTE fetch before blocking. | OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)) |
+| `SDJWT_ISSUER_CHAIN_INVALID` | Issuer's X.509 certificate chain does not validate to any LoTE root anchor | Spoofing | **S0** | **Certificate chain attack.** The issuer presents a certificate chain that doesn't terminate at a trusted root. Critical — possible MITM, rogue CA, or self-signed chain. Block immediately. | OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)) |
 | `SDJWT_VCT_UNKNOWN` | `vct` (Verifiable Credential Type) value not recognised by the RP's credential type registry | — | **S3** | **New or unknown credential type.** Could be a legitimate new attestation type (e.g., a newly published QEAA schema) or probing to discover which types the RP accepts. Log and review against TS11 registry. | — |
-| `SDJWT_STATUS_REVOKED` | Status List check (draft-ietf-oauth-status-list) returns bit = 1 (REVOKED) for the credential's `status.idx` | — | **S2** | **Revoked credential being presented.** The credential has been explicitly revoked by its issuer — possible reasons: reported stolen device, wallet compromise, identity fraud detected by the PID Provider. Alert the fraud team; correlate with revocation timestamp. | [§29.2.21](#29221-wallet-solution-suspension-or-withdrawal) |
-| `SDJWT_STATUS_SUSPENDED` | Status List check returns SUSPENDED status | — | **S3** | **Suspended credential.** Less severe than revocation — may be temporary (wallet migration, device replacement, issuer administrative action). Allow with elevated risk flag; re-check status on next presentation. | [§29.2.21](#29221-wallet-solution-suspension-or-withdrawal) |
-| `SDJWT_STATUS_FETCH_FAILED` | Cannot retrieve the Status List JWT from the issuer's endpoint | DoS | **S2** | **Revocation check unavailable.** Network failure, Status List endpoint down, or active DoS against the status infrastructure ([§29.2.6](#2926-status-list-denial-of-service)). Apply the RP's fail-open/fail-closed policy ([§11.5](#115-edge-cases-and-error-handling)). Use cached status if available; log degraded confidence. | [§29.2.6](#2926-status-list-denial-of-service) |
-| `SDJWT_CNF_MISSING` | SD-JWT issuer-signed body contains no `cnf` claim — the credential was issued without key binding information | Spoofing | **S2** | **Credential issued without device binding.** Unlike `KBJWT_MISSING` (which means the presentation omits the KB-JWT), this signal means the **credential itself** was issued without a `cnf.jwk` claim — no device key was bound at issuance. This can be legitimate for low-assurance EAAs that do not require device binding, but is unexpected for PIDs (which mandate `cnf`). Flag and evaluate against the RP's binding policy for this credential type. | [§29.2.39](#29239-unbound-credential-forwarding) |
-| `SDJWT_JSON_PARSE_ERROR` | SD-JWT structure is syntactically malformed — not valid Base64URL encoding, wrong number of `~`-separated segments, or JSON body fails parsing | Tampering | **S1** | **Malformed payload.** The SD-JWT string is structurally invalid. SD-JWT equivalent of `MDOC_CBOR_PARSE_ERROR`. Possible fuzzing attempt against the RP's SD-JWT parser, corrupted transmission, or a crafted payload exploiting parser vulnerabilities. Reject; log raw string for analysis. | [§29.2.38](#29238-vp-token-parser-exploitation) |
-| `KBJWT_MISSING` | No Key Binding JWT (`~` delimiter) appended to the SD-JWT presentation | Spoofing | **S1** | **No holder binding.** The presenter has not proven possession of the device key bound to the credential (`cnf.jwk`). If the RP's policy requires KB-JWT (recommended for all high-assurance flows), reject. Without KB-JWT, the credential could be forwarded from another device. | [§29.2.2](#2922-credential-replay) |
-| `KBJWT_SIG_INVALID` | KB-JWT signature does not verify against the `cnf.jwk` public key embedded in the issuer-signed JWT | Spoofing | **S0** | **Stolen credential replay.** The presenter is **not** the credential holder — the device key signature doesn't match. The credential was likely extracted from the holder's wallet and presented from a different device. Block; alert SOC; correlate with source IP for ring detection. | [§29.2.2](#2922-credential-replay) |
-| `KBJWT_NONCE_MISMATCH` | KB-JWT `nonce` claim does not match the nonce issued by the RP in the authorization request | Replay | **S0** | **Replay attack.** The VP Token is being presented with a nonce from a different session. The credential may be valid, but it was captured in a prior session and is being replayed. Block immediately. | [§29.2.2](#2922-credential-replay) |
-| `KBJWT_NONCE_REUSE` | The nonce in the KB-JWT was already consumed by the RP in a previous session | Replay | **S0** | **Definitive replay attack.** The RP has already accepted a presentation with this exact nonce. This is unambiguous evidence of replay. Block; alert SOC; file DORA Art. 17 incident report if applicable. | [§29.2.2](#2922-credential-replay) |
-| `KBJWT_AUD_MISMATCH` | KB-JWT `aud` claim does not match the RP's `client_id` (WRPAC `client_id` or OID-FED Entity Identifier) | Spoofing | **S0** | **Relay attack.** The credential was bound to a **different RP** — the holder authenticated to RP-A, but the VP Token is being presented to RP-B. This is a textbook relay/proxy attack ([§29.2.4](#2924-relay-attack-cross-device)). Block; log both the expected and actual `aud` values. | [§29.2.4](#2924-relay-attack-cross-device) |
+| `SDJWT_STATUS_REVOKED` | Status List check (draft-ietf-oauth-status-list) returns bit = 1 (REVOKED) for the credential's `status.idx` | — | **S2** | **Revoked credential being presented.** The credential has been explicitly revoked by its issuer — possible reasons: reported stolen device, wallet compromise, identity fraud detected by the PID Provider. Alert the fraud team; correlate with revocation timestamp. | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) |
+| `SDJWT_STATUS_SUSPENDED` | Status List check returns SUSPENDED status | — | **S3** | **Suspended credential.** Less severe than revocation — may be temporary (wallet migration, device replacement, issuer administrative action). Allow with elevated risk flag; re-check status on next presentation. | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) |
+| `SDJWT_STATUS_FETCH_FAILED` | Cannot retrieve the Status List JWT from the issuer's endpoint | DoS | **S2** | **Revocation check unavailable.** Network failure, Status List endpoint down, or active DoS against the status infrastructure ([§29.2.6](#2926-status-list-denial-of-service)). Apply the RP's fail-open/fail-closed policy ([§11.5](#115-edge-cases-and-error-handling)). Use cached status if available; log degraded confidence. | Status List Denial of Service ([§29.2.6](#2926-status-list-denial-of-service)) |
+| `SDJWT_CNF_MISSING` | SD-JWT issuer-signed body contains no `cnf` claim — the credential was issued without key binding information | Spoofing | **S2** | **Credential issued without device binding.** Unlike `KBJWT_MISSING` (which means the presentation omits the KB-JWT), this signal means the **credential itself** was issued without a `cnf.jwk` claim — no device key was bound at issuance. This can be legitimate for low-assurance EAAs that do not require device binding, but is unexpected for PIDs (which mandate `cnf`). Flag and evaluate against the RP's binding policy for this credential type. | Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)) |
+| `SDJWT_JSON_PARSE_ERROR` | SD-JWT structure is syntactically malformed — not valid Base64URL encoding, wrong number of `~`-separated segments, or JSON body fails parsing | Tampering | **S1** | **Malformed payload.** The SD-JWT string is structurally invalid. SD-JWT equivalent of `MDOC_CBOR_PARSE_ERROR`. Possible fuzzing attempt against the RP's SD-JWT parser, corrupted transmission, or a crafted payload exploiting parser vulnerabilities. Reject; log raw string for analysis. | VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)) |
+| `KBJWT_MISSING` | No Key Binding JWT (`~` delimiter) appended to the SD-JWT presentation | Spoofing | **S1** | **No holder binding.** The presenter has not proven possession of the device key bound to the credential (`cnf.jwk`). If the RP's policy requires KB-JWT (recommended for all high-assurance flows), reject. Without KB-JWT, the credential could be forwarded from another device. | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| `KBJWT_SIG_INVALID` | KB-JWT signature does not verify against the `cnf.jwk` public key embedded in the issuer-signed JWT | Spoofing | **S0** | **Stolen credential replay.** The presenter is **not** the credential holder — the device key signature doesn't match. The credential was likely extracted from the holder's wallet and presented from a different device. Block; alert SOC; correlate with source IP for ring detection. | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| `KBJWT_NONCE_MISMATCH` | KB-JWT `nonce` claim does not match the nonce issued by the RP in the authorization request | Replay | **S0** | **Replay attack.** The VP Token is being presented with a nonce from a different session. The credential may be valid, but it was captured in a prior session and is being replayed. Block immediately. | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| `KBJWT_NONCE_REUSE` | The nonce in the KB-JWT was already consumed by the RP in a previous session | Replay | **S0** | **Definitive replay attack.** The RP has already accepted a presentation with this exact nonce. This is unambiguous evidence of replay. Block; alert SOC; file DORA Art. 17 incident report if applicable. | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| `KBJWT_AUD_MISMATCH` | KB-JWT `aud` claim does not match the RP's `client_id` (WRPAC `client_id` or OID-FED Entity Identifier) | Spoofing | **S0** | **Relay attack.** The credential was bound to a **different RP** — the holder authenticated to RP-A, but the VP Token is being presented to RP-B. This is a textbook relay/proxy attack ([§29.2.4](#2924-relay-attack-cross-device)). Block; log both the expected and actual `aud` values. | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
 | `KBJWT_CLOCK_SKEW` | KB-JWT `iat` timestamp differs from the RP's server time by more than the configured tolerance (recommended: 60 seconds) | — | **S3** | **Network latency or replay delay.** Minor clock skew is normal in cross-device flows. **Skew > 300 seconds combined with other signals** (e.g., geo-mismatch) elevates to suspicious. Log for pattern analysis; build per-wallet-provider skew baselines. | — |
-| `KBJWT_EXPIRED` | KB-JWT `exp` claim is in the past | Replay | **S2** | **Stale proof of possession.** The KB-JWT was generated too long ago. Could indicate a delayed replay attempt — the attacker captured the VP Token and is presenting it after the KB-JWT's validity window. | [§29.2.2](#2922-credential-replay) |
+| `KBJWT_EXPIRED` | KB-JWT `exp` claim is in the past | Replay | **S2** | **Stale proof of possession.** The KB-JWT was generated too long ago. Could indicate a delayed replay attempt — the attacker captured the VP Token and is presenting it after the KB-JWT's validity window. | Credential Replay ([§29.2.2](#2922-credential-replay)) |
 
 ##### 30.4.2 mdoc (ISO 18013-5) Verification Signals
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `MDOC_MSO_SIG_INVALID` | Mobile Security Object (MSO) signature verification fails against the issuer's IACA-chained public key | Tampering | **S0** | **Forged or tampered mdoc.** The MSO signature is the mdoc equivalent of the SD-JWT issuer signature. Failure indicates the document was manufactured outside a legitimate Document Signer or the MSO was modified after issuance. Critical — block immediately. | [§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials) |
-| `MDOC_IACA_CHAIN_INVALID` | Issuing Authority Certificate Authority (IACA) certificate chain does not validate to a trusted IACA root in the RP's trust store | Spoofing | **S0** | **Certificate chain bypass attempt.** The issuer presents a certificate chain that doesn't terminate at a trusted IACA root. Possible self-signed chain attack or rogue Document Signer. Block; log the full certificate chain for forensic analysis. | [§29.2.30](#29230-mdoc-iaca-chain-validation-bypass) |
-| `MDOC_IACA_REVOKED` | IACA certificate appears on the Certificate Revocation List (CRL) | Spoofing | **S0** | **Revoked issuer authority.** The IACA certificate itself has been revoked — all credentials issued under this chain are suspect. Reject **all** credentials from this chain until the RP's IACA trust store is refreshed. | [§29.2.30](#29230-mdoc-iaca-chain-validation-bypass) |
-| `MDOC_DIGEST_MISMATCH` | Data element hash does not match the corresponding digest in the MSO's `ValueDigests` | Tampering | **S1** | **Selective disclosure tampering.** An individual claim value within a disclosed namespace has been modified after the MSO was signed. The attacker computed a new data element but could not update the MSO digest (which requires the issuer's key). | [§29.2.37](#29237-selective-disclosure-tampering) |
-| `MDOC_DEVICE_SIG_INVALID` | `DeviceSignature` (COSE_Sign1) verification fails against the device public key in the MSO's `DeviceKeyInfo` | Spoofing | **S0** | **Replayed or cloned credential.** The device key signature does not match — the presenter is not the device that holds the original mdoc. The credential may have been cloned from a compromised WSCD or extracted and replayed from a different device. | [§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials) |
-| `MDOC_DEVICE_SIG_MISSING` | No `DeviceSignature` or `DeviceMAC` present in the `DeviceAuth` structure | Spoofing | **S1** | **No device authentication.** The mdoc was presented without any proof that the presenting device holds the device private key. Critical if the RP requires device binding (proximity supervised flows per [§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). Without DeviceAuth, the mdoc could be forwarded from any device. | [§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials) |
-| `MDOC_DEVICE_MAC_INVALID` | `DeviceMAC` (COSE_Mac0) verification fails | Spoofing | **S1** | **Session transcript mismatch.** The MAC was computed over a `SessionTranscript` that doesn't match the current session. Possible relay attack — the mdoc was presented in a different session context. | [§29.2.4](#2924-relay-attack-cross-device) |
-| `MDOC_SESSION_TRANSCRIPT_MISMATCH` | The `encodedSessionTranscript` reconstructed by the RP does not match the one used to compute `DeviceSignature` or `DeviceMAC` | Replay/Spoofing | **S0** | **Relay attack.** The session context (nonce, RP identifier, session establishment) used to sign the device response does not match the current session. This is a textbook relay attack ([§29.2.4](#2924-relay-attack-cross-device)) — the mdoc was presented to a different reader and the response is being relayed to this RP. | [§29.2.4](#2924-relay-attack-cross-device) |
-| `MDOC_READER_AUTH_REJECTED` | Wallet returned ISO 18013-5 status code 20 (Reader Authentication Error) | — | **S2** | **RP's reader certificate rejected by wallet.** The wallet could not validate the RP's reader authentication certificate (the mdoc equivalent of WRPAC validation). Check IACA root inclusion within the wallet's trust store and certificate expiry. | [§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader) |
-| `MDOC_REQUEST_REJECTED` | Wallet returned ISO 18013-5 status code 21 | — | **S3** | **Wallet policy block.** The wallet refused the request based on its internal policy. Functionally equivalent to OID4VP `presentation_rejected`. Log and monitor for patterns. | — |
+| `MDOC_MSO_SIG_INVALID` | Mobile Security Object (MSO) signature verification fails against the issuer's IACA-chained public key | Tampering | **S0** | **Forged or tampered mdoc.** The MSO signature is the mdoc equivalent of the SD-JWT issuer signature. Failure indicates the document was manufactured outside a legitimate Document Signer or the MSO was modified after issuance. Critical — block immediately. | mdoc DeviceSignature Skip: RP Accepts Replayed Credentials ([§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials)) |
+| `MDOC_IACA_CHAIN_INVALID` | Issuing Authority Certificate Authority (IACA) certificate chain does not validate to a trusted IACA root in the RP's trust store | Spoofing | **S0** | **Certificate chain bypass attempt.** The issuer presents a certificate chain that doesn't terminate at a trusted IACA root. Possible self-signed chain attack or rogue Document Signer. Block; log the full certificate chain for forensic analysis. | mdoc IACA Chain Validation Bypass ([§29.2.30](#29230-mdoc-iaca-chain-validation-bypass)) |
+| `MDOC_IACA_REVOKED` | IACA certificate appears on the Certificate Revocation List (CRL) | Spoofing | **S0** | **Revoked issuer authority.** The IACA certificate itself has been revoked — all credentials issued under this chain are suspect. Reject **all** credentials from this chain until the RP's IACA trust store is refreshed. | mdoc IACA Chain Validation Bypass ([§29.2.30](#29230-mdoc-iaca-chain-validation-bypass)) |
+| `MDOC_DIGEST_MISMATCH` | Data element hash does not match the corresponding digest in the MSO's `ValueDigests` | Tampering | **S1** | **Selective disclosure tampering.** An individual claim value within a disclosed namespace has been modified after the MSO was signed. The attacker computed a new data element but could not update the MSO digest (which requires the issuer's key). | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
+| `MDOC_DEVICE_SIG_INVALID` | `DeviceSignature` (COSE_Sign1) verification fails against the device public key in the MSO's `DeviceKeyInfo` | Spoofing | **S0** | **Replayed or cloned credential.** The device key signature does not match — the presenter is not the device that holds the original mdoc. The credential may have been cloned from a compromised WSCD or extracted and replayed from a different device. | mdoc DeviceSignature Skip: RP Accepts Replayed Credentials ([§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials)) |
+| `MDOC_DEVICE_SIG_MISSING` | No `DeviceSignature` or `DeviceMAC` present in the `DeviceAuth` structure | Spoofing | **S1** | **No device authentication.** The mdoc was presented without any proof that the presenting device holds the device private key. Critical if the RP requires device binding (proximity supervised flows per [§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised)). Without DeviceAuth, the mdoc could be forwarded from any device. | mdoc DeviceSignature Skip: RP Accepts Replayed Credentials ([§29.2.29](#29229-mdoc-devicesignature-skip-rp-accepts-replayed-credentials)) |
+| `MDOC_DEVICE_MAC_INVALID` | `DeviceMAC` (COSE_Mac0) verification fails | Spoofing | **S1** | **Session transcript mismatch.** The MAC was computed over a `SessionTranscript` that doesn't match the current session. Possible relay attack — the mdoc was presented in a different session context. | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
+| `MDOC_SESSION_TRANSCRIPT_MISMATCH` | The `encodedSessionTranscript` reconstructed by the RP does not match the one used to compute `DeviceSignature` or `DeviceMAC` | Replay/Spoofing | **S0** | **Relay attack.** The session context (nonce, RP identifier, session establishment) used to sign the device response does not match the current session. This is a textbook relay attack ([§29.2.4](#2924-relay-attack-cross-device)) — the mdoc was presented to a different reader and the response is being relayed to this RP. | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
+| `MDOC_READER_AUTH_REJECTED` | Wallet returned ISO 18013-5 status code 20 (Reader Authentication Error) | — | **S2** | **RP's reader certificate rejected by wallet.** The wallet could not validate the RP's reader authentication certificate (the mdoc equivalent of WRPAC validation). Check IACA root inclusion within the wallet's trust store and certificate expiry. | mdoc ReaderAuth Skip: Wallet Accepts Unauthenticated Reader ([§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader)) |
+| `MDOC_REQUEST_REJECTED` | Wallet returned ISO 18013-5 status code 21 | — | **S3** | **Wallet policy block.** The wallet refused the request based on its internal policy. Log and monitor for patterns. | — |
 | `MDOC_VALIDITY_EXPIRED` | MSO `validityInfo.validUntil` is in the past | — | **S3** | **Stale credential.** The mdoc's validity period has expired. Equivalent to SD-JWT `exp` expiry. Benign if isolated; spike = possible expired credential database being tested. | — |
 | `MDOC_NAMESPACE_NOT_FOUND` | Requested namespace (e.g., `org.iso.18013.5.1`) not present in the `DeviceResponse` | — | **S4** | **Missing credential type.** The wallet does not hold an mdoc with the requested namespace. Benign in most cases. | — |
 | `MDOC_DATA_REQUEST_DENIED` | Wallet returned ISO 18013-5 error code 3 for specific data elements | — | **S4** | **Partial consent.** User declined to share specific attributes. Expected behaviour — not a security signal. Log for analytics only. | — |
-| `MDOC_CBOR_PARSE_ERROR` | CBOR structure is syntactically malformed — cannot be decoded per RFC 8949 | Tampering | **S1** | **Malformed payload.** The `DeviceResponse` CBOR is structurally invalid. Possible fuzzing attempt against the RP's CBOR parser, or a corrupted transmission. Reject; log raw bytes for analysis. | [§29.2.38](#29238-vp-token-parser-exploitation) |
+| `MDOC_CBOR_PARSE_ERROR` | CBOR structure is syntactically malformed — cannot be decoded per RFC 8949 | Tampering | **S1** | **Malformed payload.** The `DeviceResponse` CBOR is structurally invalid. Possible fuzzing attempt against the RP's CBOR parser, or a corrupted transmission. Reject; log raw bytes for analysis. | VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)) |
 
 ##### 30.4.3 JWE/JARM Response Encryption Signals
 
@@ -32451,10 +32553,11 @@ These signals arise from the response encryption and authentication layer — th
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `JWE_DECRYPT_FAILED` | Cannot decrypt the JWE response envelope using the RP's ephemeral private key | Tampering | **S1** | **Ephemeral key mismatch or interception.** The JWE was encrypted with a public key that doesn't correspond to the RP's ephemeral private key. Session integrity is compromised — possible MITM during key exchange or corruption. | [§29.2.7](#2927-ephemeral-key-interception-response-encryption) |
-| `JWE_ALG_UNEXPECTED` | JWE `alg` or `enc` header value not in the RP's algorithm allowlist | Tampering | **S1** | **Downgrade attack on response encryption.** The wallet (or an intermediary) used an encryption algorithm the RP does not expect. HAIP mandates `ECDH-ES` with `A256GCM`; deviations are suspicious. | [§29.2.7](#2927-ephemeral-key-interception-response-encryption) |
-| `JARM_SIG_INVALID` | JARM JWT signature verification fails | Tampering | **S1** | **Modified response in transit.** The signed authorization response has been tampered with after the wallet signed it. Possible MITM between wallet and RP during `direct_post` delivery. | [§29.2.8](#2928-jar-modification-in-transit) |
-| `JARM_STATE_MISMATCH` | `state` parameter in the JARM response does not match the `state` issued by the RP in the authorization request | Replay | **S0** | **Session fixation attack.** The response is being injected into a session that it was not intended for. The attacker may have captured a valid response and is replaying it in a different user's session. Critical — block immediately. | [§29.2.11](#29211-session-fixation-state-parameter-hijacking) |
+| `ENVELOPE_KID_UNKNOWN` | JWE header `kid` does not match any ephemeral response-encryption key retained for the active session | Tampering | **S3** | **Unknown encryption key.** The JWE was encrypted with a `kid` that the RP does not recognise for any active session. Could be a stale session, misrouted response, or probing attempt. Lower severity than full decryption failure — the key mismatch is the root cause. | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| `ENVELOPE_JWE_DECRYPT_FAILED` | JWE decryption fails using the RP's ephemeral private key (key found, but decryption produces invalid output) | Tampering | **S1** | **Decryption failure with known key.** The `kid` matched an active session key but decryption failed — the JWE was encrypted with a different public key than the one corresponding to this `kid`. Session integrity is compromised — possible MITM during key exchange or JWE tampering. | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| `ENVELOPE_JWE_ALG_UNSUPPORTED` | JWE `alg` or `enc` header value not in the RP's algorithm allowlist | Tampering | **S1** | **Downgrade attack on response encryption.** The wallet (or an intermediary) used an encryption algorithm the RP does not expect. HAIP mandates `ECDH-ES` with `A256GCM`; deviations are suspicious. | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| `JARM_SIG_INVALID` | JARM JWT signature verification fails | Tampering | **S1** | **Modified response in transit.** The signed authorization response has been tampered with after the wallet signed it. Possible MITM between wallet and RP during `direct_post` delivery. | JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)) |
+| `SESSION_STATE_MISMATCH` | `state` parameter in the JARM response does not match the `state` issued by the RP in the authorization request | Replay | **S0** | **Session fixation attack.** The response is being injected into a session that it was not intended for. The attacker may have captured a valid response and is replaying it in a different user's session. Critical — block immediately. | Session Fixation ([§29.2.11](#29211-session-fixation-state-parameter-hijacking)) |
 
 ##### 30.4.4 Trust Infrastructure Signals
 
@@ -32462,11 +32565,11 @@ These signals arise from failures in the trust infrastructure that underpins cre
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `LOTE_FETCH_FAILED` | Cannot retrieve the LoTE from the Member State or EU-level publication endpoint | DoS | **S2** | **Trust infrastructure outage.** The RP cannot refresh its notified-entity trust-anchor cache. If the cached LoTE is still within TTL, continue with degraded confidence for LoTE-backed issuer checks. If cache is expired, the RP cannot verify issuer signatures for those entities — apply fail-open/fail-closed policy. Possible DNS hijacking or BGP manipulation ([§29.2.22](#29222-lote-cache-poisoning)). | [§29.2.22](#29222-lote-cache-poisoning) |
-| `LOTE_SIG_INVALID` | LoTE signature verification fails against the expected signing key | Tampering | **S0** | **LoTE cache poisoning attack.** The RP received a LoTE response that is not authentically signed by the expected authority. **Critical** — if the RP accepts this poisoned LoTE, all subsequent issuer signature verifications operate against attacker-controlled trust anchors. Block the LoTE update; retain the previously verified cache; alert SOC immediately. | [§29.2.22](#29222-lote-cache-poisoning) |
+| `LOTE_FETCH_FAILED` | Cannot retrieve the LoTE from the Member State or EU-level publication endpoint | DoS | **S2** | **Trust infrastructure outage.** The RP cannot refresh its notified-entity trust-anchor cache. If the cached LoTE is still within TTL, continue with degraded confidence for LoTE-backed issuer checks. If cache is expired, the RP cannot verify issuer signatures for those entities — apply fail-open/fail-closed policy. Possible DNS hijacking or BGP manipulation ([§29.2.22](#29222-lote-cache-poisoning)). | LoTE Cache Poisoning ([§29.2.22](#29222-lote-cache-poisoning)) |
+| `LOTE_SIG_INVALID` | LoTE signature verification fails against the expected signing key | Tampering | **S0** | **LoTE cache poisoning attack.** The RP received a LoTE response that is not authentically signed by the expected authority. **Critical** — if the RP accepts this poisoned LoTE, all subsequent issuer signature verifications operate against attacker-controlled trust anchors. Block the LoTE update; retain the previously verified cache; alert SOC immediately. | LoTE Cache Poisoning ([§29.2.22](#29222-lote-cache-poisoning)) |
 | `LOTE_EXPIRED` | LoTE cache is beyond its TTL and a fresh fetch is unavailable (combining stale cache with `LOTE_FETCH_FAILED`) | — | **S2** | **Degraded trust confidence.** The RP is operating with stale notified-entity trust anchors. New PID Providers or revoked issuers may not be reflected. Accept presentations with an elevated risk flag; prioritise LoTE refresh. | — |
-| `WUA_INVALID` | Wallet Unit Attestation (WUA) fails verification — signature invalid, format malformed, or attestation expired | Spoofing | **S1** | **Compromised, rooted, or emulated device.** The WUA is the wallet's proof that it runs on a certified, uncompromised device with a valid WSCD. WUA failure suggests the wallet is running on a rooted device, emulator, or has been tampered with. | [§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure) |
-| `WUA_WALLET_SUSPENDED` | WUA references a Wallet Solution that appears on the Commission's suspended wallet list | — | **S1** | **Wallet solution under security investigation.** The Commission or a CAB has suspended the wallet solution's certification — all Wallet Units from this solution are suspect. Reject or flag with high-severity risk. Cross-reference with CIR 2024/2977 Art. 5.4(b) cascade revocation. | [§29.2.21](#29221-wallet-solution-suspension-or-withdrawal) |
+| `WUA_INVALID` | Wallet Unit Attestation (WUA) fails verification — signature invalid, format malformed, or attestation expired | Spoofing | **S1** | **Compromised, rooted, or emulated device.** The WUA is the wallet's proof that it runs on a certified, uncompromised device with a valid WSCD. WUA failure suggests the wallet is running on a rooted device, emulator, or has been tampered with. | Compromised Wallet Environment: WUA Verification Failure ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)) |
+| `WUA_WALLET_SUSPENDED` | WUA references a Wallet Solution that appears on the Commission's suspended wallet list | — | **S1** | **Wallet solution under security investigation.** The Commission or a CAB has suspended the wallet solution's certification — all Wallet Units from this solution are suspect. Reject or flag with high-severity risk. Cross-reference with CIR 2024/2977 Art. 5.4(b) cascade revocation. | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) |
 
 > **Qualified-status boundary**: The signals above are primarily about LoTE-backed issuer trust and wallet-environment integrity. Where the RP later needs to state a trusted-list-backed qualified conclusion, it should maintain a **separate** authenticated `LOTL` / national trusted-list state and treat outages in that path as loss of qualified-status evidence — not as something silently substituted by LoTE success. Under `ETSI TS 119 615`, the qualified-status leg may therefore degrade to unavailable or `Indeterminate` even when ordinary LoTE-backed issuer trust remains usable.
 
@@ -32478,9 +32581,33 @@ Routine **face-match mismatch** outcomes should also be logged separately in imp
 
 | Signal ID | Failure Mode | STRIDE | Severity | Fraud/Security Interpretation | [§29](#29-security-threat-catalogue) Threat Ref |
 |:----------|:-------------|:-------|:--------:|:------------------------------|:---------------|
-| `STEPUP_PRESENTATION_ATTACK_DETECTED` | PAD / biometric-genuineness or document-liveness controls detect printed photos, masks, projected faces, screen replays, or other presentation attack instruments during remote step-up | Spoofing | **S1** | **Remote live-person spoof detected.** The RP's supplementary selfie / portrait / document ceremony observed a non-genuine presentation artefact. The session must not be treated as stronger user binding. | [§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack) |
-| `STEPUP_CAPTURE_INJECTION_DETECTED` | Injection-attack / capture-integrity controls detect virtual cameras, stream substitution, deepfake insertion, media-pipeline tampering, or challenge-response inconsistency | Spoofing / Tampering | **S1** | **Capture path compromised.** The proofing engine is no longer evaluating trusted live-sensor input. Treat as an active bypass attempt against the RP's supplementary proofing stack. | [§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack) |
-| `STEPUP_DOCUMENT_AUTH_FAILED` | Remote document fallback cannot establish document authenticity or current possession — e.g., OCR succeeded but chip read was absent, signed chip-data validation was not performed, optional anti-cloning checks were not run where required, or replay detection failed | Tampering | **S2** | **Weak documentary fallback.** The RP extracted fields from a document but did not obtain enough evidence to trust the document as genuine. Do not silently upgrade assurance on the basis of OCR-only success or a raw NFC read without enforced validation. | [§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure) |
+| `STEPUP_PRESENTATION_ATTACK_DETECTED` | PAD / biometric-genuineness or document-liveness controls detect printed photos, masks, projected faces, screen replays, or other presentation attack instruments during remote step-up | Spoofing | **S1** | **Remote live-person spoof detected.** The RP's supplementary selfie / portrait / document ceremony observed a non-genuine presentation artefact. The session must not be treated as stronger user binding. | Remote Live-Person Step-Up: Biometric Presentation Attack ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)) |
+| `STEPUP_CAPTURE_INJECTION_DETECTED` | Injection-attack / capture-integrity controls detect virtual cameras, stream substitution, deepfake insertion, media-pipeline tampering, or challenge-response inconsistency | Spoofing / Tampering | **S1** | **Capture path compromised.** The proofing engine is no longer evaluating trusted live-sensor input. Treat as an active bypass attempt against the RP's supplementary proofing stack. | Remote Live-Person Step-Up: Capture-Pipeline Injection Attack ([§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack)) |
+| `STEPUP_DOCUMENT_AUTH_FAILED` | Remote document fallback cannot establish document authenticity or current possession — e.g., OCR succeeded but chip read was absent, signed chip-data validation was not performed, optional anti-cloning checks were not run where required, or replay detection failed | Tampering | **S2** | **Weak documentary fallback.** The RP extracted fields from a document but did not obtain enough evidence to trust the document as genuine. Do not silently upgrade assurance on the basis of OCR-only success or a raw NFC read without enforced validation. | Fallback Document Proofing: OCR and Document Authenticity Failure ([§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)) |
+
+##### 30.4.6 Relationship to §C Signal Registry
+
+The signal tables in [§30.4.1](#3041-sd-jwt-vc-verification-signals)–[§30.4.5](#3045-remote-proofing-step-up-signals) are representative deep-dives for the most operationally critical signals. They are **not** an exhaustive registry. **[§C](#appendix-c-verifier-failure-catalogue) (Verifier Failure Catalogue)** is the comprehensive signal registry — 176 failure scenarios across 12 pipeline stages, each with a stable `VERIFY-{STAGE}-{NNNN}` identifier, fine-grained signal name, severity, STRIDE classification, test fixture, and cross-references to [§29](#29-security-threat-catalogue) threats and [§12](#12-cryptographic-verification-pipeline-deep-dive) implementation.
+
+Every signal in [§30.4](#304-signal-inventory-layer-2-verification-pipeline) maps to one or more [§C](#appendix-c-verifier-failure-catalogue) entries, but [§C](#appendix-c-verifier-failure-catalogue) covers additional signals not individually detailed in [§30](#30-verification-signal-intelligence) (e.g., rare edge cases, format-specific parser failures, release/ops gates). Conversely, Layer 1 ([§30.3](#303-signal-inventory-layer-1-protocol-errors)) and Layer 3 ([§30.5](#305-signal-inventory-layer-3-contextual-and-behavioural)) signals are operational observations rather than verifier-engine failures — they appear in [§30](#30-verification-signal-intelligence) but not in [§C](#appendix-c-verifier-failure-catalogue).
+
+The architectural principle: **[§30](#30-verification-signal-intelligence) provides the framework** (classification layers, severity taxonomy, composition model, SIEM schema); **[§C](#appendix-c-verifier-failure-catalogue) provides the implementation reference** (what to emit, when, with what severity, against which threat).
+
+##### 30.4.7 Signal Aggregation Guidance for Consumers
+
+RPs emit signals at the **finest granularity** available — the individual signal names listed in [§30.4](#304-signal-inventory-layer-2-verification-pipeline) and [§C](#appendix-c-verifier-failure-catalogue). Downstream consumers (SIEM, UEBA, fraud engines) aggregate these fine-grained signals into families that match their operational workflows. The aggregation is a **consumption-time decision**, not an emission-time one.
+
+| Aggregation Family | Member Signals | Typical Consumer |
+|:-------------------|:---------------|:-----------------|
+| Decryption Failure | `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED` | SIEM correlation |
+| Replay Detection | `SESSION_NONCE_REUSE`, `KBJWT_NONCE_REUSE`, `SESSION_DUPLICATE_SUBMISSION` | SOC playbook |
+| Algorithm Downgrade | `ENVELOPE_JWE_ALG_UNSUPPORTED`, `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `SDJWT_SIG_ALG_SYMMETRIC_CONFUSION` | Fraud engine rule |
+| Trust Chain Failure | `LOTE_SIG_INVALID`, `MDOC_IACA_CHAIN_INVALID`, `SDJWT_ISSUER_CHAIN_INVALID`, `TRUST_SIGNATURE_INVALID` | SOC playbook |
+| Credential Forgery | `SDJWT_SIG_INVALID`, `MDOC_MSO_SIG_INVALID`, `ISSUANCE_ATTESTATION_SIG_INVALID` | Fraud engine |
+| Status Check Failure | `SDJWT_STATUS_FETCH_FAILED`, `SDJWT_STATUS_FETCH_BLOCKED`, `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_SUSPENDED`, `SDJWT_STATUS_DECOMPRESSION_BOMB` | Dashboard |
+| Release Quality Gate | `RELEASE_KNOWN_BAD_ACCEPTED`, `RELEASE_KNOWN_GOOD_REGRESSION`, `RELEASE_FUZZING_REGRESSION` | CI/CD dashboard |
+
+> **Note**: These aggregation families are non-normative guidance. Each RP's operational context determines the optimal grouping. The signal names are stable; aggregation is a deployment-time decision.
 
 #### 30.5 Signal Inventory: Layer 3: Contextual and Behavioural
 
@@ -32505,10 +32632,10 @@ Every VSI signal is assigned a severity level from S0 (Critical) through S4 (Noi
 
 | Severity | Label | Automated Response | Manual Follow-up | Example Signals |
 |:---------|:------|:-------------------|:-----------------|:----------------|
-| **S0** | **Critical — Active Attack** | **Block** presentation immediately. Quarantine source IP. Emit SIEM alert with `priority: critical`. Trigger SOAR playbook. | SOC investigation required within 1 hour. Preserve full request payload for forensic analysis. Evaluate DORA Art. 17 incident classification. | `KBJWT_NONCE_REUSE`, `SDJWT_SIG_ALG_NONE`, `LOTE_SIG_INVALID`, `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`, `JARM_STATE_MISMATCH` |
+| **S0** | **Critical — Active Attack** | **Block** presentation immediately. Quarantine source IP. Emit SIEM alert with `priority: critical`. Trigger SOAR playbook. | SOC investigation required within 1 hour. Preserve full request payload for forensic analysis. Evaluate DORA Art. 17 incident classification. | `KBJWT_NONCE_REUSE`, `SDJWT_SIG_ALG_NONE`, `LOTE_SIG_INVALID`, `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`, `SESSION_STATE_MISMATCH` |
 | **S1** | **High — Probable Attack** | **Block** presentation. Increment source IP risk score. Emit SIEM alert with `priority: high`. | Security team review within 4 hours. Correlate with [§29](#29-security-threat-catalogue) threat model entry. Assess whether pattern constitutes a NIS2 Art. 23 reportable incident. | `PROTO_INVALID_CLIENT`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `WUA_INVALID`, `MDOC_CBOR_PARSE_ERROR`, `STEPUP_PRESENTATION_ATTACK_DETECTED`, `STEPUP_CAPTURE_INJECTION_DETECTED` |
 | **S2** | **Medium — Suspicious** | **Allow** with elevated risk score in the verification result object ([§31.3.1](#3131-verification-result-object-structure)). Queue for batch review. Emit SIEM event with `priority: medium`. | Batch review within 24 hours. Look for patterns — isolated S2 signals are often configuration issues; clustered S2 signals indicate a coordinated probe. | `SDJWT_STATUS_REVOKED`, `SDJWT_IAT_FUTURE`, `CTX_TLS_FINGERPRINT_ANOMALY`, `CTX_VELOCITY_EXCEED`, `LOTE_FETCH_FAILED`, `MDOC_READER_AUTH_REJECTED`, `STEPUP_DOCUMENT_AUTH_FAILED` |
-| **S3** | **Low — Informational** | **Allow** normally. Log signal in verification record. Update UEBA behavioural baseline. | No manual review required. Aggregate for weekly trend analysis. | `SDJWT_EXP_EXPIRED`, `CTX_DEVICE_UNKNOWN`, `CTX_GEO_MISMATCH`, `PROTO_PRESENTATION_REJECTED`, `MDOC_VALIDITY_EXPIRED`, `KBJWT_CLOCK_SKEW` |
+| **S3** | **Low — Informational** | **Allow** normally. Log signal in verification record. Update UEBA behavioural baseline. | No manual review required. Aggregate for weekly trend analysis. | `SDJWT_EXP_EXPIRED`, `CTX_DEVICE_UNKNOWN`, `CTX_GEO_MISMATCH`, `MDOC_VALIDITY_EXPIRED`, `KBJWT_CLOCK_SKEW`, `PROTO_WALLET_UNAVAILABLE` |
 | **S4** | **Noise — Operational** | **Allow** normally. Log for diagnostics only. Do not feed into risk score. | No review. Use only for operational dashboards and debuggability. | `CTX_TIME_OF_DAY_ANOMALY`, `MDOC_NAMESPACE_NOT_FOUND`, `MDOC_DATA_REQUEST_DENIED`, `PROTO_ACCESS_DENIED`, `PROTO_TEMPORARILY_UNAVAILABLE` |
 
 ##### 30.6.1 Severity × STRIDE Matrix
@@ -32518,8 +32645,8 @@ The intersection of severity level and STRIDE classification reveals the most da
 | STRIDE Category | S0 (Critical) | S1 (High) | S2 (Medium) | S3 (Low) |
 |:----------------|:--------------|:----------|:------------|:---------|
 | **Spoofing** | `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `SDJWT_ISSUER_CHAIN_INVALID`, `MDOC_IACA_CHAIN_INVALID`, `MDOC_DEVICE_SIG_INVALID` | `SDJWT_ISSUER_UNTRUSTED`, `KBJWT_MISSING`, `MDOC_DEVICE_SIG_MISSING`, `MDOC_DEVICE_MAC_INVALID`, `WUA_INVALID`, `STEPUP_PRESENTATION_ATTACK_DETECTED` | `SDJWT_IAT_FUTURE`, `SDJWT_CNF_MISSING`, `CTX_TLS_FINGERPRINT_ANOMALY` | — |
-| **Tampering** | `SDJWT_SIG_INVALID`, `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`, `MDOC_MSO_SIG_INVALID` | `SDJWT_DISCLOSURE_HASH_MISMATCH`, `SDJWT_DISCLOSURE_DUPLICATE_SALT`, `SDJWT_JSON_PARSE_ERROR`, `JWE_DECRYPT_FAILED`, `JWE_ALG_UNEXPECTED`, `JARM_SIG_INVALID`, `MDOC_DIGEST_MISMATCH`, `MDOC_CBOR_PARSE_ERROR`, `STEPUP_CAPTURE_INJECTION_DETECTED` | `STEPUP_DOCUMENT_AUTH_FAILED` | — |
-| **Replay** | `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `JARM_STATE_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH` | — | `KBJWT_EXPIRED` | `KBJWT_CLOCK_SKEW` |
+| **Tampering** | `SDJWT_SIG_INVALID`, `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`, `MDOC_MSO_SIG_INVALID` | `SDJWT_DISCLOSURE_HASH_MISMATCH`, `SDJWT_DISCLOSURE_DUPLICATE_SALT`, `SDJWT_JSON_PARSE_ERROR`, `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED`, `ENVELOPE_JWE_ALG_UNSUPPORTED`, `JARM_SIG_INVALID`, `MDOC_DIGEST_MISMATCH`, `MDOC_CBOR_PARSE_ERROR`, `STEPUP_CAPTURE_INJECTION_DETECTED` | `STEPUP_DOCUMENT_AUTH_FAILED` | — |
+| **Replay** | `KBJWT_NONCE_REUSE`, `KBJWT_NONCE_MISMATCH`, `SESSION_STATE_MISMATCH`, `MDOC_SESSION_TRANSCRIPT_MISMATCH` | — | `KBJWT_EXPIRED` | `KBJWT_CLOCK_SKEW` |
 | **DoS** | — | — | `SDJWT_STATUS_FETCH_FAILED`, `LOTE_FETCH_FAILED`, `LOTE_EXPIRED` | — |
 
 > **Key observation**: Tampering and Spoofing signals concentrate at S0/S1, because they indicate active credential manipulation or identity spoofing. Replay signals are exclusively S0 — any nonce/session reuse is unambiguous evidence of attack. DoS signals cap at S2 because they degrade service without compromising credentials.
@@ -32752,7 +32879,7 @@ The gateway captures Layer 3 environmental context before forwarding: source IP 
 <details>
 <summary><strong>3. Verification engine emits signal array to composition engine</strong></summary>
 
-The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature ([§29.2.36](#29236-sd-jwt-vc-credential-forgery)), disclosure hashes ([§29.2.37](#29237-selective-disclosure-tampering)), temporal validity (`iat`/`exp`), revocation status ([§29.2.8](#2928-jar-modification-in-transit)), holder binding via KB-JWT ([§29.2.2](#2922-credential-replay)–[§29.2.5](#2925-malicious-rp-endpoint-phishing)), trust chain resolution via LoTE, WUA validation ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)), and, where the RP explicitly invokes it, supplementary remote proofing controls ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)–[§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
+The verification engine processes the VP Token through two verification layers. **Layer 1** checks for OID4VP protocol errors — if the submission is an error response rather than a VP Token, Layer 1 signals are generated and Layer 2 is skipped. **Layer 2** runs the full credential verification pipeline: issuer signature ([§29.2.36](#29236-credential-forgery)), disclosure hashes ([§29.2.37](#29237-selective-disclosure-tampering)), temporal validity (`iat`/`exp`), revocation status ([§29.2.8](#2928-jar-modification-in-transit)), holder binding via KB-JWT ([§29.2.2](#2922-credential-replay)–[§29.2.5](#2925-malicious-rp-endpoint-phishing)), trust chain resolution via LoTE, WUA validation ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)), and, where the RP explicitly invokes it, supplementary remote proofing controls ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)–[§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)). Each check produces a pass or fail signal. The complete signal array (Layer 1 + Layer 2 + Layer 3 context signals) is sent to the composition engine.
 
 **Artifact Produced:** Signal array containing all Layer 1, Layer 2, and Layer 3 signals with severity classifications.
 
@@ -32821,7 +32948,7 @@ The composition engine emits a VSI event to the SIEM/SOAR platform with `priorit
 <details>
 <summary><strong>9. Composition engine sends STEP-UP decision to gateway</strong></summary>
 
-When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn (§15), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
+When the composite risk score falls between 50 and 79, the composition engine sends a **STEP-UP** decision. The presentation is conditionally accepted — the credential attributes are tentatively available, but the RP requires additional authentication before granting full access. Step-up challenges include: re-authentication with WebAuthn ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)), presentation of an additional credential (e.g., a QEAA on top of the PID), or a fresh biometric confirmation. The specific challenge type is determined by the RP's risk policy configuration.
 
 **Artifact Produced:** STEP-UP decision dispatched to the API gateway with challenge type specification.
 
@@ -33015,26 +33142,26 @@ The following table closes the traceability loop, connecting each representative
 
 | Signal | Description | [§29](#29-security-threat-catalogue) Threat | [§31.2](#312-alert-triggers) Alert Trigger | Regulatory Provision | Decision |
 |:-------|:------------|:-----------|:--------------------|:---------------------|:---------|
-| `KBJWT_NONCE_REUSE` | Definitive replay attack — nonce already consumed | [§29.2.2](#2922-credential-replay) Credential Replay | [§31.2.3](#3123-threat-detection-and-verification-engine) Nonce/state replay detected | DORA Art. 17 (major incident) | BLOCK |
-| `KBJWT_AUD_MISMATCH` | Relay attack — credential bound to different RP | [§29.2.4](#2924-relay-attack-cross-device) VP Token Relay | [§31.2.3](#3123-threat-detection-and-verification-engine) Audience mismatch | eIDAS Art. 5b (RP integrity) | BLOCK |
-| `SDJWT_SIG_ALG_NONE` | Algorithm confusion — `alg: none` exploit | [§29.2.23](#29223-jwt-algorithm-confusiontype-confusion) Algorithm Confusion | [§31.2.3](#3123-threat-detection-and-verification-engine) Algorithmic downgrade | DORA Art. 17 (major incident) | BLOCK |
-| `SDJWT_STATUS_REVOKED` | Revoked credential presented | [§29.2.21](#29221-wallet-solution-suspension-or-withdrawal) Wallet/Credential Suspension | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Revoked credential spike | PSD2 RTS Art. 18 (TRA elevation) | FLAG |
-| `MDOC_IACA_CHAIN_INVALID` | IACA certificate chain bypass | [§29.2.30](#29230-mdoc-iaca-chain-validation-bypass) IACA Chain Bypass | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
-| `MDOC_SESSION_TRANSCRIPT_MISMATCH` | Relay attack via session transcript manipulation | [§29.2.4](#2924-relay-attack-cross-device) VP Token Relay | [§31.2.3](#3123-threat-detection-and-verification-engine) Session mismatch | eIDAS Art. 5b (RP integrity) | BLOCK |
-| `JWE_DECRYPT_FAILED` | Response encryption key mismatch | [§29.2.7](#2927-ephemeral-key-interception-response-encryption) Ephemeral Key Interception | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | GDPR Art. 33 (data breach) | BLOCK |
-| `LOTE_SIG_INVALID` | LoTE cache poisoning — trust anchor compromise | [§29.2.22](#29222-lote-cache-poisoning) LoTE Cache Poisoning | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor key rotation | NIS2 Art. 23 (24h early warning) | BLOCK |
-| `WUA_INVALID` | Wallet attestation failure — compromised device | [§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure) Compromised Wallet Environment | [§31.2.3](#3123-threat-detection-and-verification-engine) Device attestation failure | eIDAS CIR 2024/2977 Art. 5 | BLOCK |
-| `STEPUP_PRESENTATION_ATTACK_DETECTED` | Remote proofing presentation attack detected during selfie / portrait / document step-up | [§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack) Remote Live-Person Step-Up: Biometric Presentation Attack | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Biometric presentation-attack spike in remote step-up | eIDAS Art. 5b(8); GDPR Arts. 9 & 35 | BLOCK |
-| `STEPUP_CAPTURE_INJECTION_DETECTED` | Remote proofing capture-pipeline injection or virtual-camera attack detected | [§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack) Remote Live-Person Step-Up: Capture-Pipeline Injection Attack | [§31.2.3](#3123-threat-detection-and-verification-engine) Capture-pipeline injection detected | eIDAS Art. 5b(8); DORA ICT third-party / incident controls where applicable | BLOCK |
-| `STEPUP_DOCUMENT_AUTH_FAILED` | OCR / document fallback failed to establish document authenticity or current possession | [§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure) Fallback Document Proofing: OCR / Document Authenticity Failure | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Fallback document-authenticity anomaly | eIDAS Art. 5b(8); GDPR Art. 5(1)(c) | STEP-UP / BLOCK |
-| `CTX_VELOCITY_EXCEED` | High-velocity credential reuse | [§29.2.13](#29213-cross-rp-collusion) Cross-RP Collusion | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Velocity anomaly | AML/6AMLD (SAR if patterned) | STEP-UP |
-| `SDJWT_ISSUER_CHAIN_INVALID` | Issuer X.509 chain doesn't validate to LoTE root | [§29.2.27](#29227-oid-fed-trust-chain-spoofing) Trust Chain Manipulation | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
-| `PROTO_INVALID_TRANSACTION_DATA` | Transaction data binding rejected by wallet | [§29.2.8](#2928-jar-modification-in-transit) JAR Modification in Transit | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) SCA integrity failure | PSD2 RTS (dynamic linking) | BLOCK |
-| `SDJWT_SIG_INVALID` | Forged credential — issuer signature fails verification | [§29.2.36](#29236-sd-jwt-vc-credential-forgery) Credential Forgery | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | DORA Art. 17 (major incident) | BLOCK |
-| `SDJWT_DISCLOSURE_HASH_MISMATCH` | Selective disclosure tampered post-issuance | [§29.2.37](#29237-selective-disclosure-tampering) Selective Disclosure Tampering | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | eIDAS Art. 5b (RP integrity) | BLOCK |
-| `SDJWT_JSON_PARSE_ERROR` | Malformed VP Token exploiting parser vulnerabilities | [§29.2.38](#29238-vp-token-parser-exploitation) Parser Exploitation | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | NIS2 Art. 21(2)(a) (risk analysis) | BLOCK |
-| `SDJWT_CNF_MISSING` | Credential issued without device binding — unbound forwarding | [§29.2.39](#29239-unbound-credential-forwarding) Unbound Credential Forwarding | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Device binding anomaly | eIDAS Art. 5b (RP integrity) | BLOCK |
-| `SDJWT_IAT_FUTURE` | Future-dated issuance — clock manipulation / emulation | [§29.2.40](#29240-clock-manipulationenvironment-emulation) Clock Manipulation | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Temporal anomaly | eIDAS Art. 5b (RP integrity) | FLAG |
+| `KBJWT_NONCE_REUSE` | Definitive replay attack — nonce already consumed | Credential Replay ([§29.2.2](#2922-credential-replay)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Nonce/state replay detected | DORA Art. 17 (major incident) | BLOCK |
+| `KBJWT_AUD_MISMATCH` | Relay attack — credential bound to different RP | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Audience mismatch | eIDAS Art. 5b (RP integrity) | BLOCK |
+| `SDJWT_SIG_ALG_NONE` | Algorithm confusion — `alg: none` exploit | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Algorithmic downgrade | DORA Art. 17 (major incident) | BLOCK |
+| `SDJWT_STATUS_REVOKED` | Revoked credential presented | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Revoked credential spike | PSD2 RTS Art. 18 (TRA elevation) | FLAG |
+| `MDOC_IACA_CHAIN_INVALID` | IACA certificate chain bypass | mdoc IACA Chain Validation Bypass ([§29.2.30](#29230-mdoc-iaca-chain-validation-bypass)) | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
+| `MDOC_SESSION_TRANSCRIPT_MISMATCH` | Relay attack via session transcript manipulation | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Session mismatch | eIDAS Art. 5b (RP integrity) | BLOCK |
+| `ENVELOPE_KID_UNKNOWN` / `ENVELOPE_JWE_DECRYPT_FAILED` | Response encryption key mismatch or decryption failure | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | GDPR Art. 33 (data breach) | BLOCK |
+| `LOTE_SIG_INVALID` | LoTE cache poisoning — trust anchor compromise | LoTE Cache Poisoning ([§29.2.22](#29222-lote-cache-poisoning)) | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor key rotation | NIS2 Art. 23 (24h early warning) | BLOCK |
+| `WUA_INVALID` | Wallet attestation failure — compromised device | Compromised Wallet Environment: WUA Verification Failure ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Device attestation failure | eIDAS CIR 2024/2977 Art. 5 | BLOCK |
+| `STEPUP_PRESENTATION_ATTACK_DETECTED` | Remote proofing presentation attack detected during selfie / portrait / document step-up | Remote Live-Person Step-Up: Biometric Presentation Attack ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Biometric presentation-attack spike in remote step-up | eIDAS Art. 5b(8); GDPR Arts. 9 & 35 | BLOCK |
+| `STEPUP_CAPTURE_INJECTION_DETECTED` | Remote proofing capture-pipeline injection or virtual-camera attack detected | Remote Live-Person Step-Up: Capture-Pipeline Injection Attack ([§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Capture-pipeline injection detected | eIDAS Art. 5b(8); DORA ICT third-party / incident controls where applicable | BLOCK |
+| `STEPUP_DOCUMENT_AUTH_FAILED` | OCR / document fallback failed to establish document authenticity or current possession | Fallback Document Proofing: OCR and Document Authenticity Failure ([§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Fallback document-authenticity anomaly | eIDAS Art. 5b(8); GDPR Art. 5(1)(c) | STEP-UP / BLOCK |
+| `CTX_VELOCITY_EXCEED` | High-velocity credential reuse | Cross-RP Collusion ([§29.2.13](#29213-cross-rp-collusion)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Velocity anomaly | AML/6AMLD (SAR if patterned) | STEP-UP |
+| `SDJWT_ISSUER_CHAIN_INVALID` | Issuer X.509 chain doesn't validate to LoTE root | OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)) | [§31.2.2](#3122-trust-management-and-pki-anchors) Trust anchor failure | NIS2 Art. 23 (incident reporting) | BLOCK |
+| `PROTO_INVALID_TRANSACTION_DATA` | Transaction data binding rejected by wallet | JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) SCA integrity failure | PSD2 RTS (dynamic linking) | BLOCK |
+| `SDJWT_SIG_INVALID` | Forged credential — issuer signature fails verification | Credential Forgery ([§29.2.36](#29236-credential-forgery)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | DORA Art. 17 (major incident) | BLOCK |
+| `SDJWT_DISCLOSURE_HASH_MISMATCH` | Selective disclosure tampered post-issuance | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | eIDAS Art. 5b (RP integrity) | BLOCK |
+| `SDJWT_JSON_PARSE_ERROR` | Malformed VP Token exploiting parser vulnerabilities | VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)) | [§31.2.3](#3123-threat-detection-and-verification-engine) Threat detection | NIS2 Art. 21(2)(a) (risk analysis) | BLOCK |
+| `SDJWT_CNF_MISSING` | Credential issued without device binding — unbound forwarding | Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Device binding anomaly | eIDAS Art. 5b (RP integrity) | BLOCK |
+| `SDJWT_IAT_FUTURE` | Future-dated issuance — clock manipulation / emulation | Clock Manipulation/Environment Emulation ([§29.2.40](#29240-clock-manipulationenvironment-emulation)) | [§31.2.5](#3125-fraud-abuse-and-continuous-evaluation) Temporal anomaly | eIDAS Art. 5b (RP integrity) | FLAG |
 
 > **How to read this table**: Each row traces a single signal through the entire security architecture — from the verification pipeline ([§30](#30-verification-signal-intelligence)) back to the threat it detects ([§29](#29-security-threat-catalogue)), forward to the alert it triggers ([§31.2](#312-alert-triggers)), and outward to the regulatory obligation it activates. This is the operational value of VSI: converting a scattered set of protocol errors and verification failures into a single, traceable intelligence pipeline.
 
@@ -33338,7 +33465,7 @@ The RP participates in signing flows in three distinct configurations (QES_06), 
 
 `ETSI TS 119 432` is the primary normative runtime source for this chapter. It defines the service-authorization layer, signatures-creation authorization, remote-signing architecture families, EUDIW/OAuth client registration and authentication requirements, and the `info`, `credentials/list`, `credentials/info`, `signatures/signHash`, `signatures/signDoc`, and polling APIs. It also explicitly contemplates Wallet invocation through either `openid4vp://` or the **W3C Digital Credentials API**, so the same-device browser patterns discussed elsewhere in `DR-0002` are not just ecosystem convenience layers; they are part of the standards-backed signing runtime surface as well. `ETSI TR 119 462` remains useful as complementary architecture taxonomy, but the runtime role and API details in `§32–§33` should now be read primarily through `ETSI TS 119 432`.
 
-> **Disambiguation — SCA**: In this chapter, "SCA" refers to **Signature Creation Application** (ETSI TS 119 432), not Strong Customer Authentication (PSD2). These are entirely different concepts despite sharing the same acronym. Where ambiguity exists, this chapter uses "SCA (Signature)" or "SCA (Payment)".
+> **Disambiguation — SCA**: In this chapter, "SCA" refers to **Signature Creation Application** (ETSI TS 119 432), not Strong Customer Authentication (PSD2) and not the SCA Attestation credential defined by TS12 ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)). These are three entirely different concepts despite sharing the same acronym. Where ambiguity exists, this chapter uses "SCA (Signature)" or "SCA (Payment)". For the full SCA/SUA terminology frame, see [§15.1](#151-sca-attestation-context).
 
 ##### 32.1.1 ETSI TR 119 462 Functional Model
 
@@ -33729,7 +33856,7 @@ flowchart TD
             direction LR
             B_RP["`**RP**
             *Provides Docs*`"]:::nodeStyle
-            B_Wal(("Wallet<br/>*CSC Client*"))
+            B_Wal(("Wallet<br/><em>CSC Client</em>"))
             B_QTSP["`**QTSP**
             *RSSP*`"]:::nodeStyle
             B_RP --> |"Doc Retrieval"| B_Wal
@@ -33738,7 +33865,7 @@ flowchart TD
 
         subgraph SC ["Scenario C: RP-Channelled"]
             direction LR
-            C_Wal(("Wallet<br/>*Auth Only*"))
+            C_Wal(("Wallet<br/><em>Auth Only</em>"))
             C_RP["`**RP**
             *CSC Client*`"]:::nodeStyle
             C_QTSP["`**QTSP**
@@ -33846,7 +33973,7 @@ The User's browser follows the redirect and loads the QTSP's signing portal. The
 <details>
 <summary><strong>4. QTSP Portal requests User authentication via EUDI Wallet</strong></summary>
 
-The QTSP's web portal requires User identity verification before granting access to signing credentials. The QTSP initiates an authentication request to the EUDI Wallet. This may use OpenID4VP (§8–§11) for PID presentation, or another QTSP-specific mechanism (SAML, national eID scheme).
+The QTSP's web portal requires User identity verification before granting access to signing credentials. The QTSP initiates an authentication request to the EUDI Wallet. This may use OpenID4VP ([§8](#8-openid4vp-and-haip-protocol-foundations)–[§11](#11-rp-authentication-and-presentation-verification)) for PID presentation, or another QTSP-specific mechanism (SAML, national eID scheme).
 
 If using OpenID4VP, the QTSP acts as a Verifier (it holds its own WRPAC) and constructs a standard presentation request:
 
@@ -36440,7 +36567,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 #### 34.3 Protocol and Implementation Observations
 
-12. <a id="finding-12"></a> **SCA attestation type identification relies on profile/rulebook matching, not fixed VCT values.** [Annex Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) points payment SUA processing to TS12 and permits future non-TS12 SUA Rulebooks/specifications. RPs must dispatch by the requested SUA attestation type and associated profile rather than hard-coding one VCT or treating TS12 as the universal future profile.
+12. <a id="finding-12"></a> **SCA attestation type identification relies on profile/rulebook matching, not fixed VCT values.** [Annex Topic 20](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2313-topic-20-strong-user-authentication-for-electronic-payments) points payment SUA processing to TS12 and permits future non-TS12 SUA Rulebooks/specifications. RPs must dispatch by the requested SUA attestation type and associated profile rather than hard-coding one VCT or treating TS12 as the universal future profile. ("SUA attestation" is the ARF's generic credential class for strong user authentication with transactional data; "SCA attestation" is TS12's PSD2/payment-specific subtype, identified by `category: urn:eu:europa:ec:eudi:sua:sca` in the VC Type Metadata — see [§15.1](#151-sca-attestation-context) for the full hierarchy.)
 
 13. <a id="finding-13"></a> **W2W Verifier authentication is a fundamental gap and not an enterprise shortcut.** In Wallet-to-Wallet flows ([§14](#14-w2w-presentation-flow-ts9)), the Verifier Wallet Unit has no WRPAC and no registration certificate. The Holder Wallet Unit cannot verify the Verifier's identity or registration status, meaning most of the trust infrastructure built for RP flows does not apply. This is an accepted trade-off for natural-person-to-natural-person use cases, not a way for legal persons, intermediaries, or RP apps to bypass registration.
 
@@ -36524,7 +36651,7 @@ This final group synthesises the technical investigation into actionable guidanc
 
 50. <a id="finding-50"></a> **Joint representation (Gesamtvertretung) requires multi-wallet orchestration with no protocol support.** Some corporate mandates require two or more representatives to act jointly. This has no equivalent in natural-to-natural representation and requires the RP to orchestrate multi-user, multi-Wallet verification within a single transaction. No ARF specification or OID4VP extension addresses multi-user sessions. (§18.2.4, [§18.1](#181-example-legal-person-verification-lpid))
 
-51. <a id="finding-51"></a> **Mandate revocation requires stricter Status List freshness policy than PIDs.** Authority continues until revocation — a 24h polling interval can create unacceptable financial exposure for mandate credentials. RPs should set shorter freshness targets for mandates, such as ≤1h where justified by risk, and force fresh/no-cache Status List retrieval for high-value operations where policy requires it. This is RP risk guidance derived from mandate authority risk and [Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_02`, not a final ARF cache-TTL mandate. (§18.2.7)
+51. <a id="finding-51"></a> **Mandate revocation requires stricter Status List freshness policy than PIDs.** Authority continues until revocation — a 24h polling interval can create unacceptable financial exposure for mandate credentials. RPs should set shorter freshness targets for mandates, such as ≤1h where justified by risk, and force fresh/no-cache Status List retrieval for high-value operations where policy requires it. This is RP risk guidance derived from mandate authority risk and [Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_02`, not a final ARF cache-TTL mandate. ([§18.2.7](#1827-mandate-revocation-model))
 
 #### 34.7 Accessibility Observations
 
@@ -36669,7 +36796,7 @@ This final group synthesises the technical investigation into actionable guidanc
 | 🟡 **High** | **Extend incident response plans to include EUDI-specific NIS2-reportable events** — WRPAC private key compromise, trust anchor poisoning, mass verification failure, SDK supply chain attack, Status List data breach — with the 24h early warning / 72h notification / 1-month final report timeline. Maintain CSIRT contact details for each Member State of establishment. ([§21.6](#216-nis2-considerations-for-critical-sector-rps), [§31](#31-monitoring-observability-and-operational-readiness)) |
 | 🔴 **Critical** | **Implement wallet solution suspension/withdrawal handling per [§21.7](#217-wallet-solution-security-breach-response-cir-2025847) breach response playbook.** Establish notification channel with MS Single Point of Contact (Art. 46c(1)) before go-live. Subscribe to CIRAS (from May 2026) or MS-defined interim notification mechanism. Ensure automated flagging of suspended wallet solutions in local verification configuration. ([§21.7](#217-wallet-solution-security-breach-response-cir-2025847), [§31.4](#314-breach-notification-monitoring-cir-2025847)) |
 | 🟡 **High** | **Add wallet solution certification status check (CIR 2025/849) as a pre-presentation trust gate** in the verification pipeline. Reject presentations from wallet solutions not on the certified list, or whose status is "suspended" or "withdrawn." Maintain a locally cached copy refreshed at least daily. ([§11.13.1](#11131-wallet-solution-certification-status-check)) |
-| 🟡 **High** | **Implement identity matching normalisation per CIR 2025/846 Art. 2(6)** for cross-border identity matching scenarios — Unicode NFC normalisation, whitespace collapse, hyphen/dash equivalence, and name concatenation awareness. Maintain matching process logs for 6–12 months per Art. 5. (§23.6) |
+| 🟡 **High** | **Implement identity matching normalisation per CIR 2025/846 Art. 2(6)** for cross-border identity matching scenarios — Unicode NFC normalisation, whitespace collapse, hyphen/dash equivalence, and name concatenation awareness. Maintain matching process logs for 6–12 months per Art. 5. ([§23.6](#236-identity-matching-normalisation-cir-2025846)) |
 
 #### 35.2 For Financial-Sector RPs (Banks, PSPs)
 
@@ -36710,7 +36837,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | 11 | **Protocol** | Deploy cross-device flow (QR code + `request_uri`) with `OIA_08a` fallback mitigations | [§10](#10-cross-device-remote-presentation) |
 | 12 | **Verification** | Build SD-JWT VC verification pipeline | [§11.3](#113-verification-checklist-for-sd-jwt-vc) |
 | 13 | **Verification** | Build mdoc verification pipeline | [§11.4](#114-verification-checklist-for-mdoc-via-iso-18013-7openid4vp) |
-| 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | Appendix B |
+| 14 | **Verification** | Build Status List verification pipeline (HTTP cache, DEFLATE, JWT verify) | [§B](#appendix-b-status-list-verification-deep-dive) |
 | 15 | **Verification** | Implement combined presentation identity matching | [§18.1.10](#18110-cross-format-identity-matching) |
 | 16 | **Compliance** | Implement pseudonym acceptance for non-identification services using the WebAuthn/passkey route where profiled, while keeping the [Topic 11](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a238-topic-11-pseudonyms) pseudonym layer technology-abstracted | [§16](#16-pseudonym-based-authentication-and-webauthn) |
 | 17 | **Compliance** | Implement data deletion request handling behind registered URL/email/phone deletion channels; Wallet logs initiation, not RP fulfilment | [§20.1](#201-data-deletion-requests-ts7) |
@@ -36779,13 +36906,13 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 | <a id="oq-26"></a> 26 | Will EBSI DID methods (`did:ebsi`, `did:key`) be formally integrated into the EUDI Wallet Reference Implementation, and if so, for which attestation types? | DC4EU LSP | Under evaluation |
 | <a id="oq-27"></a> 27 | If/when Switzerland achieves eIDAS mutual recognition, how will `did:webvh`-based trust anchors interoperate with the X.509-based Trusted Lists / LoTEs? | Swiss bilateral negotiations | Mandate preparation initiated Jan 2025 |
 | <a id="oq-28"></a> 28 | Do any EUDI-ecosystem wallets still require DIF Presentation Exchange (PE) rather than DCQL? | OID4VP 1.0, HAIP 1.0 | PE was fully removed from OID4VP in April 2025. All EU Reference Implementation wallets and LSP implementations use DCQL. Non-EUDI OID4VP deployments (EBSI, US mDL) may still use PE — outside EUDI scope. ([§17.1.1](#1711-migration-from-dif-presentation-exchange)) |
-| <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. (§8.8) |
+| <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. ([§8.8](#88-iso-18013-7-and-oid4vp-version-alignment)) |
 | <a id="oq-30"></a> 30 | What is the final standardised VCT value for LPID? EWC uses `EWC_LPID_Attestation` (RFC005); the ARF has no LPID VCT. Will it be harmonised to `eu.europa.ec.eudi.lpid.1`? | EWC vs ARF | Unresolved — RPs should use configurable VCT matching ([§6.15.1](#6151-vct-value-and-issuer-metadata)) |
 | <a id="oq-31"></a> 31 | Will an mdoc LPID profile be standardised for proximity-based legal person verification? | EWC RFC005 | Not addressed — RFC005 defines SD-JWT VC only. No mdoc docType for LPID exists. ([§6.15.3](#6153-mdoc-format-gap)) |
 | <a id="oq-32"></a> 32 | Can a single Wallet Unit hold both a natural person PID and an LPID, or must they reside in separate wallet instances (EUDI + EBW)? If separate, how does same-session triple-credential combined presentation work? | COM(2025) 838, [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) | Unclear — EBW is designed as a separate wallet, while [Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes)'s key-management proof assumes WSCA/WSCD-managed keys inside the presenting wallet context ([§18.1.9](#1819-combined-presentation-verification-flow-agnostic-applies-to-direct-rp-and-intermediary)) |
 | <a id="oq-33"></a> 33 | What is the mandate Attestation Rulebook timeline? [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_01` mandates the Commission to create a Rulebook for natural-to-natural representation attestations — when, and through which source, will natural-person-to-legal-person mandates be covered? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm); EBW watchlist | Commission Rulebook duty exists for natural-to-natural representation only; no published date and no natural-to-legal mandate profile. ([§18](#18-combined-presentations-lpid-and-mandate-credentials), [§11.12.3](#11123-mandate-scope-verification-new-pipeline-step)) |
 | <a id="oq-34"></a> 34 | Should mandate credentials carry an explicit Level of Assurance (LoA) qualification, or is LoA inferred from the issuer's trust chain (as with PIDs)? A court-issued guardianship mandate has higher assurance than a self-declared power of attorney — how should RPs differentiate? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm); [Topic I](https://eudi.dev/2.8.0/discussion-topics/i-natural-person-representing-another-natural-person/) background; EBW watchlist | Not addressed. LoA inference model from [§11.11](#1111-level-of-assurance-verification) may apply, but mandate-specific guidance is absent. ([§18.2.2](#1822-mandate-credential-attribute-model)) |
-| <a id="oq-35"></a> 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_02`; representation Rulebook | Provider short-lived-or-revocable duty exists for natural-to-natural representation attestations, but no implementation specification for the access layer. (§18.2.7) |
+| <a id="oq-35"></a> 35 | How are multi-party revocation requests for mandate credentials authenticated? If a court or notary needs to revoke a mandate, what API do they use, and how is their authority to revoke verified by the Status List operator? | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_02`; representation Rulebook | Provider short-lived-or-revocable duty exists for natural-to-natural representation attestations, but no implementation specification for the access layer. ([§18.2.7](#1827-mandate-revocation-model)) |
 | <a id="oq-36"></a> 36 | Will the mandate Rulebook define a harmonised scope vocabulary, or will operation identifiers remain RP-specific? Without standardisation, cross-border scope interpretation requires semantic matching — a German "Geschäftsführung" and French "direction générale" may be functionally equivalent. | [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) `RP_01` | Rulebook mandated but not published. No vocabulary standard exists. ([§11.12.3](#11123-mandate-scope-verification-new-pipeline-step), [§18.2.8](#1828-cross-border-mandate-recognition)) |
 | <a id="oq-37"></a> 37 | Can a mandate credential be presented without an accompanying PID (mandate-only presentation)? What assurance level should the RP assign when the representative's identity is not cryptographically verified in the same session? | OID4VP, [Annex Topic 29](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2318-topic-29-representation-paradigm) / Rulebook watchlist | Not explicitly addressed. Mandate-only presentations lack the PID binding check — lower assurance by design. ([§18.1](#181-example-legal-person-verification-lpid)) |
 | <a id="oq-38"></a> 38 | How should joint representation (Gesamtvertretung) work when joint partners hold credentials in different Wallet instances (e.g., one in EUDI Wallet, one in EBW)? Can the RP correlate two separate OID4VP sessions into a single authorisation decision? | COM(2025) 838, OID4VP | Not specified. No multi-user session protocol exists in OID4VP or ARF. (§18.1, [§18.2.4](#1824-natural-to-legal-person-mandates-paradigm-b)) |
@@ -36810,7 +36937,7 @@ The following ordered checklist provides a step-by-step integration roadmap for 
 
 ## Appendices
 
-The appendices provide low-level protocol artifacts and specialised verification logic. Appendix A contains full, unredacted JSON payloads for remote and proximity presentations, while Appendix B provides a technical deep-dive into processing Token Status Lists (draft-ietf-oauth-status-list).
+The appendices provide low-level protocol artifacts and specialised verification logic. [§A](#appendix-a-exact-response-payloads) contains full, unredacted JSON payloads for remote and proximity presentations, while [§B](#appendix-b-status-list-verification-deep-dive) provides a technical deep-dive into processing Token Status Lists (draft-ietf-oauth-status-list).
 
 ---
 
@@ -37414,6 +37541,3083 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 ---
 
+### Appendix C: Verifier Failure Catalogue
+
+This appendix catalogues every distinct failure scenario the verifier engine must detect, classify, and handle. It is the verifier's equivalent of [§29](#29-security-threat-catalogue) (threats) and [§30](#30-verification-signal-intelligence) (signals): a structured reference for implementers building or testing a verifier, and for operators diagnosing production verification failures.
+
+Each entry has a stable `VERIFY-{STAGE}-{NNNN}` identifier. The IDs are referenced from §12 narrative sections and used in conformance fixture definitions.
+
+**Inclusion principle:** Every [§30](#30-verification-signal-intelligence) signal the verifier emits corresponds to a code path. Every code path that produces a signal must have a test fixture in this catalogue. If the signal exists in [§30](#30-verification-signal-intelligence) and the verifier is the one emitting it, the fixture stays — regardless of whether the triggering condition originated externally (wallet policy, user consent, network failure) or internally (malformed input, pipeline invariant). The fixture validates the verifier's handling of that signal's code path, not the external actor's decision.
+
+Every fixture below has a `Threat (§29)` cross-reference. Many carry `none directly` — this is not an omission. It means the failure is a genuine verifier defect or operational fault that the implementation must detect and handle, but it is not driven by an external adversarial attack modelled in [§29](#29-security-threat-catalogue). The catalogue intentionally includes both categories:
+
+- **Security-driven failures** — the verifier must detect a condition that an attacker could exploit (e.g., forged signature, replayed credential, algorithm confusion). These fixtures map to a [§29](#29-security-threat-catalogue) threat card.
+- **Correctness-driven failures** — the verifier must reject malformed input, enforce pipeline invariants, guard against infrastructure misuse, or prevent operational degradation, even though no specific attacker is modelled. These fixtures carry `Threat (§29): none directly`.
+
+Both categories are first-class test cases with stable `VERIFY-*` identifiers, severity levels, and STRIDE classifications. The distinction matters for threat-to-signal traceability ([§29](#29-security-threat-catalogue) → [§30](#30-verification-signal-intelligence) → [§31](#31-monitoring-observability-and-operational-readiness)), not for implementation priority. The five main categories of correctness-driven failures are:
+
+1. **Verification pipeline correctness** — missing `cnf`, wrong `vct`/`docType`, duplicate disclosures, presentation/query mismatches, missing KB-JWT fields, extra disclosures not committed in `_sd`. The verifier rejects these because the credential or presentation is malformed, not because an attacker is being modelled.
+2. **Infrastructure and deployment guardrails** — SSRF protection (private/link-local IP in trust-fetch URLs), DNS rebinding, trust root cache poisoning, TLS termination failures. These are platform-layer network and deployment concerns ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)), not credential-protocol attacks.
+3. **Multi-tenant architecture isolation** — cross-tenant trust anchor injection, sibling-tenant callback targeting, result enumeration across tenant boundaries, shared-facade trust-source bleed. These are deployment-pattern failures covered by [§26](#26-rp-verification-architecture-patterns) and [§12.1](#121-verifier-contract-and-scope-boundary)'s tenant-isolation invariant.
+4. **Operational reliability** — unauthenticated notification delivery, stale callback secrets, event-delivery ordering, idempotency enforcement, stable error contract violations. These are result-delivery and notification-layer reliability concerns ([§12.11](#1211-canonical-verification-result-and-audit-evidence), [§31](#31-monitoring-observability-and-operational-readiness)).
+5. **Policy enforcement edge cases** — over-disclosure beyond DCQL request scope, disclosure brute-force via enumeration, policy-violating attribute combinations, verbose error messages that leak information. These are DCQL/policy-engine correctness checks ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto), C.8 fixtures) and data-minimisation configuration issues.
+
+When adding new fixtures in these categories, use `Threat (§29): none directly`. For the full threat model boundary — what [§29](#29-security-threat-catalogue) itself excludes and why — see [§29.1.2](#2912-threat-model-boundary).
+
+For a summary traceability matrix linking all stages to their threat ([§29](#29-security-threat-catalogue)), signal ([§30](#30-verification-signal-intelligence)), and alert ([§31](#31-monitoring-observability-and-operational-readiness)) mappings — including entry counts per stage and primary signal codes — see [§C.12](#c12-cross-reference-verify-threat-29-signal-30-alert-31) at the end of this appendix.
+
+#### C.1 Envelope and Intake Failures
+
+The envelope and intake stage is the verifier's outermost boundary. Before any credential-specific processing begins, the verifier must validate that the response arrived through the expected transport channel, was encrypted to the correct per-request key, carries a well-formed payload, and has not been misrouted or tampered with at the transport layer. A failure at this stage means the verifier should not proceed to credential routing or cryptographic validation.
+
+###### C.1.1 JWE Decryption Failure: Unknown kid
+
+The JWE header contains a `kid` value that does not match any ephemeral response-encryption key retained for the active verification sessions in this tenant partition.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0001` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ENVELOPE_KID_UNKNOWN` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received `kid`, known kid count for tenant, timestamp |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (malformed envelope probing) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | POST a JWE with `kid: "nonexistent-01HQ..."` where no session has that key. |
+
+###### C.1.2 JWE Algorithm Not in Allowlist
+
+The JWE header specifies an `alg` or `enc` value outside the HAIP/profile-configured JWE algorithm allowlist for response encryption.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0002` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ENVELOPE_JWE_ALG_UNSUPPORTED` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received `alg`, received `enc`, allowed algorithms, tenant profile |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (algorithm downgrade attempt) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | JWE with `alg: "RSA1_5"` (deliberately weak) against an ES256-only allowlist. |
+
+###### C.1.3 Intake Content-Type Mismatch
+
+The Wallet response arrives with a Content-Type that does not match the expected response mode. For `direct_post.jwt`, the verifier expects `application/x-www-form-urlencoded`; for `dc_api.jwt`, the content type is mediated by the browser/OS API.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0003` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `INTAKE_CONTENT_TYPE_MISMATCH` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | expected content type, actual content type, response mode, endpoint ownership class, receipt timestamp |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (malformed request smuggling) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)) |
+| **Test fixture** | POST to `direct_post.jwt` endpoint with `Content-Type: application/json` containing a raw JWE string instead of form-encoded. |
+
+###### C.1.4 Response Parameter Cardinality Violation
+
+The form body contains multiple `response` parameters, zero `response` parameters, or an unexpected combination of `response`, `error`, and `error_description` parameters that does not match any valid OpenID4VP response shape.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0004` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `INTAKE_PARAM_CARDINALITY` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | parameter names received, cardinality, expected response mode |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | POST with duplicate `response=` parameters: `response=eyJh...&response=eyJh...`. |
+
+###### C.1.5 JWE Decryption Failure: Wrong Private Key
+
+The JWE uses a known `kid` and allowed algorithms, but decryption of the ciphertext fails (authentication tag mismatch, wrong content encryption key, or corrupted ciphertext), indicating the response was encrypted to a different key than the one retained for this session.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0005` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ENVELOPE_JWE_DECRYPT_FAILED` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | `kid`, decryption failure mode, tenant, session id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (response re-encryption or injection from different session) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | JWE encrypted to key-A, submitted against session that holds key-B (same `kid` namespace, different key). |
+
+###### C.1.6 Unencrypted Success Response Where Encryption Required
+
+The request object specified `response_mode=direct_post.jwt` (JWE-encrypted), but the wallet submitted an unencrypted, plaintext `response` parameter or an unencrypted `vp_token` directly in the form body.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0006` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ENVELOPE_UNENCRYPTED_RESPONSE` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received content type, presence/absence of JWE structure, `response_mode` from request snapshot |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (response-mode downgrade attack) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)); Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Request object requires `direct_post.jwt`; wallet POSTs plain `vp_token={"pid":["eyJh..."]}` with no JWE envelope. |
+
+###### C.1.7 Response-Mode Branch Confusion
+
+A `direct_post.jwt` response is submitted to the `dc_api.jwt` intake endpoint, or vice versa. The two branches converge only after decryption and session binding; accepting a response at the wrong branch endpoint means the verifier has not validated the correct transport binding evidence.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0007` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `INTAKE_BRANCH_CONFUSION` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received endpoint class, expected response mode from snapshot, actual delivery path |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (transport-layer injection) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)) |
+| **Test fixture** | POST a `direct_post.jwt` form body to the DC API callback endpoint. |
+
+###### C.1.8 Request URI Prefetch Exhaustion
+
+A single unauthenticated HTTP GET to the wallet-facing `request_uri` exhausts or invalidates the session before the legitimate wallet can fetch the request object. The verifier must tolerate at least one benign prefetch (browser, link scanner, OS) without destroying the session.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0008` |
+| **Decision** | reject (for the second legitimate wallet fetch if session already exhausted) → `expired (for the original session); the attacker's prefetch may succeed but should not prevent the legitimate wallet from also fetching` |
+| **Signal** | `REQUEST_URI_PREFETCH_EXHAUSTION` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Verification session expired or invalid" |
+| **Evidence produced** | request URI hash, first/last retrieval time, retrieval count, prefetch tolerance policy result |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Attacker fetches `request_uri` once; legitimate wallet fetches same URI — second fetch must still return a valid request object. |
+
+###### C.1.9 Request URI Enumeration
+
+An attacker iterates over a guessable `request_uri` space (incrementing integer, predictable UUID, or low-entropy token) and discovers a wallet-usable request object belonging to another session. The verifier must use unguessable URIs with sufficient entropy.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0009` |
+| **Decision** | reject (for session accessed via guessed URI) → `intake_rejected` |
+| **Signal** | `REQUEST_URI_ENUMERATION_DETECTED` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification session expired or invalid" |
+| **Evidence produced** | guessed URI pattern, entropy assessment, retrieval source IP/user-agent (if logged) |
+| **Severity** | S1 High |
+| **STRIDE** | Information Disclosure (session hijack via enumeration) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Browser-Side Session Hijacking: Post-Verification ([§29.2.17](#29217-browser-side-session-hijacking-post-verification)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Generate N sequential or predictable `request_uri` values; attempt to use a URI not assigned to the current session. |
+
+###### C.1.10 By-Value/By-Reference Evidence Mismatch
+
+The callback processing compares the wallet response against a freshly fetched mutable request object rather than the exact retained request snapshot that the wallet saw and signed over. This can cause false rejections (policy changed) or false acceptances (looser policy after the fact).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0010` |
+| **Decision** | reject (if snapshot mismatch is detected) → `verification_failed` |
+| **Signal** | `SNAPSHOT_MUTATION_DETECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | original snapshot hash, current request-object hash, policy version delta, retrieval source |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering (policy substitution after wallet response) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request Snapshot Retention ([§12.3.3](#1233-request-snapshot-retention)); Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Wallet responds to request v1; during callback processing, the verifier re-fetches the request object and receives updated v2 with different DCQL query — response must still be evaluated against v1. |
+
+###### C.1.11 Malformed VP Token: Parser Stress
+
+The `vp_token` or response payload contains deeply nested JSON, broken base64url, truncated structures, or other parser-stress conditions that could cause a library to hang, allocate unbounded memory, or return 500 instead of a controlled rejection.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0011` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `VP_TOKEN_PARSE_STRESS_REJECTED` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | payload size, nesting depth, parse failure mode, resource limit hit |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service (parser resource exhaustion) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | POST a 10-level nested JSON in `vp_token`, exceeding parser depth limit of 5. Verifier must return 400/422, not 500/hang. |
+
+###### C.1.12 Response Mode Mismatch: fragment vs. direct_post.jwt
+
+The request object specified `response_mode=direct_post.jwt`, but the wallet uses `response_mode=fragment` and submits through a browser redirect with fragment-encoded response. The verifier must reject this as a response-mode mismatch.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0012` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `INTAKE_RESPONSE_MODE_MISMATCH` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | expected `response_mode` from snapshot, actual delivery mechanism, endpoint |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (response-mode substitution) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)) |
+| **Test fixture** | Request object specifies `direct_post.jwt`; wallet redirects to RP with `#response=...` fragment instead of POSTing form body. |
+
+###### C.1.13 Unencrypted direct_post to direct_post.jwt Endpoint
+
+The request object explicitly required `response_mode=direct_post.jwt` (JWE-encrypted form-encoded), but the wallet submitted as unencrypted `direct_post` form fields — the payload is form-encoded but not JWE-wrapped. The verifier must reject this as a response-mode downgrade.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ENVELOPE-0013` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ENVELOPE_UNENCRYPTED_DIRECT_POST` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received content type, presence/absence of JWE envelope, `response_mode` from request snapshot |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (encryption bypass) |
+| **Pipeline stage** | Envelope & Intake ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)) |
+| **Test fixture** | Request object requires `direct_post.jwt`; wallet POSTs `state=...&vp_token=...` as plain form fields. Verifier must reject, not process. |
+
+#### C.2 Protocol Error Handling
+
+The verifier's `response_uri` endpoint receives wallet responses via `direct_post` / `direct_post.jwt`, the W3C Digital Credentials API, or native OS credential APIs. When the wallet cannot or will not fulfil the presentation request, it returns a protocol error response instead of a VP Token. These fixtures test the verifier's handling of those error responses: parsing the `error` code, mapping it to the correct [§30](#30-verification-signal-intelligence) signal, classifying severity per [§31](#31-monitoring-observability-and-operational-readiness), and executing the appropriate retry or halt strategy per [§11.7](#117-error-recovery-and-retry-strategies). Protocol errors are Layer 1 signals ([§30.3](#303-signal-inventory-layer-1-protocol-errors)) — the verifier never receives a credential to verify, so these are distinct from the Layer 2 verification-pipeline failures in subsequent stages.
+
+The fixtures are ordered by pipeline step — the sequence in which the wallet validates the request before deciding to reject or proceed: client authentication ([§11.6](#116-openid4vp-error-responses)), request parsing, transaction data binding, scope/format negotiation, internal processing, and user consent.
+
+###### C.2.1 Wallet Rejects Client Authentication: invalid_client
+
+The wallet returns `error=invalid_client`, indicating that the RP's client authentication (WRPAC/mtls/mTLS) failed at the wallet side. This is the highest-severity protocol error: it means either a critical RP misconfiguration (wrong `client_id`, expired WRPAC certificate, mismatched redirect URI) or a WRPAC private key compromise where an attacker is presenting stolen RP credentials to a wallet ([§29.2.3](#2923-wrpac-private-key-compromise)).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0001` |
+| **Decision** | reject → `PROTO_INVALID_CLIENT` |
+| **Signal** | `PROTO_INVALID_CLIENT` (S1 High) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Client authentication failed at wallet" |
+| **Evidence produced** | `client_id` from request, wallet error description, source IP, timestamp, session ID |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering (credential compromise) / Spoofing (identity impersonation) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | WRPAC Private Key Compromise ([§29.2.3](#2923-wrpac-private-key-compromise)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Wallet receives a request with an expired or mismatched WRPAC; wallet responds with `error=invalid_client&error_description=client+authentication+failed&state=abc123`. Verifier must map to `PROTO_INVALID_CLIENT`, block presentation, emit S1 SIEM alert. |
+
+###### C.2.2 Wallet Rejects Malformed Request: invalid_request
+
+The wallet returns `error=invalid_request`, indicating that the JAR or request parameters are malformed. Isolated occurrences are RP bugs (malformed signed request, missing required parameter, invalid `response_type`). A pattern from unknown sources is a fuzzing or probing attempt ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening) parser hardening).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0002` |
+| **Decision** | reject → `PROTO_INVALID_REQUEST` |
+| **Signal** | `PROTO_INVALID_REQUEST` (S2 Medium) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Wallet rejected request as malformed" |
+| **Evidence produced** | request parameters hash, wallet error description, source IP, request fingerprint |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (request fuzzing) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | RP sends a request with an expired `exp` claim in the signed request object; wallet responds with `error=invalid_request&error_description=request+expired`. Verifier must map to `PROTO_INVALID_REQUEST`, log with S2 severity, NOT retry with same malformed JAR. |
+
+###### C.2.3 Wallet Rejects Request URI Method: invalid_request_uri_method
+
+The wallet returns `error=invalid_request_uri_method`, indicating that the request was delivered via an unsupported URI method. OID4VP §8.5 defines this error for cases where the `request_uri_method` in the authorization request specifies a method the wallet does not support (e.g., `POST` when only `GET` is accepted). Indicates a non-compliant or malicious client.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0003` |
+| **Decision** | reject → `PROTO_INVALID_REQUEST_URI_METHOD` |
+| **Signal** | `PROTO_INVALID_REQUEST_URI_METHOD` (S2 Medium) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Unsupported request URI method" |
+| **Evidence produced** | `request_uri_method` attempted, wallet-supported methods, source IP |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (protocol non-compliance probing) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | RP sends authorization request with `request_uri_method=post` to a wallet that only supports `GET`; wallet responds with `error=invalid_request_uri_method&error_description=unsupported+method`. Verifier must map to `PROTO_INVALID_REQUEST_URI_METHOD`, not auto-retry. |
+
+###### C.2.4 Wallet Rejects Transaction Data: invalid_transaction_data
+
+The wallet returns `error=invalid_transaction_data`, indicating that the `transaction_data` binding was rejected. Critical for SCA flows ([§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking)) — possible dynamic linking manipulation where the transaction amount, IBAN, or merchant identity has been tampered with in transit ([§29.2.8](#2928-jar-modification-in-transit)). The PSD2 RTS dynamic linking requirement ([§15.15](#1515-transactional-data-hlrs-topic-20)) means this error is a potential transaction integrity compromise, not a benign decline.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0004` |
+| **Decision** | reject → `PROTO_INVALID_TRANSACTION_DATA` |
+| **Signal** | `PROTO_INVALID_TRANSACTION_DATA` (S1 High) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Transaction data binding rejected" |
+| **Evidence produced** | `transaction_data` hash from request, wallet error description, session ID, presentation ID |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering (transaction manipulation) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | MITM modifies the JAR `transaction_data` between RP signing and wallet receipt (tampered amount €10→€1000); wallet validates `transaction_data_hashes` and responds with `error=invalid_transaction_data&error_description=hash+mismatch`. Verifier must map to `PROTO_INVALID_TRANSACTION_DATA`, block presentation, emit S1 SIEM alert within 4 hours, assess NIS2 reportability. |
+
+###### C.2.5 Wallet Cannot Satisfy Scope: invalid_scope
+
+The wallet returns `error=invalid_scope`, indicating that it cannot provide credentials matching the requested scope. Benign in isolation (user lacks the required credential type, or the RP requested attributes the wallet doesn't hold). A spike in scope errors from the same source correlates with credential harvesting probes ([§29.2.15](#29215-over-identification)).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0005` |
+| **Decision** | degrade → `PROTO_INVALID_SCOPE` |
+| **Signal** | `PROTO_INVALID_SCOPE` (S3 Low) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Requested credential scope unavailable" |
+| **Evidence produced** | requested scope, wallet error description, credential types available (if provided) |
+| **Severity** | S3 Low |
+| **STRIDE** | Information Disclosure (credential existence probing) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Over-Identification ([§29.2.15](#29215-over-identification)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | RP requests `pid` + `age_over_18` + `tax_id`; wallet holds `pid` and `age_over_18` but not `tax_id`; wallet responds with `error=invalid_scope&error_description=unsupported+scope`. Verifier must map to `PROTO_INVALID_SCOPE`, offer scope reduction fallback (retry once with `pid` + `age_over_18` only), NOT retry with same scope. |
+
+###### C.2.6 Wallet Does Not Support VP Format: vp_formats_not_supported
+
+The wallet returns `error=vp_formats_not_supported`, indicating that it cannot produce a VP in any of the formats specified in the RP's `vp_formats` requirement. Benign in a heterogeneous ecosystem where wallets may support only `mso_mdoc` or only `dc+sd-jwt`. A repeated pattern from the same source may indicate probing for format-specific vulnerabilities.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0006` |
+| **Decision** | degrade → `PROTO_VP_FORMATS_NOT_SUPPORTED` |
+| **Signal** | `PROTO_VP_FORMATS_NOT_SUPPORTED` (S3 Low) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Wallet does not support requested VP format" |
+| **Evidence produced** | requested `vp_formats`, wallet error description, wallet-supported formats (if provided) |
+| **Severity** | S3 Low |
+| **STRIDE** | none directly |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Format Router and Credential-Type Dispatch ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Test fixture** | RP requests `vp_formats: { "dc+sd-jwt": { ... } }` only; wallet supports only `mso_mdoc`; wallet responds with `error=vp_formats_not_supported&error_description=no+supported+format`. Verifier must map to `PROTO_VP_FORMATS_NOT_SUPPORTED`, attempt silent fallback to `mso_mdoc` if policy allows, NOT retry with same format. |
+
+###### C.2.7 Wallet Internal Error: server_error
+
+The wallet returns `error=server_error`, indicating an internal crash or unhandled exception. Inherited from RFC 6749 §5.2. A spike in `server_error` from the same `wallet_provider` (correlated via WUA) may indicate a targeted exploit attempt against wallet software. The verifier must retry with fresh nonce and ephemeral keys per [§11.7](#117-error-recovery-and-retry-strategies) — reusing the same nonce creates a replay attack vector.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0007` |
+| **Decision** | auto-retry (max 2) → `PROTO_SERVER_ERROR` |
+| **Signal** | `PROTO_SERVER_ERROR` (S2 Medium) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Wallet reported internal error" |
+| **Evidence produced** | wallet error description, retry count, `wallet_provider` from WUA, source IP |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service (wallet-side outage or exploit) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Wallet crashes during presentation generation; responds with `error=server_error&error_description=internal+error&state=xyz789`. Verifier must: (1) generate fresh nonce + ephemeral key, (2) retry once after 2–5s backoff, (3) if second attempt also returns `server_error`, show generic error to user. Verifier must NOT retry with the original nonce. |
+
+###### C.2.8 Wallet Temporarily Unavailable: temporarily_unavailable
+
+The wallet returns `error=temporarily_unavailable`, indicating it is temporarily too busy or overloaded to process the request. Inherited from RFC 6749 §5.2. Benign in isolation. A sustained spike from the same IP range may indicate a DoS probe testing the verifier's retry behaviour.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0008` |
+| **Decision** | soft-retry (user-initiated) → `PROTO_TEMPORARILY_UNAVAILABLE` |
+| **Signal** | `PROTO_TEMPORARILY_UNAVAILABLE` (S4 Noise) |
+| **Error** | `ERR_INTAKE_REJECTED`: "Wallet temporarily unavailable" |
+| **Evidence produced** | wallet error description, retry timestamp, source IP |
+| **Severity** | S4 Noise |
+| **STRIDE** | Denial of Service (DoS probe) |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Wallet is overloaded; responds with `error=temporarily_unavailable&error_description=service+temporarily+overloaded&state=def456`. Verifier must show "Wallet busy" UI with manual "Try Again" button. Verifier must NOT auto-retry infinitely. |
+
+###### C.2.9 User Declines Consent: access_denied
+
+The wallet returns `error=access_denied`, indicating the user actively declined the presentation consent prompt. Benign in isolation — users legitimately decline to share credentials. A spike from the same RP instance may indicate consent screen manipulation via user device malware ([§29.2.16](#29216-user-device-malware-consent-manipulation)). The verifier must not auto-retry after a user denial (consent fatigue attack vector) and must not feed S4 noise into the risk score (false positive inflation).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0009` |
+| **Decision** | halt → `PROTO_ACCESS_DENIED` |
+| **Signal** | `PROTO_ACCESS_DENIED` (S4 Noise) |
+| **Error** | `ERR_INTAKE_REJECTED`: "User declined consent" |
+| **Evidence produced** | wallet error description, session ID, presentation ID, user identifier (if available) |
+| **Severity** | S4 Noise |
+| **STRIDE** | none directly |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | User Device Malware: Consent Manipulation ([§29.2.16](#29216-user-device-malware-consent-manipulation)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | User taps "Decline" on the wallet consent screen; wallet responds with `error=access_denied&error_description=user+denied+consent&state=ghi789`. Verifier must display "Consent declined", offer fallback manual verification, NOT auto-retry, and log for diagnostics only without feeding into risk score. |
+
+**Analogous fixture:** C.5.24 (`MDOC_DATA_REQUEST_DENIED`) — user consent denial at the mdoc protocol level (device returns status code 20), accept path.
+
+###### C.2.10 Wallet Unavailable: wallet_unavailable
+
+The platform or user agent cannot invoke the wallet app — the wallet is not installed, the claimed HTTPS URI cannot be translated into a platform intent, or an intermediary component (e.g., the wallet provider's web endpoint) received the request instead. The OID4VP §8.5 specification defines this error for exactly this scenario: the end-user wishes to continue the journey on the verifier website but the wallet is unreachable. Benign in isolation — a platform/infrastructure availability issue. A spike on a specific platform or engagement channel provides operational visibility into wallet deployment coverage but is not a security concern.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-PROTO-0010` |
+| **Decision** | soft-retry → `PROTO_WALLET_UNAVAILABLE` |
+| **Signal** | `PROTO_WALLET_UNAVAILABLE` (S3 Low) |
+| **Error** | `ERR_WALLET_UNAVAILABLE`: "Wallet app not reachable" |
+| **Evidence produced** | wallet error description, session ID, presentation ID, platform type (DC API / direct-post / native), engagement method |
+| **Severity** | S3 Low |
+| **STRIDE** | none directly |
+| **Pipeline stage** | Protocol Error Handling ([§11.6](#116-openid4vp-error-responses)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | — |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Same-device DC API flow where the platform cannot invoke any wallet (wallet not installed); the DC API promise rejects with `error=wallet_unavailable&error_description=wallet+not+available`. Verifier must map to `PROTO_WALLET_UNAVAILABLE`, display "Wallet not available" with manual "Try Again" button, log platform type for operational visibility, and offer fallback to cross-device QR flow. |
+
+#### C.3 Session Binding Failures
+
+The session binding stage validates that the decrypted response belongs to the exact request that the Wallet saw, not to a different session, a sibling tenant, a replayed nonce, or a mutated request object. Failures here are session-level integrity violations: the response may be cryptographically well-formed but it is not bound to this verifier transaction.
+
+###### C.3.1 Request Snapshot Missing or Expired
+
+The verifier attempts to load the retained request snapshot for the received `state`, origin, or transaction id, and the snapshot is missing (never created, prematurely purged) or has passed its expiry time.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0001` |
+| **Decision** | reject → `expired` |
+| **Signal** | `SESSION_SNAPSHOT_MISSING_OR_EXPIRED` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Verification session expired or invalid" |
+| **Evidence produced** | state/origin/transaction id used for lookup, snapshot store result, expiry timestamp |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service (expired session replay) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)); Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Submit a valid JWE response 31 minutes after the request snapshot TTL of 30 minutes. Verifier must reject as expired. |
+
+###### C.3.2 Request Snapshot Superseded by Newer Session
+
+A wallet response references a `state` or session id that has been superseded by a newer request object for the same user journey. The older request's nonce, policy, and credential queries are stale.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0002` |
+| **Decision** | reject → `expired` |
+| **Signal** | `SESSION_SUPERSEDED` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Verification session expired or invalid" |
+| **Evidence produced** | old snapshot id, new snapshot id, supersedence timestamp |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation (stale request replay) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request Snapshot Retention ([§12.3.3](#1233-request-snapshot-retention)) |
+| **Test fixture** | Create request A, then request B for same user. Submit response to request A after B was published. Verifier must reject against A. |
+
+###### C.3.3 State Mismatch
+
+The `state` parameter in the decrypted authorization response does not match the `state` stored in the request snapshot. This is the classic CSRF/session-fixation guard for redirect-based and direct-post flows.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0003` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `SESSION_STATE_MISMATCH` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification session expired or invalid" |
+| **Evidence produced** | expected state hash, received state hash, session id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing (cross-session response injection) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Session Fixation ([§29.2.11](#29211-session-fixation-state-parameter-hijacking)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Submit a valid JWE response whose decrypted `state` parameter was copied from a different session. |
+
+###### C.3.4 Nonce Reuse: Definitive Replay
+
+The nonce value extracted from the credential proof (KB-JWT `nonce` or mdoc SessionTranscript) has already been consumed by a previous terminal verification result. Nonce is single-use by definition.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0004` |
+| **Decision** | reject → `duplicate` |
+| **Signal** | `SESSION_NONCE_REUSE` |
+| **Error** | `ERR_DUPLICATE_SUBMISSION`: "Verification session expired or invalid" |
+| **Evidence produced** | `nonce` hash, first-consumed timestamp, first result id, duplicate submission timestamp |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing (credential proof replay) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Capture a valid KB-JWT from session 1. Submit it again in session 2 with the same `nonce`. Verifier must detect replay. |
+
+###### C.3.5 Wrong Origin for DC API Branch
+
+The response arrives through the DC API path, but the browser origin does not match the `expected_origins` registered for this RP client. The origin binding is the DC API equivalent of `state` for direct-post.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0005` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `SESSION_ORIGIN_MISMATCH` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | expected origins list, received origin, session id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing (cross-origin response relay) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)); Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Configure RP with `expected_origins: ["https://bank.example"]`. Submit DC API response from origin `https://attacker.example`. Verifier must reject. |
+
+###### C.3.6 Wrong response_uri for Direct-Post Branch
+
+The wallet submits the direct-post response to a URI that differs from the `response_uri` specified in the signed request object. This can happen when an attacker replays a captured response to a different RP endpoint.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0006` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `SESSION_RESPONSE_URI_MISMATCH` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | expected `response_uri` hash, actual submission URI, session id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (response misrouting) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)); Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Request object specifies `response_uri: "https://rp.example/verify"`. Attacker replays captured response to `https://rp.example/fallback`. Verifier must reject. |
+
+###### C.3.7 Response Mode Downgrade
+
+The wallet submits the response using a weaker response mode than what the request object specified. For instance, request specified `direct_post.jwt` but the response arrives as `direct_post` (unencrypted), or request specified `dc_api.jwt` but response arrives through a redirect.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0007` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `SESSION_RESPONSE_MODE_DOWNGRADE` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | expected `response_mode`, actual `response_mode` or delivery mechanism, request-object hash |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering (transport security downgrade) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Response-Mode Branches ([§12.3.1](#1231-response-mode-branches)) |
+| **Test fixture** | Request requires `dc_api.jwt` (browser-mediated encrypted). Wallet sends unencrypted VC through `direct_post`. Verifier must reject as mode downgrade. |
+
+###### C.3.8 Duplicate Submission Idempotency Violation
+
+Two identical concurrent POSTs arrive for the same session. The first must be processed; the second must return the same terminal result (idempotent replay) or a controlled 409 Conflict, not 500, not a second verification run, and not a mutated result.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0008` |
+| **Decision** | reject (duplicate; return original result) → `duplicate` |
+| **Signal** | `SESSION_DUPLICATE_SUBMISSION` |
+| **Error** | `ERR_DUPLICATE_SUBMISSION`: "Verification already completed" (or same success result)" |
+| **Evidence produced** | original result id, duplicate timestamp, idempotency key |
+| **Severity** | S4 Noise |
+| **STRIDE** | Denial of Service (race condition exploitation) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request Snapshot Retention ([§12.3.3](#1233-request-snapshot-retention)); Transaction State and Async Outcomes ([§12.2.3](#1223-transaction-state-and-async-outcomes)) |
+| **Test fixture** | Fire two simultaneous `POST`s with identical session `state`. First completes, second must return idempotent result. |
+
+###### C.3.9 Prefetch-Tolerant request_uri: Silent Invalidation on First Fetch
+
+A legitimate wallet fetches the `request_uri` after a benign prefetcher (browser link preview, messaging app crawler) already fetched it. The wallet's fetch must still return a valid request object — the verifier must not silently invalidate or consume the request on the first GET.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0009` |
+| **Decision** | not_evaluated (the legitimate wallet's fetch should succeed) → `N/A (this is a design constraint, not a terminal rejection)` |
+| **Signal** | `REQUEST_URI_PREFETCH_TOLERANCE_CHECK` |
+| **Error** | `N/A (this is a design constraint, not a terminal rejection)`: "N/A" |
+| **Evidence produced** | fetch count, first fetch source, second fetch source, request-object hash consistency |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service (prefetch-induced session kill) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Fetch `request_uri` with `User-Agent: "LinkedInBot/1.0"`. Fetch again with legitimate wallet UA. Both must return identical, valid request objects. |
+
+###### C.3.10 Audience Normalization Failure
+
+The KB-JWT `aud` claim uses a semantically equivalent but syntactically different form of the verifier's `client_id` URL: trailing slash (`https://rp.example/` vs `https://rp.example`), scheme difference (HTTP vs HTTPS), or default port inclusion/omission (`:443`). The verifier must either normalize both sides before comparison or reject with a stable, identifiable error.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0010` |
+| **Decision** | reject (or accept if normalization is configured and documented) → `verification_failed (or verified if normalization succeeds)` |
+| **Signal** | `SESSION_AUDIENCE_NORMALIZATION_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | expected audience (normalized), received audience (raw), normalization policy id |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service (audience string mismatch) |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Verifier `client_id` is `https://rp.example`. Wallet sends KB-JWT with `aud: "https://rp.example/"` (trailing slash). Verifier behavior must be documented and stable. |
+
+###### C.3.11 JARM Response Signature Invalid
+
+The JARM authorization response JWT signature does not validate against the wallet's registered signing key. The signed response has been tampered with in transit, or the wallet's key has rotated without the RP updating its JARM client metadata.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SESSION-0011` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `JARM_SIG_INVALID` |
+| **Error** | `ERR_SESSION_BINDING_FAILED`: "Verification response could not be validated." |
+| **Evidence produced** | JARM JWT header, expected signer key, signature verification result |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Session Binding ([§12.3](#123-intake-boundary-response-envelope-and-session-binding)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Intake Sequence and Binding Evidence ([§12.3.2](#1232-intake-sequence-and-binding-evidence)) |
+| **Test fixture** | Valid JARM response with one byte of the signature modified. Verifier must reject and emit `JARM_SIG_INVALID`. |
+
+#### C.4 Format Router Failures
+
+The format router sits between the intake boundary and credential-specific verification. It validates that the `vp_token` structure matches the DCQL query definition: known query ids, expected formats, correct cardinality, and valid credential-set membership. Routing failures are distinct from cryptographic failures — a credential may be perfectly valid but submitted against the wrong query or in the wrong format.
+
+###### C.4.1 vp_token Scalar: Object/Map Required
+
+The `vp_token` value in the authorization response is a scalar string, number, or boolean instead of the JSON object keyed by credential query id that DCQL requires.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0001` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `ROUTING_VP_TOKEN_NOT_OBJECT` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
+| **Evidence produced** | received `vp_token` type, expected structure, response mode |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (malformed response structure) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)) |
+| **Test fixture** | POST with `vp_token: "eyJhbGciOiJub25lIn0.eyJ2Y3QiOiJ1cm46ZXUuLi4ifQ."` (scalar string instead of `{"pid": [...]}`). Verifier must reject with parse/routing error before credential crypto. |
+
+###### C.4.2 Unknown DCQL Query ID
+
+The `vp_token` object contains a key that does not match any `query_id` in the DCQL query from the request snapshot. The wallet returned a credential for a query that was never requested.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0002` |
+| **Decision** | reject (or mark as policy failure for that entry) → `verification_failed` |
+| **Signal** | `ROUTING_DCQL_QUERY_ID_UNKNOWN` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | unknown query id, known query ids from request snapshot, credential type |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (unrequested credential injection) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)) |
+| **Test fixture** | Request asks for `query_id: "pid"`. Wallet returns `vp_token: {"drivers_license": [...]}`. Verifier must flag unknown query id. |
+
+###### C.4.3 Format Mismatch: mdoc for SD-JWT VC Query
+
+The DCQL query specified `format: "dc+sd-jwt"` for a credential query id, but the wallet submitted an mdoc (`mso_mdoc`) credential in that slot. The formats are not interchangeable.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ROUTING_DCQL_FORMAT_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | query id, expected format, actual format, credential type |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (format substitution) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)) |
+| **Test fixture** | Request asks for `format: "dc+sd-jwt"` for PID. Wallet submits an mdoc DeviceResponse under the `pid` query id. Verifier must reject. |
+
+###### C.4.4 Cardinality Violation: Multiple Where single Required
+
+The DCQL query specified `cardinality: single` (or `multiple: false`) for a credential query id, but the wallet returned an array with 2+ presentations for that query.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0004` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ROUTING_CARDINALITY_VIOLATION` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | query id, expected cardinality, actual count, credential types returned |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (credential flooding) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)) |
+| **Test fixture** | Request asks for `query_id: "pid"` with `cardinality: single`. Wallet returns 2 SD-JWT VCs in the `pid` array. Verifier must reject. |
+
+###### C.4.5 Credential-Set Unsatisfied
+
+The DCQL query defines a credential-set (e.g., `pid` AND `mandate`, or `pid` OR `age_attestation`), and the wallet's response satisfies only a subset of the required options. A partial response to a required credential-set is a policy failure, not a cryptographic failure.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0005` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ROUTING_CREDENTIAL_SET_UNSATISFIED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed — required credentials not provided" |
+| **Evidence produced** | credential-set id, required options, satisfied options, missing query ids |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation (incomplete evidence submission) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request requires credential-set `[pid, mandate_credential]`. Wallet returns only PID. Verifier must reject as credential-set unsatisfied. |
+
+###### C.4.6 Malformed Presentation: Cannot Tie to Any Query ID
+
+The `vp_token` is a valid JSON object, but none of its keys match any DCQL query id, AND none of the presentation values can be heuristically or structurally associated with any requested credential query. The verifier cannot determine which presentation answers which request.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0006` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ROUTING_UNROUTABLE_PRESENTATION` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | all `vp_token` keys, all known query ids, attempted routing table |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (garbled response structure) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)) |
+| **Test fixture** | Request asks for `pid`. Wallet returns `vp_token: {"unknown_key": [malformed base64]}`. Verifier must reject as unroutable. |
+
+###### C.4.7 Wrong vct/docType for Query
+
+The credential's `vct` (SD-JWT VC) or `docType` (mdoc) does not match the `vct_values` or `doctype_value` filter specified in the DCQL query. The credential may be cryptographically valid and correctly formatted, but it is the wrong credential type for this request.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ROUTING-0007` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ROUTING_VCT_DOCTYPE_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed" |
+| **Evidence produced** | query id, expected `vct_values`/`doctype_value`, actual `vct`/`docType`, credential format |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering (wrong credential type substitution) |
+| **Pipeline stage** | Format Router ([§12.4](#124-routing-boundary-dcql-format-selection-and-policy-after-crypto)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | DCQL Format Router ([§12.4.1](#1241-dcql-format-router)); Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request asks for PID with `vct_values: ["urn:eudi:pid:1"]`. Wallet returns an SD-JWT VC with `vct: "urn:example:drivers_license"`. Verifier must reject. |
+
+#### C.5 SD-JWT VC Verification Failures
+
+SD-JWT VC verification is the most complex single stage in the pipeline. It spans JOSE profile enforcement, issuer signature verification, disclosure integrity, type metadata validation, temporal claims, status evaluation, and holder binding through KB-JWT. Failures here must be precisely classified — a disclosure hash mismatch is not the same as an issuer signature failure, and a missing `cnf` claim is not the same as a KB-JWT signed by the wrong key.
+
+###### C.5.1 alg=none in Issuer JWT
+
+Issuer JWT header has `alg: "none"`. The JWT has no cryptographic signature but claims to be an SD-JWT VC.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0001` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_SIG_ALG_NONE` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `issuer_alg`, expected algorithms |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with `header.alg = "none"`. Verifier must reject before attempting signature verification. |
+
+###### C.5.2 Symmetric Algorithm Confusion: HS256 in Issuer JWT
+
+Issuer JWT uses `HS256` (HMAC with SHA-256) where an asymmetric algorithm is required. The symmetric key cannot be independently verified by the RP.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0002` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_SIG_ALG_UNEXPECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `issuer_alg`, allowed algorithms |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with `header.alg = "HS256"`. Verifier must reject as asymmetric-only policy. |
+
+###### C.5.3 Issuer Signature Byte Tampering
+
+One or more bytes of the issuer JWT signature are flipped, causing signature verification to fail against the trusted issuer key.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `issuer_key_fingerprint`, signature result |
+| **Severity** | S0 Critical |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Forgery ([§29.2.36](#29236-credential-forgery)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | Valid SD-JWT VC with last 4 signature bytes flipped. Verifier must reject. |
+
+###### C.5.4 Attacker-Controlled jku/x5u/JWKS
+
+The issuer JWT header contains `jku`, `x5u`, or `jwks` pointing to an attacker-controlled URL. The verifier must not fetch keys from credential-controlled URLs.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0004` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_TRUST_ROGUE_REFERENCE` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | header param, blocked URL, retrieval policy decision |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Runtime Retrieval Guardrails ([§12.5.2](#1252-runtime-retrieval-guardrails)); Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | SD-JWT VC with `jku: "https://attacker.example/jwks.json"`. Verifier must reject without fetching. |
+
+###### C.5.5 Missing x5c/DID Material Where Profile Requires It
+
+The issuer JWT header lacks `x5c` certificate chain or DID resolution material, and the HAIP/profile requires X.509 or DID-based issuer identification.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0005` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_TRUST_MATERIAL_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | header claims present, required trust material type |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC without `x5c` where profile mandates it. Verifier must reject as trust-material-missing. |
+
+###### C.5.6 Missing vct Claim
+
+The issuer JWT payload lacks the `vct` (Verifiable Credential Type) claim, making it impossible to determine the credential type or validate against the DCQL `vct_values`.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0006` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_VCT_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | present claims, expected `vct` |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | SD-JWT VC with no `vct` in payload. Verifier must reject. |
+
+###### C.5.7 vct Outside Request/Policy Allowlist
+
+The `vct` value is present but does not match any `vct_values` in the DCQL query or the RP's credential type allowlist. The credential is well-formed but the wrong type.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0007` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_VCT_UNKNOWN` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | received `vct`, allowed `vct_values`, query id |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | Request allows `vct_values: ["urn:eudi:pid:1"]`. Wallet returns `vct: "urn:example:drivers_license"`. Verifier must reject. |
+
+###### C.5.8 Malformed Tilde Boundary/Disclosure JSON
+
+The SD-JWT string has malformed tilde separators (`~`), causing the disclosure array parser to fail. Missing tilde, extra tilde, or disclosure segment that is not valid base64url.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0008` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_JSON_PARSE_ERROR` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | segment count, parse error location |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT with `eyJh...~malformed~segment~`. Verifier must reject at parse stage. |
+
+###### C.5.9 Duplicate Disclosure Digest
+
+Two disclosures in the SD-JWT produce the same digest value. This may indicate a disclosure collision attack or malformed disclosure array.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0009` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_DUPLICATE_DIGEST` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | duplicate digest value, disclosure indices |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with two disclosures that hash to the same `_sd` digest. Verifier must reject. |
+
+###### C.5.10 Disclosure Recursion Overflow
+
+A disclosure contains a nested `_sd` array whose depth exceeds the verifier's configured recursion limit. This can be a resource exhaustion vector.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0010` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_RECURSION_OVERFLOW` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | recursion depth, configured limit |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | SD-JWT VC with 20 levels of nested `_sd` disclosures. Verifier must reject at limit (e.g., depth 5). |
+
+###### C.5.11 Disclosure Hash Mismatch: Tampered Salt/Claim/Value
+
+A disclosure's computed hash does not match the corresponding `_sd` digest in the issuer JWT. The salt, claim name, or claim value was modified after issuance.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0011` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_HASH_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | expected digest, computed digest, disclosure index |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | Flip one byte in a disclosure salt. Hash must not match. Verifier must reject. |
+
+###### C.5.12 Duplicate/Low-Entropy Salt Reuse
+
+Multiple disclosures share the same salt value, or the salt is shorter than 128 bits (16 bytes). Low-entropy salts enable rainbow-table brute-forcing of undisclosed claims.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0012` |
+| **Decision** | reject (if policy enforces minimum entropy) → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_LOW_ENTROPY_SALT` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | salt length, duplicate detection result |
+| **Severity** | S2 Medium |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with 8-byte disclosure salts. Verifier must reject if 128-bit minimum enforced. |
+
+###### C.5.13 Unreferenced Disclosure/Unexpected Disclosed Claim
+
+A disclosure is present in the SD-JWT but its digest does not appear in any `_sd` array in the issuer JWT (unreferenced disclosure), OR a disclosure reveals a claim name that was not requested and surfaces unrequested PII.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0013` |
+| **Decision** | reject (or mark as policy failure) → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_UNREFERENCED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | unreferenced disclosure count, unexpected claim names |
+| **Severity** | S2 Medium |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC has an extra disclosure whose digest is not in any `_sd` array. Verifier must detect. |
+
+###### C.5.14 Missing cnf Where Holder Binding Required
+
+The RP profile or credential type requires holder binding, but the issuer JWT payload has no `cnf` (Confirmation) claim. There is no key to bind the KB-JWT to.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0014` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_MISSING_CNF` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | holder_binding requirement, `cnf` presence |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC without `cnf` claim submitted to binding-required policy. Verifier must reject as missing binding material. |
+
+###### C.5.15 cnf.jwk Symmetric/Unsupported Key Type/Wrong Curve
+
+The `cnf.jwk` contains a symmetric key (`kty: "oct"`), an unsupported key type, or an EC key on a curve outside the profile allowlist. Holder binding cannot be verified with an unacceptable key.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0015` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_KEY_TYPE_REJECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `cnf` key type, curve, allowed types |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with `cnf.jwk.kty = "oct"` (HMAC key). Verifier must reject before KB-JWT verification. |
+
+###### C.5.16 KB-JWT Signed by Wrong Key
+
+The KB-JWT signature does not verify against the key declared in the issuer JWT's `cnf.jwk` claim. The presenter used a different key than the one bound to the credential.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0016` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `cnf` key thumbprint, signing key thumbprint, signature result |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | `KB-JWT` signed with key-B but `cnf.jwk` declares key-A. Verifier must reject. |
+
+###### C.5.17 KB-JWT Nonce Mismatch
+
+The KB-JWT `nonce` claim does not match the nonce from the request snapshot. The proof was not created for this specific verifier session.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0017` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_NONCE_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | expected `nonce` hash, received `nonce` hash |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | `KB-JWT` with `nonce` from session A submitted to session B. Verifier must reject. |
+
+###### C.5.18 KB-JWT aud Mismatch
+
+The KB-JWT `aud` (audience) claim does not match the verifier's `client_id` or expected audience. The proof was created for a different RP or a different endpoint.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0018` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_AUD_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | expected audience, received audience |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | KB-JWT with `aud: "https://other-rp.example"` submitted to `https://my-rp.example`. Verifier must reject. |
+
+###### C.5.19 KB-JWT iat Outside Skew Window
+
+The KB-JWT `iat` (issued-at) claim is more than the configured skew seconds in the past, or it is in the future. A stale proof may have been captured and replayed; a future proof may indicate clock manipulation.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0019` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_CLOCK_SKEW` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `iat` value, verifier clock, skew policy, evaluated window |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | KB-JWT with `iat` 10 minutes in the past, skew policy is 60 seconds. Verifier must reject. |
+
+###### C.5.20 KB-JWT sd_hash Mismatch
+
+The KB-JWT `sd_hash` claim does not match the computed hash of the disclosed SD-JWT payload and disclosures. The proof is not bound to this specific SD-JWT presentation.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0020` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_SD_HASH_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | expected `sd_hash`, received `sd_hash`, disclosure set |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | Compute `sd_hash` over SD-JWT A. Inject `KB-JWT` with that hash into SD-JWT B. Verifier must reject. |
+
+###### C.5.21 typ Not dc+sd-jwt: Bare SD-JWT
+
+The issuer JWT header has `typ` different from `dc+sd-jwt`. A bare SD-JWT (non-VC) or a regular JWT was submitted where an SD-JWT VC is required.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0021` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_TYP_UNEXPECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | received `typ`, expected `typ` |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | Submit a bare SD-JWT (no `vct`, `typ: "sd-jwt"`) where `dc+sd-jwt` is required. Verifier must reject. |
+
+###### C.5.22 exp Expired
+
+The issuer JWT `exp` claim is in the past relative to the verifier clock plus configured skew. The credential has expired.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0022` |
+| **Decision** | reject → `expired` |
+| **Signal** | `SDJWT_EXP_EXPIRED` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Credential expired." |
+| **Evidence produced** | `exp` timestamp, verifier clock, skew seconds |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | SD-JWT VC with `exp` 1 hour in the past. Verifier must reject as expired. |
+
+###### C.5.23 nbf Not Yet Valid
+
+The issuer JWT `nbf` (not-before) claim is in the future relative to the verifier clock. The credential is not yet valid for use.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0023` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_NBF_NOT_YET_VALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential not yet valid." |
+| **Evidence produced** | `nbf` timestamp, verifier clock, skew |
+| **Severity** | S3 Low |
+| **STRIDE** | none directly |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | SD-JWT VC with `nbf` 1 hour in the future. Verifier must reject. |
+
+###### C.5.24 iat in Future
+
+The issuer JWT `iat` (issued-at) claim is in the future beyond the configured clock skew. This may indicate issuer clock drift or a backdated credential.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0024` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_IAT_FUTURE` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `iat` timestamp, verifier clock, skew |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Clock Manipulation/Environment Emulation ([§29.2.40](#29240-clock-manipulationenvironment-emulation)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | SD-JWT VC with `iat` 5 minutes in the future, skew policy is 60 seconds. Verifier must reject. |
+
+###### C.5.25 Multi-Megabyte Form Body: Parser Resource Exhaustion
+
+The form body or JWE plaintext exceeds the configured size limit (e.g., 1 MB). The verifier must reject before allocating unbounded memory.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0025` |
+| **Decision** | reject → `intake_rejected` |
+| **Signal** | `SDJWT_PAYLOAD_SIZE_EXCEEDED` |
+| **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed." |
+| **Evidence produced** | payload size, configured limit |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | `POST` a 10 MB JWE-decrypted payload to intake. Verifier must reject at size limit (e.g., 1 MB). |
+
+###### C.5.26 Low-Entropy Disclosure Salt: Rainbow Table Vulnerability
+
+Any disclosure salt is shorter than 128 bits (16 bytes). Short salts make undisclosed claims vulnerable to brute-force pre-computation attacks.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0026` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_LOW_ENTROPY_SALT` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | salt length per disclosure, minimum required |
+| **Severity** | S1 High |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with one disclosure having an 8-byte salt. Verifier must reject. |
+
+###### C.5.27 Missing or Invalid Wallet Unit Attestation (WUA) Where Profile Requires It
+
+The profile requires a Wallet Unit Attestation to establish wallet-environment trust, but the WUA is absent, self-signed, expired, or signature-invalid. The credential itself may be valid, but the wallet environment is not trusted.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0027` |
+| **Decision** | reject (or downgrade) → `verification_failed` |
+| **Signal** | `WUA_INVALID_OR_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | WUA presence, WUA signature result, WUA issuer, profile requirement |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Valid PID + missing WUA where profile requires it. Verifier must separate credential validity from wallet trust and reject. |
+
+###### C.5.28 Issuer Illegally Appends KB-JWT During Issuance
+
+At issuance time, the issued SD-JWT string contains a KB-JWT segment (tilde-separated third segment) that was added by the issuer before the Wallet received the credential. Only the Wallet should add the KB-JWT at presentation time.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0028` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_ISSUER_KBJWT_APPENDED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | SD-JWT segment count, KB-JWT presence at issuance |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Issuance response contains SD-JWT with KB-JWT segment already appended. Verifier must reject. |
+
+###### C.5.29 Wallet Instance Attestation (WIA) Signature Tampered
+
+A valid PID presentation is accompanied by a WIA whose x5c chain appears valid but whose signature over the attestation payload is corrupted. The verifier must detect the WIA signature failure separately from credential crypto.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0029` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `WIA_SIGNATURE_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | WIA signature result, WIA issuer, credential crypto result (pass) |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Valid PID (crypto: pass) + WIA with flipped signature byte (WIA: fail). Verifier must reject based on WIA failure, not PID failure. |
+
+###### C.5.30 Kyber/Algorithm Confusion: HS256 on Asymmetric Credential
+
+SD-JWT VC uses `HS256` (symmetric) as the issuer JWT algorithm where the profile requires asymmetric EC cryptography. This is algorithm-type confusion distinct from `alg=none` — a symmetric HMAC key is used in an asymmetric key slot.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0030` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_SIG_ALG_SYMMETRIC_CONFUSION` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `issuer_alg`, allowed algorithms, algorithm class |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | SD-JWT VC with `alg: "HS256"` in issuer JWT header. Distinct from `alg=none` — tests symmetric-vs-asymmetric confusion specifically. |
+
+###### C.5.31 cnf Claim Missing
+
+The SD-JWT issuer-signed body contains no `cnf` claim, meaning the credential was issued without binding a device key. The credential provides no holder-binding assurance and cannot be used for high-assurance operations.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0031` |
+| **Decision** | block or downgrade → `verification_failed` |
+| **Signal** | `SDJWT_CNF_MISSING` |
+| **Error** | `ERR_BINDING_POLICY_VIOLATION`: "Credential does not meet binding requirements." |
+| **Evidence produced** | issuer `iss`, credential type, binding policy |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | Valid SD-JWT VC with all disclosures correct but no `cnf` claim in issuer body. RP binding policy requires `cnf` — verifier must block or downgrade. |
+
+###### C.5.32 Duplicate Disclosure Salt
+
+Two or more disclosures in the SD-JWT share the same salt value. Per SD-JWT VC §5.2.5, salt values must be unique per disclosure. Duplicates indicate either a faulty issuer implementation or deliberate structural manipulation.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0032` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_DISCLOSURE_DUPLICATE_SALT` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | duplicate salt values, disclosure indices |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)) |
+| **Test fixture** | SD-JWT VC where two disclosures use salt `abc123`. Verifier must reject and emit duplicate-salt signal. |
+
+###### C.5.33 Issuer Certificate Chain Invalid
+
+The issuer's X.509 certificate chain does not validate to any LoTE root anchor. The chain may be self-signed, terminated at an unknown intermediate, or contain expired or revoked certificates.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0033` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_ISSUER_CHAIN_INVALID` |
+| **Error** | `ERR_TRUST_ANCHOR_FAILED`: "Credential issuer is not trusted." |
+| **Evidence produced** | issuer X.509 chain, LoTE root anchors, validation error |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)) |
+| **Test fixture** | SD-JWT VC signed by a key whose X.509 chain terminates at a self-signed CA not in LoTE. Verifier must reject as trust anchor failure. |
+
+###### C.5.34 Issuer Not in Trusted Set
+
+The SD-JWT `iss` claim does not match any entry in the RP's LoTE trust anchor cache. The issuer is unknown to this RP's trust configuration.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0034` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_ISSUER_UNTRUSTED` |
+| **Error** | `ERR_TRUST_ANCHOR_FAILED`: "Credential issuer is not recognized." |
+| **Evidence produced** | issuer `iss`, known trusted issuers, LoTE cache freshness |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)) |
+| **Test fixture** | SD-JWT VC with `iss: "https://unknown-issuer.example"`. No matching entry in LoTE cache. Verifier must reject as untrusted issuer. |
+
+###### C.5.35 KB-JWT Expired
+
+The Key Binding JWT's `exp` claim is in the past. The holder's proof of possession has expired — the KB-JWT was generated too long ago and may indicate a delayed replay attempt.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0035` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `KBJWT_EXPIRED` |
+| **Error** | `ERR_HOLDER_BINDING_FAILED`: "Credential holder verification expired." |
+| **Evidence produced** | KB-JWT `exp`, verifier clock, skew tolerance |
+| **Severity** | S2 Medium |
+| **STRIDE** | Replay |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | Valid KB-JWT with `exp` set to 1 hour in the past. Verifier must reject and emit `KBJWT_EXPIRED`. |
+
+###### C.5.36 KB-JWT Missing
+
+No Key Binding JWT is appended to the SD-JWT presentation (no `~` delimiter followed by a JWT). The presenter has not proven possession of the device key bound to the credential's `cnf.jwk`.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-SD-JWT-VC-0036` |
+| **Decision** | block or downgrade → `verification_failed` |
+| **Signal** | `KBJWT_MISSING` |
+| **Error** | `ERR_HOLDER_BINDING_MISSING`: "Credential holder verification is incomplete." |
+| **Evidence produced** | credential type, binding policy, `cnf` presence |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | SD-JWT VC Verification ([§12.6](#126-sd-jwt-vc-branch-selective-disclosure-and-kb-jwt-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SD-JWT VC Verification Stages ([§12.6.1](#1261-sd-jwt-vc-verification-stages)); SD-JWT VC Adversarial Cases ([§12.6.3](#1263-sd-jwt-vc-adversarial-cases)) |
+| **Test fixture** | Valid SD-JWT VC with all disclosures but no KB-JWT appended (presentation ends after last disclosure). RP policy requires KB-JWT — verifier must block or downgrade. |
+
+#### C.6 mdoc/COSE Verification Failures
+
+mdoc verification operates over binary CBOR and COSE structures with a fundamentally different failure surface from JWT-based credentials. Parser strictness, COSE protected/unprotected header handling, MSO value digests, SessionTranscript reconstruction, and DeviceAuth encoding all must pass before the RP can trust a document result. The verifier must preserve these failure boundaries rather than collapsing them into "invalid credential."
+
+###### C.6.1 DeviceResponse Not Valid CBOR
+
+The DeviceResponse byte string is not valid CBOR according to the strict parser. Malformed initial byte, truncated structure, or invalid tag encoding.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0001` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_CBOR_PARSE_ERROR` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | byte length, parser error location, parser policy |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Submit a truncated CBOR DeviceResponse (last 50 bytes removed). Verifier must reject as parse error. |
+
+###### C.6.2 CBOR Exceeds Parser Size/Depth Limits
+
+The DeviceResponse CBOR exceeds the configured maximum size (e.g., 64 KB) or maximum nesting depth (e.g., 5 levels). Resource exhaustion protection.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0002` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_CBOR_LIMIT_EXCEEDED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | byte length, nesting depth, configured limits |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | Submit a 1 MB CBOR DeviceResponse with nested depth 10. Verifier must reject at limit. |
+
+###### C.6.3 Requested docType Differs from Submitted
+
+The `docType` in the submitted mdoc document does not match the `doctype_value` expected by the DCQL query. The verifier received the wrong document type.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DOCTYPE_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | expected `docType`, received `docType`, query id |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Request asks for `doctype_value: "org.iso.18013.5.1.mDL"`. Wallet submits `docType: "eu.europa.ec.eudi.pid.1"`. Verifier must reject. |
+
+###### C.6.4 issuerAuth COSE Signature Corrupted
+
+The `issuerAuth` COSE_Sign1 signature over the MSO does not verify against the trusted IACA/document-signer certificate. Signature bytes are corrupted or the MSO payload was tampered.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0004` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_MSO_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | issuer cert fingerprint, trust source, signature result |
+| **Severity** | S0 Critical |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Forgery ([§29.2.36](#29236-credential-forgery)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Flip 2 bytes in the issuerAuth signature. Verifier must reject. |
+
+###### C.6.5 IACA/DS Certificate Chain Untrusted/Expired/Wrong Profile
+
+The issuer's certificate chain (IACA → Document Signer) does not validate to a trusted root, has an expired certificate, or the certificate profile OID does not match the required mdoc profile.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0005` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_IACA_CHAIN_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | cert chain result, trust source, expiry dates |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc with a self-signed issuerAuth certificate not chaining to any trusted IACA. Verifier must reject. |
+
+###### C.6.6 MSO validityInfo Expired
+
+The MSO `validityInfo.validUntil` is in the past relative to the verifier clock and configured skew tolerance. The document has expired and is no longer temporally valid.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0006` |
+| **Decision** | reject → `expired` |
+| **Signal** | `MDOC_VALIDITY_EXPIRED` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Credential expired." |
+| **Evidence produced** | `validityInfo.validUntil`, verifier clock, configured skew |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | mdoc with `validUntil` 1 day in the past. Verifier must reject. |
+
+###### C.6.7 MSO validityInfo Not Yet Valid
+
+The MSO `validityInfo.validFrom` is in the future relative to the verifier clock and configured skew tolerance. The document is not yet active and cannot be accepted.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0007` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_VALIDITY_NOT_YET_VALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential not yet valid." |
+| **Evidence produced** | `validityInfo.validFrom`, verifier clock, configured skew |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | mdoc with `validFrom` 1 day in the future. Verifier must reject. |
+
+###### C.6.8 digestAlgorithm Unsupported
+
+The MSO `digestAlgorithm` field specifies a hash algorithm not in the verifier's allowlist (e.g., SHA-1 or an unregistered algorithm OID). The verifier cannot validate attribute integrity.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0008` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DIGEST_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | received `digestAlgorithm`, allowed algorithms |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)) |
+| **Test fixture** | mdoc MSO with `digestAlgorithm: "SHA-1"` where only SHA-256/384/512 are allowed. Verifier must reject. |
+
+###### C.6.9 Value Digest Mismatch
+
+The computed digest of an IssuerSignedItem does not match the corresponding `valueDigest` entry in the MSO. The attribute value or its encoding was tampered after issuance.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0009` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DEVICE_SIG_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | namespace, element identifier, expected digest, computed digest |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc with a flipped byte in one IssuerSignedItem value. Computed digest must not match MSO. Verifier must reject. |
+
+###### C.6.10 DeviceAuth Missing Where Policy Requires
+
+The RP profile or presentation type requires holder binding via DeviceAuth, but the mdoc contains no `deviceSigned` structure or no `DeviceAuth` field. The device did not prove possession.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0010` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DEVICE_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `deviceSigned` presence, `DeviceAuth` presence, policy requirement |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc without `deviceSigned` submitted to a binding-required remote presentation. Verifier must reject. |
+
+###### C.6.11 deviceSignature Byte Corruption
+
+The `deviceSignature` field in DeviceAuth is present but the COSE_Sign1 signature does not verify against the device key from MSO `deviceKeyInfo` over the reconstructed SessionTranscript. Signature bytes are corrupted.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0011` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DEVICE_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | device key thumbprint, signature result, `SessionTranscript` hash |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Flip 2 bytes in deviceSignature. Verifier must reject. |
+
+###### C.6.12 Malformed Tag 24/DeviceAuthentication
+
+The `DeviceAuthentication` CBOR structure uses incorrect Tag 24 encoding, malformed CBOR sequences, or produces bytes that differ from the profile-expected encoding even if semantically similar. The verifier must be byte-exact with the profile-defined DeviceAuthentication structure.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0012` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DEVICE_AUTH_METHOD_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `DeviceAuthentication` byte length, encoding errors, expected structure |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SessionTranscript and DeviceAuthentication ([§12.7.2](#1272-sessiontranscript-and-deviceauthentication)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc with manually constructed Tag 24 that uses a decoded array instead of proper CBOR tagging. Verifier must reject. |
+
+###### C.6.13 deviceMac Supplied Where deviceSignature Expected
+
+The DeviceAuth uses `deviceMac` (COSE_Mac0, symmetric MAC) where the profile or presentation mode requires `deviceSignature` (COSE_Sign1, asymmetric). Symmetric MAC cannot provide non-repudiable device binding.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0013` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_HANDOVER_TYPE_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `DeviceAuth` method, required method, profile |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc with `deviceMac` submitted to a remote presentation requiring `deviceSignature`. Verifier must reject. |
+
+###### C.6.14 Remote Response Uses Proximity-Style Handover
+
+The mdoc is presented through a remote OpenID4VP flow, but the SessionTranscript handover material uses BLE/NFC proximity handover fields instead of the OpenID4VP/DC API remote handover structure. The handover type is wrong for the delivery channel.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0014` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_SESSION_TRANSCRIPT_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `handover` type, expected `handover` type, delivery channel |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SessionTranscript and DeviceAuthentication ([§12.7.2](#1272-sessiontranscript-and-deviceauthentication)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Remote OpenID4VP flow receives mdoc with BLE handover in `SessionTranscript`. Verifier must reject. |
+
+###### C.6.15 SessionTranscript Reconstruction Mismatch
+
+The SessionTranscript reconstructed by the verifier from the request snapshot (nonce, client_id/origin, response_uri, verifier key thumbprint) does not produce the same bytes that DeviceAuth was computed over. This can be caused by wrong nonce, wrong origin, wrong response URI, or wrong handover encoding.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0015` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_NAMESPACE_NOT_FOUND` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `nonce` hash, `client_id`/origin, `response_uri` hash, `handover` type |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SessionTranscript and DeviceAuthentication ([§12.7.2](#1272-sessiontranscript-and-deviceauthentication)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Valid mdoc submitted with `SessionTranscript` computed for session A, but verifier reconstructs transcript for session B. DeviceAuth must fail. |
+
+###### C.6.16 Expected Namespace/Element Absent
+
+The DCQL query requests a specific namespace and element identifier, but the mdoc's IssuerSigned namespaces do not contain that element. The attribute was not issued or the wallet did not disclose it.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0016` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_CBOR_INDEFINITE_LENGTH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Required information was not provided." |
+| **Evidence produced** | requested namespace/element, present namespaces, query id |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | Request asks for `org.iso.18013.5.1.family_name`. mdoc has `org.iso.18013.5.1` namespace but no `family_name` element. Verifier must reject as policy failure. |
+
+###### C.6.17 Indefinite-Length CBOR Abuse
+
+The DeviceResponse uses indefinite-length CBOR encoding (e.g., indefinite-length strings, arrays, or maps) that can cause parser memory exhaustion or non-deterministic parsing behavior. The verifier must reject indefinite-length encoding.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0017` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_CBOR_DUPLICATE_KEYS` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | CBOR encoding type, parser policy |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | mdoc DeviceResponse with indefinite-length array encoding. Verifier must reject. |
+
+###### C.6.18 Duplicate CBOR Map Keys
+
+The DeviceResponse CBOR contains duplicate keys in a map, causing non-deterministic or implementation-specific parsing behavior. Strict CBOR parsers must reject duplicate keys.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0018` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_COSE_CRITICAL_HEADER_UNKNOWN` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | duplicate key location, parser policy |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | mdoc with duplicate key in the MSO protected header map. Verifier must reject. |
+
+###### C.6.19 Unknown Critical COSE Header
+
+A COSE protected or unprotected header contains a critical header label that the verifier does not recognize or does not support. Per COSE/RFC 8152, unknown critical headers must cause rejection.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0019` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_COSE_CRITICAL_HEADER_UNKNOWN` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | unknown critical header label, supported headers |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)); Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | mdoc issuerAuth with a critical header label 9999 (unregistered). Verifier must reject per COSE spec. |
+
+###### C.6.20 DeviceMAC Verification Failed
+
+The `DeviceMAC` (COSE_Mac0) verification fails. The MAC was computed over a `SessionTranscript` that does not match the current session, indicating a possible relay or session-transcript substitution attack.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0020` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_DEVICE_MAC_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | `SessionTranscript` components, MAC verification result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | SessionTranscript and DeviceAuthentication ([§12.7.2](#1272-sessiontranscript-and-deviceauthentication)); mdoc/COSE Adversarial Cases ([§12.7.3](#1273-mdoccose-adversarial-cases)) |
+| **Test fixture** | mdoc with `deviceMac` computed over a different SessionTranscript (wrong session). Verifier must reject. |
+
+###### C.6.21 IACA Certificate Revoked
+
+The IACA (Issuer Authority CA) certificate appears on the Certificate Revocation List. All credentials issued under this chain are suspect.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0021` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_IACA_REVOKED` |
+| **Error** | `ERR_TRUST_ANCHOR_REVOKED`: "Credential issuer authority has been revoked." |
+| **Evidence produced** | IACA certificate serial, CRL source, revocation date |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | mdoc IACA Chain Validation Bypass ([§29.2.30](#29230-mdoc-iaca-chain-validation-bypass)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)); Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)) |
+| **Test fixture** | mdoc issued by an IACA whose certificate appears on a current CRL. Verifier must reject all credentials from this chain. |
+
+###### C.6.22 Reader Authentication Rejected by Wallet
+
+The wallet returned ISO 18013-5 status code 20 (Reader Authentication Error), rejecting the RP's reader authentication certificate. This is the *inverse* of [§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader): instead of a wallet failing to enforce reader auth (the attack), the wallet correctly rejects a reader cert it cannot validate — signalling an RP-side misconfiguration in the IACA trust chain, reader certificate expiry, or intermediate CA inclusion. The verifier must classify this response code, produce structured evidence identifying which certificate and trust anchor failed, and surface it as an S2 event for operator diagnosis. If the verifier mishandles status code 20 — silently ignoring it, mapping it to the wrong signal, or proceeding as if the session succeeded — that is a verifier defect with the same threat profile as [§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader) (unauthenticated reader operating without wallet-enforced identity verification).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0022` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_READER_AUTH_REJECTED` |
+| **Error** | `ERR_READER_AUTH_FAILED`: "The wallet rejected the reader authentication." |
+| **Evidence produced** | ISO 18013-5 status code 20, reader certificate chain, IACA root identifier, trust store inclusion status |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing (unverified reader identity if verifier ignores the rejection) |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | mdoc ReaderAuth Skip: Wallet Accepts Unauthenticated Reader ([§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)) |
+| **Test fixture** | mdoc session where the wallet returns status code `20`. Verifier must: (1) parse the status code from the `DeviceResponse`, (2) map it to `MDOC_READER_AUTH_REJECTED`, (3) emit evidence including the reader certificate's subject, issuer, and IACA root, (4) classify as S2 for batch review per [§31](#31-monitoring-observability-and-operational-readiness), and (5) produce a `verification_failed` result — not silently succeed or drop the session. |
+
+###### C.6.23 Wallet Rejected Request
+
+The wallet returned ISO 18013-5 status code 21, refusing the request based on its internal policy. The verifier must parse the device response status code, map it to the correct signal, and classify it for the alert pipeline ([§31](#31-monitoring-observability-and-operational-readiness)). If the verifier mishandles status code 21 — silently drops it, maps it to the wrong signal, or omits it from the verification record — the operator loses visibility into a pattern that may indicate RP misconfiguration (e.g., WRPAC revocation, attribute scope violation, or the RP not being in the wallet's trusted list). Per [§30.3](#303-signal-inventory-layer-1-protocol-errors), sustained S3 spikes from the same RP instance warrant investigation.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0023` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `MDOC_REQUEST_REJECTED` |
+| **Error** | `ERR_REQUEST_REJECTED`: "The wallet declined the request." |
+| **Evidence produced** | ISO 18013-5 status code 21, request parameters, DCQL query IDs, RP instance identifier |
+| **Severity** | S3 Low |
+| **STRIDE** | — |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)) |
+| **Test fixture** | mdoc session where the wallet returns status code `21`. Verifier must: (1) parse the status code from the `DeviceResponse`, (2) map it to `MDOC_REQUEST_REJECTED`, (3) emit evidence including the request parameters and DCQL query IDs, (4) classify as S3 per [§31](#31-monitoring-observability-and-operational-readiness) and include in the verification record, and (5) not silently drop the response or treat it as success. |
+
+###### C.6.24 User Denied Data Request
+
+The wallet returned ISO 18013-5 error code 3 for specific data elements. The user declined to share the requested attributes. Although this is expected user-consent behaviour — not a security event — the verifier's handling of partial consent has real failure modes. If the verifier treats partial denial as complete failure and rejects the entire session, the RP loses legitimately-disclosed data. If the verifier silently includes denied elements in the result as if they were disclosed, that is a privacy violation. If the verifier drops the denied-element list entirely, the operator loses visibility into consent patterns. The fixture validates that the verifier correctly distinguishes partial consent from complete failure, accepts the disclosed subset, and accurately records which elements were denied.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-MDOC-0024` |
+| **Decision** | accept (partial) → `data_request_denied` |
+| **Signal** | `MDOC_DATA_REQUEST_DENIED` |
+| **Error** | `ERR_DATA_REQUEST_DENIED`: "Some requested information was not shared." |
+| **Evidence produced** | denied data element names, per-element error codes, disclosed vs. requested namespace comparison |
+| **Severity** | S4 Noise |
+| **STRIDE** | — |
+| **Pipeline stage** | mdoc / COSE Verification ([§12.7](#127-mdoc-branch-cbor-mso-and-sessiontranscript-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | mdoc Verification Stages ([§12.7.1](#1271-mdoc-verification-stages)) |
+| **Test fixture** | mdoc session where wallet returns error code `3` for specific elements. Verifier must: (1) parse the per-element error codes from the `DeviceResponse`, (2) distinguish partially-denied elements from successfully-disclosed ones, (3) accept the disclosed subset and produce a `data_request_denied` result (not `verification_failed`), (4) emit `MDOC_DATA_REQUEST_DENIED` with evidence listing which elements were denied, and (5) classify as S4 per [§31](#31-monitoring-observability-and-operational-readiness) — not feed into risk score. |
+
+#### C.7 Trust and Status Failures
+
+Trust resolution is a verifier subsystem, not a side effect of JWT or COSE parsing. The verifier needs an explicit trust-material policy for issuer metadata, certificates, key identifiers, Type Metadata, Status List Tokens, LoTE material, and authenticated trusted-list material. Failures here span retrieval policy violations, cryptographic integrity of trust sources, cache freshness, and ambiguous trust paths — all of which must be distinguished from credential-level cryptographic failures.
+
+###### C.7.1 Retrieval Blocked by Policy: URI/Host/Scheme/Redirect/IP
+
+The trust or status material URI violates retrieval policy: disallowed scheme (non-HTTPS), host not in allowlist, private/link-local IP, excessive redirects, or blocked content type.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0001` |
+| **Decision** | reject (blocked_by_policy) → `evidence_incomplete` |
+| **Signal** | `TRUST_RETRIEVAL_BLOCKED` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | blocked URI, policy violation reason, retrieval policy id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Runtime Retrieval Guardrails ([§12.5.2](#1252-runtime-retrieval-guardrails)); Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | Status list URI is `http://attacker.example/status`. Retrieval policy blocks non-HTTPS. Verifier must reject. |
+
+###### C.7.2 Expected Metadata/Status Resource Not Found
+
+The trust or status URI returns HTTP 404, 410, or DNS NXDOMAIN. The expected material does not exist at the advertised location.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0002` |
+| **Decision** | reject (or evidence_incomplete if cached fallback is allowed) → `evidence_incomplete` |
+| **Signal** | `TRUST_RESOURCE_NOT_FOUND` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | URI, HTTP status/DNS result, timestamp |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | Status List Token URI returns `404`. No cached copy available. Verifier must mark `evidence_incomplete`. |
+
+###### C.7.3 Retrieved Object Signature/Integrity Invalid
+
+The retrieved trust or status material (Status List Token, Type Metadata, LoTE statement) fails signature or integrity verification. The content was tampered or corrupted in transit.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `TRUST_SIGNATURE_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | retrieved object type, signature result, expected signer |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | Flip one byte in a Status List Token JWT signature. Verifier must reject with `signature_invalid`. |
+
+###### C.7.4 Cache Expired and Refresh Failed
+
+The locally cached trust or status material has exceeded its signed `exp`/TTL or policy freshness window, and a live refresh attempt also failed (network error, timeout, or upstream outage). When the expired material is specifically a LoTE trust anchor, the engine emits `LOTE_EXPIRED` as the named specialization of `TRUST_CACHE_EXPIRED_REFRESH_FAILED`.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0004` |
+| **Decision** | reject (or evidence_incomplete if policy permits degraded mode) → `evidence_incomplete` |
+| **Signal** | `TRUST_CACHE_EXPIRED_REFRESH_FAILED` (`LOTE_EXPIRED` when expired material is a LoTE trust anchor) |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | cache age, expiry timestamp, refresh attempt result, material type |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | Status list cache expired 1 hour ago. Refresh attempt times out. Verifier must mark `evidence_incomplete` (or reject per profile). |
+
+###### C.7.5 Network Unavailable: DNS/TCP/TLS/Timeout
+
+The trust or status material cannot be fetched because DNS resolution fails, TCP connection is refused, TLS handshake fails, or the request times out. Network-level unavailability. When the failed fetch is specifically for a LoTE trust anchor, the engine emits `LOTE_FETCH_FAILED` as the named specialization of `TRUST_NETWORK_UNAVAILABLE`.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0005` |
+| **Decision** | evidence_incomplete (use valid cache if available) → `evidence_incomplete` |
+| **Signal** | `TRUST_NETWORK_UNAVAILABLE` (`LOTE_FETCH_FAILED` when the target is a LoTE trust anchor) |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | network error type, URI, cache age if any, target material type |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | Configure status list URI to a non-routable IP. Verifier must return `evidence_incomplete` (not crash or hang). |
+
+###### C.7.6 Ambiguous Trust Source: Multiple Paths Disagree
+
+The credential's trust material can be resolved through multiple paths (e.g., LoTE and static configuration), and the paths disagree on the key material, certificate chain, or trust status. The verifier must not auto-select the most permissive path.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0006` |
+| **Decision** | reject (or require explicit policy escalation) → `evidence_incomplete` |
+| **Signal** | `TRUST_AMBIGUOUS_SOURCE` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | conflicting paths, path results, selected resolution policy |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Cache and Retrieval Failure Taxonomy ([§12.5.3](#1253-trust-cache-and-retrieval-failure-taxonomy)) |
+| **Test fixture** | LoTE lists issuer key A; static config lists issuer key B for same issuer. Verifier must reject as ambiguous. |
+
+###### C.7.7 Unsafe jku/x5u: Attacker-Controlled Trust Root
+
+The JOSE header contains `jku` (JWK Set URL), `x5u` (X.509 URL), or dynamic issuer metadata URL pointing to an attacker-controlled or unapproved host. The verifier must not let the credential choose its own trust root.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0007` |
+| **Decision** | reject (blocked_by_policy) → `verification_failed` |
+| **Signal** | `TRUST_ROGUE_REFERENCE` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | header param, blocked URL, retrieval policy decision |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | Issuer JWT with `jku: "https://evil.example/jwks.json"`. Verifier must reject without fetching. |
+
+###### C.7.8 Private/Link-Local IP in Metadata URL
+
+The resolved IP address of a trust or status material URL is in a private (RFC 1918), link-local, or loopback range. This is SSRF protection — the verifier must not fetch from internal network addresses.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0008` |
+| **Decision** | reject (blocked_by_policy) → `evidence_incomplete` |
+| **Signal** | `TRUST_PRIVATE_IP_BLOCKED` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | resolved IP, IP range policy, blocked URI |
+| **Severity** | S1 High |
+| **STRIDE** | Elevation of Privilege (SSRF) |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Runtime Retrieval Guardrails ([§12.5.2](#1252-runtime-retrieval-guardrails)); Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | Status list URI DNS-resolves to `10.0.0.1`. Verifier must reject (SSRF guard). |
+
+###### C.7.9 DNS Rebinding in Trust Material Fetch
+
+The DNS resolution for a trust material URI changes between the initial hostname check and the actual connection (DNS rebinding attack). The verifier must bind the resolved IP to the hostname check or use a secure DNS resolver.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0009` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `TRUST_DNS_REBINDING_DETECTED` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | initial IP, final IP, hostname, DNS TTL |
+| **Severity** | S1 High |
+| **STRIDE** | Elevation of Privilege |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | DNS returns public IP on first lookup, private IP on second lookup within the same fetch session. Verifier must reject. |
+
+###### C.7.10 Oversized JWKS/HTML Served as JSON
+
+The trust material URI returns a response that exceeds the configured size limit, has the wrong content type (e.g., HTML instead of JSON/JWKS), or is a zip/decompression bomb disguised as a status list.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0010` |
+| **Decision** | reject (blocked_by_policy) → `evidence_incomplete` |
+| **Signal** | `TRUST_RESPONSE_SIZE_OR_TYPE` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | response size, content type, configured limits |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Runtime Retrieval Guardrails ([§12.5.2](#1252-runtime-retrieval-guardrails)); Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | Status list endpoint returns 10 MB HTML page with `Content-Type: text/html`. Verifier must reject. |
+
+###### C.7.11 Status: Revoked
+
+The Status List Token's bit or value at the credential's index indicates the credential is revoked. The issuer has permanently invalidated this credential.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0011` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_STATUS_REVOKED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential is not acceptable for this service." |
+| **Evidence produced** | status URI hash, index hash, status value, token issue/expiry |
+| **Severity** | S1 High |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status list bit at credential index = `1` (revoked). Verifier must reject. |
+
+###### C.7.12 Status: Suspended
+
+The Status List Token indicates the credential is in a suspended state (temporarily invalid). The credential may be re-enabled later.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0012` |
+| **Decision** | reject (or route to step-up) → `verification_failed` |
+| **Signal** | `SDJWT_STATUS_SUSPENDED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential temporarily not acceptable." |
+| **Evidence produced** | status URI hash, index hash, status value, suspension reason if available |
+| **Severity** | S1 High |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status list value at credential index = `2` (suspended). Verifier must reject. |
+
+###### C.7.13 Status Reference Missing Where Required
+
+The credential type or RP profile requires a `status` claim, but the credential payload does not contain one. There is no way to check revocation/suspension.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0013` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `SDJWT_STATUS_MISSING` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Credential could not be verified." |
+| **Evidence produced** | credential type, status requirement, status claim presence |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | SD-JWT VC without `status` claim submitted to RP that requires status. Verifier must reject. |
+
+###### C.7.14 Status Fetch Blocked by Retrieval Policy
+
+The status list URI is present but the retrieval policy blocks it (unsafe scheme, host, IP, redirect, or size). The verifier cannot obtain status evidence.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0014` |
+| **Decision** | reject (blocked_by_policy) → `evidence_incomplete` |
+| **Signal** | `SDJWT_STATUS_FETCH_BLOCKED` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | blocked URI, policy reason, credential type |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Runtime Retrieval Guardrails ([§12.5.2](#1252-runtime-retrieval-guardrails)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status list URI redirects to private IP. Retrieval policy blocks after redirect limit. Verifier must reject. |
+
+###### C.7.15 Status Fetch Failed
+
+The status list URI passes retrieval policy but the fetch itself fails (network error, timeout, 5xx response, TLS failure). The status evidence could not be obtained.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0015` |
+| **Decision** | evidence_incomplete (use cached copy if fresh enough) → `evidence_incomplete` |
+| **Signal** | `SDJWT_STATUS_FETCH_FAILED` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | fetch error, URI hash, cache age if fallback used |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Status List Denial of Service ([§29.2.6](#2926-status-list-denial-of-service)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status list endpoint returns `503` Service Unavailable. No fresh cache available. Verifier must return `evidence_incomplete`. |
+
+###### C.7.16 Status List Token Signature Invalid
+
+The retrieved Status List Token JWT/CWT fails signature verification against the expected status authority key. The status evidence itself is not trustworthy.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0016` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_STATUS_SIGNATURE_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | status token signer, expected signer, signature result |
+| **Severity** | S1 High |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status List Token with flipped signature byte. Verifier must reject (status evidence tainted). |
+
+###### C.7.17 Status Evidence Stale Beyond Policy
+
+The Status List Token's signed `exp` or `ttl` has passed, and no fresher version is available. The evidence is too old to trust per RP policy.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0017` |
+| **Decision** | reject (or evidence_incomplete per use-case policy) → `expired` |
+| **Signal** | `SDJWT_STATUS_STALE` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Verification temporarily unavailable." |
+| **Evidence produced** | token `exp`, current time, cache age, refresh result |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | Status List Token expires 2026-01-01. Current time is 2026-04-25. No refresh possible. Verifier must reject. |
+
+###### C.7.18 Status Index Out of Bounds
+
+The credential's status `idx` value exceeds the decompressed status list length. The verifier must not read past the buffer boundary.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0018` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_STATUS_INDEX_OOB` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | status index, list length, status URI hash |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Status Verification Pipeline ([§12.8.1](#1281-status-verification-pipeline)); Status Failure Modes and Policy Actions ([§12.8.2](#1282-status-failure-modes-and-policy-actions)) |
+| **Test fixture** | Status list has 100,000 entries. Credential claims `idx: 999,999`. Verifier must reject as out-of-bounds. |
+
+###### C.7.19 Zip/Decompression Bomb in Status List
+
+The status list payload, when decompressed, expands to a size far exceeding the configured maximum (e.g., a 1 KB compressed list decompressing to 100 MB). The verifier must bound decompression.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0019` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `SDJWT_STATUS_DECOMPRESSION_BOMB` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential could not be verified." |
+| **Evidence produced** | compressed size, decompressed size, configured limit |
+| **Severity** | S2 Medium |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Parser and Resource-Exhaustion Hardening ([§12.12.2](#12122-parser-and-resource-exhaustion-hardening)) |
+| **Test fixture** | 1 KB compressed DEFLATE stream that expands to 500 MB. Verifier must reject at decompression limit (e.g., 10 MB). |
+
+###### C.7.20 LoTE Signature Invalid: Cache Poisoning
+
+The LoTE (List of Trusted Entities) or equivalent trust-list material fails signature verification against the expected Member State trust anchor. The trust list itself may have been poisoned.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0020` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `LOTE_SIG_INVALID` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification temporarily unavailable." |
+| **Evidence produced** | LoTE version, expected signer, signature result, cache version |
+| **Severity** | S0 Critical |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | LoTE Cache Poisoning ([§29.2.22](#29222-lote-cache-poisoning)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)); Algorithm and Key-Governance Matrix ([§12.5.4](#1254-algorithm-and-key-governance-matrix)) |
+| **Test fixture** | LoTE with corrupted signature. Verifier must reject as trust anchor evidence invalid. |
+
+###### C.7.21 Wallet Unit Attestation Invalid
+
+The Wallet Unit Attestation (WUA) fails verification — the signature is invalid, the format is malformed, or the attestation has expired. The WUA is the wallet's proof that it runs on a certified, uncompromised device with a valid WSCD. Failure suggests a rooted device, emulator, or tampered wallet.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0021` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `WUA_INVALID` |
+| **Error** | `ERR_DEVICE_ATTESTATION_FAILED`: "Wallet device verification failed." |
+| **Evidence produced** | WUA signature result, attestation format, expiry |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Compromised Wallet Environment: WUA Verification Failure ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)); WUA and Wallet Unit Attestation (§12.5.5) |
+| **Test fixture** | WUA with corrupted signature bytes. Verifier must reject and emit `WUA_INVALID`. |
+
+###### C.7.22 Wallet Solution Suspended
+
+The WUA references a Wallet Solution that appears on the Commission's suspended wallet list. All Wallet Units from this solution are suspect per CIR 2024/2977 Art. 5.4(b) cascade revocation.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-TRUST-0022` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `WUA_WALLET_SUSPENDED` |
+| **Error** | `ERR_WALLET_SUSPENDED`: "The wallet solution is under review." |
+| **Evidence produced** | wallet solution ID, suspension list source, suspension date |
+| **Severity** | S1 High |
+| **STRIDE** | — |
+| **Pipeline stage** | Trust & Status ([§12.5](#125-trust-material-status-sources-and-algorithm-governance)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Trust Material Resolver ([§12.5.1](#1251-trust-material-resolver)); WUA and Wallet Unit Attestation (§12.5.5) |
+| **Test fixture** | WUA referencing a wallet solution ID present on the Commission's suspension list. Verifier must reject all presentations from this solution. |
+
+#### C.8 Policy and DCQL Failures
+
+Policy evaluation is the stage that runs after cryptographic verification. A credential can be genuinely signed by a trusted issuer, current in the status list, and holder-bound to the session — while still failing the RP's DCQL, minimization, credential-set, or business-policy requirements. These failures are policy failures, not credential failures, and the result object must preserve that distinction.
+
+###### C.8.1 Required Claim Missing
+
+The DCQL query requires a specific claim path, but that claim is not present in the disclosed claims. The credential is valid but does not contain the requested information.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0001` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `DCQL_REQUIRED_CLAIM_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Required information was not provided." |
+| **Evidence produced** | Requested claim path, disclosed claim names, query id, credential type |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request requires `claims.path: ["birthdate"]`. Wallet submits PID that does not disclose `birthdate`. Verifier must reject as missing required claim. |
+
+###### C.8.2 Predicate/Value Filter Unsatisfied
+
+The DCQL query specifies a predicate or value filter (e.g., `age_over: 18`, `country: "DE"`), and the disclosed claim value does not satisfy the filter. The credential has the claim but the value is wrong.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0002` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `DCQL_PREDICATE_UNSATISFIED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Required information was not provided." |
+| **Evidence produced** | Predicate id, operator, received value, expected constraint |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request requires `age_over: 18`. Wallet discloses `birthdate` that computes to age 16. Verifier must reject. |
+
+###### C.8.3 Wrong Credential Type/Schema for Query
+
+The credential's `vct` or `docType` does not match any accepted type for this DCQL query, even though the credential is cryptographically valid and correctly formatted.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `DCQL_CREDENTIAL_TYPE_REJECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed." |
+| **Evidence produced** | Expected `vct_values`/`doctype_values`, received `vct`/`docType`, query id |
+| **Severity** | S3 Low |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request asks for `vct_values: ["urn:eudi:pid:1"]`. Wallet submits `vct: "urn:example:age_attestation"`. Verifier must reject. |
+
+###### C.8.4 Credential-Set Option Partially Satisfied
+
+The DCQL query requires a credential-set combination (e.g., PID AND mandate_credential), and the wallet satisfies some but not all of the required options. Partial satisfaction is not sufficient.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0004` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `DCQL_CREDENTIAL_SET_PARTIAL` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Required credentials not provided." |
+| **Evidence produced** | Credential-set id, required options, satisfied options, missing credential types |
+| **Severity** | S3 Low |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request requires `credential_set: [pid, mandate_credential]`. Wallet returns only PID. Verifier must reject. |
+
+###### C.8.5 Over-Disclosure: Unrequested PII Surfaced
+
+The wallet disclosed claims that were not requested in the DCQL query. The verifier must not surface unrequested PII into API responses, webhook payloads, UI, or audit exports.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0005` |
+| **Decision** | reject (or redact and flag) → `verification_failed (or verified with over_disclosure flag)` |
+| **Signal** | `DISCLOSURE_POLICY_VIOLATION` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed." |
+| **Evidence produced** | Requested claim names, received claim names, over-disclosed claim names |
+| **Severity** | S2 Medium |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request asks for `given_name, family_name`. Wallet also discloses `birthdate, address`. Verifier must detect and flag over-disclosure. |
+
+###### C.8.6 No-Disclosure Claim Leakage
+
+The request intentionally asks only for credential type/trust (no claim values — "no-disclosure" presentation), but the verifier leaks attribute values into result surfaces, audit logs, or SIEM events.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0006` |
+| **Decision** | reject (or redact) → `verification_failed` |
+| **Signal** | `DISCLOSURE_NO_DISCLOSURE_LEAK` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Verification could not be completed." |
+| **Evidence produced** | Leaked claim names, redaction decision, downstream surface check |
+| **Severity** | S1 High |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Request specifies no claim paths (type-only verification). Verifier's audit log contains raw `birthdate` value. Verifier must flag as policy violation. |
+
+###### C.8.7 Policy Engine Returns Unversioned Rule Result
+
+The policy engine returns a decision without a policy id and version. The RP cannot determine which policy version produced the result, making audit reconstruction impossible.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0007` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `POLICY_UNVERSIONED_RESULT` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification could not be completed." |
+| **Evidence produced** | Policy result, missing policy id, missing version |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Policy engine returns `{result: "pass"}` without `policy_id` or `policy_version`. Verifier must reject. |
+
+###### C.8.8 Policy Engine Omits Skipped Prerequisite Checks
+
+The policy engine's output does not include the results of prerequisite checks (issuer trust, status, holder binding) that were evaluated earlier but are prerequisites for policy evaluation. Missing context makes the policy decision unverifiable.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0008` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `POLICY_MISSING_PREREQUISITES` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification could not be completed." |
+| **Evidence produced** | Policy result, missing prerequisite check ids |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Policy engine returns `{result: "pass", checks: [{id: "required_claim.birthdate", result: "pass"}]}` — missing issuer_trust, status, holder_binding prerequisites. Verifier must reject. |
+
+###### C.8.9 Policy Engine Cannot Explain Terminal Failure
+
+The policy engine returns a `fail` decision but does not include which specific check(s) failed. The RP cannot determine why the presentation was rejected.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0009` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `POLICY_UNEXPLAINED_FAILURE` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification could not be completed." |
+| **Evidence produced** | Policy result, missing failure details |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Policy engine returns `{result: "fail"}` with no `checks` array and no `failure_reason`. Verifier must reject. |
+
+###### C.8.10 Policy Engine Returns Success Without Required Evidence Dimensions
+
+The policy engine returns `pass` but the result object is missing required evidence dimensions (issuer trust, status, holder binding, disclosure inventory) that the verifier contract requires.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-POLICY-0010` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `POLICY_INCOMPLETE_EVIDENCE` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification could not be completed." |
+| **Evidence produced** | Policy result, missing evidence dimensions |
+| **Severity** | S1 High |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Policy & DCQL ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Policy-After-Crypto Enforcement ([§12.4.2](#1242-policy-after-crypto-enforcement)) |
+| **Test fixture** | Policy engine returns `{result: "pass", checks: []}` — no per-check evidence at all. Verifier must reject. |
+
+#### C.9 Result and Audit Failures
+
+The canonical result object is the verifier's product. APIs, webhooks, operator UI, audit export, and SIEM events may redact differently, but they must derive from the same result. Failures in this stage are result-fidelity failures: the verifier correctly detected an issue in the pipeline but fails to represent it accurately or consistently across reporting surfaces.
+
+###### C.9.1 Terminal Status Without Parsed Credential Evidence
+
+The result object has a terminal state (e.g., `verified`), but the `credentials` array is empty or missing per-check evidence (issuer_trust, status, holder_binding). The lifecycle label says success but there are no credential-level facts backing it.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0001` |
+| **Decision** | reject → `evidence_incomplete` |
+| **Signal** | `RESULT_MISSING_EVIDENCE` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "Verification could not be completed." |
+| **Evidence produced** | terminal state, credentials array length, missing evidence dimensions |
+| **Severity** | S1 High |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Canonical Result Object ([§12.11.1](#12111-canonical-result-object)); Result Schema and Enum Contract ([§12.11.2](#12112-result-schema-and-enum-contract)) |
+| **Test fixture** | Result object has `transaction_state: "verified"` but `credentials: []`. Verifier must reject as result fidelity defect. |
+
+###### C.9.2 Audit Export Missing Request Snapshot
+
+The audit export contains the terminal result, but the request snapshot evidence (request-object hash, nonce id, response mode, policy version) is absent. The audit trail cannot reconstruct what the wallet was asked for.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0004` |
+| **Decision** | reject (audit gap — evidence_incomplete) → `evidence_incomplete` |
+| **Signal** | `RESULT_AUDIT_SNAPSHOT_MISSING` |
+| **Error** | `ERR_TRUST_UNAVAILABLE`: "N/A (operations concern)" |
+| **Evidence produced** | audit record id, present/missing request snapshot fields |
+| **Severity** | S2 Medium |
+| **STRIDE** | Repudiation |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Result Fidelity and Surface Parity ([§12.11.5](#12115-result-fidelity-and-surface-parity)) |
+| **Test fixture** | Audit export has `credentials` evidence but no `request.snapshot_hash`, `request.response_mode`, or `request.policy_id`. Verifier must flag. |
+
+###### C.9.3 Post-Verification Open Redirect
+
+An attacker-controlled `return_to` parameter, cookie, or decoded state value is used as the post-verification redirect target. The verifier must only redirect to server-approved destinations.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0006` |
+| **Decision** | reject (ignore attacker-controlled redirect) → `N/A` |
+| **Signal** | `RESULT_OPEN_REDIRECT` |
+| **Error** | N/A |
+| **Evidence produced** | attacker-supplied redirect target, allowed destinations |
+| **Severity** | S1 High |
+| **STRIDE** | Elevation of Privilege |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Post-Verification Open Redirect ([§29.2.31](#29231-post-verification-open-redirect)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Request-Object and URL-Surface Lifecycle ([§12.3.4](#1234-request-object-and-url-surface-lifecycle)) |
+| **Test fixture** | Wallet response or request parameter contains `return_to: "https://evil.example"`. Verifier must ignore and redirect only to registered RP URL. |
+
+###### C.9.4 Notification Delivery Missing Verifiable Authentication
+
+A result notification (webhook, callback, SSE event, or streaming push) arrives at the consumer without verifiable authentication — no HMAC/JWT signature, no mTLS client certificate, or the authentication does not verify. The notification could have been forged or replayed by an intermediary. The verifier must authenticate every outbound result delivery, regardless of channel.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0007` |
+| **Decision** | reject (do not act on unauthenticated notification) → `N/A` |
+| **Signal** | `RESULT_DELIVERY_AUTH_MISSING` |
+| **Error** | N/A |
+| **Evidence produced** | delivery channel, authentication method, authentication result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Result Fidelity and Surface Parity ([§12.11.5](#12115-result-fidelity-and-surface-parity)) |
+| **Test fixture** | Webhook POST with no `X-Signature` header or invalid HMAC — or SSE push without mTLS. Verifier must discard unauthenticated delivery. |
+
+###### C.9.5 Issuer Error Contract Not Stable
+
+The issuer-side verifier (OID4VCI) rejects a known-bad input (missing proof, unknown credential configuration) but returns `500 Internal Server Error` or leaks internal error codes instead of a stable, protocol-conformant validation response (`400` with structured error).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0008` |
+| **Decision** | reject (but the REJECTION itself is defective if it exposes internals) → `N/A` |
+| **Signal** | `RESULT_ERROR_CONTRACT_UNSTABLE` |
+| **Error** | N/A |
+| **Evidence produced** | error response status, response body class, expected protocol error structure |
+| **Severity** | S2 Medium |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Security Error Discrepancy Oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | External Error Contracts ([§12.10.3](#12103-external-error-contracts)) |
+| **Test fixture** | Submit credential request with missing proof JWT to OID4VCI token endpoint. Must return `400 invalid_proof`, not `500` with stack trace. |
+
+###### C.9.6 Verifier Error Contract Not Stable
+
+The presentation verifier rejects a known-bad input (missing wallet response, unexpected response mode) but returns opaque `500`, omits required error codes, or silently accepts. The error contract must be stable, non-leaking, and protocol-conformant.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-RESULT-0009` |
+| **Decision** | reject (but the REJECTION itself is defective) → `N/A` |
+| **Signal** | `RESULT_ERROR_CONTRACT_UNSTABLE` |
+| **Error** | N/A |
+| **Evidence produced** | error response status, response body class, expected protocol error |
+| **Severity** | S2 Medium |
+| **STRIDE** | Information Disclosure |
+| **Pipeline stage** | Result & Audit ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Security Error Discrepancy Oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | External Error Contracts ([§12.10.3](#12103-external-error-contracts)) |
+| **Test fixture** | Submit unencrypted `direct_post` response where `direct_post.jwt` was required. Must return stable `400`-class error with structured body, not `500` or silent acceptance. |
+
+#### C.10 OID4VCI Verification Failures
+
+When the RP acts as an issuer, the same verifier vocabulary validates inbound proof-of-possession, wallet attestation, key attestation, DPoP binding, pre-auth code binding, and credential-scope enforcement before a separate issuance workflow continues. These checks run at the OID4VCI Token Endpoint and Credential Endpoint — they are issuance-adjacent verifier-engine checks, not credential lifecycle operations.
+
+###### C.10.1 Proof JWT Signature Bytes Tampered
+
+The proof JWT at the OID4VCI Token Endpoint has flipped signature bytes, causing verification failure against the declared wallet key.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0001` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | proof key thumbprint, signature result |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Forgery ([§29.2.36](#29236-credential-forgery)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Tamper with the last 4 signature bytes of proof JWT. Verifier must reject with signature failure. |
+
+###### C.10.2 Proof JWT Wrong Nonce/c_nonce
+
+The proof JWT `nonce` claim does not match the `c_nonce` issued for this credential session. The proof was created for a different issuance session.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0002` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_NONCE_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | expected `c_nonce` hash, received `nonce` hash |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Proof JWT with `nonce` from session A submitted to session B. Verifier must reject. |
+
+###### C.10.3 Proof JWT Wrong Audience
+
+The proof JWT `aud` claim does not match the issuer's Token Endpoint URL. The proof was created for a different issuer.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0003` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_AUD_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | expected audience, received audience |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Proof JWT with `aud: "https://other-issuer.example/token"` submitted to `https://my-issuer.example/token`. Reject. |
+
+###### C.10.4 Proof JWT Stale or Future iat
+
+The proof JWT `iat` claim is outside the configured skew window (too far in the past or in the future). A stale proof may have been captured and replayed.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0004` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_IAT_SKEW` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | `iat` value, verifier clock, skew policy |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)); Clock, Freshness, and Skew Controls ([§12.8.3](#1283-clock-freshness-and-skew-controls)) |
+| **Test fixture** | Proof JWT with `iat` 10 minutes in the past, skew policy is 60 seconds. Reject. |
+
+###### C.10.5 Proof JWT alg=none or Unsupported Algorithm
+
+The proof JWT uses `alg: "none"` or an algorithm outside the OID4VCI proof algorithm allowlist.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0005` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_ALG_REJECTED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | received `alg`, allowed algorithms |
+| **Severity** | S0 Critical |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Proof JWT with `alg: "none"`. Verifier must reject before attempting signature verification. |
+
+###### C.10.6 DPoP jti Replay
+
+The DPoP proof's `jti` (JWT ID) has already been used in a previous request within the proof lifetime. DPoP `jti` must be unique per request.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0006` |
+| **Decision** | reject → `duplicate` |
+| **Signal** | `ISSUANCE_DPOP_JTI_REPLAY` |
+| **Error** | `ERR_DUPLICATE_SUBMISSION`: "Credential request could not be processed." |
+| **Evidence produced** | `jti` value, first seen timestamp, replay detection |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Submit DPoP proof with `jti: "abc123"`. Submit again with same `jti`. Second must be rejected. |
+
+###### C.10.7 Pre-Auth Code Paired with Wrong Session PIN
+
+A valid pre-authorized code is submitted with a PIN or transaction code from a different issuance session. The PIN/session-code binding fails.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0007` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PRE_AUTH_PIN_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | pre-auth code hash, PIN session binding result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Session A has `pre-auth code` + `PIN-1`. Attacker submits `pre-auth code` from session A with `PIN-2` from session B. Reject. |
+
+###### C.10.8 Credential Configuration ID Differs from Authorized Session
+
+The credential request specifies a `credential_configuration_id` that was not authorized in the original issuance session. The wallet is requesting a different credential type than what was approved.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0008` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_CONFIG_ID_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | authorized config id, requested config id |
+| **Severity** | S2 Medium |
+| **STRIDE** | Elevation of Privilege |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Session authorized for `pid_v1`. Request asks for `drivers_license_v1`. Reject. |
+
+###### C.10.9 DPoP Proof Missing Mandatory htu Claim
+
+The DPoP proof JWT is missing the `htu` (HTTP URI) claim that binds the proof to the target endpoint. Without `htu`, the proof can be replayed to other endpoints.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0009` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_DPOP_HTU_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | DPoP claims present, `htu` presence |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Submit DPoP proof without `htu` claim. Verifier must reject. |
+
+###### C.10.10 DPoP Proof ath Mismatch
+
+The DPoP proof's `ath` (access token hash) claim does not match the SHA-256 hash of the presented access token. The proof is not bound to this token.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0010` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_DPOP_ATH_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | expected `ath` (computed), received `ath` |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | DPoP proof with `ath` computed for token A, but presented with token B. Verifier must reject. |
+
+###### C.10.11 DPoP Proof Stale iat
+
+The DPoP proof's `iat` claim is too old (e.g., >24 hours) relative to the configured DPoP freshness policy. DPoP proofs must be fresh.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0011` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_DPOP_IAT_STALE` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | `iat` value, freshness policy, verifier clock |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | DPoP proof with `iat` 25 hours in the past, freshness policy is 24 hours. Reject. |
+
+###### C.10.12 Pre-Authorized Code Reuse
+
+The same pre-authorized code is submitted for token exchange twice. The first succeeds; the second must return `invalid_grant` (not 500, not a second credential issuance).
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0012` |
+| **Decision** | reject → `duplicate` |
+| **Signal** | `ISSUANCE_PRE_AUTH_CODE_REUSE` |
+| **Error** | `ERR_DUPLICATE_SUBMISSION`: "Authorization code expired or invalid." |
+| **Evidence produced** | pre-auth code hash, first use timestamp, second attempt timestamp |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Submit pre-authorized code once (success). Submit same code again. Must return `invalid_grant`. |
+
+###### C.10.13 Credential Scope Exceedance
+
+The credential request modifies the `credential_configuration_id` to request a credential type not authorized by the session's granted scope. The access token scope does not cover the requested credential.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0013` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_SCOPE_EXCEEDED` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | authorized scope, requested credential type |
+| **Severity** | S2 Medium |
+| **STRIDE** | Elevation of Privilege |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Access token scoped for `pid`. Credential request asks for `drivers_license`. Reject. |
+
+###### C.10.14 DPoP Concurrency Replay: Dual Threads with Same jti
+
+Two simultaneous POST threads arrive at the Token Endpoint with identical DPoP `jti` values. One must succeed; the other must be blocked to prevent split-brain double issuance.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0014` |
+| **Decision** | reject → `duplicate` |
+| **Signal** | `ISSUANCE_DPOP_CONCURRENT_REPLAY` |
+| **Error** | `ERR_DUPLICATE_SUBMISSION`: "Credential request could not be processed." |
+| **Evidence produced** | `jti` value, thread-1 result, thread-2 result, idempotency decision |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Credential Replay ([§29.2.2](#2922-credential-replay)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Fire two concurrent POSTs with same DPoP `jti`. One succeeds, one returns 409/duplicate. |
+
+###### C.10.15 Pre-Auth Code and Wrong PIN: Session Mix-Up
+
+A valid pre-authorized code is paired with a PIN/transaction code from a different issuance session. The session binding for the human-verified code fails.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0015` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PRE_AUTH_SESSION_MIXUP` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | pre-auth code session id, PIN session id, mismatch |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Session A has `pre-auth-code-A` + `PIN-A`. Attacker submits `pre-auth-code-A` + `PIN-B` from session B. Reject. |
+
+###### C.10.16 Stripped Proof-of-Possession on Credential Endpoint
+
+The OID4VCI Credential Endpoint request is missing the required proof JWT (`proof` or `proof_types` claim). The wallet did not provide proof-of-possession.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0016` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_MISSING` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed — proof required." |
+| **Evidence produced** | request structure, proof presence, required proof types |
+| **Severity** | S2 Medium |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | POST to Credential Endpoint without `proof` JWT. Must return `invalid_proof` error. |
+
+###### C.10.17 Tampered Wallet/Client Attestation JWT Signature
+
+The wallet/client attestation JWT at the OID4VCI Token Endpoint has a corrupted signature. The issuer must reject the forged attestation before issuing a credential.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0017` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_ATTESTATION_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | attestation type, attestation issuer, signature result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Tamper with the wallet attestation JWT signature. Verifier must reject. |
+
+###### C.10.18 Tampered Attestation PoP JWT Signature
+
+The attestation's proof-of-possession JWT (bound to the attestation key) has a corrupted signature. The wallet proves possession of the attestation with a different key than the attestation claims.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0018` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_ATTESTATION_POP_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | attestation PoP key, signing key, signature result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Flip a byte in the attestation PoP JWT signature. Verifier must reject. |
+
+###### C.10.19 Mismatched Attestation PoP Key
+
+The key declared in the attestation PoP JWT header (`jwk`) differs from the key that actually signed the PoP JWT. The key-binding integrity check fails even though the signature may be mathematically valid for a different key.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0019` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_ATTESTATION_POP_KEY_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | declared key thumbprint, signing key thumbprint, signature result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | PoP JWT header claims key-A. PoP JWT signed with key-B. Both signatures valid for their respective keys. Verifier must detect mismatch. |
+
+###### C.10.20 Tampered Key Attestation JWT Signature
+
+The hardware key attestation JWT has a corrupted signature. The issuer must reject the key attestation before binding a credential to an untrusted device key.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0020` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_KEY_ATTESTATION_SIG_INVALID` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | key attestation issuer, key attestation signature result |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Flip signature bytes in key attestation JWT. Verifier must reject. |
+
+###### C.10.21 Wrong-Key Proof JWT: Key Declared ≠ Key Used
+
+The OID4VCI proof JWT header advertises public key JWK-A, but the JWS was signed with private key of JWK-B. The signature is mathematically valid for key-B, but key-B is not the key the proof claims to use.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0021` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `ISSUANCE_PROOF_KEY_MISMATCH` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | declared key thumbprint, actual signing key thumbprint |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Proof JWT header `jwk` contains key-A. Signature verifies with key-B. Verifier must detect key mismatch. |
+
+###### C.10.22 DPoP htu URI Normalization Failure
+
+The DPoP proof's `htu` claim uses a semantically equivalent but syntactically different URI form (trailing slash, different case, different default port) than the actual endpoint URI. The verifier must either normalize both sides or document the exact URI form expected.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0022` |
+| **Decision** | reject (or accept if normalization is documented and configured) → `verification_failed (or verified)` |
+| **Signal** | `ISSUANCE_DPOP_HTU_NORMALIZATION` |
+| **Error** | `ERR_VERIFICATION_FAILED`: "Credential request could not be processed." |
+| **Evidence produced** | `htu` value (raw), endpoint URI (raw), normalization policy |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Endpoint is `https://issuer.example/token`. DPoP `htu` is `https://issuer.example/token/` (trailing slash). Behavior must be documented and stable. |
+
+###### C.10.23 PAR request_uri Expired
+
+A wallet attempts to use a PAR `request_uri` that has passed its `expires_in` lifetime. The issuer must reject with a specific expiry error rather than a generic `400`.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-ISSUANCE-0023` |
+| **Decision** | reject → `expired` |
+| **Signal** | `ISSUANCE_PAR_REQUEST_URI_EXPIRED` |
+| **Error** | `ERR_SESSION_EXPIRED`: "Authorization request expired." |
+| **Evidence produced** | request_uri hash, issued_at, expires_at, current time |
+| **Severity** | S3 Low |
+| **STRIDE** | Denial of Service |
+| **Pipeline stage** | OID4VCI Verification ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | none directly |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Issuance-Adjacent Negative Fixtures ([§12.12.4](#12124-issuance-adjacent-negative-fixtures)) |
+| **Test fixture** | Use PAR `request_uri` after `expires_in` seconds have elapsed. Must return specific expiry error. |
+
+#### C.11 Step-Up Verification Failures
+
+Step-up verification covers supplementary remote-proofing controls that RPs apply beyond the primary credential verification pipeline. These controls include biometric presentation-attack detection (PAD), capture-pipeline integrity checks, and document-authenticity validation during remote step-up ceremonies. Failures in this stage indicate active spoofing, injection, or documentary-evidence weakness — not credential-format or cryptographic issues.
+
+###### C.11.1 Presentation Attack Detected
+
+The biometric presentation-attack detection (PAD) system detected printed photos, masks, projected faces, screen replays, or other presentation attack instruments during the remote step-up ceremony. The presentation is not from a live person.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-STEPUP-0001` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `STEPUP_PRESENTATION_ATTACK_DETECTED` |
+| **Error** | `ERR_STEPUP_ATTACK_DETECTED`: "Supplementary verification could not be completed." |
+| **Evidence produced** | PAD score, attack classification, capture metadata |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing |
+| **Pipeline stage** | Step-Up Verification ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Remote Live-Person Step-Up: Biometric Presentation Attack ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Canonical Result Object ([§12.11.1](#12111-canonical-result-object)) |
+| **Test fixture** | Remote step-up session with a printed photo presented to the camera. PAD system must detect and emit `STEPUP_PRESENTATION_ATTACK_DETECTED`. |
+
+###### C.11.2 Capture-Pipeline Injection Detected
+
+Injection-attack or capture-integrity controls detected virtual cameras, stream substitution, deepfake insertion, media-pipeline tampering, or challenge-response inconsistency. The proofing engine is no longer evaluating trusted live-sensor input.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-STEPUP-0002` |
+| **Decision** | reject → `verification_failed` |
+| **Signal** | `STEPUP_CAPTURE_INJECTION_DETECTED` |
+| **Error** | `ERR_STEPUP_INJECTION_DETECTED`: "Supplementary verification could not be completed." |
+| **Evidence produced** | injection classification, media-pipeline state, challenge-response timing |
+| **Severity** | S1 High |
+| **STRIDE** | Spoofing / Tampering |
+| **Pipeline stage** | Step-Up Verification ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Remote Live-Person Step-Up: Capture-Pipeline Injection Attack ([§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Canonical Result Object ([§12.11.1](#12111-canonical-result-object)) |
+| **Test fixture** | Remote step-up session using a virtual camera feeding a pre-recorded video. Capture-integrity check must detect and emit `STEPUP_CAPTURE_INJECTION_DETECTED`. |
+
+###### C.11.3 Document Authenticity Failed
+
+Remote document fallback could not establish document authenticity or current possession. OCR succeeded but chip read was absent, signed chip-data validation was not performed, anti-cloning checks were not run where required, or replay detection failed. The RP extracted fields from a document but did not obtain enough evidence to trust it as genuine.
+
+| Field | Value |
+|:------|:------|
+| **ID** | `VERIFY-STEPUP-0003` |
+| **Decision** | reject or step-up → `verification_failed` |
+| **Signal** | `STEPUP_DOCUMENT_AUTH_FAILED` |
+| **Error** | `ERR_STEPUP_DOCUMENT_AUTH_FAILED`: "Document verification was inconclusive." |
+| **Evidence produced** | document type, extraction method (OCR vs chip), validation checks performed |
+| **Severity** | S2 Medium |
+| **STRIDE** | Tampering |
+| **Pipeline stage** | Step-Up Verification ([§12.11](#1211-canonical-verification-result-and-audit-evidence)) |
+| **Threat ([§29](#29-security-threat-catalogue))** | Fallback Document Proofing: OCR and Document Authenticity Failure ([§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)) |
+| **Implementation ([§12](#12-cryptographic-verification-pipeline-deep-dive))** | Result Schema and Enum Contract ([§12.11.2](#12112-result-schema-and-enum-contract)) |
+| **Test fixture** | Remote step-up with a document photocopy (no chip). OCR extracts fields successfully but chip read is absent. Verifier must not silently upgrade assurance. |
+
+#### C.12 Cross-Reference: VERIFY, Threat (§29), Signal (§30), Alert (§31)
+
+Each VERIFY entry in [§C.1](#c1-envelope-and-intake-failures)–[§C.12](#c12-cross-reference-verify-threat-29-signal-30-alert-31) carries individual cross-references to threats, signals, and implementation sections. This section provides a summary traceability matrix across the four-layer chain: threat identification ([§29](#29-security-threat-catalogue)) → signal emission ([§30](#30-verification-signal-intelligence)) → verifier failure classification ([§C](#appendix-c-verifier-failure-catalogue)) → alerting and monitoring ([§31](#31-monitoring-observability-and-operational-readiness)).
+
+**How the four layers connect:**
+
+1. **[§29](#29-security-threat-catalogue) (Threat Catalogue)** defines the adversarial scenarios — what an attacker can do, under what conditions, with what impact.
+2. **[§C](#appendix-c-verifier-failure-catalogue) (this appendix)** classifies every failure the verifier must detect, whether security-driven (mapped to a [§29](#29-security-threat-catalogue) threat) or correctness-driven (`none directly`).
+3. **[§30](#30-verification-signal-intelligence) (Signal Dictionary)** assigns each failure a stable internal signal code, severity, and STRIDE label — the machine-readable output the verifier emits.
+4. **[§31](#31-monitoring-observability-and-operational-readiness) (Monitoring, Alerts, and Audit Trail)** defines how operations teams consume those signals: alerting thresholds (S0/S1 → immediate page, S2 → review queue), SIEM correlation rules, and audit-trail retention.
+
+To navigate the chain in the opposite direction — starting from a signal and tracing back to its threat, regulation, and alert threshold — see [§30.9](#309-cross-reference-map-signal-to-threat-to-alert-to-regulation).
+
+| VERIFY stage ([§C](#appendix-c-verifier-failure-catalogue)) | Entry count | Primary threat ([§29](#29-security-threat-catalogue)) mapping | Primary signal ([§30](#30-verification-signal-intelligence)) mapping |
+|:------------------|:-----------:|:-----------------------------|:-----------------------------|
+| [§C.1](#c1-envelope-and-intake-failures) Envelope & Intake | 13 | Ephemeral Key Interception: Response Encryption ([§29.2.7](#2927-ephemeral-key-interception-response-encryption)); Browser-Side Session Hijacking: Post-Verification ([§29.2.17](#29217-browser-side-session-hijacking-post-verification)) | `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED`, `ENVELOPE_JWE_ALG_UNSUPPORTED`, `INTAKE_CONTENT_TYPE_MISMATCH` |
+| [§C.2](#c2-protocol-error-handling) Protocol Error Handling | 10 | WRPAC Private Key Compromise ([§29.2.3](#2923-wrpac-private-key-compromise)); JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)); User Device Malware: Consent Manipulation ([§29.2.16](#29216-user-device-malware-consent-manipulation)); Over-Identification ([§29.2.15](#29215-over-identification)) | `PROTO_INVALID_CLIENT`, `PROTO_INVALID_TRANSACTION_DATA`, `PROTO_INVALID_REQUEST`, `PROTO_SERVER_ERROR`, `PROTO_INVALID_REQUEST_URI_METHOD`, `PROTO_VP_FORMATS_NOT_SUPPORTED`, `PROTO_INVALID_SCOPE`, `PROTO_ACCESS_DENIED`, `PROTO_TEMPORARILY_UNAVAILABLE`, `PROTO_WALLET_UNAVAILABLE` |
+| [§C.3](#c3-session-binding-failures) Session Binding | 11 | Session Fixation ([§29.2.11](#29211-session-fixation-state-parameter-hijacking)); JAR Modification in Transit ([§29.2.8](#2928-jar-modification-in-transit)); Credential Replay ([§29.2.2](#2922-credential-replay)) | `SESSION_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, `SESSION_NONCE_REUSE`, `JARM_SIG_INVALID` |
+| [§C.4](#c4-format-router-failures) Format Router | 7 | none directly (structural) | `ROUTING_VP_TOKEN_NOT_OBJECT`, `DCQL_QUERY_ID_UNKNOWN`, `DCQL_FORMAT_MISMATCH` |
+| [§C.5](#c5-sd-jwt-vc-verification-failures) SD-JWT VC | 36 | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)); Credential Forgery ([§29.2.36](#29236-credential-forgery)); Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)); Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)); Credential Replay ([§29.2.2](#2922-credential-replay)); OID-FED Trust Chain Spoofing ([§29.2.27](#29227-oid-fed-trust-chain-spoofing)); Unbound Credential Forwarding ([§29.2.39](#29239-unbound-credential-forwarding)); VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)); Clock Manipulation/Environment Emulation ([§29.2.40](#29240-clock-manipulationenvironment-emulation)) | `SDJWT_SIG_INVALID`, `SDJWT_SIG_ALG_NONE`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_SIG_INVALID`, `KBJWT_AUD_MISMATCH`, `KBJWT_NONCE_MISMATCH`, `KBJWT_SD_HASH_MISMATCH`, `SDJWT_CNF_MISSING`, `SDJWT_DISCLOSURE_DUPLICATE_SALT`, `SDJWT_ISSUER_CHAIN_INVALID`, `SDJWT_ISSUER_UNTRUSTED`, `KBJWT_EXPIRED`, `KBJWT_MISSING` |
+| [§C.6](#c6-mdoccose-verification-failures) mdoc / COSE | 24 | Credential Forgery ([§29.2.36](#29236-credential-forgery)); Selective Disclosure Tampering ([§29.2.37](#29237-selective-disclosure-tampering)); Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)); Credential Replay ([§29.2.2](#2922-credential-replay)); Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)); VP Token Parser Exploitation ([§29.2.38](#29238-vp-token-parser-exploitation)); mdoc IACA Chain Validation Bypass ([§29.2.30](#29230-mdoc-iaca-chain-validation-bypass)); mdoc ReaderAuth Skip: Wallet Accepts Unauthenticated Reader ([§29.2.28](#29228-mdoc-readerauth-skip-wallet-accepts-unauthenticated-reader)) | `MDOC_CBOR_PARSE_ERROR`, `MDOC_MSO_SIG_INVALID`, `MDOC_DIGEST_MISMATCH`, `MDOC_DEVICE_SIG_INVALID`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`, `MDOC_DEVICE_MAC_INVALID`, `MDOC_IACA_REVOKED`, `MDOC_READER_AUTH_REJECTED`, `MDOC_REQUEST_REJECTED`, `MDOC_DATA_REQUEST_DENIED` |
+| [§C.7](#c7-trust-and-status-failures) Trust & Status | 22 | LoTE Cache Poisoning ([§29.2.22](#29222-lote-cache-poisoning)); Status List Denial of Service ([§29.2.6](#2926-status-list-denial-of-service)); Wallet Solution Suspension or Withdrawal ([§29.2.21](#29221-wallet-solution-suspension-or-withdrawal)); Compromised Wallet Environment: WUA Verification Failure ([§29.2.41](#29241-compromised-wallet-environment-wua-verification-failure)) | `LOTE_SIG_INVALID`, `SDJWT_STATUS_REVOKED`, `SDJWT_STATUS_SUSPENDED`, `SDJWT_STATUS_FETCH_FAILED`, `TRUST_SIGNATURE_INVALID`, `WUA_INVALID`, `WUA_WALLET_SUSPENDED`, `LOTE_EXPIRED`, `LOTE_FETCH_FAILED` |
+| [§C.8](#c8-policy-and-dcql-failures) Policy & DCQL | 10 | none directly | `DCQL_REQUIRED_CLAIM_MISSING`, `DCQL_PREDICATE_UNSATISFIED`, `DISCLOSURE_POLICY_VIOLATION` |
+| [§C.9](#c9-result-and-audit-failures) Result & Audit | 6 | Security Error Discrepancy Oracle ([§29.2.45](#29245-security-error-discrepancy-oracle)); Post-Verification Open Redirect ([§29.2.31](#29231-post-verification-open-redirect)) | `RESULT_MISSING_EVIDENCE`, `RESULT_OPEN_REDIRECT` |
+| [§C.10](#c10-oid4vci-verification-failures) OID4VCI | 23 | Algorithm Confusion/Type Confusion ([§29.2.23](#29223-algorithm-confusiontype-confusion)); Credential Forgery ([§29.2.36](#29236-credential-forgery)); Credential Replay ([§29.2.2](#2922-credential-replay)); Relay Attack: Cross-Device ([§29.2.4](#2924-relay-attack-cross-device)) | `ISSUANCE_PROOF_SIG_INVALID`, `ISSUANCE_PROOF_NONCE_MISMATCH`, `ISSUANCE_DPOP_JTI_REPLAY`, `ISSUANCE_ATTESTATION_SIG_INVALID` |
+| [§C.11](#c11-step-up-verification-failures) Step-Up Verification | 3 | Remote Live-Person Step-Up: Biometric Presentation Attack ([§29.2.42](#29242-remote-live-person-step-up-biometric-presentation-attack)); Remote Live-Person Step-Up: Capture-Pipeline Injection Attack ([§29.2.43](#29243-remote-live-person-step-up-capture-pipeline-injection-attack)); Fallback Document Proofing: OCR and Document Authenticity Failure ([§29.2.44](#29244-fallback-document-proofing-ocr-and-document-authenticity-failure)) | `STEPUP_PRESENTATION_ATTACK_DETECTED`, `STEPUP_CAPTURE_INJECTION_DETECTED`, `STEPUP_DOCUMENT_AUTH_FAILED` |
+| **Total** | **165** | Coverage across all STRIDE categories | Full signal traceability to [§30](#30-verification-signal-intelligence) |
+
+**How to read this table:** Each VERIFY entry in [§C.1](#c1-envelope-and-intake-failures)–[§C.12](#c12-cross-reference-verify-threat-29-signal-30-alert-31) lists its specific cross-references in the individual entry's **Cross-references** section. This summary table aggregates the mappings at the stage level. For precise traceability — e.g., which specific threat scenario corresponds to `VERIFY-SD-JWT-VC-0018` (KB-JWT `aud` mismatch) — consult the individual entry, then follow the threat reference to [§29](#29-security-threat-catalogue) and the signal reference to [§30](#30-verification-signal-intelligence).
+
+**Alert/monitoring integration:** Each VERIFY entry carries a severity level (S0–S4), a STRIDE classification, and an internal signal code. The signal code is the bridge to [§31](#31-monitoring-observability-and-operational-readiness) (Monitoring, Alerts, and Audit Trail): monitoring systems should alert on S0 and S1 signals, log S2 for review, and capture S3/S4 for operational trend analysis. The STRIDE classification enables SIEM correlation rules to group verifier failures with broader attack campaigns.
+
+---
+
 ## References
 
 #### Regulations and Implementing Acts
@@ -37432,7 +40636,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to processing of personal data; governs RP data handling obligations ([§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy), [§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2))
 - [Directive (EU) 2016/2102 — Web Accessibility Directive](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016L2102) — Accessibility requirements for public sector websites and mobile applications; source boundary for Wallet Provider / public-sector accessibility obligations referenced by [ARF Topic 54](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2332-topic-54-accessibility) (§21.5)
 - [Regulation (EU) 2022/2554 — Digital Operational Resilience Act (DORA)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022R2554) — ICT risk management, incident reporting, and third-party oversight for financial entities ([§21](#21-regulatory-compliance-eidas-psd2-gdpr-dora-and-nis2))
-- [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) (§21.6)
+- [Directive (EU) 2022/2555 — Network and Information Security Directive (NIS2)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) — Cybersecurity risk management and incident reporting for essential and important entities across critical sectors; Art. 21 (10 mandatory measures), Art. 23 (incident reporting timeline), Annex I/II (sector scope) ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
 - [Commission Implementing Regulation (EU) 2024/2690 — NIS2 Technical Requirements](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R2690) — Technical and methodological requirements for NIS2 Art. 21(2) risk management measures; mandatory for digital infrastructure entities and trust service providers; compliance benchmark for all NIS2-covered RPs ([§21.6](#216-nis2-considerations-for-critical-sector-rps))
 - [Directive (EU) 2019/882 — European Accessibility Act](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32019L0882) — Accessibility requirements for covered products and services, including private-sector services relevant to RP-controlled wallet entry points ([§21.5](#215-eaa-and-accessibility-compliance-for-rp-uis))
 - [Directive (EU) 2024/1640 — Anti-Money Laundering Directive (AMLD6)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L1640) — Customer due diligence, beneficial ownership, and AML/CFT obligations for obliged entities ([§22](#22-amlkyc-onboarding-via-eudi-wallet))
@@ -37446,12 +40650,12 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [Architecture and Reference Framework (ARF v2.8.0)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework) — EUDI Wallet Architecture and Reference Framework maintained by the European Commission; defines ecosystem roles, trust infrastructure, presentation flows, high-level requirements, certification governance, risk-register use, and accessibility governance context ([§1](#1-regulatory-foundation-eidas-20-cirs-arf-and-technical-specifications)–[§36](#36-open-questions))
 - [ARF Annex 2 Topic 10 — Issuing a PID or attestation](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/annexes/annex-2/annex-2.02-high-level-requirements-by-topic.md#a239-topic-10---issuing-a-pid-or-attestation) — Current HLR source for credential issuance, privacy-preserving reuse methods A-D, `credential_reuse_policy`, unique-element handling, and provider risk-policy mechanics ([§11.10](#1110-linkability-resistant-verification-practices), [§15](#15-sca-for-electronic-payments-lifecycle-flows-and-dynamic-linking))
 - [ARF Annex 2 Topic 54 — Accessibility](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/annexes/annex-2/annex-2.02-high-level-requirements-by-topic.md#a2342-topic-54---accessibility) — Wallet Provider / Wallet Unit accessibility HLR source (`ACC_01`, `ACC_02`) and source boundary for RP-side EAA / EN 301 549 governance ([§21.5](#215-eaa-and-accessibility-compliance-for-rp-uis))
-- [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Historical discussion paper on identity matching, cryptographic binding, and privacy-preserving combined presentations; current [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) uses `ACP_01`-`ACP_07` (§18)
+- [ARF Discussion Topic K — Combined Presentation of Attestations](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/k-combined-presentation-of-attestations.md) — Historical discussion paper on identity matching, cryptographic binding, and privacy-preserving combined presentations; current [Annex 2 Topic 18](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2311-topic-18-combined-presentations-of-attributes) uses `ACP_01`-`ACP_07` ([§18](#18-combined-presentations-lpid-and-mandate-credentials))
 - [ARF Annex 2 Topic 29 / Discussion Topic 29 — Representation (Natural Person Acting on Behalf of Another)](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/annexes/annex-2/annex-2.02-high-level-requirements-by-topic.md#a2318-topic-29---representation-paradigm) — Current HLRs mandate a future Rulebook for natural-person-to-natural-person representation attestations, including a unique attestation type, validity, nature-of-representation, authorised-operation attributes, and short-lived-or-revocable provider handling; legal-person mandates remain projected for the EBW timeline ([§18](#18-combined-presentations-lpid-and-mandate-credentials))
 - [ARF Annex 2 Topic 42 — Requirements for QTSPs to access Authentic Sources](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/annexes/annex-2/annex-2.02-high-level-requirements-by-topic.md#a2324-topic-42---requirements-for-qtsps-to-access-authentic-sources) — Upstream QEAA issuance path covering QTSP source discovery, requester authentication through Trusted Lists, User approval, per-attribute `match` / `no match` / `unknown` responses, deferred verification identifiers, and OOTS alignment ([§6.18.5](#6185-eaa-project-design-framework-regulatory-regime-first), [§11.13](#1113-pre-presentation-trust-checks-cir-2025847-cir-20251569))
 - [ARF Annex 2 Topic 52 — Relying Party intermediaries](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/annexes/annex-2/annex-2.02-high-level-requirements-by-topic.md#a2330-topic-52-relying-party-intermediaries) — Current HLRs for intermediary registration, end-RP relationship registration, WRPAC/WRPRC choreography, dual identity display, User-requested relationship verification, agreed verification set, conditional forwarding, and immediate deletion of PIDs/attestations/attributes/WUAs ([§24.7.5](#2475-intermediary-obligations), [§25](#25-intermediary-architecture-and-trust-flows), [§26.6](#266-callback-integration-architecture))
 - [EWC RFC005 — LPID (Legal Person Identification Data) Specification](https://github.com/EWC-consortium/eudi-wallet-rfcs/blob/main/ewc-rfc005-issue-legal-person-identification-data.md) — LPID attestation specification: VCT value `EWC_LPID_Attestation`, credential schema, issuer metadata, and SD-JWT VC profile (§3, [§6.15](#615-lpid-credential-format-legal-person))
-- [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Historical discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes; current [Annex 2 Topic 11](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a238-topic-11-pseudonyms) defines `PA_01`-`PA_31` (§16)
+- [ARF Discussion Topic E — Pseudonyms Including User Authentication Mechanism](https://github.com/eu-digital-identity-wallet/eudi-doc-architecture-and-reference-framework/blob/main/docs/discussion-topics/e-pseudonyms-including-user-authentication-mechanism.md) — Historical discussion paper on pseudonym types, use cases, and cryptographic binding to attested attributes; current [Annex 2 Topic 11](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a238-topic-11-pseudonyms) defines `PA_01`-`PA_31` ([§16](#16-pseudonym-based-authentication-and-webauthn))
 - [EUDI Standards and Technical Specifications (STS)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications) — Repository for all Technical Specifications (TS5–TS12) referenced in this document
 - [TS2 — Notification and Publication of Provider Information (v1.0.1)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts2-notification-publication-provider-information.md) — Provider-information publication model and inherited `LegalEntity` / `Provider` superclasses reused by RP registration ([§4](#4-rp-registration-data-model-and-registrar-api), [§15.5](#155-rp-as-credential-issuer-generalised-oid4vci-pattern))
 - [TS5 — Common Formats and API for RP Registration Information (v1.3)](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts5-common-formats-and-api-for-rp-registration-information.md) — Registrar API specification: OpenAPI definitions, registration data model, query/create/update operations, and RP contact-data publication ([§4](#4-rp-registration-data-model-and-registrar-api), [§20](#20-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy))
@@ -37467,7 +40671,7 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 
 - [Cloud Signature Consortium API Specification v2.0 (CSC API)](https://cloudsignatureconsortium.org/resources/download-api-specifications/) — RESTful API for remote digital signing services; mandated by CIR 2024/2979 Annex IV §3 as the current interoperability baseline for integrated SCAs relying on remote QSCDs ([§32](#32-qes-signing-flow-patterns)–[§33](#33-csc-api-signature-formats-and-rp-signing-obligations))
 - [Cloud Signature Consortium API Specification v2.2 (CSC API)](https://cloudsignatureconsortium.org/resources/csc-api-v2-2/) — Newer CSC runtime/profile surface published on 6 November 2025; used in `DR-0002` as forward-looking compatibility and protocol-shaping input alongside `ETSI TS 119 432`, while remaining distinct from the CIR-pinned v2.0 baseline ([§32](#32-qes-signing-flow-patterns)–[§33](#33-csc-api-signature-formats-and-rp-signing-obligations))
-- [ETSI TS 119 432 V1.3.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Protocols for remote digital signature creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/01.03.01_60/ts_119432v010301p.pdf) — Primary normative runtime source for RP-facing remote-signing flows, covering client security profile, `qesRequest` / `qesApprovalRequest` bindings, and CSC API interaction patterns (§32–§33)
+- [ETSI TS 119 432 V1.3.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Protocols for remote digital signature creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/119432/01.03.01_60/ts_119432v010301p.pdf) — Primary normative runtime source for RP-facing remote-signing flows, covering client security profile, `qesRequest` / `qesApprovalRequest` bindings, and CSC API interaction patterns ([§32](#32-qes-signing-flow-patterns)–[§33](#33-csc-api-signature-formats-and-rp-signing-obligations))
 - [ETSI TR 119 462 V1.1.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Wallet interfaces for trust services and signing](https://www.etsi.org/deliver/etsi_tr/119400_119499/119462/01.01.01_60/tr_119462v010101p.pdf) — Informative architecture report covering driving-application / SCA / SCDev role splits, signing-request interfaces, certificate-model variants, and standards gaps for wallet-based signing ([§32](#32-qes-signing-flow-patterns)–[§36](#36-open-questions))
 - [ETSI TS 119 431-1 — TSP Service Components Operating a Remote QSCD](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943101/) — Requirements for Trust Service Providers operating remote QSCDs; referenced by CIR 2025/1567 (§32–§33)
 - [ETSI TS 119 431-2 — TSP Service Components Supporting AdES Digital Signature Creation](https://www.etsi.org/deliver/etsi_ts/119400_119499/11943102/) — Requirements for TSP components creating AdES digital signatures ([§32](#32-qes-signing-flow-patterns)–[§33](#33-csc-api-signature-formats-and-rp-signing-obligations))
@@ -37482,15 +40686,15 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [OpenID for Verifiable Presentations 1.0 (OpenID4VP)](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html) — Final Specification (July 2025); extends OAuth 2.0 for Wallet-based credential presentation via `vp_token` and DCQL ([§8](#8-openid4vp-and-haip-protocol-foundations)–[§10](#10-cross-device-remote-presentation))
 - [High Assurance Interoperability Profile 1.0 (HAIP)](https://openid.net/specs/openid4vc-high-assurance-interoperability-profile-1_0.html) — Final Specification (December 2025); profiles JAR, `x509_hash`, DCQL, and encrypted response handling for EUDI Wallet ecosystem presentation flows ([§7](#7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape))
 - [OpenID for Verifiable Credential Issuance 1.0 (OID4VCI)](https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html) — Credential issuance protocol used by PID Providers and Attestation Providers to issue credentials to Wallet Units ([§14](#14-w2w-presentation-flow-ts9))
-- [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§8](#8-openid4vp-and-haip-protocol-foundations), [§10](#10-cross-device-remote-presentation), Appendix A)
+- [SD-JWT-based Verifiable Credentials (SD-JWT VC, draft-15)](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/) — IETF draft (draft-ietf-oauth-sd-jwt-vc-15, February 2026); JSON-based selective disclosure credential format with key binding ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§8](#8-openid4vp-and-haip-protocol-foundations), [§10](#10-cross-device-remote-presentation), [§A](#appendix-a-exact-response-payloads))
 - [Selective Disclosure for JSON Web Tokens (SD-JWT, RFC 9901)](https://www.rfc-editor.org/rfc/rfc9901) — IETF RFC 9901 (November 2025); base selective disclosure primitive for JWTs — `_sd` hash mechanism, Disclosures, and optional Key Binding JWT; SD-JWT VC (above) is an application profile built on this specification (§6.1, [§11.3](#113-verification-checklist-for-sd-jwt-vc))
 - [ISO/IEC 18013-5 — Personal Identification — ISO-Compliant Driving Licence — Part 5](https://www.iso.org/standard/69084.html) — Mobile document (mdoc) data retrieval via BLE/NFC; defines DeviceEngagement, DeviceRequest, DeviceResponse, and SessionTranscript ([§6](#6-credential-formats-sd-jwt-vc-mdoc-and-format-selection), [§12](#12-cryptographic-verification-pipeline-deep-dive), [§13](#13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised))
-- [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP (§9)
+- [ISO/IEC 18013-7 — Part 7: Mobile Document Online Presentation](https://www.iso.org/standard/82772.html) — Extends ISO 18013-5 with online presentation of mdoc via OpenID4VP ([§9](#9-same-device-remote-presentation))
 - [RFC 9101 — JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/rfc9101/) — Signed and optionally encrypted authorization request parameters; mandated by HAIP for all RP presentation requests (§7, [§8](#8-openid4vp-and-haip-protocol-foundations))
 - [RFC 6962 — Certificate Transparency](https://datatracker.ietf.org/doc/rfc6962/) — Baseline Certificate Transparency framework and artefact model still referenced by ETSI CT guidance and ecosystem transition language for WRPAC transparency ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
 - [RFC 9162 — Certificate Transparency Version 2.0](https://datatracker.ietf.org/doc/rfc9162/) — Public audit log for X.509 certificates; relevant to WRPAC transparency and monitoring ([§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
-- [IETF Token Status List (draft-ietf-oauth-status-list-20)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list) — Current IETF draft for Status List Tokens in JWT and CWT form, including compressed status-list encoding, `exp` / `ttl` freshness claims, and credential status verification; used by PID Providers and Attestation Providers for real-time status verification ([§10](#10-cross-device-remote-presentation), §12, Appendix B)
-- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device and API-mediated cross-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, Appendix A)
+- [IETF Token Status List (draft-ietf-oauth-status-list-20)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-status-list) — Current IETF draft for Status List Tokens in JWT and CWT form, including compressed status-list encoding, `exp` / `ttl` freshness claims, and credential status verification; used by PID Providers and Attestation Providers for real-time status verification ([§10](#10-cross-device-remote-presentation), §12, [§B](#appendix-b-status-list-verification-deep-dive))
+- [W3C Digital Credentials API (DC API)](https://wicg.github.io/digital-credentials/) — Browser API for same-device and API-mediated cross-device credential presentation; invokes `navigator.credentials.get()` with OpenID4VP protocol (§8, [§A](#appendix-a-exact-response-payloads))
 - [ETSI TS 119 475 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Relying party attributes supporting EUDI Wallet user's authorization decisions](https://www.etsi.org/deliver/etsi_ts/119400_119499/119475/01.02.01_60/ts_119475v010201p.pdf) — Technical specification for RP attributes, WRPAC identity mapping, and WRPRC JWT/CWT structures ([§4](#4-rp-registration-data-model-and-registrar-api)–[§5](#5-trust-infrastructure-certificates-attestations-and-trusted-lists))
 - [ETSI TS 119 472-1 V1.2.1 (2026-02) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA credentials and claims](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947201/01.02.01_60/ts_11947201v010201p.pdf) — Supporting semantic baseline for PID/EAA categories, audience, subject identifiers, one-time-use, and status / short-lived semantics used by the RP-facing presentation profile ([§8](#8-openid4vp-and-haip-protocol-foundations)–[§18](#18-combined-presentations-lpid-and-mandate-credentials))
 - [ETSI TS 119 472-2 V1.2.1 (2026-03) — Electronic Signatures and Trust Infrastructures (ESI); Profile for implementation of PID and EAA presentations to a Relying Party](https://www.etsi.org/deliver/etsi_ts/119400_119499/11947202/01.02.01_60/ts_11947202v010201p.pdf) — Primary ETSI presentation profile for RP-facing OpenID4VC-HAIP and ISO/IEC-mdoc request / response construction, including `verifier_info`, `requestInfo`, and API-mediated vs non-API-mediated transport rules ([§8](#8-openid4vp-and-haip-protocol-foundations)–[§18](#18-combined-presentations-lpid-and-mandate-credentials))
@@ -37510,13 +40714,13 @@ If the extracted status value is `1` (or any non-zero value for `bits=1`), the c
 - [IRTF draft-irtf-cfrg-bbs-signatures-10 — The BBS Signature Scheme](https://datatracker.ietf.org/doc/draft-irtf-cfrg-bbs-signatures/) — IRTF CFRG Internet-Draft (Informational, January 2026); BBS multi-message signature scheme on BLS12-381 pairing-friendly curves enabling selective disclosure and unlinkable derived proofs; future candidate for EUDI ZKP credential formats ([§11.9](#119-trust-boundaries-user-binding-wallet-trust-device-binding-and-zkp-roadmap), [§11.10](#1110-linkability-resistant-verification-practices), [§19](#19-age-verification-attestation-pipelines))
 - [OpenID Federation 1.0](https://openid.net/specs/openid-federation-1_0.html) — OIDF specification for hierarchical trust chain resolution via signed Entity Statements and Trust Marks; used by Member States as alternative trust management model alongside X.509-based LoTE ([§5.5](#55-trusted-lists-and-lists-of-trusted-entities), [§29](#29-security-threat-catalogue))
 - [RFC 6979 — Deterministic Usage of the Digital Signature Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm (ECDSA)](https://www.rfc-editor.org/rfc/rfc6979) — IETF RFC specifying deterministic ECDSA nonce generation to eliminate nonce bias vulnerabilities; recommended for RP-side JAR signing implementations ([§29](#29-security-threat-catalogue))
-- [RFC 9700 — OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html) — IETF BCP covering open redirector prevention, exact redirect URI matching, PKCE, and sender-constrained tokens; foundational security baseline for all OAuth 2.0/OID4VP implementations (§29)
+- [RFC 9700 — OAuth 2.0 Security Best Current Practice](https://www.rfc-editor.org/rfc/rfc9700.html) — IETF BCP covering open redirector prevention, exact redirect URI matching, PKCE, and sender-constrained tokens; foundational security baseline for all OAuth 2.0/OID4VP implementations ([§29](#29-security-threat-catalogue))
 - [University of Stuttgart — Formal Security Analysis of OID4VC Protocols](https://sec.ise.uni-stuttgart.de/research/oid4vc/) — Formal analysis of OpenID4VP and OpenID4VCI using the Web Infrastructure Model (WIM); identifies credential injection in Pre-Authorized Code flow, cross-device session confusion, and proves security properties of same-device flows under specified assumptions ([§29](#29-security-threat-catalogue))
 
 #### Conformance Testing and Interoperability Resources
 
 - [OIDF Conformance Suite](https://gitlab.com/openid/conformance-suite/) — Open-source conformance testing harness for OpenID4VP 1.0, HAIP 1.0, and OpenID4VCI 1.0; supports automated CI/CD integration via `run-test-plan.py` ([§11.8](#118-pre-production-conformance-testing))
-- [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net (§11.8.1)
+- [OpenID Foundation Self-Certification Programme](https://openid.net/certification/) — OIDF-managed certification programme for OpenID4VP/HAIP implementations; launched February 2026; listings published on openid.net ([§11.8.1](#1181-oidf-oid4vphaip-conformance-suite-and-self-certification))
 - [German EUDI Wallet Sandbox (SPRIND)](https://opencode.de) — First Member State–operated RP test environment for PID use cases; managed by the Federal Agency for Disruptive Innovation; Ecosystem Management Portal for RP onboarding ([§28.3](#283-wallet-interoperability-testing))
 - [EUDI Wallets Launchpad 2025 — Technical Report](https://ec.europa.eu/digital-building-blocks/sites/display/EUDIGITALIDENTITYWALLET/EUDI+Wallets+Launchpad) — European Commission interoperability event (Dec 10–12, 2025, Brussels); 570+ tests, 420 successful, 60+ testers from 16 countries ([§28.3](#283-wallet-interoperability-testing))
 - [POTENTIAL LSP — Final Report](https://potential-eudigitalidentity.eu) — Large-Scale Pilot covering banking KYC, eGov, mDL, QES, ePrescription, SIM registration; 19 MS + Ukraine; 1,300+ tests, 1,000+ successful transactions, 249 cross-border; concluded Sep 2025 ([§28.3](#283-wallet-interoperability-testing))

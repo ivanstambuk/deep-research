@@ -4,8 +4,8 @@ import arfTopicReference from './data/arf-topics-v2.8.0.js';
 
 const LOOKBACK_LIMIT = 96;
 const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
-const XREF_RANGE_TOKEN_RE = /(§\d+(?:\.\d+)*)(\s*[-–—]\s*(?:§\s*)?\d+(?:\.\d+)*)/g;
-const XREF_TOKEN_RE = /§\d+(?:\.\d+)*/g;
+const XREF_RANGE_TOKEN_RE = /(§(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*))(?![A-Za-z0-9])(\s*[-–—]\s*(?:§\s*)?(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9]))/g;
+const XREF_TOKEN_RE = /§(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9])/g;
 const ARF_TOPIC_TOKEN_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)\b/g;
 const BARE_ARF_TOPIC_TOKEN_RE = /\b(?:(?:Annex(?:\s+2)?|Discussion(?:\s+Paper)?)\s+)?Topic\s+(?:[A-Z]{1,2}|\d+)\b(?!\s*\/\s*(?:Topic\s+)?[A-Z]{1,2}\b)/g;
 const LABEL_TOKEN_RE = /\b(?:Key Finding \d+|KF \d+|Finding F-?\d+|Finding \d+|OQ(?:\d+|-\d+|\s+#\d+|\s+\d+)|Open Question(?:\s+#\d+|\s+\d+))\b/g;
@@ -101,12 +101,17 @@ export function slugifyHeadingText(value, slugger = new GithubSlugger()) {
 }
 
 export function extractHeadingSectionNumber(value) {
-  const match = normalizeWhitespace(value).match(/^§?\s*(\d+(?:\.\d+)*)(?:\.)?(?=\s|$)/);
+  // Handle "Appendix A: Title" pattern → extract "A" as section number
+  const appendixMatch = normalizeWhitespace(value).match(/^Appendix\s+([A-Z])(?:\.\d+)*[\s:]/i);
+  if (appendixMatch) {
+    return appendixMatch[1];
+  }
+  const match = normalizeWhitespace(value).match(/^§?\s*([A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?:\.)?(?=\s|$)/);
   return match ? match[1] : null;
 }
 
 function stripLeadingSectionEnumeration(value) {
-  return normalizeWhitespace(value).replace(/^§?\s*\d+(?:\.\d+)*(?:\.)?\s+/, '');
+  return normalizeWhitespace(value).replace(/^§?\s*(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?:\.)?\s+/, '');
 }
 
 function isOpenQuestionsHeading(value) {
@@ -508,6 +513,27 @@ function lookbackEndsWithTargetHeadingTitle({ lookback, target }) {
 function hasInternalReferenceCue({ lookback, trailingText, target = null }) {
   const normalizedPrefix = normalizeCitationLookback(lookback);
 
+  // Parenthesized section reference: distinguish internal cross-references like
+  // "SD-JWT VC Verification (§12.6)" from external citations like "RFC 9449 (§4)".
+  // The key difference: external citations end with the spec+version identifier
+  // directly before the paren (e.g., "RFC 9449"), while internal refs have a
+  // descriptive word between the spec name and paren (e.g., "SD-JWT VC Verification").
+  // Check if the last token before the paren looks like a spec version/number
+  // (digits or digits with dots) preceded by a spec name — if so, it's external.
+  if (/\(\s*$/.test(lookback) && /^\s*\)/.test(trailingText)) {
+    // Extract the word directly before the opening paren.
+    // "RFC 9449 (§4)" → last word is "9449" (a number)
+    // "SD-JWT VC Verification (§12.6)" → last word is "Verification" (not a number)
+    const lastWordMatch = normalizedPrefix.match(/\b(\w+)\s*$/);
+    if (lastWordMatch && /^\d/.test(lastWordMatch[1])) {
+      // Last word starts with digits — likely a spec version/number → external.
+      // Fall through to normal external citation detection.
+    } else {
+      // Last word is not a number — likely a descriptive name → internal.
+      return true;
+    }
+  }
+
   if (INTERNAL_REFERENCE_PREFIX_RE.test(normalizedPrefix) || /DR-\d{4}\s*$/i.test(normalizedPrefix)) {
     return true;
   }
@@ -767,7 +793,7 @@ function findNextRegexMatch(regex, value, cursor) {
 }
 
 function parseSectionRangeTail(rangeTailText) {
-  const match = rangeTailText.match(/^(\s*[-–—]\s*)(?:§\s*)?(\d+(?:\.\d+)*)$/);
+  const match = rangeTailText.match(/^(\s*[-–—]\s*)(?:§\s*)?([A-Z](?:\.\d+)*|\d+(?:\.\d+)*)$/);
   if (!match) {
     return null;
   }

@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-04-08
-date_updated: 2026-04-23
+date_updated: 2026-04-27
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
 reader_allow_h3_chapter_split: false
@@ -14,7 +14,7 @@ reader_allow_h3_chapter_split: false
 <!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
 
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
-**DR-0005** · Published · Last updated 2026-04-23
+**DR-0005** · Published · Last updated 2026-04-27
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0005-pii-protection-rest-api-design/reader-orientation)
@@ -402,7 +402,7 @@ Before the detailed analysis, the following rules represent the opinionated defa
 2. **For search/lookup by personal data, use POST request bodies.** Return opaque identifiers and switch subsequent reads back to GET ([§3.1](#31-post-body-migration)).
 3. **Use single-use or short-lived tokens for bounded link workflows** — email verification, password reset, magic links ([§3.5](#35-temporary-single-use-tokens)).
 4. **Treat encryption and tokenization in URLs as legacy accommodation, not greenfield default.** FPE, JWE, and vault-based tokenization are powerful but add complexity that is unnecessary when opaque identifiers suffice ([§4](#4-cryptographic-patterns), [§5](#5-pseudonymization-and-tokenization-patterns)).
-5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity (§8).
+5. **Use mTLS, PAR, and HTTP Message Signing only where they solve a clearly bounded adjacent problem** — B2B identity, OAuth parameter protection, request integrity ([§8](#8-protocol-and-deployment-contexts)).
 6. **Enforce all of these at design time** via API contracts, linting rules, CI gates, and review processes.
 7. **Remember that pseudonymised and encrypted data remains personal data under GDPR.** Tokenization and encryption reduce risk but do not remove compliance obligations ([§2.3.3](#233-encrypted-personal-data-remains-personal-data), F3).
 8. **Audit observability pipelines for re-exposure.** Logs, traces, analytics, and error responses can reintroduce the PII that encryption was supposed to protect ([§6](#6-infrastructure-and-operational-patterns), [§16](#16-call-chain-traceability), F8).
@@ -13192,7 +13192,7 @@ For existing APIs, follow the migration sequence in [§9](#9-migration-playbook-
 
 **R3. Use protocol mechanisms only where the problem is genuinely protocol-specific.**
 
-Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality (§8). Do not use them as rhetorical substitutes for fixing the resource model itself.
+Apply HTTP Message Signing, mTLS, and PAR where they address bounded issues such as integrity, workload identity, or OAuth redirect confidentiality ([§8](#8-protocol-and-deployment-contexts)). Do not use them as rhetorical substitutes for fixing the resource model itself.
 
 **R4. Prefer cleaner contracts over cryptographic cleverness unless compatibility forces otherwise.**
 

@@ -141,6 +141,67 @@ Tooling gaps are a collaboration issue, not an agent improvisation issue. If a d
 
 This is the highest-priority rule in this document. It overrides all other rules. When unsure whether to act, or if you suspect you might be stepping outside the strict prompt boundary, always default to asking.
 
+### Proactive Open Questions Before Planning (GitHub Copilot / VS Code)
+
+**Before creating a plan for a multi-step task — especially one involving many edits, a normalization sweep, or a structural refactor — proactively use `vscode_askQuestions` to surface open questions.** Do not wait for ambiguity to trigger this; use it preventively whenever the task has decision points that could change the plan's shape.
+
+**When to use:**
+- The user asks for a batch of edits and there are multiple valid approaches (e.g., rename vs. expand, strict mapping vs. fuzzy, which scope to include/exclude)
+- You need to choose between alternatives that affect the *shape* of the work (not just minor details)
+- The task has edge cases or ambiguities that you can resolve upfront rather than discovering mid-execution
+- You are about to create a plan or tracker with 5+ steps and have unresolved questions about scope, naming, or approach
+
+**How to use:**
+- Keep the question count small (2–4 questions maximum)
+- Use `allowFreeformInput: true` so the user can provide an answer not listed
+- **ALWAYS use the `vscode_askQuestions` tool — NEVER pose open questions as plain chat text.** If you have open questions that affect the plan's shape, the user must answer them through the tool's structured UI, not by typing replies in the chat. Open questions embedded in a chat summary are easy to miss, hard to track, and force the user to restate context that the tool already presents.
+
+**Mandatory question format — every `vscode_askQuestions` call must follow this structure:**
+
+The `message` field of each question must contain the following sections, using Markdown headers:
+
+1. **## Context** — Explain what the problem is, why the question is being asked, and what happens if the wrong choice is made. Include enough background that the user can make an informed decision without reading the plan file or chat history. Reference specific sections, files, or line numbers where relevant.
+
+2. **## Options** — Present each option as a **### Option X: Name** sub-header. Under each option, list:
+   - **Pro:** points (what benefits this choice provides)
+   - **Con:** points (what drawbacks or risks this choice carries)
+   - Be specific — not "simpler" or "more complex" but *why* and *for whom*.
+
+3. **My recommendation** — After all options, state which option you recommend and give a concrete rationale (1–3 sentences explaining *why* the recommended option is best, not just that it is best). Mark the recommended option with `(RECOMMENDED)` in the options array.
+
+**Example of the full format in a `message` field:**
+
+```
+## Context
+
+§30.3 defines 10 Layer 1 OID4VP protocol error signals. None have test fixtures in Appendix C. The inclusion principle (just added to the Appendix C intro) requires a fixture for every §30 signal. Existing C.1 fixtures test credential-bearing responses; the new fixtures test error responses (no credential at all). This distinction matters because an implementer reading C.1 expects envelope failures, not protocol error handling.
+
+## Options
+
+### Option A: Extend C.1 (C.1.14–C.1.23)
+- **Pro:** Simplest change — no structural changes, just append and renumber.
+- **Pro:** C.1 intro already mentions "Intake" broadly.
+- **Con:** Blurs the architectural distinction between credential-parsing failures and protocol error handling.
+
+### Option B: New substage C.1b (RECOMMENDED)
+- **Pro:** Architecturally clean — keeps credential-response failures separate from error-response handling.
+- **Pro:** Aligns with §30's layer structure (Layer 1 vs Layer 2).
+- **Con:** Slightly more complex numbering. No precedent for substages in Appendix C.
+
+### My recommendation: Option B
+Protocol errors occur at intake time but are architecturally distinct from envelope failures. C.1b keeps them at the right pipeline position without blurring the distinction.
+```
+
+**Minimum quality bar:**
+- Every option must have at least 2 pros OR 2 cons (bare options without analysis are not acceptable)
+- Every question must have a clear recommendation — never present options without taking a position
+- The user should be able to make an informed decision from the tool UI alone, without needing to ask "what does this mean?" or "why does this matter?"
+
+**Do NOT use for:**
+- Single, unambiguous edits (just do them)
+- Questions where only one answer makes sense (just proceed)
+- Delaying work unnecessarily — if you have no real open questions, start executing
+
 ## Never Argue Cost or Effort Against Correctness
 
 **The cost of doing things right is never a valid argument against doing them.** Do not discourage the user from a structurally correct action (moving a chapter, renumbering sections, refactoring a document) by citing token cost, time, effort, or risk of breakage. The user decides what is worth doing; your job is to **plan and execute**, not to second-guess priorities.
@@ -265,6 +326,8 @@ Create the planning document in `.scratch/` following this template:
 6. **Delete only after full completion.** The planning document may only be deleted after **all** steps are marked ✅ Done **and** the final verification passes. If the task is interrupted, the plan persists in `.scratch/` for the next session to pick up.
 
 7. **Count threshold.** The 10-step threshold applies to the number of discrete actions the user requested — not to internal substeps. If the user says "audit all diagrams," count the diagrams. If the user says "fix the walkthrough," count the walkthrough steps.
+
+8. **No separate execution-tracker files.** The execution tracker (`## Task Tracker` table above) **must live inside the planning document** — never in a separate `.scratch/` file. If a research document already exists for the same task (e.g., `DR-0002-sca-vs-sua-research.md`), the tracker goes into that file or into the plan file — not into a third file. Separate tracker files scatter information, hide unintegrated research behind a narrow edit checklist, and make it impossible to see what research content was left out. Violating this rule means you will lose track of what the research actually said versus what you chose to integrate.
 
 ## Repository Purpose
 
