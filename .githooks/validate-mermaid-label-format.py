@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Block raw Markdown bold inside Mermaid node/subgraph labels.
+"""Block raw Markdown bold inside Mermaid quoted labels.
 
 Mermaid does not reliably interpret bare **bold** inside flowchart-style node
-labels in this repository's render path. The result is literal asterisks in the
-reader, for example "**Vaultless Tokenization**".
+or edge labels in this repository's render path. The result is literal
+asterisks in the reader, for example "**Vaultless Tokenization**".
 
 Safe alternatives:
 - Use a Markdown string wrapper: ["`**Label**`"]
@@ -19,38 +19,80 @@ from pathlib import Path
 
 MERMAID_FENCE_RE = re.compile(r"^```mermaid\s*$")
 FENCE_END_RE = re.compile(r"^```\s*$")
-LABEL_RE = re.compile(r'[\[\{]\s*"(?P<label>[^"\n]*)"\s*[\]\}]')
-HTML_BOLD_RE = re.compile(r"</?(?:b|strong)\b", re.IGNORECASE)
+RAW_BOLD_RE = re.compile(r"(?<!\*)\*\*(?!\*)(?=\S).*?\S(?<!\*)\*\*(?!\*)", re.DOTALL)
+
+
+def is_markdown_string(label: str) -> bool:
+    stripped = label.strip()
+    return stripped.startswith("`") and stripped.endswith("`")
+
+
+def extract_quoted_strings(lines: list[tuple[int, str]]) -> list[tuple[int, str, str]]:
+    strings: list[tuple[int, str, str]] = []
+    in_string = False
+    start_line = 0
+    current: list[str] = []
+    context: list[str] = []
+
+    for line_number, line in lines:
+        i = 0
+        while i < len(line):
+            char = line[i]
+            escaped = i > 0 and line[i - 1] == "\\"
+
+            if char == '"' and not escaped:
+                if in_string:
+                    strings.append((start_line, "".join(current), "\n".join(context)))
+                    in_string = False
+                    start_line = 0
+                    current = []
+                    context = []
+                else:
+                    in_string = True
+                    start_line = line_number
+                    current = []
+                    context = [line.strip()]
+                i += 1
+                continue
+
+            if in_string:
+                current.append(char)
+
+            i += 1
+
+        if in_string:
+            if line_number != start_line:
+                context.append(line.strip())
+            current.append("\n")
+
+    return strings
 
 
 def find_failures(filepath: Path) -> list[tuple[int, str, str]]:
     lines = filepath.read_text(encoding="utf-8").splitlines()
     failures: list[tuple[int, str, str]] = []
     in_mermaid = False
+    block_lines: list[tuple[int, str]] = []
 
     for line_number, line in enumerate(lines, 1):
         stripped = line.strip()
 
         if MERMAID_FENCE_RE.match(stripped):
             in_mermaid = True
+            block_lines = []
             continue
 
         if in_mermaid and FENCE_END_RE.match(stripped):
+            for label_line, label, context in extract_quoted_strings(block_lines):
+                if RAW_BOLD_RE.search(label) and not is_markdown_string(label):
+                    failures.append((label_line, label, context))
             in_mermaid = False
             continue
 
         if not in_mermaid or stripped.startswith("%%"):
             continue
 
-        for match in LABEL_RE.finditer(line):
-            label = match.group("label")
-            if "**" not in label:
-                continue
-            if "`" in label:
-                continue
-            if HTML_BOLD_RE.search(label):
-                continue
-            failures.append((line_number, label, stripped))
+        block_lines.append((line_number, line))
 
     return failures
 
@@ -70,7 +112,7 @@ def validate_file(filepath: Path) -> bool:
     print("╚══════════════════════════════════════════════════════════════════╝")
     print(f"\nAffected file: {filepath}\n")
     print("WHAT HAPPENED:")
-    print("  A Mermaid node or subgraph label contains raw Markdown bold")
+    print("  A Mermaid quoted label contains raw Markdown bold")
     print("  syntax like **Label**. In this repository's reader render path,")
     print("  Mermaid does not reliably format that as bold text, so the")
     print("  asterisks render literally.\n")

@@ -5,14 +5,14 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-04-08
-date_updated: 2026-04-27
+date_updated: 2026-05-02
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
 reader_allow_h3_chapter_split: false
 ---
 
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
-**DR-0005** · Published · Last updated 2026-04-27
+**DR-0005** · Published · Last updated 2026-05-02
 
 > Exhaustive investigation of patterns, techniques, and commercial solutions for protecting Personally Identifiable Information (PII) in REST API design, with a focus on GDPR compliance. Covers the problem of PII leakage through URL query parameters and path segments — a vulnerability recognized by OWASP (CWE-598, ASVS §9.3) and addressed by GDPR Article 32's mandate for pseudonymisation and encryption. Analyzes five categories of protection patterns: architectural (POST body migration, header-based placeholders, opaque identifiers, session-based resolution, single-use tokens), cryptographic (JWE, Format-Preserving Encryption, deterministic AES, searchable encryption, envelope encryption), pseudonymization and tokenization (vault-based, vaultless, client-side, k-anonymity), infrastructure and operational (gateway log redaction, real-time PII scanning, cache-control), and protocol-level (HTTP message signing, mTLS, Pushed Authorization Requests). Includes vendor deep-dives on 12+ products (HashiCorp Vault, Thales CipherTrust, Protegrity, VGS, Skyflow, Google Cloud DLP, Azure APIM, AWS, Cequence, Fortanix, Pangea, Protecto) with a build-vs-buy decision framework. Covers auditability and governance: audit trails for cryptographic operations, key management with separation of duties, centralized decryption authority, right to erasure in encrypted contexts (GDPR Article 17), and call-chain traceability with distributed tracing. Maps to GDPR Articles 5, 17, 25, 32, EDPB Guidelines 01/2025 on pseudonymisation, NIST SP 800-122, and OWASP standards.
 
@@ -10991,19 +10991,19 @@ The decrypted PII value is returned to the calling component — typically a RES
 
 ```mermaid
 flowchart TD
-    MK["**Master&nbsp;Key&nbsp;(MK)**
+    MK["<b>Master&nbsp;Key&nbsp;(MK)</b>
     FIPS&nbsp;140-3&nbsp;Level&nbsp;3&nbsp;HSM
     Rotated&nbsp;every&nbsp;3–5&nbsp;years"]
 
-    KEK_P["**KEK&nbsp;—&nbsp;Payment&nbsp;Domain**
+    KEK_P["<b>KEK&nbsp;—&nbsp;Payment&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 
-    KEK_H["**KEK&nbsp;—&nbsp;Healthcare&nbsp;Domain**
+    KEK_H["<b>KEK&nbsp;—&nbsp;Healthcare&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 
-    KEK_HR["**KEK&nbsp;—&nbsp;HR&nbsp;Domain**
+    KEK_HR["<b>KEK&nbsp;—&nbsp;HR&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 

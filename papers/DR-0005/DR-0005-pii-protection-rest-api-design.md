@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-04-08
-date_updated: 2026-04-27
+date_updated: 2026-05-02
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
 reader_allow_h3_chapter_split: false
@@ -14,7 +14,7 @@ reader_allow_h3_chapter_split: false
 <!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
 
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
-**DR-0005** · Published · Last updated 2026-04-27
+**DR-0005** · Published · Last updated 2026-05-02
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0005-pii-protection-rest-api-design/reader-orientation)
@@ -10996,19 +10996,19 @@ The decrypted PII value is returned to the calling component — typically a RES
 
 ```mermaid
 flowchart TD
-    MK["**Master&nbsp;Key&nbsp;(MK)**
+    MK["<b>Master&nbsp;Key&nbsp;(MK)</b>
     FIPS&nbsp;140-3&nbsp;Level&nbsp;3&nbsp;HSM
     Rotated&nbsp;every&nbsp;3–5&nbsp;years"]
 
-    KEK_P["**KEK&nbsp;—&nbsp;Payment&nbsp;Domain**
+    KEK_P["<b>KEK&nbsp;—&nbsp;Payment&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 
-    KEK_H["**KEK&nbsp;—&nbsp;Healthcare&nbsp;Domain**
+    KEK_H["<b>KEK&nbsp;—&nbsp;Healthcare&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 
-    KEK_HR["**KEK&nbsp;—&nbsp;HR&nbsp;Domain**
+    KEK_HR["<b>KEK&nbsp;—&nbsp;HR&nbsp;Domain</b>
     HSM-backed&nbsp;KMS
     Annual&nbsp;rotation"]
 
