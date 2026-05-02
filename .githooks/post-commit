@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Keep the live reader's generated JSON in sync after commits.
+#
+# The reader serves src/generated/*, which is intentionally gitignored. Commit
+# validation can prove that staged Markdown and Mermaid are valid while an
+# already-running reader still serves stale generated chapter payloads. Refresh
+# the generated reader assets after commits that can affect reader output.
+
+set -euo pipefail
+
+changed_files="$(git diff-tree --no-commit-id --name-only -r HEAD || true)"
+
+if [ -z "$changed_files" ]; then
+  exit 0
+fi
+
+needs_refresh=false
+
+while IFS= read -r file; do
+  case "$file" in
+    src/papers/*.mdx|src/papers/*/*.mdx|src/features/reader/*|src/App.jsx|src/index.css|\
+scripts/build-reader-assets.js|scripts/prepare-reader.mjs|scripts/dev-reader.mjs|\
+scripts/directives.js|scripts/highlight-languages.js|scripts/rehype-code-entities.js|\
+scripts/cross-reference-links.js|package.json|package-lock.json)
+      needs_refresh=true
+      break
+      ;;
+  esac
+done <<< "$changed_files"
+
+if [ "$needs_refresh" != "true" ]; then
+  exit 0
+fi
+
+echo "[post-commit] refreshing gitignored reader assets so the live viewer cannot serve stale chapter JSON..."
+node scripts/prepare-reader.mjs
