@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-04-27
+date_updated: 2026-05-02
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -13,7 +13,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-04-27 · ~30,100 lines
+**DR-0002** · Published · Last updated 2026-05-02 · ~30,100 lines
 
 > Exhaustive investigation of the EU Digital Identity Wallet ecosystem from the Relying Party (RP) perspective. Covers every RP-facing flow at protocol depth: registration with Member State Registrars (CIR 2025/848, TS2/TS5/TS6 registration baseline, ETSI TS 119 475 certificate-facing mappings), trust infrastructure (Access Certificates, Registration Certificates, Trusted Lists, WUA verification, Certificate Transparency, the ETSI TR 119 411-9 CT ecosystem/governance layer, and ETSI TS 119 615 trusted-list interpretation for qualified-status conclusions), remote presentation (same-device via W3C Digital Credentials API and cross-device via QR/OpenID4VP with SD-JWT VC and mdoc, sharpened by the ETSI TS 119 472-2 presentation profile and ETSI TS 119 472-1 semantic baseline), proximity presentation (supervised and unsupervised via ISO/IEC 18013-5), wallet-to-wallet interactions (TS9), SCA for electronic payments (TS12, PSD2 Dynamic Linking, OID4VCI SCA attestation issuance, and the adjacent bank/PSP certificate-profile layer for PSD2/open-banking `QWAC` / `QSealC` semantics via ETSI TS 119 495), pseudonym-based authentication (Use Cases A–D, WebAuthn credential binding, progressive assurance), combined presentations via DCQL (multi-attestation identity matching), data deletion requests (TS7), DPA reporting (TS8), the intermediary architecture, and document signing with remote Qualified Electronic Signatures (QES via the CIR-pinned CSC API v2.0 baseline plus the ETSI TS 119 432 runtime/client-security profile, three signing flow patterns — QTSP Web Portal / Wallet-Channelled / RP-Channelled, document retrieval protocol, PAdES/XAdES/CAdES/JAdES signature formats). Extends beyond protocol flows into production engineering: a cryptographic verification pipeline deep-dive (signature, revocation, device binding, user binding, issuer trust), RP verification architecture patterns (policy engine tiers, webhook delegation, callback integration, session management, policy-as-code), a 16-vendor evaluation matrix with unified capability scoring, ecosystem readiness assessment (W3C DC API browser support, Member State wallet implementations, interoperability testing), WSCD architecture taxonomy (local, remote, external, hybrid), cross-border presentation scenarios (LoTE discovery, language handling, attribute compatibility), a 45-threat security threat catalogue with standardised threat cards (STRIDE classification, CIR 2024/2981 Annex I risk register traceability, MITRE CWE mapping, Mermaid attack sequence diagrams, step-by-step walkthroughs, concrete protocol payloads, and audit telemetry), a consolidated risk assessment matrix, a 65-signal Verification Signal Intelligence (VSI) taxonomy with three-layer classification and SIEM integration schema, and operational readiness guidance (monitoring metrics, alert triggers, structured audit trail with per-credential verification result objects). Includes exact protocol payloads (SD-JWT VC, mdoc DeviceResponse, JWE envelopes, DC API parameters), annotated Mermaid sequence diagrams with step-by-step walkthroughs, a Status List verification deep-dive appendix, regulatory compliance mapping (eIDAS 2.0, PSD2/PSR, GDPR, DORA, AML/KYC), a persona-based reading guide, and a 43-step implementation checklist. Applicable to banks, financial institutions, public sector bodies, and any entity integrating with the EUDI Wallet as a Relying Party.
 
@@ -10516,7 +10516,7 @@ An envelope result should preserve prerequisite checks separately from credentia
 }
 ```
 
-Fail closed on unsupported JOSE algorithms, unknown `kid`, unencrypted success responses where encryption is required, state mismatch, stale nonce, wrong origin, wrong `response_uri`, or any attempt to bind the response to a sibling tenant.
+Fail closed on unsupported JOSE algorithms, unknown `kid`, unencrypted success responses where encryption is required, state mismatch, stale nonce, wrong origin, wrong `response_uri`, or any attempt to bind the response to a different request context.
 
 **Artifact Produced:** Envelope and session-binding result with prerequisite failures marked before credential routing.
 
@@ -10733,7 +10733,7 @@ OpenID4VP 1.0 encrypted responses are not a generic "JWE containing a signed JWS
 
 Envelope binding is the intake decision that determines whether the verifier may safely look inside the credential at all.
 
-At this stage, the verifier is proving provenance of the response, not truth of the claims. A correctly signed credential is still irrelevant if it arrived through the wrong endpoint, was bound to another tenant, reused another session's nonce, or answered a request object that has since expired. The output should therefore be a bound verification transaction or a terminal intake rejection, with no partial claim acceptance in between.
+At this stage, the verifier is proving provenance of the response, not truth of the claims. A correctly signed credential is still irrelevant if it arrived through the wrong endpoint, was bound to a different request context, reused another session's nonce, or answered a request object that has since expired. The output should therefore be a bound verification transaction or a terminal intake rejection, with no partial claim acceptance in between.
 
 ##### 12.3.1 Response-Mode Branches
 
@@ -10817,7 +10817,7 @@ This is the session-mix-up guard. A response that is cryptographically valid but
 
 The snapshot store returns the expected response mode, nonce, tenant/RP id, expiry, request-object hash, credential query ids, accepted formats, and response-encryption key id. The verifier now has a stable point of comparison for the response the Wallet actually saw.
 
-If this material is missing, expired, already terminal, or mutated after request publication, the correct result is an intake or evidence failure. The engine should not try to repair the session by loading a newer policy or neighboring tenant state.
+If this material is missing, expired, already terminal, or mutated after request publication, the correct result is an intake or evidence failure. The engine should not try to repair the session by loading a newer policy or neighboring request state.
 
 **Artifact Produced:** Immutable snapshot comparison input for the envelope verifier.
 
@@ -10825,19 +10825,19 @@ If this material is missing, expired, already terminal, or mutated after request
 
 <details><summary><strong>4. RP Intake Boundary loads the ephemeral response key</strong></summary>
 
-Encrypted response modes use a per-request response-encryption key. The intake boundary loads the corresponding private key by `kid` or request snapshot reference, and it should reject unknown, reused, expired, or sibling-tenant key material.
+Encrypted response modes use a per-request response-encryption key. The intake boundary loads the corresponding private key by `kid` or request snapshot reference, and it should reject unknown, reused, expired, or unrelated key material.
 
-This keeps response encryption tied to the request lifecycle. A successful credential signature later in the pipeline cannot compensate for a response encrypted to the wrong key or decrypted with a key outside the expected tenant partition.
+This keeps response encryption tied to the request lifecycle. A successful credential signature later in the pipeline cannot compensate for a response encrypted to the wrong key or decrypted with a key outside the retained request context.
 
 </details>
 
 <details><summary><strong>5. Response Key Store returns a key or missing-key failure</strong></summary>
 
-The key store either returns the exact session key or returns a typed failure. Missing key material, unknown `kid`, expired key retention, and key-tenant mismatch should be recorded separately from JWE cryptographic failure.
+The key store either returns the exact session key or returns a typed failure. Missing key material, unknown `kid`, expired key retention, and key/request-context mismatch should be recorded separately from JWE cryptographic failure.
 
 That distinction helps incident response: an unknown `kid` may indicate a malicious envelope, while an expired key can indicate a delayed Wallet response, operational cleanup race, or stale callback.
 
-**Artifact Produced:** Key-resolution evidence with key id, tenant match, and retention outcome.
+**Artifact Produced:** Key-resolution evidence with key id, request-context match, and retention outcome.
 
 </details>
 
@@ -10849,17 +10849,17 @@ The parser should enforce response shape, duplicate-key policy, expected top-lev
 
 </details>
 
-<details><summary><strong>7. Verifier Engine binds state, nonce, origin, target, and tenant</strong></summary>
+<details><summary><strong>7. Verifier Engine binds state, nonce, origin, target, and request context</strong></summary>
 
-The engine compares the structured response against the snapshot: `state` where applicable, nonce availability for holder binding, DC API origin evidence, direct-post response target, expected response mode, request expiry, tenant/RP id, and transaction id.
+The engine compares the structured response against the snapshot: `state` where applicable, nonce availability for holder binding, DC API origin evidence, direct-post response target, expected response mode, request expiry, RP context, and transaction id.
 
-Only after this binding succeeds should credential-specific verifiers run. This prevents a valid credential from one flow being injected into another flow that asked for different claims, used a different policy, or belongs to another tenant.
+Only after this binding succeeds should credential-specific verifiers run. This prevents a valid credential from one flow being injected into another flow that asked for different claims, used a different policy, or belongs to another request context.
 
 </details>
 
 <details><summary><strong>8. Verifier Engine persists envelope binding evidence to Audit Sink</strong></summary>
 
-The verifier records the envelope decision before later credential outcomes can obscure it. The record should include the response mode, endpoint or origin class, key-resolution result, decryption result, `state`/nonce consumption result, request-object hash, tenant match, and expiry result.
+The verifier records the envelope decision before later credential outcomes can obscure it. The record should include the response mode, endpoint or origin class, key-resolution result, decryption result, `state`/nonce consumption result, request-object hash, request-context match, and expiry result.
 
 This evidence is useful even when later credential validation fails. It lets operators distinguish malformed response handling from genuine credential-level failure, and it gives Chapter 30 and Chapter 31 surfaces stable signal inputs.
 
@@ -10871,7 +10871,7 @@ This evidence is useful even when later credential validation fails. It lets ope
 
 The engine returns either a bound response ready for format routing or a terminal intake rejection. A bound response is not verification success; it only means the response is safe enough to enter DCQL routing and credential-specific verification.
 
-If the engine rejects the intake, the external response should remain generic while the internal record preserves the exact signal, such as decryption failure, response-mode mismatch, wrong origin, expired request, duplicate state, or tenant mismatch.
+If the engine rejects the intake, the external response should remain generic while the internal record preserves the exact signal, such as decryption failure, response-mode mismatch, wrong origin, expired request, duplicate state, or request-context mismatch.
 
 </details>
 
@@ -10885,7 +10885,7 @@ The verifier must retain the original request snapshot until the response is pro
 | `state` | Redirect/direct-post request branch | CSRF and session mix-up protection. | Consume once; retain correlation id. |
 | Response-encryption key id and private key | RP verifier session | JWE decryption and `kid` matching. | Delete private key after terminal state. |
 | `response_mode` and wallet-facing target | Request object / verifier configuration | Prevent response-mode downgrade and wrong endpoint acceptance. | Retain endpoint hash and mode in audit evidence. |
-| `client_id`, expected origin, tenant id | RP registration/session | Audience, origin, tenant isolation. | Retain identifiers allowed by policy. |
+| `client_id`, expected origin, RP context id | RP registration/session | Audience, origin, RP/application context. | Retain identifiers allowed by policy. |
 | DCQL query and credential query ids | Request object | Route `vp_token` entries and enforce claim/credential-set satisfaction. | Retain query id and claim names, not raw values by default. |
 | Accepted algorithms and formats | RP policy / HAIP profile | Algorithm governance and format routing. | Retain policy id/version. |
 | Transaction data | RP journey | Payment/SCA or high-value intent binding. | Retain hashes and policy evidence where possible. |
@@ -10901,11 +10901,11 @@ Request-by-reference flows create a second attack surface before the wallet even
 | URL or endpoint surface | What the verifier binds | Failure mode to test | Evidence to retain |
 |:------------------------|:------------------------|:---------------------|:-------------------|
 | Wallet-facing `request_uri` | Request id, tenant/RP id, expiry, request-object hash, response mode, nonce, and expected credential query. | Low entropy, enumeration, premature exhaustion by prefetch, stale request object, mutable request policy. | request URI hash, first/last retrieval time, retrieval count, request-object hash, expiry result. |
-| Wallet-facing `response_uri` / direct-post target | Expected host, path, response mode, tenant, session id, and callback intake policy. | Host-swapped replay, wrong endpoint, response-mode downgrade, cross-tenant submission. | endpoint hash, expected/actual host class, response mode, tenant match result. |
-| Verifier identity material | `client_id`, DID/JWKS/metadata URL, x509 hash mode, RP access-certificate material, and key id. | Vendor-owned or wrong-tenant identity emitted where RP-owned facade is required; stale or untrusted verifier key. | identity mode, key fingerprint, host control class, certificate hash. |
+| Wallet-facing `response_uri` / direct-post target | Expected host, path, response mode, session id, and callback intake policy. | Host-swapped replay, wrong endpoint, response-mode downgrade, wrong-session submission. | endpoint hash, expected/actual host class, response mode, request-context match result. |
+| Verifier identity material | `client_id`, DID/JWKS/metadata URL, x509 hash mode, RP access-certificate material, and key id. | Vendor-owned or wrong verifier identity emitted where RP-owned facade is required; stale or untrusted verifier key. | identity mode, key fingerprint, host control class, certificate hash. |
 | Post-wallet return target | User-agent return URL after wallet action. | Open redirect, attacker-controlled return, mismatch with registered RP purpose. | return URL hash, allowlist result, registered service binding. |
-| Callback/webhook target | Authenticated delivery endpoint for delegated verifier results. | Callback-only control mistaken for wallet-facing URL control; sibling-tenant callback relay; unauthenticated notification delivery. | callback signature result, target owner, tenant id, replay/idempotency result. |
-| Result, audit, deferred, or notification URL | Follow-up retrieval or event surfaces after presentation. | Cross-tenant result lookup, 403-based existence leak, missing audit evidence, stale deferred result. | object partition result, response class, audit correlation id, terminal state. |
+| Callback/webhook target | Authenticated delivery endpoint for delegated verifier results. | Callback-only control mistaken for wallet-facing URL control; foreign-session callback relay; unauthenticated notification delivery. | callback signature result, target owner, RP context id, replay/idempotency result. |
+| Result, audit, deferred, or notification URL | Follow-up retrieval or event surfaces after presentation. | Unauthorized result lookup, 403-based existence leak, missing audit evidence, stale deferred result. | object partition result, response class, audit correlation id, terminal state. |
 
 By-value and by-reference presentation definitions need separate evidence. A by-value request object should record the exact signed request hash and policy version. A by-reference request should record the resolved request-object hash, retrieval policy, cache behavior, and whether later callback processing used the retained snapshot rather than a fresh fetch.
 
@@ -11058,7 +11058,7 @@ The verifier should enforce algorithm policy in two layers: first the ecosystem/
 
 | Verification surface | Governed input | Accept only when | Reject or flag | Result evidence |
 |:---------------------|:---------------|:-----------------|:---------------|:----------------|
-| Response encryption JWE | `alg`, `enc`, `kid`, ephemeral public key, target private key | JWE algorithms match the profile and the `kid` resolves to the session's tenant-scoped ephemeral key. | unsupported `alg`/`enc`, unknown `kid`, reused or expired response key, wrong-tenant key, plaintext success response. | `envelope.jwe_alg`, `envelope.jwe_enc`, `envelope.kid_match`, key-retention result. |
+| Response encryption JWE | `alg`, `enc`, `kid`, ephemeral public key, target private key | JWE algorithms match the profile and the `kid` resolves to the session-scoped ephemeral key. | unsupported `alg`/`enc`, unknown `kid`, reused or expired response key, wrong-session key, plaintext success response. | `envelope.jwe_alg`, `envelope.jwe_enc`, `envelope.kid_match`, key-retention result. |
 | Request snapshot / signed request object | JAR signature algorithm, WRPAC / verifier key, `x509_hash` or related client-id evidence | The original request was signed and retained under the same tenant, response mode, policy id, nonce, and credential query. | unsigned or mutated request object, algorithm outside request-signing allowlist, callback compared against freshly fetched mutable policy. | request-object hash, signing key fingerprint, request policy version. |
 | SD-JWT VC issuer JWT | JOSE `typ`, `alg`, `kid`, `x5c` / issuer key material | `typ` and media type match the SD-JWT VC profile, `alg` is allowed, and key material resolves through the configured issuer trust source. | `alg=none`, symmetric/asymmetric confusion, unexpected `typ`, rogue `kid`, arbitrary `jku`/`x5u`, untrusted certificate chain. | issuer algorithm, key fingerprint, trust source, `typ` result. |
 | SD-JWT disclosure hashing | `_sd_alg`, disclosure digest input, original base64url disclosure string | Digest algorithm is allowed and each digest is computed over the exact received disclosure string. | unsupported digest, re-serialized-disclosure hashing, duplicate digest, malformed or recursive disclosure set. | disclosure algorithm, disclosure count, digest-match result. |
@@ -11067,7 +11067,7 @@ The verifier should enforce algorithm policy in two layers: first the ecosystem/
 | mdoc DeviceAuth | `deviceSignature` / `deviceMac`, device key, curve, SessionTranscript input | DeviceAuth method is allowed for the topology/profile and validates against MSO `deviceKeyInfo` over the reconstructed transcript. | method mismatch, unsupported curve/key type, missing proof where required, transcript mismatch, malformed Tag 24 input. | DeviceAuth method, device-key thumbprint, transcript-binding result. |
 | Status List Token | JWT/CWT signing algorithm, status authority key, content type, signed `exp`/`ttl` | Token is signed by the expected status issuer or trust path, uses an accepted algorithm, and is fresh enough under signed-token policy. | unsigned list, unexpected signing algorithm, wrong content type, stale signed token, index outside decoded list bounds. | status-token algorithm, status issuer fingerprint, freshness result. |
 | Runtime metadata/key retrieval | `kid`, `jku`, `x5u`, issuer metadata URL, Type Metadata URL, status URI | Lookup path is configured, pinned, or allowlisted; redirects, content type, size, TLS, and IP ranges satisfy retrieval policy. | credential-controlled trust root, private/link-local host, DNS rebinding, looped redirect, oversized JWKS, HTML served as JSON. | retrieval policy result, source host class, redirect count, object hash. |
-| WUA/WIA and key attestation | attestation signature algorithm, attestation issuer, wallet/key certificate chain | Attestation profile, issuer, algorithm, key type, nonce/audience, and freshness match the RP's verifier or issuance-adjacent policy. | unsupported attestation profile, stale attestation, wrong audience, untrusted wallet-solution status, cross-tenant key admission. | attestation issuer, wallet-solution status, key-attestation result. |
+| WUA/WIA and key attestation | attestation signature algorithm, attestation issuer, wallet/key certificate chain | Attestation profile, issuer, algorithm, key type, nonce/audience, and freshness match the RP's verifier or issuance-adjacent policy. | unsupported attestation profile, stale attestation, wrong audience, untrusted wallet-solution status, wrong key-admission policy. | attestation issuer, wallet-solution status, key-attestation result. |
 
 For incident response, the verifier should be able to answer: which trust cache version was used, whether a live fetch happened, which redirects were followed or blocked, whether the final object was signed by the expected trust source, and whether the business decision consumed cached, live, degraded, or incomplete evidence.
 
@@ -11558,7 +11558,7 @@ The example above is illustrative. Production implementations should treat the r
 | Field group | Required content | Stable values or shape | Why it matters |
 |:------------|:-----------------|:-----------------------|:---------------|
 | Schema and identity | `result_schema_version`, `canonical_result_id`, `session_id`, `transaction_id` where used. | Versioned string plus opaque ids. | Lets downstream systems parse the object and reconcile all reporting surfaces to one result. |
-| Tenant and RP context | `tenant_id`, RP/legal-entity id where applicable, endpoint ownership class. | Opaque ids plus `rp_owned`, `delegated`, `vendor_owned`, or `mixed` ownership labels. | Prevents cross-tenant result lookup, trust-source bleed, and facade ambiguity. |
+| Tenant and RP context | `tenant_id`, RP/legal-entity id where applicable, endpoint ownership class. | Opaque ids plus `rp_owned`, `delegated`, `vendor_owned`, or `mixed` ownership labels. | Preserves ownership, routing, and audit context without exposing connector partition internals. |
 | Transaction state | Current state and terminal boolean. | Non-terminal: `accepted`, `verification_running`; terminal: `intake_rejected`, `verified`, `verification_failed`, `evidence_incomplete`, `expired`, `duplicate`, `stalled`, `data_request_denied`. | Prevents transport acceptance from being treated as verification success. |
 | Failure and policy class | `failure_class`, `retryable`, `policy_action`, `user_message_class`. | `none`, `intake`, `session_binding`, `parser`, `crypto`, `trust`, `status`, `holder_binding`, `dcql_policy`, `privacy`, `tenant_policy`, `timeout`, `evidence`. | Lets support, audit, and user-facing surfaces explain the same terminal state at different detail levels. |
 | Request evidence | response mode, request-object hash, nonce/state consumption result, query ids, accepted formats, policy id/version. | Hashes and ids by default; raw request material only under controlled retention. | Proves which request the Wallet answered and which policy was in force. |
@@ -11625,20 +11625,20 @@ Every surface that reports a verification outcome should derive from the same re
 | Audit export | Preserves request snapshot hash, state transitions, verifier version, and redacted result evidence. | Audit records cannot connect request initiation to terminal verification result. |
 | SIEM/VSI event | Emits stable internal signal ids and severity without raw PII by default. | Alert contains exact attacker-oracular failure text or raw credential values. |
 
-##### 12.11.6 Tenant, Facade, and Callback Isolation
+##### 12.11.6 Tenant Boundary Assumption and Facade Ownership
 
-Many RP deployments will place a verifier behind an intermediary, connector, reverse proxy, or multi-tenant facade. The verifier engine still needs a first-class tenant/RP context; it cannot rely on hostnames, callback URLs, or management API credentials alone as implicit partitioning.
+Many RP deployments will place a verifier behind an intermediary, connector, reverse proxy, or multi-tenant facade. Tenant-boundary enforcement is a product-selection and architecture-review prerequisite for that deployment model, not an Appendix C verifier-fixture target. The selected connector or facade is expected to enforce tenant isolation as advertised: request URLs, callbacks, key material, trust material, sessions, result surfaces, and administrative access for one tenant/RP must not be routable or visible through another tenant/RP context.
 
-| Isolation dimension | Verifier requirement | Negative case |
-|:--------------------|:---------------------|:--------------|
-| Tenant-scoped request state | `request_uri`, `state`, nonce, response-encryption key, policy id, and transaction id are namespaced to the initiating tenant/RP. | Tenant B accepts a response endpoint, state, or session id minted for Tenant A. |
-| Tenant-scoped trust material | Issuer allowlists, trusted roots, status retrieval policy, and verifier identity keys are partitioned or explicitly shared by policy. | Trust anchor uploaded for one tenant validates another tenant's presentation. |
-| Tenant-scoped callbacks | Webhook/callback destinations are bound to the owning tenant and reject sibling or foreign-host relay targets. | Tenant A configures a callback into Tenant B's session or auth endpoint. |
-| Tenant-scoped result and audit APIs | Cross-tenant result lookup should return a non-enumerating not-found response where policy permits. | 403 response reveals that another tenant's transaction id exists. |
-| Tenant-scoped subject mapping | Wallet-login subject namespaces and auth credentials are bound to the issuing/accepting tenant. | Credential minted by one tenant establishes browser session in another tenant only because `sub` matches. |
-| Shared secret blast radius | API keys, OAuth clients, and verifier credentials are scoped to the legal entity or tenant boundary. | One tenant's API key or access token can create presentation sessions on another tenant host. |
+| Product-selection boundary | What must be isolated | Acceptance evidence |
+|:---------------------------|:----------------------|:--------------------|
+| Wallet-facing URL surfaces | `request_uri`, `response_uri`, verifier metadata URLs, DID/JWKS URLs, redirect targets, and post-wallet return URLs. | Architecture review showing ownership class, routing authority, and registration controls for each URL surface. |
+| Session and request state | `state`, nonce, transaction id, request-object hash, response-encryption key reference, policy id, and expiry state. | Product documentation and security assessment showing per-tenant/RP state namespaces and no shared mutable request lookup. |
+| Cryptographic and API secrets | Response-encryption keys, verifier signing keys, HSM/KMS key references, API keys, OAuth clients, webhook secrets, mTLS credentials, and access tokens. | Key-management evidence showing separate scopes, rotation procedures, audit logs, and revocation blast radius. |
+| Trust and policy material | Issuer allowlists, trusted roots, status retrieval policy, Type Metadata cache, verifier identity policy, and governed sharing rules. | Configuration model proving trust sources are tenant/RP-scoped or explicitly shared by documented policy. |
+| Callback, result, and audit surfaces | Webhook destinations, result APIs, deferred-result endpoints, notification endpoints, audit exports, operator UI, and support tooling. | Vendor controls, security-assessment evidence, and documentation showing authenticated access, non-enumerating lookups, and per-tenant/RP audit partitioning. |
+| Subject namespaces | Wallet-login subject identifiers, account-linking keys, and downstream authentication credentials. | Identity architecture showing that subject identifiers are namespaced to the RP/legal entity and cannot be reused implicitly across product tenants. |
 
-Facade deployments also need to distinguish callback ownership from wallet-facing ownership. A product can let the RP configure `callbackUrl` or post-wallet redirect while still emitting a vendor-owned `request_uri`, verifier DID, JWKS URL, or `response_uri` inside the signed request object. If the RP's risk model requires RP-owned wallet-facing URLs, the verifier result should record which URL surfaces were RP-owned, vendor-owned, or delegated, instead of treating "some callback is configurable" as sufficient.
+Facade deployments also need to distinguish callback ownership from wallet-facing ownership. A product can let the RP configure `callbackUrl` or post-wallet redirect while still emitting a vendor-owned `request_uri`, verifier DID, JWKS URL, or `response_uri` inside the signed request object. If the RP's risk model requires RP-owned wallet-facing URLs, the verifier result should record which URL surfaces were RP-owned, vendor-owned, or delegated, instead of treating "some callback is configurable" as sufficient. This ownership evidence belongs in product due diligence, threat modelling, and release-readiness review, not in Appendix C failure fixtures.
 
 :::warning[Do Not Turn Cryptographic Identifiers into Tracking Identifiers]
 Do not use `cnf.jwk` thumbprints, status-list indices, disclosure salts, JWT IDs, device keys, certificate serials, or issuer signature bytes as long-term user correlation identifiers unless a lawful, documented RP policy explicitly permits it. Store hashes or short-lived evidence where possible.
@@ -11646,7 +11646,7 @@ Do not use `cnf.jwk` thumbprints, status-list indices, disclosure salts, JWT IDs
 
 #### 12.12 Conformance Fixtures and Operational Release Gates
 
-Verifier quality should be proven through fixtures, not only by manual interoperability tests. The fixture catalogue should include known-good presentations, known-bad presentations, parser fuzzing, async state transitions, tenant isolation, and result-fidelity assertions.
+Verifier quality should be proven through fixtures, not only by manual interoperability tests. The fixture catalogue should include known-good presentations, known-bad presentations, parser fuzzing, async state transitions, and result-fidelity assertions.
 
 The fixture catalogue should mirror the verifier architecture, so each stage has both positive fixtures and adversarial fixtures.
 
@@ -11662,7 +11662,7 @@ flowchart LR
     A["Known-good fixtures"]
     B["Known-bad fixtures"]
     C["Parser and resource fuzzing"]
-    D["<span style='display:inline-block; width:360px; white-space:nowrap; text-align:center'>Async and tenant-isolation fixtures</span>"]
+    D["<span style='display:inline-block; width:360px; white-space:nowrap; text-align:center'>Async lifecycle fixtures</span>"]
     E["Result-fidelity assertions"]
     F["CI release gate"]
 
@@ -11686,7 +11686,7 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 | mdoc CBOR / COSE | Bound CBOR size, nesting depth, string length, map entries, tag handling, and COSE header processing. | Indefinite-length abuse, duplicate map keys, unknown critical COSE header, malformed Tag 24, enormous namespace map. |
 | Status list and compressed data | Enforce URI policy, content type, signature before use, compressed-size ratio, index bounds, and cache freshness. | Zip/decompression bomb, out-of-bounds index, unsigned list, private-IP redirect, stale signed token. |
 | Trust metadata retrieval | Enforce allowlists, TLS, redirect count, DNS rebinding defense, content length/type, and parse timeout. | Attacker `jku`/`x5u`, looped redirects, private-address metadata, oversized JWKS, HTML instead of JSON. |
-| Callback/result API input | Require authentication, replay/idempotency key, tenant binding, schema validation, and terminal-state preconditions. | Unsigned callback, sibling-tenant session id, duplicate after terminal state, out-of-order failure after verified. |
+| Callback/result API input | Require authentication, replay/idempotency key, session binding, schema validation, and terminal-state preconditions. | Unsigned callback, foreign session id, duplicate after terminal state, out-of-order failure after verified. |
 
 ##### 12.12.3 Verifier Fixture Families
 
@@ -11694,7 +11694,7 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 |:---------------|:-----------------|:-----------------|:-------------------|
 | Envelope and response mode | Valid `direct_post.jwt`, `dc_api.jwt`, and permitted unencrypted protocol-error response. | Wrong response mode, unsupported JWE `alg`/`enc`, unknown `kid`, malformed encrypted response, or unencrypted success response where encryption is required. | Envelope result, response-mode result, JWE key id, and failure signal. |
 | Request-object lifecycle | Valid by-value and by-reference request objects with stable hashes and expected expiry. | Enumerated `request_uri`, prefetch-exhausted `request_uri`, expired request object, mutable policy after request publication. | Request-object hash, retrieval count, expiry result, and snapshot immutability evidence. |
-| Session binding | Matching `state`, nonce, origin, response target, tenant, and request id. | Reused nonce, wrong `state`, wrong origin, host-swapped response target, cross-session replay. | Nonce consumed once, expected/actual audience or origin, tenant match result. |
+| Session binding | Matching `state`, nonce, origin, response target, and request id. | Reused nonce, wrong `state`, wrong origin, host-swapped response target, cross-session replay. | Nonce consumed once and expected/actual audience or origin. |
 | DCQL routing | `vp_token` map satisfies known query ids, formats, and cardinality. | Unknown query id, wrong format, missing required query, `multiple=false` violation. | Query-satisfaction array and policy failure details. |
 | SD-JWT VC | Valid issuer JWT, disclosures, Type Metadata, status, and KB-JWT where required. | Tampered issuer signature, `alg=none`, `HS256`, missing `vct`, missing `x5c`/DID material, malformed tilde/disclosure, missing `cnf`, wrong KB-JWT key. | Per-check result array with issuer, disclosure, status, and holder-binding dimensions. |
 | mdoc / COSE | Valid DeviceResponse, MSO, value digests, and DeviceAuth over reconstructed SessionTranscript. | CBOR parse failure, wrong `docType`, malformed `DeviceAuthentication`, corrupted `deviceSignature`, MSO expired, namespace/digest mismatch. | mdoc result, handover type, `docType`, namespace inventory, and DeviceAuth evidence. |
@@ -11703,7 +11703,6 @@ Malformed inputs should be tested as first-class verifier behavior rather than l
 | Holder binding | Valid KB-JWT or mdoc DeviceAuth bound to this session. | Missing `cnf`, symmetric `cnf.jwk`, wrong key, wrong nonce/audience, stale proof, explicit opt-out not recorded. | Holder-binding result or `not_required` with policy id. |
 | DCQL and minimization | Required claims/predicates satisfied and no unrequested claim values surfaced. | Valid credential with missing required claim, wrong value/schema, over-disclosure, no-disclosure claim leakage. | Requested/received claim names, predicate result, over-disclosure result, redaction result. |
 | Async state | Valid submission reaches terminal verified state; duplicate callback returns original terminal result. | Accepted-but-stalled session, 2xx submission with later failed state missing evidence, duplicate mutates request snapshot. | State transitions, timeout policy, idempotency result, terminal evidence completeness. |
-| Tenant and facade isolation | Tenant-specific request state, callbacks, trust stores, result APIs, and subject namespaces. | Host-swapped response endpoint, sibling-tenant callback target, cross-tenant trust anchor, result enumeration, wallet-login subject impersonation. | Tenant partition result, endpoint ownership class, non-enumerating lookup result. |
 | Result fidelity | Result API, webhook, UI, audit export, and SIEM derive from the same result object. | Terminal status without parsed evidence, audit export missing request snapshot or terminal claims. | Result-object schema version, evidence completeness, surface parity assertion. |
 | Rate limit and double submission | Bounded invalid bursts do not degrade valid traffic; duplicate submissions are idempotent. | Invalid burst has no measurable throttle and harms valid traffic; double submission causes duplicate side effects. | Rate-limit decision, retry-after evidence, duplicate submission result. |
 | Issuance-adjacent verifier reuse | Proof signature, nonce, audience, `iat`, DPoP `jti`, and key-attestation checks pass before issuance handoff. | Tampered proof, wrong nonce/audience, stale `iat`, `alg=none`, replay, PIN/session mix-up. | Proof-check result, replay decision, session-binding evidence. |
@@ -11730,7 +11729,7 @@ Every release gate should trace a requirement or RP policy choice to a verifier 
 | Requirement or policy source | Verifier stage | Positive fixture | Negative fixture | Result-object field | Signal / audit output | Primary cross-reference |
 |:-----------------------------|:---------------|:-----------------|:-----------------|:--------------------|:----------------------|:------------------------|
 | HAIP encrypted response profile and topology-specific response modes | Envelope and session binding | Valid `direct_post.jwt` form response and valid `dc_api.jwt` response for the same DCQL request. | Unencrypted success response, unsupported JWE `alg`/`enc`, unknown `kid`, or response submitted to wrong branch. | `envelope.response_mode`, `envelope.jwe_alg`, `envelope.kid_match`. | `ENVELOPE_KID_UNKNOWN`, `ENVELOPE_JWE_DECRYPT_FAILED`, `ENVELOPE_JWE_ALG_UNSUPPORTED`, response-mode audit event. | HAIP Requirements for RPs (§8.3); Intake Boundary: Response Envelope and Session Binding (§12.3). |
-| Single-use request snapshot, nonce, and tenant binding | Request snapshot and intake state | Response matches retained request-object hash, nonce, `state` or origin, response target, tenant, and expiry. | Reused nonce, wrong `state`, expired snapshot, sibling-tenant session id, or callback compared against mutable policy. | `request.snapshot_hash`, `binding.nonce_result`, `tenant_id`, `transaction_state`. | `SESSION_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, duplicate/expired audit event. | Intake Boundary: Response Envelope and Session Binding (§12.3); RP Verification Architecture Patterns (§26). |
+| Single-use request snapshot, nonce, and response binding | Request snapshot and intake state | Response matches retained request-object hash, nonce, `state` or origin, response target, and expiry. | Reused nonce, wrong `state`, expired snapshot, foreign session id, or callback compared against mutable policy. | `request.snapshot_hash`, `binding.nonce_result`, `transaction_state`. | `SESSION_STATE_MISMATCH`, `KBJWT_NONCE_REUSE`, duplicate/expired audit event. | Intake Boundary: Response Envelope and Session Binding (§12.3). |
 | DCQL query-id, format, cardinality, and minimization policy | Format router and policy evaluation | `vp_token` map satisfies known query ids, expected formats, cardinality, required claims, and minimization. | Unknown query id, wrong format, `multiple=false` violation, missing required claim, or over-disclosure. | `credentials[].query_id`, `policy_result`, `disclosure.over_disclosure`. | `DCQL_QUERY_ID_UNKNOWN`, `DCQL_FORMAT_MISMATCH`, `DISCLOSURE_POLICY_VIOLATION`. | Routing Boundary: DCQL, Format Selection, and Policy-After-Crypto (§12.4); DCQL Query Model (§17). |
 | SD-JWT VC issuer authenticity, disclosure integrity, and key-binding policy | SD-JWT VC verifier | Trusted issuer JWT, valid disclosures, accepted `vct`, fresh status, and valid KB-JWT where required. | `alg=none`, invalid issuer signature, duplicate disclosure digest, missing required KB-JWT, wrong `sd_hash`, or wrong `aud`. | `issuer_trust`, `disclosure`, `holder_binding`, `credential_type`. | `SDJWT_SIG_INVALID`, `SDJWT_DISCLOSURE_HASH_MISMATCH`, `KBJWT_AUD_MISMATCH`. | SD-JWT VC Branch: Selective Disclosure and KB-JWT Evidence (§12.6); Verification Checklist for SD-JWT VC (§11.3). |
 | mdoc issuerAuth, MSO, DeviceAuth, and remote handover policy | mdoc / COSE verifier | Valid DeviceResponse, trusted issuerAuth/MSO, value digests, and DeviceAuth over reconstructed remote SessionTranscript. | CBOR parse failure, wrong `docType`, MSO expired, digest mismatch, malformed Tag 24, or proximity transcript used in remote flow. | `mdoc.docType`, `issuer_trust`, `attribute_integrity`, `holder_binding.session_transcript`. | `MDOC_CBOR_PARSE_ERROR`, `MDOC_MSO_SIG_INVALID`, `MDOC_SESSION_TRANSCRIPT_MISMATCH`. | mdoc Branch: CBOR, MSO, and SessionTranscript Evidence (§12.7); Proximity Presentation Flows (§13). |
@@ -11738,16 +11737,15 @@ Every release gate should trace a requirement or RP policy choice to a verifier 
 | ECCG/profile algorithm governance and key-source control | Trust material and algorithm governance | Each JOSE/COSE/status/proof surface uses an allowed algorithm and governed key source. | Symmetric/asymmetric confusion, `alg=none`, rogue `jku`/`x5u`, unsupported COSE algorithm, or wrong trust root. | `algorithms_observed`, `algorithms_accepted`, `trust_source`, `retrieval_policy`. | `SDJWT_SIG_ALG_NONE`, `SDJWT_SIG_ALG_UNEXPECTED`, `LOTE_SIG_INVALID`. | ARF Algorithm Governance: ECCG v2.0 Allowlist (§8.3.2); Trust Material, Status Sources, and Algorithm Governance (§12.5). |
 | Holder binding and transaction or intent binding policy | Holder-binding stage | KB-JWT or DeviceAuth proof binds the credential to this request, and transaction-data evidence matches where profiled. | Missing proof where required, stale proof, wrong nonce/audience, transcript mismatch, or transaction hash mismatch. | `holder_binding.result`, `transaction_binding`, `proof_iat_window`. | `KBJWT_NONCE_MISMATCH`, `MDOC_DEVICE_SIG_INVALID`, transaction-binding audit event. | Holder Binding, Combined Presentations, and Transaction Intent (§12.9); SCA for Electronic Payments (§15). |
 | Canonical result object and surface parity | Result object and audit emission | API, webhook, UI, audit export, and SIEM all reference the same canonical result id and schema version. | Terminal label without parsed evidence or missing audit snapshot. | `canonical_result_id`, `result_schema_version`, `surface_parity`, `evidence_completeness`. | result-fidelity defect, SIEM correlation event, audit parity alert. | Canonical Verification Result and Audit Evidence (§12.11); Audit Trail Requirements (§31.3). |
-| Tenant/facade isolation in delegated verifier deployments | Intake, trust, callback, and result partitioning | Tenant-scoped request state, keys, trust stores, callback authentication, result APIs, audit records, and subject namespace. | Cross-tenant trust anchor, sibling callback target, result enumeration, wallet-login subject impersonation, or vendor-owned wallet-facing URL hidden from RP risk model. | `tenant_id`, `endpoint_ownership`, `partition_result`, `subject_namespace`. | tenant-policy failure, cross-tenant access audit event. | RP Verification Architecture Patterns (§26); Canonical Verification Result and Audit Evidence (§12.11). |
 | Issuance-adjacent verifier reuse before RP issuance or onboarding | Proof and attestation gates | Inbound PID/QEAA, WUA/WIA, key attestation, proof JWT, DPoP `jti`, nonce/`c_nonce` pass before issuance handoff. | Tampered proof, wrong `c_nonce`, stale `iat`, replayed DPoP `jti`, PIN/session mix-up. | `proof_check`, `attestation_result`, `replay_result`. | proof replay signal, issuance-gate audit event. | OID4VCI Issuance Flow for SCA Attestations (§15.4); RP as Credential Issuer (§15.5). |
 
 ##### 12.12.6 Operational Release Gates
 
-A high-assurance RP treats verifier release approval as an evidence decision: the release candidate either proves it can reject bad inputs, preserve tenant boundaries, emit a canonical result, and recover from faults — or it does not ship. The five gates below must all pass before a verifier build enters production.
+A high-assurance RP treats verifier release approval as an evidence decision: the release candidate either proves it can reject bad inputs, emit a canonical result, and recover from faults — or it does not ship. The five gates below must all pass before a verifier build enters production.
 
 | Gate | What it checks | Required evidence | Blocks release if |
 |:-----|:---------------|:------------------|:------------------|
-| **Fixture evidence** | Deterministic fixture pass-rate against the exact verifier build, policy bundle, trust-cache snapshot, and result schema proposed for release | Fixture run ID, verifier version, policy version, evidence summary attached to the release record | Any known-good, known-bad, parser, resource-exhaustion, async-state, tenant-isolation, result-fidelity, or issuance-adjacent fixture fails — even if a live wallet completes a happy-path presentation |
+| **Fixture evidence** | Deterministic fixture pass-rate against the exact verifier build, policy bundle, trust-cache snapshot, and result schema proposed for release | Fixture run ID, verifier version, policy version, evidence summary attached to the release record | Any known-good, known-bad, parser, resource-exhaustion, async-state, result-fidelity, or issuance-adjacent fixture fails — even if a live wallet completes a happy-path presentation |
 | **Trust and status data** | Reproducible trust evidence for LoTE material, trusted lists, Type Metadata, issuer metadata, and Status List Tokens — versioned, freshness-checked, testable offline | Old-vs-new behavior comparison against deterministic fixtures when cache policy, retrieval policy, freshness windows, status interpretation, or trusted-list processing changes | Network availability is the only proof that the trust pipeline works |
 | **Algorithm and dependency** | Verifier dependencies (JOSE, COSE, CBOR, compression, X.509, URL parsing, DNS/HTTP retrieval, metadata parsing) reviewed as part of the cryptographic surface | SBOM, vulnerability scan, fixture deltas, explicit approval record for any algorithm allowlist, key-source policy, or retrieval-policy change | A dependency upgrade ships without SBOM evidence or fixture-delta review |
 | **Interoperability and delegation** | Deterministic evidence matches live ecosystem behavior | At least one live Wallet, browser/OS credential API branch, or delegated-verifier integration exercised before release where the deployment depends on that path | Fixture assumptions have drifted from production protocol behavior, connector callbacks, or wallet-facing response modes |
@@ -24229,11 +24227,11 @@ The 45 threat cards below model *external attackers exploiting RP-side protocol,
 
 1. **Verification pipeline correctness checks** — Missing holder binding (`cnf`), wrong `vct`/`docType`, duplicate disclosures, extra disclosures, missing KB-JWT fields, presentation/query mismatches. These are verifier implementation bugs or malformed-input rejections, not adversarial threats. They belong in §C (`VERIFY-*` fixtures) with `Threat (§29): none directly`, not in §29.
 2. **Infrastructure and deployment security** — SSRF protection (private/link-local IP in trust-fetch URLs), DNS rebinding, trust root poisoning via cache corruption, container orchestration attacks, Kubernetes/KMS misconfiguration, CI/CD pipeline compromise, secrets management failures. These are platform-layer concerns addressed by SecOps hardening, network segmentation, and infrastructure-as-code reviews, not by credential-protocol threat modelling.
-3. **Multi-tenant architecture isolation** — Cross-tenant trust anchor injection, sibling-tenant callback targeting, result enumeration across tenant boundaries, host-swapped response endpoints, shared-facade trust-source bleed. These are architecture and deployment patterns covered by §26 (Verification Architecture Patterns) and §12.1 (Verifier Contract and Scope Boundary invariant: "Tenant and RP context must travel through every boundary"), not by individual threat cards.
+3. **Connector or facade tenant-boundary guarantees** — Isolation of request URLs, callbacks, key material, trust material, sessions, result surfaces, audit records, and administrative controls is a product-selection and architecture-review prerequisite. These guarantees are covered by §12.11.6 and §26, not by individual threat cards or Appendix C verifier fixtures.
 4. **Operational monitoring and webhook integrity** — Unsigned webhook payloads, stale webhook secrets, callback authentication failures, event-delivery ordering guarantees, idempotency enforcement. These are operational reliability concerns for the result-delivery and notification layer (§12.11, §31), not cryptographic or protocol attacks.
 5. **Privacy policy enforcement edge cases** — Over-disclosure beyond DCQL request scope, disclosure brute-force via enumeration, policy-violating attribute combinations, privacy leaks through verbose error messages. These are DCQL/policy-engine correctness issues handled by the policy stage (§12.4, C.8 fixtures) and the RP's data-minimisation configuration, not external attacks.
 
-When a new scenario falls into one of these categories, the correct home is a §C fixture with `Threat (§29): none directly`, a `VERIFY-*` identifier, and a cross-reference to the relevant §12 implementation section — not a new §29 threat card.
+When a new verifier-controlled scenario falls into one of these categories, the correct home is a §C fixture with `Threat (§29): none directly`, a `VERIFY-*` identifier, and a cross-reference to the relevant §12 implementation section — not a new §29 threat card. Connector or facade tenant-boundary failures are the exception: they remain product-selection and architecture-review concerns, not Appendix C fixtures.
 
 #### 29.2 Threat Catalogue
 
@@ -37544,18 +37542,19 @@ Each entry has a stable `VERIFY-{STAGE}-{NNNN}` identifier. The IDs are referenc
 
 **Inclusion principle:** Every §30 signal the verifier emits corresponds to a code path. Every code path that produces a signal must have a test fixture in this catalogue. If the signal exists in §30 and the verifier is the one emitting it, the fixture stays — regardless of whether the triggering condition originated externally (wallet policy, user consent, network failure) or internally (malformed input, pipeline invariant). The fixture validates the verifier's handling of that signal's code path, not the external actor's decision.
 
+**Out of scope:** Appendix C does not validate connector or facade tenant isolation. The catalogue assumes the selected wallet connector, verifier facade, or intermediary enforces tenant boundaries as advertised. A request URL, callback, trust source, key, session, result API, audit surface, or administrative action for one tenant/RP must not be routable to another tenant/RP in the first place. That guarantee belongs in product selection, architecture review, security assessment, and contractual/vendor due diligence, not in verifier failure fixtures.
+
 Every fixture below has a `Threat (§29)` cross-reference. Many carry `none directly` — this is not an omission. It means the failure is a genuine verifier defect or operational fault that the implementation must detect and handle, but it is not driven by an external adversarial attack modelled in §29. The catalogue intentionally includes both categories:
 
 - **Security-driven failures** — the verifier must detect a condition that an attacker could exploit (e.g., forged signature, replayed credential, algorithm confusion). These fixtures map to a §29 threat card.
 - **Correctness-driven failures** — the verifier must reject malformed input, enforce pipeline invariants, guard against infrastructure misuse, or prevent operational degradation, even though no specific attacker is modelled. These fixtures carry `Threat (§29): none directly`.
 
-Both categories are first-class test cases with stable `VERIFY-*` identifiers, severity levels, and STRIDE classifications. The distinction matters for threat-to-signal traceability (§29 → §30 → §31), not for implementation priority. The five main categories of correctness-driven failures are:
+Both categories are first-class test cases with stable `VERIFY-*` identifiers, severity levels, and STRIDE classifications. The distinction matters for threat-to-signal traceability (§29 → §30 → §31), not for implementation priority. The four main categories of correctness-driven failures are:
 
 1. **Verification pipeline correctness** — missing `cnf`, wrong `vct`/`docType`, duplicate disclosures, presentation/query mismatches, missing KB-JWT fields, extra disclosures not committed in `_sd`. The verifier rejects these because the credential or presentation is malformed, not because an attacker is being modelled.
 2. **Infrastructure and deployment guardrails** — SSRF protection (private/link-local IP in trust-fetch URLs), DNS rebinding, trust root cache poisoning, TLS termination failures. These are platform-layer network and deployment concerns (§12.5), not credential-protocol attacks.
-3. **Multi-tenant architecture isolation** — cross-tenant trust anchor injection, sibling-tenant callback targeting, result enumeration across tenant boundaries, shared-facade trust-source bleed. These are deployment-pattern failures covered by §26 and §12.1's tenant-isolation invariant.
-4. **Operational reliability** — unauthenticated notification delivery, stale callback secrets, event-delivery ordering, idempotency enforcement, stable error contract violations. These are result-delivery and notification-layer reliability concerns (§12.11, §31).
-5. **Policy enforcement edge cases** — over-disclosure beyond DCQL request scope, disclosure brute-force via enumeration, policy-violating attribute combinations, verbose error messages that leak information. These are DCQL/policy-engine correctness checks (§12.4, C.8 fixtures) and data-minimisation configuration issues.
+3. **Operational reliability** — unauthenticated notification delivery, stale callback secrets, event-delivery ordering, idempotency enforcement, stable error contract violations. These are result-delivery and notification-layer reliability concerns (§12.11, §31).
+4. **Policy enforcement edge cases** — over-disclosure beyond DCQL request scope, disclosure brute-force via enumeration, policy-violating attribute combinations, verbose error messages that leak information. These are DCQL/policy-engine correctness checks (§12.4, C.8 fixtures) and data-minimisation configuration issues.
 
 When adding new fixtures in these categories, use `Threat (§29): none directly`. For the full threat model boundary — what §29 itself excludes and why — see §29.1.2.
 
@@ -37567,7 +37566,7 @@ The envelope and intake stage is the verifier's outermost boundary. Before any c
 
 ###### C.1.1 JWE Decryption Failure: Unknown kid
 
-The JWE header contains a `kid` value that does not match any ephemeral response-encryption key retained for the active verification sessions in this tenant partition.
+The JWE header contains a `kid` value that does not match any ephemeral response-encryption key retained for the active verification sessions in the retained request context.
 
 | Field | Value |
 |:------|:------|
@@ -37575,7 +37574,7 @@ The JWE header contains a `kid` value that does not match any ephemeral response
 | **Decision** | reject → `intake_rejected` |
 | **Signal** | `ENVELOPE_KID_UNKNOWN` |
 | **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
-| **Evidence produced** | received `kid`, known kid count for tenant, timestamp |
+| **Evidence produced** | received `kid`, known retained kid count, timestamp |
 | **Severity** | S3 Low |
 | **STRIDE** | Tampering (malformed envelope probing) |
 | **Pipeline stage** | Envelope & Intake (§12.3) |
@@ -37593,7 +37592,7 @@ The JWE header specifies an `alg` or `enc` value outside the HAIP/profile-config
 | **Decision** | reject → `intake_rejected` |
 | **Signal** | `ENVELOPE_JWE_ALG_UNSUPPORTED` |
 | **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
-| **Evidence produced** | received `alg`, received `enc`, allowed algorithms, tenant profile |
+| **Evidence produced** | received `alg`, received `enc`, allowed algorithms, request profile |
 | **Severity** | S3 Low |
 | **STRIDE** | Tampering (algorithm downgrade attempt) |
 | **Pipeline stage** | Envelope & Intake (§12.3) |
@@ -37647,7 +37646,7 @@ The JWE uses a known `kid` and allowed algorithms, but decryption of the ciphert
 | **Decision** | reject → `intake_rejected` |
 | **Signal** | `ENVELOPE_JWE_DECRYPT_FAILED` |
 | **Error** | `ERR_INTAKE_REJECTED`: "Verification response could not be processed" |
-| **Evidence produced** | `kid`, decryption failure mode, tenant, session id |
+| **Evidence produced** | `kid`, decryption failure mode, session id |
 | **Severity** | S2 Medium |
 | **STRIDE** | Tampering (response re-encryption or injection from different session) |
 | **Pipeline stage** | Envelope & Intake (§12.3) |
@@ -37989,7 +37988,7 @@ The platform or user agent cannot invoke the wallet app — the wallet is not in
 
 #### C.3 Session Binding Failures
 
-The session binding stage validates that the decrypted response belongs to the exact request that the Wallet saw, not to a different session, a sibling tenant, a replayed nonce, or a mutated request object. Failures here are session-level integrity violations: the response may be cryptographically well-formed but it is not bound to this verifier transaction.
+The session binding stage validates that the decrypted response belongs to the exact request that the Wallet saw, not to a different session, a replayed nonce, or a mutated request object. Failures here are session-level integrity violations: the response may be cryptographically well-formed but it is not bound to this verifier transaction.
 
 ###### C.3.1 Request Snapshot Missing or Expired
 
