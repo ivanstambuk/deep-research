@@ -18,6 +18,49 @@ The optional bracketed title becomes the visible directive title. If omitted, on
 
 ---
 
+## Tabbed Example Groups
+
+Use `tabbed-example` when several sibling examples implement the same concept in different languages or variants. The reader renders the examples as tabs; generated Markdown lowers them back to headings plus escaped details blocks so the static artifact remains readable.
+
+````md
+::::tabbed-example[Manual memory management examples]{persist="dr-0006-memory-management"}
+:::tab[C++23]{key="cpp" subtitle="RAII, unique_ptr, custom deleters" heading="5.2.2 C++23: RAII and Smart Pointers" anchor="522-c23-raii-and-smart-pointers" level="5"}
+```cpp
+// example
+```
+:::
+
+:::tab[Zig 0.14]{key="zig" subtitle="Allocator interface, defer, DebugAllocator" heading="5.2.3 Zig 0.14: Explicit Allocators and Defer" anchor="523-zig-014-explicit-allocators-and-defer" level="5"}
+```zig
+// example
+```
+:::
+::::
+````
+
+Attributes:
+
+- `tabbed-example` label: required visible group title.
+- `persist`: optional reader-local persistence family. Use lowercase kebab-case or namespaced keys.
+- `tab` label: required visible tab label. Keep it compact; put longer qualifiers in `subtitle`.
+- `key`: required stable tab key, unique inside the group.
+- `subtitle`: optional short descriptor shown under the tab label.
+- `heading`: optional preserved heading text for existing numbered sections.
+- `anchor`: required with `heading` when replacing an existing anchored section.
+- `level`: optional preserved heading level, usually `5` or `6` for existing example subsections.
+
+Authoring rules:
+
+1. Use tabs for direct comparison: same problem, same conceptual slot, different language or implementation variant.
+2. Use tabs for Mermaid diagrams only when a single figure is really several standalone sibling clusters. Keep one integrated diagram when cross-cluster arrows, shared terminals, or a single end-to-end flow carry the meaning.
+3. Do not use tabs for unrelated examples or a list of examples inside one language; ordinary details blocks read better there.
+4. Prefer short tab labels such as `Rust`, `Go`, `C++23`, or `Ada 2022`. Put detail like “broadcast channel” or “functional options” in `subtitle`.
+5. Preserve existing `heading` / `anchor` metadata when converting numbered sections so outline links and cross-references keep working.
+6. Avoid adding new structural headings inside tab bodies unless they are intentional preserved anchors.
+7. Do not nest `tabbed-example` groups.
+
+---
+
 ## Supported Types
 
 - `warning`

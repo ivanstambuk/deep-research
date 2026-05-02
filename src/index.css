@@ -1598,6 +1598,101 @@ img {
   margin-bottom: 0.78rem;
 }
 
+.doc-article .tabbed-example-group {
+  margin: 1rem 0 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-panel-strong) 92%, var(--accent) 8%);
+  overflow: hidden;
+}
+
+.doc-article .tabbed-example-title {
+  padding: 0.72rem 0.86rem 0.58rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  color: var(--doc-heading-mid);
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.doc-article .tabbed-example-tablist {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--accent) 12%);
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-article .tabbed-example-tab {
+  min-width: 9.5rem;
+  max-width: 18rem;
+  padding: 0.62rem 0.82rem;
+  border: 0;
+  border-right: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-article .tabbed-example-tab:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-primary);
+}
+
+.doc-article .tabbed-example-tab:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid color-mix(in srgb, var(--accent) 74%, transparent);
+  outline-offset: -2px;
+}
+
+.doc-article .tabbed-example-tab.is-active {
+  border-bottom-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--bg-panel-strong) 86%, var(--accent) 14%);
+  color: var(--text-primary);
+}
+
+.doc-article .tabbed-example-tab-label,
+.doc-article .tabbed-example-tab-subtitle {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.doc-article .tabbed-example-tab-label {
+  font-weight: 760;
+  line-height: 1.16;
+}
+
+.doc-article .tabbed-example-tab-subtitle {
+  margin-top: 0.18rem;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.22;
+}
+
+.doc-article .tabbed-example-panel {
+  padding: 0.24rem 0.86rem 0.88rem;
+}
+
+.doc-article .tabbed-example-panel[hidden] {
+  display: none;
+}
+
+.doc-article .tabbed-example-panel > :last-child {
+  margin-bottom: 0;
+}
+
+.doc-article .tabbed-example-panel > h5:first-child,
+.doc-article .tabbed-example-panel > h6:first-child {
+  margin-top: 0.8rem;
+}
+
 .doc-article code {
   padding: 0.08rem 0.28rem;
   border-radius: 6px;

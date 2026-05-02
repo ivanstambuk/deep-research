@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Block `git commit --no-verify`.
+#
+# Git's --no-verify flag bypasses pre-commit and commit-msg hooks. It does not
+# bypass prepare-commit-msg, so this hook keeps the repository's validation path
+# from being skipped accidentally or used as an escape hatch.
+
+set -euo pipefail
+
+PARENT_CMD="$(ps -o args= -p "$PPID" 2>/dev/null || true)"
+
+if [[ "$PARENT_CMD" == *"--no-verify"* ]]; then
+  cat <<'MSG'
+╔══════════════════════════════════════════════════════════════════╗
+║  ❌ COMMIT BLOCKED — --no-verify IS DISALLOWED                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+WHAT HAPPENED:
+  This repository depends on commit-time validation for DR documents,
+  generated mirrors, Mermaid rendering, reader assets, and formatting
+  guardrails. `git commit --no-verify` bypasses the hooks that enforce
+  those checks and can commit unreadable or invalid output.
+
+HOW TO FIX:
+  1. Run `git commit` without `--no-verify`.
+  2. If a validation fails, fix the reported issue instead of bypassing it.
+  3. If a guardrail is wrong, fix the guardrail or escalate before committing.
+
+MSG
+  exit 1
+fi

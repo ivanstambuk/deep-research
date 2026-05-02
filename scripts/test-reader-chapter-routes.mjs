@@ -33,6 +33,21 @@ const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
 const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
+const DR6_SLUG = 'DR-0006-modern-low-level-programming-languages';
+const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
+const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
+const DR6_EMBEDDED_CHAPTER_ID = '35-embedded-and-systems-programming';
+const DR6_CPP_HEADING_ID = '522-c23-raii-and-smart-pointers';
+const DR6_ZIG_HEADING_ID = '523-zig-014-explicit-allocators-and-defer';
+const DR6_ADA_HEADING_ID = '524-ada-2022-controlled-types-and-storage-pools';
+const DR6_NIM_STATIC_HEADING_ID = '685-compile-time-control-flow-static-and-macros';
+const DR6_ZIG_HARDWARE_HEADING_ID = '3541-direct-hardware-access';
+const DR6_MEMORY_EXAMPLE_PERSIST_KEY = 'dr-0006-memory-management';
+const DR6_MEMORY_EXAMPLE_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_MEMORY_EXAMPLE_PERSIST_KEY}"]`;
+const DR6_TABBED_EXAMPLE_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_EXAMPLE_PERSIST_KEY}`;
+const DR6_MEMORY_STRATEGY_PERSIST_KEY = 'dr-0006-memory-strategy-models';
+const DR6_MEMORY_STRATEGY_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_MEMORY_STRATEGY_PERSIST_KEY}"]`;
+const DR6_MEMORY_STRATEGY_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_STRATEGY_PERSIST_KEY}`;
 
 async function assertSlugRedirect(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}`;
@@ -589,6 +604,318 @@ async function assertViewerSuppressesStandaloneBreakSpacers(page) {
 
     return window.getComputedStyle(topLevelBreak).display === 'none';
   }, null, { timeout: 20_000 });
+}
+
+async function readTabbedExampleSnapshot(page) {
+  return page.evaluate((groupSelector) => {
+    const group = document.querySelector(groupSelector);
+    const buttons = [...group?.querySelectorAll('[role="tab"][data-tabbed-example-key]') ?? []];
+    const panels = [...group?.querySelectorAll('.tabbed-example-panel[data-tabbed-example-panel]') ?? []];
+    const activePanel = panels.find((panel) => !panel.hidden);
+    const activeOutline = document.querySelector('.chapter-outline-link.is-active');
+
+    return {
+      hasGroup: Boolean(group),
+      title: group?.querySelector('.tabbed-example-title')?.textContent?.trim() ?? '',
+      selectedKeys: buttons
+        .filter((button) => button.getAttribute('aria-selected') === 'true')
+        .map((button) => button.getAttribute('data-tabbed-example-key')),
+      tabIndexes: buttons.map((button) => ({
+        key: button.getAttribute('data-tabbed-example-key'),
+        tabIndex: button.getAttribute('tabindex'),
+      })),
+      hiddenKeys: panels
+        .filter((panel) => panel.hidden)
+        .map((panel) => panel.getAttribute('data-tabbed-example-key')),
+      activePanelKey: activePanel?.getAttribute('data-tabbed-example-key') ?? null,
+      activePanelHeadingId: activePanel?.querySelector('h5, h6')?.id ?? null,
+      hasCppAnchor: Boolean(document.getElementById('522-c23-raii-and-smart-pointers')),
+      hasZigAnchor: Boolean(document.getElementById('523-zig-014-explicit-allocators-and-defer')),
+      hasAdaAnchor: Boolean(document.getElementById('524-ada-2022-controlled-types-and-storage-pools')),
+      activeOutlineText: activeOutline?.textContent?.trim() ?? '',
+      storedKey: window.localStorage.getItem('dr-reader-tabbed-example:dr-0006-memory-management'),
+    };
+  }, DR6_MEMORY_EXAMPLE_GROUP_SELECTOR);
+}
+
+async function assertTabbedExamplePilot(page) {
+  const baseUrl = getBaseUrl(page.__readerPort);
+  const chapterUrl = `${baseUrl}/${DR6_SLUG}/${DR6_MEMORY_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking tabbed example pilot: ${chapterUrl}`);
+
+  await page.goto(`${chapterUrl}#${DR6_CPP_HEADING_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((groupSelector) => {
+    const group = document.querySelector(groupSelector);
+    const selected = group?.querySelector('[role="tab"][aria-selected="true"]');
+    return selected?.getAttribute('data-tabbed-example-key') === 'cpp' &&
+      !document.getElementById('522-c23-raii-and-smart-pointers')?.closest('.tabbed-example-panel')?.hidden;
+  }, DR6_MEMORY_EXAMPLE_GROUP_SELECTOR, { timeout: 20_000 });
+
+  const initialSnapshot = await readTabbedExampleSnapshot(page);
+  if (
+    !initialSnapshot.hasGroup ||
+    initialSnapshot.title !== 'Manual memory management examples' ||
+    initialSnapshot.selectedKeys.join(',') !== 'cpp' ||
+    initialSnapshot.activePanelKey !== 'cpp' ||
+    initialSnapshot.activePanelHeadingId !== DR6_CPP_HEADING_ID ||
+    !initialSnapshot.hiddenKeys.includes('zig') ||
+    !initialSnapshot.hiddenKeys.includes('ada') ||
+    !initialSnapshot.hasCppAnchor ||
+    !initialSnapshot.hasZigAnchor ||
+    !initialSnapshot.hasAdaAnchor ||
+    initialSnapshot.tabIndexes.find((entry) => entry.key === 'cpp')?.tabIndex !== '0' ||
+    initialSnapshot.tabIndexes.find((entry) => entry.key === 'zig')?.tabIndex !== '-1'
+  ) {
+    throw new Error(`tabbed example initial state invalid: ${JSON.stringify(initialSnapshot)}`);
+  }
+
+  await page.locator(`${DR6_MEMORY_EXAMPLE_GROUP_SELECTOR} .tabbed-example-tab[data-tabbed-example-key="zig"]`).click();
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="zig"]')?.getAttribute('aria-selected') === 'true' &&
+    !document.getElementById('523-zig-014-explicit-allocators-and-defer')?.closest('.tabbed-example-panel')?.hidden &&
+    window.localStorage.getItem('dr-reader-tabbed-example:dr-0006-memory-management') === 'zig'
+  ), null, { timeout: 20_000 });
+
+  await page.keyboard.press('End');
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="ada"]')?.getAttribute('aria-selected') === 'true' &&
+    document.activeElement?.getAttribute('data-tabbed-example-key') === 'ada'
+  ), null, { timeout: 20_000 });
+
+  await page.keyboard.press('Home');
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="cpp"]')?.getAttribute('aria-selected') === 'true' &&
+    document.activeElement?.getAttribute('data-tabbed-example-key') === 'cpp'
+  ), null, { timeout: 20_000 });
+
+  await page.locator(`${DR6_MEMORY_EXAMPLE_GROUP_SELECTOR} .tabbed-example-tab[data-tabbed-example-key="zig"]`).click();
+  await page.goto(chapterUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((storageKey) => (
+    window.localStorage.getItem(storageKey) === 'zig' &&
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="zig"]')?.getAttribute('aria-selected') === 'true'
+  ), DR6_TABBED_EXAMPLE_STORAGE_KEY, { timeout: 20_000 });
+
+  await page.goto(`${chapterUrl}#${DR6_ADA_HEADING_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="ada"]')?.getAttribute('aria-selected') === 'true' &&
+    !document.getElementById('524-ada-2022-controlled-types-and-storage-pools')?.closest('.tabbed-example-panel')?.hidden
+  ), null, { timeout: 20_000 });
+
+  await page.locator('.chapter-outline-link', { hasText: '5.2.3 Zig 0.14' }).click();
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="zig"]')?.getAttribute('aria-selected') === 'true' &&
+    !document.getElementById('523-zig-014-explicit-allocators-and-defer')?.closest('.tabbed-example-panel')?.hidden
+  ), null, { timeout: 20_000 });
+
+  await page.evaluate(({ chapterId, headingId }) => {
+    const article = document.querySelector('.chapter-article');
+    const link = document.createElement('a');
+    link.href = '#';
+    link.textContent = 'Synthetic same-chapter Ada link';
+    link.dataset.docXref = 'true';
+    link.dataset.docChapterId = chapterId;
+    link.dataset.docHeadingId = headingId;
+    article.prepend(link);
+  }, {
+    chapterId: DR6_MEMORY_CHAPTER_ID,
+    headingId: DR6_ADA_HEADING_ID,
+  });
+
+  await page.locator('a', { hasText: 'Synthetic same-chapter Ada link' }).click();
+  await page.waitForFunction(() => (
+    document.querySelector('[data-tabbed-example-persist="dr-0006-memory-management"] .tabbed-example-tab[data-tabbed-example-key="ada"]')?.getAttribute('aria-selected') === 'true' &&
+    !document.getElementById('524-ada-2022-controlled-types-and-storage-pools')?.closest('.tabbed-example-panel')?.hidden
+  ), null, { timeout: 20_000 });
+
+  await page.waitForFunction(() => (
+    document.querySelector('.chapter-outline-link.is-active')?.textContent?.includes('5.2.4 Ada 2022')
+  ), null, { timeout: 20_000 });
+
+  const finalSnapshot = await readTabbedExampleSnapshot(page);
+  if (finalSnapshot.activeOutlineText.includes('Zig') && finalSnapshot.activePanelKey !== 'zig') {
+    throw new Error(`hidden tab heading incorrectly drove active outline state: ${JSON.stringify(finalSnapshot)}`);
+  }
+}
+
+async function readTabbedMermaidSnapshot(page) {
+  return page.evaluate(({ groupSelector, storageKey }) => {
+    const group = document.querySelector(groupSelector);
+    const buttons = [...group?.querySelectorAll('[role="tab"][data-tabbed-example-key]') ?? []];
+    const panels = [...group?.querySelectorAll('.tabbed-example-panel[data-tabbed-example-panel]') ?? []];
+    const activePanel = panels.find((panel) => !panel.hidden);
+
+    return {
+      hasGroup: Boolean(group),
+      title: group?.querySelector('.tabbed-example-title')?.textContent?.trim() ?? '',
+      selectedKeys: buttons
+        .filter((button) => button.getAttribute('aria-selected') === 'true')
+        .map((button) => button.getAttribute('data-tabbed-example-key')),
+      tabKeys: buttons.map((button) => button.getAttribute('data-tabbed-example-key')),
+      hiddenKeys: panels
+        .filter((panel) => panel.hidden)
+        .map((panel) => panel.getAttribute('data-tabbed-example-key')),
+      activePanelKey: activePanel?.getAttribute('data-tabbed-example-key') ?? null,
+      activeSvgCount: activePanel?.querySelectorAll('.mermaid svg').length ?? 0,
+      activeExpandButtonCount: activePanel?.querySelectorAll('.mermaid .mermaid-expand-button').length ?? 0,
+      activeZoomDisplayText: activePanel?.querySelector('.mermaid-zoom-display')?.textContent?.trim() ?? '',
+      storedKey: window.localStorage.getItem(storageKey),
+    };
+  }, {
+    groupSelector: DR6_MEMORY_STRATEGY_GROUP_SELECTOR,
+    storageKey: DR6_MEMORY_STRATEGY_STORAGE_KEY,
+  });
+}
+
+async function assertTabbedMermaidPilot(page) {
+  const chapterUrl = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_MEMORY_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking tabbed Mermaid pilot: ${chapterUrl}`);
+
+  await page.goto(chapterUrl, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((groupSelector) => {
+    const group = document.querySelector(groupSelector);
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"][data-tabbed-example-key="control"]') &&
+      activePanel?.querySelector('.mermaid svg') &&
+      activePanel?.querySelector('.mermaid .mermaid-expand-button');
+  }, DR6_MEMORY_STRATEGY_GROUP_SELECTOR, { timeout: 20_000 });
+
+  const initialSnapshot = await readTabbedMermaidSnapshot(page);
+  if (
+    !initialSnapshot.hasGroup ||
+    initialSnapshot.title !== 'Memory management strategy models' ||
+    initialSnapshot.selectedKeys.join(',') !== 'control' ||
+    initialSnapshot.activePanelKey !== 'control' ||
+    initialSnapshot.activeSvgCount < 1 ||
+    initialSnapshot.activeExpandButtonCount < 1 ||
+    initialSnapshot.activeZoomDisplayText !== '60%' ||
+    !initialSnapshot.hiddenKeys.includes('safety') ||
+    !initialSnapshot.hiddenKeys.includes('productivity')
+  ) {
+    throw new Error(`tabbed Mermaid initial state invalid: ${JSON.stringify(initialSnapshot)}`);
+  }
+
+  await page.locator(`${DR6_MEMORY_STRATEGY_GROUP_SELECTOR} .tabbed-example-tab[data-tabbed-example-key="safety"]`).click();
+  await page.waitForFunction((storageKey) => {
+    const group = document.querySelector('[data-tabbed-example-persist="dr-0006-memory-strategy-models"]');
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"][data-tabbed-example-key="safety"]') &&
+      activePanel?.getAttribute('data-tabbed-example-key') === 'safety' &&
+      activePanel?.querySelector('.mermaid svg') &&
+      window.localStorage.getItem(storageKey) === 'safety';
+  }, DR6_MEMORY_STRATEGY_STORAGE_KEY, { timeout: 20_000 });
+
+  await page.locator(`${DR6_MEMORY_STRATEGY_GROUP_SELECTOR} .tabbed-example-tab[data-tabbed-example-key="productivity"]`).click();
+  await page.waitForFunction((storageKey) => {
+    const group = document.querySelector('[data-tabbed-example-persist="dr-0006-memory-strategy-models"]');
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"][data-tabbed-example-key="productivity"]') &&
+      activePanel?.getAttribute('data-tabbed-example-key') === 'productivity' &&
+      activePanel?.querySelector('.mermaid svg') &&
+      window.localStorage.getItem(storageKey) === 'productivity';
+  }, DR6_MEMORY_STRATEGY_STORAGE_KEY, { timeout: 20_000 });
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => {
+    const group = document.querySelector('[data-tabbed-example-persist="dr-0006-memory-strategy-models"]');
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"][data-tabbed-example-key="productivity"]') &&
+      activePanel?.getAttribute('data-tabbed-example-key') === 'productivity' &&
+      activePanel?.querySelector('.mermaid svg');
+  }, null, { timeout: 20_000 });
+}
+
+async function assertCodeSyntaxHighlighting(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_EMBEDDED_CHAPTER_ID}#${DR6_ZIG_HARDWARE_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking Zig syntax highlighting: ${url}`);
+
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((headingId) => {
+    const heading = document.getElementById(headingId);
+    let node = heading;
+    while (node && node.tagName !== 'PRE') {
+      node = node.nextElementSibling;
+    }
+    const code = node?.querySelector('code.language-zig');
+    return Boolean(code?.querySelector('.hljs-keyword')) &&
+      Boolean(code?.querySelector('.hljs-type')) &&
+      Boolean(code?.querySelector('.hljs-built_in'));
+  }, DR6_ZIG_HARDWARE_HEADING_ID, { timeout: 20_000 });
+
+  const highlightSnapshot = await page.evaluate((headingId) => {
+    const heading = document.getElementById(headingId);
+    let node = heading;
+    while (node && node.tagName !== 'PRE') {
+      node = node.nextElementSibling;
+    }
+    const code = node?.querySelector('code.language-zig');
+    const keyword = code?.querySelector('.hljs-keyword');
+    const type = code?.querySelector('.hljs-type');
+    const builtin = code?.querySelector('.hljs-built_in');
+    return {
+      codeClass: code?.className ?? '',
+      spanCount: code?.querySelectorAll('span').length ?? 0,
+      baseColor: code ? window.getComputedStyle(code).color : '',
+      keywordColor: keyword ? window.getComputedStyle(keyword).color : '',
+      typeColor: type ? window.getComputedStyle(type).color : '',
+      builtinColor: builtin ? window.getComputedStyle(builtin).color : '',
+    };
+  }, DR6_ZIG_HARDWARE_HEADING_ID);
+
+  if (
+    highlightSnapshot.spanCount < 6 ||
+    highlightSnapshot.keywordColor === highlightSnapshot.baseColor ||
+    highlightSnapshot.typeColor === highlightSnapshot.baseColor ||
+    highlightSnapshot.builtinColor === highlightSnapshot.baseColor
+  ) {
+    throw new Error(`Zig syntax highlighting is not visible: ${JSON.stringify(highlightSnapshot)}`);
+  }
+}
+
+async function assertNimSyntaxHighlighting(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_CONTROL_FLOW_CHAPTER_ID}#${DR6_NIM_STATIC_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking Nim syntax highlighting: ${url}`);
+
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((headingId) => {
+    const heading = document.getElementById(headingId);
+    let node = heading;
+    while (node && node.tagName !== 'PRE') {
+      node = node.nextElementSibling;
+    }
+    const code = node?.querySelector('code.language-nim');
+    return Boolean(code?.querySelector('.hljs-keyword')) &&
+      Boolean(code?.querySelector('.hljs-type')) &&
+      Boolean(code?.querySelector('.hljs-number'));
+  }, DR6_NIM_STATIC_HEADING_ID, { timeout: 20_000 });
+
+  const highlightSnapshot = await page.evaluate((headingId) => {
+    const heading = document.getElementById(headingId);
+    let node = heading;
+    while (node && node.tagName !== 'PRE') {
+      node = node.nextElementSibling;
+    }
+    const code = node?.querySelector('code.language-nim');
+    const keyword = code?.querySelector('.hljs-keyword');
+    const type = code?.querySelector('.hljs-type');
+    const number = code?.querySelector('.hljs-number');
+    return {
+      codeClass: code?.className ?? '',
+      spanCount: code?.querySelectorAll('span').length ?? 0,
+      baseColor: code ? window.getComputedStyle(code).color : '',
+      keywordColor: keyword ? window.getComputedStyle(keyword).color : '',
+      typeColor: type ? window.getComputedStyle(type).color : '',
+      numberColor: number ? window.getComputedStyle(number).color : '',
+    };
+  }, DR6_NIM_STATIC_HEADING_ID);
+
+  if (
+    highlightSnapshot.spanCount < 10 ||
+    highlightSnapshot.keywordColor === highlightSnapshot.baseColor ||
+    highlightSnapshot.typeColor === highlightSnapshot.baseColor ||
+    highlightSnapshot.numberColor === highlightSnapshot.baseColor
+  ) {
+    throw new Error(`Nim syntax highlighting is not visible: ${JSON.stringify(highlightSnapshot)}`);
+  }
 }
 
 async function ensureTheme(page, expectedTheme) {
@@ -1273,6 +1600,10 @@ async function main() {
     await assertArfTopicLinksResolveAsExternalLinks(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);
     await assertViewerSuppressesStandaloneBreakSpacers(page);
+    await assertTabbedMermaidPilot(page);
+    await assertTabbedExamplePilot(page);
+    await assertCodeSyntaxHighlighting(page);
+    await assertNimSyntaxHighlighting(page);
     await assertMermaidThemeToggle(page);
     await assertMermaidExpandControlVisibleOnAllDiagrams(page);
     await assertExpandedMermaidViewer(page);

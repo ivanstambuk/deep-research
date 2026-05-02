@@ -25,6 +25,7 @@ import {
   slugifyHeadingText,
 } from './cross-reference-links.js';
 import { remarkDirectiveHandler } from './directives.js';
+import { rehypeHighlightOptions } from './highlight-languages.js';
 import { rehypeDecodeCodeEntities } from './rehype-code-entities.js';
 
 const srcDir = path.join(process.cwd(), 'src', 'papers');
@@ -631,6 +632,21 @@ function buildDocVersion(seed) {
   return crypto.createHash('sha1').update(seed).digest('hex').slice(0, 10);
 }
 
+function buildRenderedDocVersion({ filename, raw, sections }) {
+  const hash = crypto.createHash('sha1');
+  hash.update(filename);
+  hash.update('\0');
+  hash.update(raw);
+  hash.update('\0rendered-html\0');
+  sections.forEach((section) => {
+    hash.update(section.sectionId);
+    hash.update('\0');
+    hash.update(section.html);
+    hash.update('\0');
+  });
+  return hash.digest('hex').slice(0, 10);
+}
+
 async function ensureCleanDir(dir) {
   await fs.rm(dir, { recursive: true, force: true });
   await fs.mkdir(dir, { recursive: true });
@@ -650,7 +666,7 @@ async function build() {
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
     .use(rehypeDecodeCodeEntities)
-    .use(rehypeHighlight, { ignoreMissing: true })
+    .use(rehypeHighlight, rehypeHighlightOptions)
     .use(rehypeSlug)
     .use(rehypeKatex);
   const mdastParser = unified()
@@ -679,7 +695,7 @@ async function build() {
       documentSlug: filename,
     });
     const bodyWithLabelAnchors = applyTextReplacements(cleaned.body, labelTargets.anchorReplacements);
-    const tree = await processor.run(processor.parse(bodyWithLabelAnchors));
+    const tree = await processor.run(processor.parse(bodyWithLabelAnchors), { path: file });
     wrapTablesForHorizontalScroll(tree);
     let sections = createSectionsFromTree(tree, {
       allowSecondarySplit: cleaned.frontmatter.reader_allow_h3_chapter_split !== false,
@@ -713,7 +729,11 @@ async function build() {
       return finalizeSectionRecord(section);
     });
 
-    const docVersion = buildDocVersion(`${filename}:${raw}`);
+    const docVersion = buildRenderedDocVersion({
+      filename,
+      raw,
+      sections,
+    });
     const chapterDir = path.join(chaptersRootDir, filename, docVersion);
 
     await fs.mkdir(chapterDir, { recursive: true });

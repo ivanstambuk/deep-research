@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+const TABBED_EXAMPLE_ACTIVATED_EVENT = 'reader-tabbed-example-activated';
+
 function buildOutlineTree(outline = []) {
   const groups = [];
   let currentGroup = null;
@@ -88,9 +90,10 @@ export function useActiveHeading(mountedHeadingIds) {
 
     const update = () => {
       const threshold = 180;
-      let bestId = headings[0]?.id ?? null;
+      const visibleHeadings = headings.filter((heading) => !heading.closest('.tabbed-example-panel[hidden]'));
+      let bestId = visibleHeadings[0]?.id ?? null;
 
-      for (const heading of headings) {
+      for (const heading of visibleHeadings) {
         const { top } = heading.getBoundingClientRect();
         if (top <= threshold) {
           bestId = heading.id;
@@ -114,6 +117,7 @@ export function useActiveHeading(mountedHeadingIds) {
     schedule();
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
+    window.addEventListener(TABBED_EXAMPLE_ACTIVATED_EVENT, schedule);
 
     return () => {
       if (frame !== null) {
@@ -121,6 +125,7 @@ export function useActiveHeading(mountedHeadingIds) {
       }
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
+      window.removeEventListener(TABBED_EXAMPLE_ACTIVATED_EVENT, schedule);
     };
   }, [mountedHeadingIds]);
 

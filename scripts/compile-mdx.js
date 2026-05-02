@@ -40,6 +40,61 @@ function normalizeCrossReferenceTypography(output) {
     .replace(/(?<=\s)[Cc]hapter\s+([0-9]+(?:\.[0-9]+)*)\b(?!\s*of\b)/g, '§$1');
 }
 
+function normalizeMarkdownSeparators(output) {
+  const lines = output.split('\n');
+  const cleaned = [];
+  let inCodeFence = false;
+  let inFrontMatter = lines[0]?.trim() === '---';
+  let frontMatterDelimiterCount = 0;
+
+  for (const line of lines) {
+    const stripped = line.trim();
+
+    if (stripped.startsWith('```')) {
+      inCodeFence = !inCodeFence;
+      cleaned.push(line);
+      continue;
+    }
+
+    if (inFrontMatter) {
+      cleaned.push(line);
+      if (stripped === '---') {
+        frontMatterDelimiterCount += 1;
+        if (frontMatterDelimiterCount === 2) {
+          inFrontMatter = false;
+        }
+      }
+      continue;
+    }
+
+    if (!inCodeFence && stripped === '---') {
+      continue;
+    }
+
+    cleaned.push(line);
+  }
+
+  const normalized = [];
+  for (const line of cleaned) {
+    if (line.startsWith('## ') || line.startsWith('### ')) {
+      while (normalized.length > 0 && normalized[normalized.length - 1].trim() === '') {
+        normalized.pop();
+      }
+
+      if (normalized.length > 0) {
+        normalized.push('');
+      }
+
+      normalized.push('---');
+      normalized.push('');
+    }
+
+    normalized.push(line);
+  }
+
+  return normalized.join('\n');
+}
+
 function logLikelyFalsePositiveExternalSkipReport(prefix, diagnostics) {
   if (diagnostics.length === 0) {
     return;
@@ -197,7 +252,7 @@ async function compileMdxToMarkdown() {
     const markdownBody = frontMatterMatch
       ? fileContent.slice(frontMatterMatch[0].length)
       : fileContent;
-    const loweredBody = lowerDirectivesToMarkdown(markdownBody);
+    const loweredBody = lowerDirectivesToMarkdown(markdownBody, { filePath: entrySrcPath });
     const tree = parser.parse(loweredBody);
     const headings = collectMarkdownHeadingTargets(tree);
     const labelTargets = collectMarkdownLabelTargets(tree, {
@@ -245,7 +300,9 @@ async function compileMdxToMarkdown() {
     const output = frontMatter
       ? `${frontMatter}\n\n${header}${linkedBodyWithViewerBanner}`
       : `${header}${linkedBodyWithViewerBanner}`;
-    await fs.writeFile(targetMdPath, syncVisibleLineCount(normalizeCrossReferenceTypography(output)));
+    await fs.writeFile(targetMdPath, syncVisibleLineCount(
+      normalizeMarkdownSeparators(normalizeCrossReferenceTypography(output)),
+    ));
   }
 
   // Recursively process directories

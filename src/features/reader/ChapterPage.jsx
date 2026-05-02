@@ -31,6 +31,8 @@ const OUTLINE_DEFAULT_WIDTH = 280;
 const OUTLINE_RESIZER_GUTTER = 12;
 const MERMAID_MODAL_TITLE_ID = 'reader-mermaid-modal-title';
 const MERMAID_ACTION_FEEDBACK_RESET_MS = 1800;
+const TABBED_EXAMPLE_STORAGE_PREFIX = 'dr-reader-tabbed-example:';
+const TABBED_EXAMPLE_ACTIVATED_EVENT = 'reader-tabbed-example-activated';
 const READER_BASE_HREF = import.meta.env.BASE_URL === '/'
   ? ''
   : import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -140,12 +142,139 @@ function getHashTarget(hash) {
   return document.getElementById(hashId);
 }
 
+function getTabbedExampleButtons(group) {
+  const tablist = group?.querySelector?.('.tabbed-example-tablist');
+  if (!(tablist instanceof HTMLElement)) {
+    return [];
+  }
+
+  return Array.from(tablist.querySelectorAll('[role="tab"][data-tabbed-example-key]'))
+    .filter((node) => node instanceof HTMLButtonElement);
+}
+
+function getTabbedExamplePanels(group) {
+  return Array.from(group?.querySelectorAll?.('.tabbed-example-panel[data-tabbed-example-panel]') ?? [])
+    .filter((node) => node instanceof HTMLElement);
+}
+
+function readStoredTabbedExampleKey(persistKey) {
+  if (typeof window === 'undefined' || !persistKey) {
+    return '';
+  }
+
+  try {
+    return window.localStorage.getItem(`${TABBED_EXAMPLE_STORAGE_PREFIX}${persistKey}`) || '';
+  } catch {
+    return '';
+  }
+}
+
+function writeStoredTabbedExampleKey(persistKey, tabKey) {
+  if (typeof window === 'undefined' || !persistKey || !tabKey) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(`${TABBED_EXAMPLE_STORAGE_PREFIX}${persistKey}`, tabKey);
+  } catch {
+    // Storage can be unavailable in private browsing or quota-constrained contexts.
+  }
+}
+
+function scheduleTabbedExampleActivationEvent() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    window.dispatchEvent(new CustomEvent(TABBED_EXAMPLE_ACTIVATED_EVENT));
+  });
+}
+
+function setActiveTabbedExampleTab(group, tabKey, { focusTab = false, persist = false } = {}) {
+  if (!(group instanceof HTMLElement) || !tabKey) {
+    return false;
+  }
+
+  const buttons = getTabbedExampleButtons(group);
+  const panels = getTabbedExamplePanels(group);
+  const targetButton = buttons.find((button) => button.dataset.tabbedExampleKey === tabKey);
+
+  if (!targetButton || panels.length === 0) {
+    return false;
+  }
+
+  buttons.forEach((button) => {
+    const isActive = button === targetButton;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    button.tabIndex = isActive ? 0 : -1;
+  });
+
+  panels.forEach((panel) => {
+    const isActive = panel.dataset.tabbedExampleKey === tabKey;
+    panel.classList.toggle('is-active', isActive);
+    panel.hidden = !isActive;
+  });
+
+  if (persist) {
+    writeStoredTabbedExampleKey(group.dataset.tabbedExamplePersist || '', tabKey);
+  }
+
+  if (focusTab) {
+    targetButton.focus({ preventScroll: true });
+  }
+
+  scheduleTabbedExampleActivationEvent();
+  return true;
+}
+
+function initializeTabbedExamples(articleNode) {
+  if (!(articleNode instanceof HTMLElement)) {
+    return;
+  }
+
+  articleNode.querySelectorAll('.tabbed-example-group[data-tabbed-example]').forEach((group) => {
+    if (!(group instanceof HTMLElement)) {
+      return;
+    }
+
+    const buttons = getTabbedExampleButtons(group);
+    if (!buttons.length) {
+      return;
+    }
+
+    const activeKey = buttons.find((button) => button.getAttribute('aria-selected') === 'true')?.dataset.tabbedExampleKey || '';
+    const storedKey = readStoredTabbedExampleKey(group.dataset.tabbedExamplePersist || '');
+    const storedKeyIsValid = Boolean(storedKey && buttons.some((button) => button.dataset.tabbedExampleKey === storedKey));
+    const fallbackKey = activeKey || buttons[0].dataset.tabbedExampleKey || '';
+
+    setActiveTabbedExampleTab(group, storedKeyIsValid ? storedKey : fallbackKey, { persist: false });
+  });
+}
+
+function activateContainingTabbedExample(target, options = {}) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const panel = target.closest('.tabbed-example-panel[hidden]');
+  if (!(panel instanceof HTMLElement)) {
+    return false;
+  }
+
+  const group = panel.closest('.tabbed-example-group[data-tabbed-example]');
+  const tabKey = panel.dataset.tabbedExampleKey || '';
+  return setActiveTabbedExampleTab(group, tabKey, options);
+}
+
 function alignHashTarget(hash, behavior = 'auto') {
   const target = getHashTarget(hash);
   if (!target) {
     return false;
   }
 
+  activateContainingTabbedExample(target, { persist: false });
   scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, behavior);
   return true;
 }
@@ -631,6 +760,7 @@ export default function ChapterPage({
     }
 
     const articleNode = articleRef.current;
+    initializeTabbedExamples(articleNode);
 
     articleNode.querySelectorAll('a[data-doc-xref="true"]').forEach((node) => {
       if (!(node instanceof HTMLAnchorElement)) {
@@ -650,6 +780,20 @@ export default function ChapterPage({
 
     const handleArticleClick = (event) => {
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const tabButton = event.target instanceof Element
+        ? event.target.closest('.tabbed-example-tab[role="tab"][data-tabbed-example-key]')
+        : null;
+
+      if (tabButton instanceof HTMLButtonElement) {
+        event.preventDefault();
+        const group = tabButton.closest('.tabbed-example-group[data-tabbed-example]');
+        setActiveTabbedExampleTab(group, tabButton.dataset.tabbedExampleKey || '', {
+          focusTab: true,
+          persist: true,
+        });
         return;
       }
 
@@ -706,16 +850,59 @@ export default function ChapterPage({
       if (targetChapterId === chapterId && targetHeadingId) {
         const target = document.getElementById(targetHeadingId);
         if (target) {
+          activateContainingTabbedExample(target, { persist: false });
           scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
         }
       }
     };
 
+    const handleArticleKeyDown = (event) => {
+      const tabButton = event.target instanceof Element
+        ? event.target.closest('.tabbed-example-tab[role="tab"][data-tabbed-example-key]')
+        : null;
+
+      if (!(tabButton instanceof HTMLButtonElement)) {
+        return;
+      }
+
+      const group = tabButton.closest('.tabbed-example-group[data-tabbed-example]');
+      const buttons = getTabbedExampleButtons(group);
+      const currentIndex = buttons.indexOf(tabButton);
+      if (currentIndex === -1) {
+        return;
+      }
+
+      let nextIndex = currentIndex;
+      if (event.key === 'ArrowRight') {
+        nextIndex = (currentIndex + 1) % buttons.length;
+      } else if (event.key === 'ArrowLeft') {
+        nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+      } else if (event.key === 'Home') {
+        nextIndex = 0;
+      } else if (event.key === 'End') {
+        nextIndex = buttons.length - 1;
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        nextIndex = currentIndex;
+      } else {
+        return;
+      }
+
+      event.preventDefault();
+      const nextButton = buttons[nextIndex];
+      setActiveTabbedExampleTab(group, nextButton.dataset.tabbedExampleKey || '', {
+        focusTab: true,
+        persist: true,
+      });
+    };
+
     articleNode.addEventListener('click', handleArticleClick);
+    articleNode.addEventListener('keydown', handleArticleKeyDown);
     return () => {
       articleNode.removeEventListener('click', handleArticleClick);
+      articleNode.removeEventListener('keydown', handleArticleKeyDown);
     };
   }, [
+    chapter?.html,
     chapterId,
     globalMermaidZoomPercent,
     navigate,
@@ -877,6 +1064,7 @@ export default function ChapterPage({
       hash: `#${headingId}`,
     });
     if (target) {
+      activateContainingTabbedExample(target, { persist: false });
       scrollIntoViewWithOffset(target, READER_SCROLL_OFFSET, 'auto');
     }
   };
