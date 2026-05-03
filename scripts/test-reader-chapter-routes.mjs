@@ -54,6 +54,8 @@ const DR6_MEMORY_STRATEGY_GROUP_SELECTOR = `.chapter-article .tabbed-example-gro
 const DR6_MEMORY_STRATEGY_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_STRATEGY_PERSIST_KEY}`;
 const DR6_EMBEDDED_TIER_PERSIST_KEY = 'dr-0006-embedded-tier-rankings';
 const DR6_EMBEDDED_TIER_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_EMBEDDED_TIER_PERSIST_KEY}"]`;
+const DR6_CERTIFICATION_TIER_PERSIST_KEY = 'dr-0006-certification-readiness-tiers';
+const DR6_CERTIFICATION_TIER_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_CERTIFICATION_TIER_PERSIST_KEY}"]`;
 const DR6_DOCUMENT_MANIFEST_URL = new URL('../src/generated/documents/DR-0006-modern-low-level-programming-languages.json', import.meta.url);
 const MERMAID_CLUSTER_LABEL_NODE_OVERLAP_Y_THRESHOLD = 8;
 const MERMAID_CLUSTER_LABEL_NODE_OVERLAP_AREA_THRESHOLD = 1000;
@@ -1280,35 +1282,42 @@ async function assertMermaidForeignObjectLabelsNotClipped(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_CERTIFICATION_CHAPTER_ID}#${DR6_CERTIFICATION_TIER_HEADING_ID}`;
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  await page.waitForFunction((headingId) => {
-    const heading = document.getElementById(headingId);
-    let container = heading?.nextElementSibling ?? null;
-    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
-      if (/^H[1-6]$/.test(container.tagName)) {
-        return false;
-      }
-      container = container.nextElementSibling;
+  await page.waitForFunction((groupSelector) => {
+    const group = document.querySelector(groupSelector);
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"]') &&
+      activePanel?.querySelector('.mermaid svg');
+  }, DR6_CERTIFICATION_TIER_GROUP_SELECTOR, { timeout: 20_000 });
+
+  const tabKeys = ['tier-1', 'tier-2', 'tier-3', 'tier-4'];
+  for (const key of tabKeys) {
+    await page.locator(`${DR6_CERTIFICATION_TIER_GROUP_SELECTOR} [role="tab"][data-tabbed-example-key="${key}"]`).click();
+    await page.waitForFunction(({ groupSelector, expectedKey }) => {
+      const group = document.querySelector(groupSelector);
+      const activePanel = group?.querySelector(`.tabbed-example-panel[data-tabbed-example-key="${expectedKey}"]`);
+      return group?.querySelector(`[role="tab"][aria-selected="true"][data-tabbed-example-key="${expectedKey}"]`) &&
+        activePanel &&
+        !activePanel.hidden &&
+        activePanel.querySelector('.mermaid svg');
+    }, { groupSelector: DR6_CERTIFICATION_TIER_GROUP_SELECTOR, expectedKey: key }, { timeout: 20_000 });
+
+    const inlineSelector = `${DR6_CERTIFICATION_TIER_GROUP_SELECTOR} .tabbed-example-panel[data-tabbed-example-key="${key}"] .mermaid`;
+    const inlineSnapshot = await readMermaidForeignObjectClippingSnapshot(page, inlineSelector);
+    if (!inlineSnapshot.hasSvg || inlineSnapshot.clipped.length > 0) {
+      throw new Error(`inline certification tier labels clipped for ${key}: ${JSON.stringify(inlineSnapshot)}`);
     }
-    return Boolean(container?.querySelector('svg'));
-  }, DR6_CERTIFICATION_TIER_HEADING_ID, { timeout: 20_000 });
 
-  await tagMermaidContainerForHeading(page, DR6_CERTIFICATION_TIER_HEADING_ID, 'certification-tier');
+    await page.locator(`${inlineSelector} button[data-mermaid-action="expand"]`).click();
+    await page.waitForSelector('.mermaid-modal-diagram svg', { timeout: 20_000 });
 
-  const inlineSnapshot = await readMermaidForeignObjectClippingSnapshot(page, '[data-test-mermaid-target="certification-tier"]');
-  if (!inlineSnapshot.hasSvg || inlineSnapshot.clipped.length > 0) {
-    throw new Error(`inline Mermaid labels clipped: ${JSON.stringify(inlineSnapshot)}`);
+    const modalSnapshot = await readMermaidForeignObjectClippingSnapshot(page, '.mermaid-modal-diagram');
+    if (!modalSnapshot.hasSvg || modalSnapshot.clipped.length > 0) {
+      throw new Error(`expanded certification tier labels clipped for ${key}: ${JSON.stringify(modalSnapshot)}`);
+    }
+
+    await page.locator('.mermaid-modal-button.is-close').click();
+    await page.waitForFunction(() => !document.querySelector('.mermaid-modal'), null, { timeout: 20_000 });
   }
-
-  await page.locator('[data-test-mermaid-target="certification-tier"] button[data-mermaid-action="expand"]').click();
-  await page.waitForSelector('.mermaid-modal-diagram svg', { timeout: 20_000 });
-
-  const modalSnapshot = await readMermaidForeignObjectClippingSnapshot(page, '.mermaid-modal-diagram');
-  if (!modalSnapshot.hasSvg || modalSnapshot.clipped.length > 0) {
-    throw new Error(`expanded Mermaid labels clipped: ${JSON.stringify(modalSnapshot)}`);
-  }
-
-  await page.locator('.mermaid-modal-button.is-close').click();
-  await page.waitForFunction(() => !document.querySelector('.mermaid-modal'), null, { timeout: 20_000 });
 }
 
 async function assertMermaidClusterLabelsDoNotOverlapNodes(page) {
