@@ -1627,7 +1627,8 @@ img {
 }
 
 .doc-article .tabbed-example-tab {
-  min-width: 9.5rem;
+  flex: 1 1 8rem;
+  min-width: 8rem;
   max-width: 18rem;
   padding: 0.62rem 0.82rem;
   border: 0;
@@ -1719,6 +1720,13 @@ img {
   border-radius: 18px;
   background: var(--mermaid-card-bg);
   border: 1px solid var(--mermaid-card-border);
+}
+
+.doc-article .mermaid p,
+.mermaid-modal-diagram p {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .doc-article .mermaid-header {

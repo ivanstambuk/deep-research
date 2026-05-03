@@ -61,6 +61,20 @@ Authoring rules:
 
 ---
 
+## Mermaid Diagram Labels
+
+Mermaid `subgraph` labels are fragile in the reader because Mermaid does not always reserve enough vertical space before placing the first child node. This can make subtitles, rich labels, or long category headings overlap the first node.
+
+Authoring rules:
+
+1. Keep `subgraph` labels to short, single-line category titles.
+2. Do not put subtitles, explanatory clauses, Markdown emphasis, or HTML line breaks in `subgraph` labels.
+3. Put category explanations in normal prose, a dedicated Mermaid header node, a card node, a table column, or a tab subtitle.
+4. For tier rankings and grouped comparison cards, prefer diagram-native header/card nodes when a visual grouping helps scanning; use tables only when the content is primarily tabular.
+5. If a Mermaid diagram uses clusters, validate that cluster labels do not overlap nodes in both inline and expanded reader views.
+
+---
+
 ## Supported Types
 
 - `warning`

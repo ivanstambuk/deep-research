@@ -1,4 +1,5 @@
 import process from 'process';
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import {
   getBaseUrl,
@@ -36,18 +37,33 @@ const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
 const DR6_SLUG = 'DR-0006-modern-low-level-programming-languages';
 const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
 const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
+const DR6_CERTIFICATION_CHAPTER_ID = '34-safety-critical-and-certification-support';
 const DR6_EMBEDDED_CHAPTER_ID = '35-embedded-and-systems-programming';
 const DR6_CPP_HEADING_ID = '522-c23-raii-and-smart-pointers';
 const DR6_ZIG_HEADING_ID = '523-zig-014-explicit-allocators-and-defer';
 const DR6_ADA_HEADING_ID = '524-ada-2022-controlled-types-and-storage-pools';
 const DR6_NIM_STATIC_HEADING_ID = '685-compile-time-control-flow-static-and-macros';
+const DR6_CERTIFICATION_TIER_HEADING_ID = '3461-certification-readiness-matrix';
 const DR6_ZIG_HARDWARE_HEADING_ID = '3541-direct-hardware-access';
+const DR6_EMBEDDED_TIER_HEADING_ID = '35101-tier-rankings';
 const DR6_MEMORY_EXAMPLE_PERSIST_KEY = 'dr-0006-memory-management';
 const DR6_MEMORY_EXAMPLE_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_MEMORY_EXAMPLE_PERSIST_KEY}"]`;
 const DR6_TABBED_EXAMPLE_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_EXAMPLE_PERSIST_KEY}`;
 const DR6_MEMORY_STRATEGY_PERSIST_KEY = 'dr-0006-memory-strategy-models';
 const DR6_MEMORY_STRATEGY_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_MEMORY_STRATEGY_PERSIST_KEY}"]`;
 const DR6_MEMORY_STRATEGY_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_STRATEGY_PERSIST_KEY}`;
+const DR6_EMBEDDED_TIER_PERSIST_KEY = 'dr-0006-embedded-tier-rankings';
+const DR6_EMBEDDED_TIER_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_EMBEDDED_TIER_PERSIST_KEY}"]`;
+const DR6_DOCUMENT_MANIFEST_URL = new URL('../src/generated/documents/DR-0006-modern-low-level-programming-languages.json', import.meta.url);
+const MERMAID_CLUSTER_LABEL_NODE_OVERLAP_Y_THRESHOLD = 8;
+const MERMAID_CLUSTER_LABEL_NODE_OVERLAP_AREA_THRESHOLD = 1000;
+
+function getDr6ContentChapterIds() {
+  const manifest = JSON.parse(readFileSync(DR6_DOCUMENT_MANIFEST_URL, 'utf8'));
+  return manifest.chapters
+    .map((chapter) => chapter.chapterId)
+    .filter((chapterId) => !chapterId.startsWith('part-'));
+}
 
 async function assertSlugRedirect(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}`;
@@ -824,6 +840,83 @@ async function assertTabbedMermaidPilot(page) {
   }, null, { timeout: 20_000 });
 }
 
+async function assertEmbeddedTierRankingTabs(page) {
+  const chapterUrl = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_EMBEDDED_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking embedded tier ranking tabs: ${chapterUrl}`);
+
+  await page.goto(`${chapterUrl}#${DR6_EMBEDDED_TIER_HEADING_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((groupSelector) => {
+    const group = document.querySelector(groupSelector);
+    const activePanel = group?.querySelector('.tabbed-example-panel:not([hidden])');
+    return group?.querySelector('[role="tab"][aria-selected="true"]') &&
+      activePanel?.querySelector('.mermaid svg');
+  }, DR6_EMBEDDED_TIER_GROUP_SELECTOR, { timeout: 20_000 });
+
+  const tabKeys = ['tier-1', 'tier-2', 'tier-3', 'tier-4'];
+  for (const key of tabKeys) {
+    await page.locator(`${DR6_EMBEDDED_TIER_GROUP_SELECTOR} [role="tab"][data-tabbed-example-key="${key}"]`).click();
+    await page.waitForFunction(({ groupSelector, expectedKey }) => {
+      const group = document.querySelector(groupSelector);
+      const activePanel = group?.querySelector(`.tabbed-example-panel[data-tabbed-example-key="${expectedKey}"]`);
+      return group?.querySelector(`[role="tab"][aria-selected="true"][data-tabbed-example-key="${expectedKey}"]`) &&
+        activePanel &&
+        !activePanel.hidden &&
+        activePanel.querySelector('.mermaid svg');
+    }, { groupSelector: DR6_EMBEDDED_TIER_GROUP_SELECTOR, expectedKey: key }, { timeout: 20_000 });
+
+    const snapshot = await page.evaluate(({ groupSelector, expectedKey }) => {
+      const group = document.querySelector(groupSelector);
+      const tablist = group?.querySelector('.tabbed-example-tablist');
+      const tablistRect = tablist?.getBoundingClientRect();
+      const activePanel = group?.querySelector(`.tabbed-example-panel[data-tabbed-example-key="${expectedKey}"]`);
+      const scrollShell = activePanel?.querySelector('.mermaid-scroll-shell');
+      const buttons = [...group?.querySelectorAll('[role="tab"][data-tabbed-example-key]') ?? []];
+      const tabButtons = buttons.map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          key: button.getAttribute('data-tabbed-example-key'),
+          text: (button.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          visible: tablistRect
+            ? rect.left >= tablistRect.left - 1 && rect.right <= tablistRect.right + 1
+            : false,
+        };
+      });
+
+      return {
+        title: group?.querySelector('.tabbed-example-title')?.textContent?.trim() ?? '',
+        selectedKeys: buttons
+          .filter((button) => button.getAttribute('aria-selected') === 'true')
+          .map((button) => button.getAttribute('data-tabbed-example-key')),
+        activePanelKey: activePanel?.getAttribute('data-tabbed-example-key') ?? null,
+        activeSvgCount: activePanel?.querySelectorAll('.mermaid svg').length ?? 0,
+        tablistHorizontalOverflowPx: Math.max(0, (tablist?.scrollWidth ?? 0) - (tablist?.clientWidth ?? 0)),
+        diagramHorizontalOverflowPx: Math.max(0, (scrollShell?.scrollWidth ?? 0) - (scrollShell?.clientWidth ?? 0)),
+        tabButtons,
+      };
+    }, { groupSelector: DR6_EMBEDDED_TIER_GROUP_SELECTOR, expectedKey: key });
+
+    if (
+      snapshot.title !== 'Embedded tier ranking details' ||
+      snapshot.selectedKeys.join(',') !== key ||
+      snapshot.activePanelKey !== key ||
+      snapshot.activeSvgCount !== 1 ||
+      snapshot.tablistHorizontalOverflowPx > 1 ||
+      snapshot.diagramHorizontalOverflowPx > 1 ||
+      snapshot.tabButtons.some((button) => !button.visible)
+    ) {
+      throw new Error(`embedded tier ranking tab layout invalid for ${key}: ${JSON.stringify(snapshot)}`);
+    }
+
+    const clippingSnapshot = await readMermaidForeignObjectClippingSnapshot(
+      page,
+      `${DR6_EMBEDDED_TIER_GROUP_SELECTOR} .tabbed-example-panel[data-tabbed-example-key="${key}"] .mermaid`,
+    );
+    if (!clippingSnapshot.hasSvg || clippingSnapshot.clipped.length > 0) {
+      throw new Error(`embedded tier ranking labels clipped for ${key}: ${JSON.stringify(clippingSnapshot)}`);
+    }
+  }
+}
+
 async function assertCodeSyntaxHighlighting(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_EMBEDDED_CHAPTER_ID}#${DR6_ZIG_HARDWARE_HEADING_ID}`;
   console.log(`[chapter routes smoke] checking Zig syntax highlighting: ${url}`);
@@ -1093,6 +1186,251 @@ async function readExpandedMermaidSnapshot(page) {
       copyImageDisabled: copyImageButton instanceof HTMLButtonElement ? copyImageButton.disabled : null,
     };
   });
+}
+
+async function readMermaidForeignObjectClippingSnapshot(page, selector) {
+  return page.evaluate((requestedSelector) => {
+    const container = document.querySelector(requestedSelector);
+    const svg = container?.querySelector('svg');
+
+    if (!svg) {
+      return { hasSvg: false, clipped: [] };
+    }
+
+    const clipped = Array.from(svg.querySelectorAll('foreignObject'))
+      .flatMap((foreignObject, index) => {
+        const text = (foreignObject.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
+        const allocatedWidth = Number(foreignObject.getAttribute('width')) || foreignObject.clientWidth;
+        const allocatedHeight = Number(foreignObject.getAttribute('height')) || foreignObject.clientHeight;
+        const foreignObjectRect = foreignObject.getBoundingClientRect();
+        const issues = [];
+
+        const range = document.createRange();
+        range.selectNodeContents(foreignObject);
+        const rangeRect = range.getBoundingClientRect();
+        if (
+          rangeRect.width > 0 &&
+          rangeRect.height > 0 &&
+          (
+            rangeRect.left < foreignObjectRect.left - 2 ||
+            rangeRect.right > foreignObjectRect.right + 2 ||
+            rangeRect.top < foreignObjectRect.top - 2 ||
+            rangeRect.bottom > foreignObjectRect.bottom + 2
+          )
+        ) {
+          issues.push({
+            index,
+            kind: 'range-outside-foreignObject',
+            text,
+            allocatedWidth,
+            allocatedHeight,
+            rangeWidth: Math.round(rangeRect.width),
+            rangeHeight: Math.round(rangeRect.height),
+          });
+        }
+
+        const candidates = new Set([
+          foreignObject.querySelector('p'),
+          foreignObject.querySelector('div'),
+          ...foreignObject.querySelectorAll('p, div, span'),
+        ].filter((node) => node instanceof HTMLElement));
+
+        candidates.forEach((content) => {
+          const rect = content.getBoundingClientRect();
+          if (rect.width <= 0 || rect.height <= 0) {
+            return;
+          }
+
+          const overflowX = content.scrollWidth - content.clientWidth;
+          const overflowY = content.scrollHeight - content.clientHeight;
+          if (overflowX <= 1 && overflowY <= 1) {
+            return;
+          }
+
+          const style = window.getComputedStyle(content);
+          issues.push({
+            index,
+            kind: 'element-scroll-clipping',
+            tag: content.tagName.toLowerCase(),
+            text,
+            allocatedWidth,
+            allocatedHeight,
+            contentClientWidth: content.clientWidth,
+            contentClientHeight: content.clientHeight,
+            contentScrollWidth: content.scrollWidth,
+            contentScrollHeight: content.scrollHeight,
+            overflowX,
+            overflowY,
+            fontSize: style.fontSize,
+            lineHeight: style.lineHeight,
+            margin: style.margin,
+          });
+        });
+
+        return issues;
+      });
+
+    return { hasSvg: true, clipped };
+  }, selector);
+}
+
+async function assertMermaidForeignObjectLabelsNotClipped(page) {
+  console.log('[chapter routes smoke] checking Mermaid foreignObject label clipping');
+
+  const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_CERTIFICATION_CHAPTER_ID}#${DR6_CERTIFICATION_TIER_HEADING_ID}`;
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction((headingId) => {
+    const heading = document.getElementById(headingId);
+    let container = heading?.nextElementSibling ?? null;
+    while (container && !(container instanceof HTMLElement && container.matches('.mermaid'))) {
+      if (/^H[1-6]$/.test(container.tagName)) {
+        return false;
+      }
+      container = container.nextElementSibling;
+    }
+    return Boolean(container?.querySelector('svg'));
+  }, DR6_CERTIFICATION_TIER_HEADING_ID, { timeout: 20_000 });
+
+  await tagMermaidContainerForHeading(page, DR6_CERTIFICATION_TIER_HEADING_ID, 'certification-tier');
+
+  const inlineSnapshot = await readMermaidForeignObjectClippingSnapshot(page, '[data-test-mermaid-target="certification-tier"]');
+  if (!inlineSnapshot.hasSvg || inlineSnapshot.clipped.length > 0) {
+    throw new Error(`inline Mermaid labels clipped: ${JSON.stringify(inlineSnapshot)}`);
+  }
+
+  await page.locator('[data-test-mermaid-target="certification-tier"] button[data-mermaid-action="expand"]').click();
+  await page.waitForSelector('.mermaid-modal-diagram svg', { timeout: 20_000 });
+
+  const modalSnapshot = await readMermaidForeignObjectClippingSnapshot(page, '.mermaid-modal-diagram');
+  if (!modalSnapshot.hasSvg || modalSnapshot.clipped.length > 0) {
+    throw new Error(`expanded Mermaid labels clipped: ${JSON.stringify(modalSnapshot)}`);
+  }
+
+  await page.locator('.mermaid-modal-button.is-close').click();
+  await page.waitForFunction(() => !document.querySelector('.mermaid-modal'), null, { timeout: 20_000 });
+}
+
+async function assertMermaidClusterLabelsDoNotOverlapNodes(page) {
+  console.log('[chapter routes smoke] checking Mermaid cluster label/node overlap');
+
+  const failures = [];
+
+  for (const chapterId of getDr6ContentChapterIds()) {
+    const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${chapterId}`;
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.chapter-article', { timeout: 20_000 });
+    await page.waitForTimeout(900);
+
+    const chapterFailures = await page.evaluate((thresholds) => {
+      const headingBefore = (container) => {
+        let previous = container.previousElementSibling;
+        while (previous) {
+          if (/^H[1-6]$/.test(previous.tagName)) {
+            return {
+              id: previous.id,
+              text: (previous.textContent ?? '').replace(/\s+/g, ' ').trim(),
+            };
+          }
+          previous = previous.previousElementSibling;
+        }
+        return null;
+      };
+
+      const intersection = (first, second) => {
+        const width = Math.max(0, Math.min(first.right, second.right) - Math.max(first.left, second.left));
+        const height = Math.max(0, Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top));
+        return { width, height, area: width * height };
+      };
+
+      const relativeRect = (rect, svgRect) => ({
+        x: Math.round((rect.left - svgRect.left) * 10) / 10,
+        y: Math.round((rect.top - svgRect.top) * 10) / 10,
+        width: Math.round(rect.width * 10) / 10,
+        height: Math.round(rect.height * 10) / 10,
+      });
+
+      return Array.from(document.querySelectorAll('.chapter-article .mermaid')).flatMap((container, diagramIndex) => {
+        const svg = container.querySelector('svg');
+        if (!svg) {
+          return [];
+        }
+
+        const svgRect = svg.getBoundingClientRect();
+        const labels = Array.from(svg.querySelectorAll('g.cluster-label'))
+          .map((label, labelIndex) => ({
+            labelIndex,
+            text: (label.textContent ?? '').replace(/\s+/g, ' ').trim(),
+            rect: label.getBoundingClientRect(),
+          }))
+          .filter((label) => label.text);
+        const nodes = Array.from(svg.querySelectorAll('g.node')).map((node, nodeIndex) => ({
+          nodeIndex,
+          text: (node.textContent ?? '').replace(/\s+/g, ' ').trim(),
+          rect: node.getBoundingClientRect(),
+        }));
+
+        const hits = [];
+        for (const label of labels) {
+          for (const node of nodes) {
+            const overlap = intersection(label.rect, node.rect);
+            if (
+              overlap.width > 2 &&
+              overlap.height > 2 &&
+              (
+                overlap.height >= thresholds.maxAllowedOverlapY ||
+                overlap.area >= thresholds.maxAllowedOverlapArea
+              )
+            ) {
+              hits.push({
+                label: {
+                  index: label.labelIndex,
+                  text: label.text.slice(0, 160),
+                  rect: relativeRect(label.rect, svgRect),
+                },
+                node: {
+                  index: node.nodeIndex,
+                  text: node.text.slice(0, 160),
+                  rect: relativeRect(node.rect, svgRect),
+                },
+                overlap: {
+                  width: Math.round(overlap.width * 10) / 10,
+                  height: Math.round(overlap.height * 10) / 10,
+                  area: Math.round(overlap.area),
+                },
+              });
+            }
+          }
+        }
+
+        if (hits.length === 0) {
+          return [];
+        }
+
+        return [{
+          diagramIndex,
+          heading: headingBefore(container),
+          svg: {
+            width: Math.round(svgRect.width),
+            height: Math.round(svgRect.height),
+            viewBox: svg.getAttribute('viewBox'),
+          },
+          hits,
+        }];
+      });
+    }, {
+      maxAllowedOverlapY: MERMAID_CLUSTER_LABEL_NODE_OVERLAP_Y_THRESHOLD,
+      maxAllowedOverlapArea: MERMAID_CLUSTER_LABEL_NODE_OVERLAP_AREA_THRESHOLD,
+    });
+
+    for (const failure of chapterFailures) {
+      failures.push({ chapterId, ...failure });
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`Mermaid cluster labels overlap nodes: ${JSON.stringify(failures.slice(0, 12), null, 2)}`);
+  }
 }
 
 async function dragMermaidScrollShell(page, selector, { deltaX = 0, deltaY = 0 } = {}) {
@@ -1601,6 +1939,7 @@ async function main() {
     await assertInitialHashRouteSurvivesMermaidRender(page);
     await assertViewerSuppressesStandaloneBreakSpacers(page);
     await assertTabbedMermaidPilot(page);
+    await assertEmbeddedTierRankingTabs(page);
     await assertTabbedExamplePilot(page);
     await assertCodeSyntaxHighlighting(page);
     await assertNimSyntaxHighlighting(page);
@@ -1608,6 +1947,8 @@ async function main() {
     await assertMermaidExpandControlVisibleOnAllDiagrams(page);
     await assertExpandedMermaidViewer(page);
     await assertMermaidZoomControlsAndPersistence(page);
+    await assertMermaidForeignObjectLabelsNotClipped(page);
+    await assertMermaidClusterLabelsDoNotOverlapNodes(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {
