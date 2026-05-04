@@ -39,6 +39,8 @@ const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
 const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
 const DR6_CERTIFICATION_CHAPTER_ID = '34-safety-critical-and-certification-support';
 const DR6_EMBEDDED_CHAPTER_ID = '35-embedded-and-systems-programming';
+const DR6_NETWORKING_CHAPTER_ID = '38-networking-and-cloud-native-support';
+const DR6_OS_CHAPTER_ID = '39-os-and-system-level-programming';
 const DR6_CPP_HEADING_ID = '522-c23-raii-and-smart-pointers';
 const DR6_ZIG_HEADING_ID = '523-zig-014-explicit-allocators-and-defer';
 const DR6_ADA_HEADING_ID = '524-ada-2022-controlled-types-and-storage-pools';
@@ -46,6 +48,8 @@ const DR6_NIM_STATIC_HEADING_ID = '685-compile-time-control-flow-static-and-macr
 const DR6_CERTIFICATION_TIER_HEADING_ID = '3461-certification-readiness-matrix';
 const DR6_ZIG_HARDWARE_HEADING_ID = '3541-direct-hardware-access';
 const DR6_EMBEDDED_TIER_HEADING_ID = '35101-tier-rankings';
+const DR6_NETWORKING_RESTORE_HEADING_ID = '3871-backend-comparison';
+const DR6_NETWORKING_HASH_HEADING_ID = '388-http3-and-quic-support';
 const DR6_MEMORY_EXAMPLE_PERSIST_KEY = 'dr-0006-memory-management';
 const DR6_MEMORY_EXAMPLE_GROUP_SELECTOR = `.chapter-article .tabbed-example-group[data-tabbed-example-persist="${DR6_MEMORY_EXAMPLE_PERSIST_KEY}"]`;
 const DR6_TABBED_EXAMPLE_STORAGE_KEY = `dr-reader-tabbed-example:${DR6_MEMORY_EXAMPLE_PERSIST_KEY}`;
@@ -211,6 +215,113 @@ async function assertChapterNavScrollPersistence(page) {
     window.location.pathname === expectedPath &&
     !document.querySelector('.chapter-loading-card')
   ), currentPath, { timeout: 20_000 });
+}
+
+async function clearArticleScrollPositions(page) {
+  await page.evaluate(() => {
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith('dr-reader-scroll-position:v1:'))
+      .forEach((key) => window.sessionStorage.removeItem(key));
+  });
+}
+
+async function waitForHeadingNearReaderOffset(page, headingId) {
+  await page.waitForFunction((targetHeadingId) => {
+    const target = document.getElementById(targetHeadingId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    return top != null && top >= 48 && top <= 180;
+  }, headingId, { timeout: 20_000 });
+}
+
+async function assertArticleRefreshScrollRestoration(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DR6_SLUG}/${DR6_NETWORKING_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking article refresh scroll restoration: ${url}`);
+
+  await clearArticleScrollPositions(page);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((headingId) => {
+    const target = document.getElementById(headingId);
+    return Boolean(document.querySelector('.chapter-article')) &&
+      Boolean(target) &&
+      window.scrollY <= 160 &&
+      (target?.getBoundingClientRect().top ?? 0) > 500;
+  }, DR6_NETWORKING_RESTORE_HEADING_ID, { timeout: 20_000 });
+  await page.waitForTimeout(650);
+
+  await page.evaluate((headingId) => {
+    const target = document.getElementById(headingId);
+    if (!target) {
+      throw new Error(`missing heading: ${headingId}`);
+    }
+
+    const desiredTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - 96);
+    window.scrollTo({ top: desiredTop, behavior: 'auto' });
+  }, DR6_NETWORKING_RESTORE_HEADING_ID);
+
+  await waitForHeadingNearReaderOffset(page, DR6_NETWORKING_RESTORE_HEADING_ID);
+  await page.waitForFunction(({ slug, chapterId, headingId }) => {
+    const raw = window.sessionStorage.getItem(`dr-reader-scroll-position:v1:${slug}/${chapterId}`);
+    if (!raw) {
+      return false;
+    }
+
+    try {
+      const stored = JSON.parse(raw);
+      return stored.headingId === headingId && Number(stored.scrollY) > 500;
+    } catch {
+      return false;
+    }
+  }, {
+    slug: DR6_SLUG,
+    chapterId: DR6_NETWORKING_CHAPTER_ID,
+    headingId: DR6_NETWORKING_RESTORE_HEADING_ID,
+  }, { timeout: 20_000 });
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForHeadingNearReaderOffset(page, DR6_NETWORKING_RESTORE_HEADING_ID);
+
+  const restoredSnapshot = await page.evaluate((headingId) => {
+    const target = document.getElementById(headingId);
+    return {
+      scrollY: Math.round(window.scrollY),
+      headingTop: Math.round(target?.getBoundingClientRect().top ?? -1),
+    };
+  }, DR6_NETWORKING_RESTORE_HEADING_ID);
+  if (restoredSnapshot.scrollY <= 500) {
+    throw new Error(`article refresh did not restore deep scroll position: ${JSON.stringify(restoredSnapshot)}`);
+  }
+
+  const hashUrl = `${url}#${DR6_NETWORKING_HASH_HEADING_ID}`;
+  await page.goto(hashUrl, { waitUntil: 'domcontentloaded' });
+  await waitForHeadingNearReaderOffset(page, DR6_NETWORKING_HASH_HEADING_ID);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((headingId) => window.location.hash === `#${headingId}`, DR6_NETWORKING_HASH_HEADING_ID, { timeout: 20_000 });
+  await waitForHeadingNearReaderOffset(page, DR6_NETWORKING_HASH_HEADING_ID);
+
+  await page.locator(`a.chapter-nav-link[href='/${DR6_SLUG}/${DR6_OS_CHAPTER_ID}']`).click();
+  await page.waitForFunction(({ slug, chapterId }) => {
+    const target = document.getElementById(chapterId);
+    const top = target?.getBoundingClientRect().top ?? null;
+    return window.location.pathname === `/${slug}/${chapterId}` &&
+      window.location.hash === '' &&
+      top != null &&
+      top >= 0 &&
+      top <= 180 &&
+      window.scrollY <= 160;
+  }, {
+    slug: DR6_SLUG,
+    chapterId: DR6_OS_CHAPTER_ID,
+  }, { timeout: 20_000 });
+
+  await page.goto(`${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${SECOND_CHAPTER_ID}`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(({ slug, chapterId }) => (
+    window.location.pathname === `/${slug}/${chapterId}` &&
+    window.location.hash === '' &&
+    Boolean(document.querySelector('.chapter-article'))
+  ), {
+    slug: DOC_SLUG,
+    chapterId: SECOND_CHAPTER_ID,
+  }, { timeout: 20_000 });
 }
 
 async function assertChapterNavControls(page) {
@@ -1935,6 +2046,7 @@ async function main() {
     await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);
     await assertChapterNavScrollPersistence(page);
+    await assertArticleRefreshScrollRestoration(page);
     await assertLayoutWidthControls(page);
     await assertChapterNavControls(page);
     await assertLayoutWidthRespectsExplicitNavResize(page);

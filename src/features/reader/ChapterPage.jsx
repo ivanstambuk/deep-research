@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useNavigationType, useParams } from 'react-router-dom';
 import { READER_SCROLL_OFFSET } from './constants.js';
 import {
   canCopyMermaidPngToClipboard,
@@ -12,7 +12,12 @@ import {
   setInlineMermaidZoom,
   setRenderedMermaidZoom,
 } from './mermaid.js';
-import { scrollIntoViewWithOffset } from './scroll.js';
+import {
+  createArticleScrollPositionPersistence,
+  readArticleScrollPosition,
+  restoreArticleScrollPosition,
+  scrollIntoViewWithOffset,
+} from './scroll.js';
 import { useActiveHeading } from './useOutlineSync.js';
 
 const NAV_WIDTH_STORAGE_KEY = 'dr-reader-nav-width';
@@ -339,7 +344,12 @@ export default function ChapterPage({
   const { chapterId = '' } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
   const articleRef = useRef(null);
+  const handledScrollRouteRef = useRef(null);
+  const manualScrollVersionRef = useRef(0);
+  const pendingPostRenderRestoreRef = useRef(null);
+  const suppressScrollPersistenceUntilRef = useRef(0);
   const navResizeStateRef = useRef(null);
   const outlineResizeStateRef = useRef(null);
   const mermaidModalRef = useRef(null);
@@ -390,6 +400,22 @@ export default function ChapterPage({
       const nextZoom = clampMermaidZoom(globalZoom);
       setInlineMermaidZoom(container, nextZoom);
     });
+  }
+
+  function isScrollPersistenceSuppressed() {
+    return Date.now() < suppressScrollPersistenceUntilRef.current;
+  }
+
+  function suppressScrollPersistence(durationMs = 500) {
+    suppressScrollPersistenceUntilRef.current = Math.max(
+      suppressScrollPersistenceUntilRef.current,
+      Date.now() + durationMs,
+    );
+  }
+
+  function runProgrammaticScroll(callback) {
+    suppressScrollPersistence();
+    return callback();
   }
 
   useEffect(() => {
@@ -579,23 +605,81 @@ export default function ChapterPage({
 
   useEffect(() => {
     if (!shouldRenderArticle) {
-      return;
+      return undefined;
     }
 
+    const routeKey = `${readerDocumentMeta.slug}/${chapterId}`;
+    const isInitialRoute = handledScrollRouteRef.current == null;
+    handledScrollRouteRef.current = routeKey;
+    pendingPostRenderRestoreRef.current = null;
+
     if (!location.hash) {
-      window.scrollTo({ top: 0, behavior: 'auto' });
-      return;
+      const shouldRestoreStoredPosition = isInitialRoute || navigationType === 'POP';
+      if (shouldRestoreStoredPosition) {
+        const storedPosition = readArticleScrollPosition(readerDocumentMeta.slug, chapterId);
+        if (storedPosition) {
+          const manualScrollVersion = manualScrollVersionRef.current;
+          const restored = runProgrammaticScroll(() => (
+            restoreArticleScrollPosition(storedPosition, READER_SCROLL_OFFSET, 'auto')
+          ));
+
+          if (restored) {
+            pendingPostRenderRestoreRef.current = {
+              routeKey,
+              locationKey: location.key,
+              pathname: location.pathname,
+              position: storedPosition,
+              manualScrollVersion,
+            };
+            return undefined;
+          }
+        }
+      }
+
+      runProgrammaticScroll(() => {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      });
+      return undefined;
     }
 
     if (!getHashTarget(location.hash)) {
-      return;
+      return undefined;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      alignHashTarget(location.hash, 'auto');
+      runProgrammaticScroll(() => {
+        alignHashTarget(location.hash, 'auto');
+      });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.hash, shouldRenderArticle]);
+  }, [
+    chapterId,
+    location.hash,
+    location.key,
+    location.pathname,
+    navigationType,
+    readerDocumentMeta.slug,
+    shouldRenderArticle,
+  ]);
+
+  useEffect(() => {
+    if (!shouldRenderArticle || !articleRef.current) {
+      return undefined;
+    }
+
+    return createArticleScrollPositionPersistence({
+      documentSlug: readerDocumentMeta.slug,
+      chapterId,
+      articleNode: articleRef.current,
+      headingIds,
+      offset: READER_SCROLL_OFFSET,
+      shouldSuppress: isScrollPersistenceSuppressed,
+      onUserScroll: () => {
+        manualScrollVersionRef.current += 1;
+        pendingPostRenderRestoreRef.current = null;
+      },
+    });
+  }, [chapterId, headingIds, readerDocumentMeta.slug, shouldRenderArticle]);
 
   useEffect(() => {
     if (!shouldRenderArticle || !articleRef.current) {
@@ -619,15 +703,50 @@ export default function ChapterPage({
         syncInlineMermaidZoomsInDom({ articleNode: articleRef.current });
 
         const currentHash = window.location.hash;
-        if (!currentHash || !getHashTarget(currentHash)) {
+        if (currentHash) {
+          if (!getHashTarget(currentHash)) {
+            return;
+          }
+
+          // Mermaid can expand content above the hash target after the initial
+          // browser/reader jump. Realign once rendering has settled.
+          postRenderFrame = window.requestAnimationFrame(() => {
+            postRenderFrame2 = window.requestAnimationFrame(() => {
+              runProgrammaticScroll(() => {
+                alignHashTarget(currentHash, 'auto');
+              });
+            });
+          });
           return;
         }
 
-        // Mermaid can expand content above the hash target after the initial
-        // browser/reader jump. Realign once rendering has settled.
+        const pendingRestore = pendingPostRenderRestoreRef.current;
+        if (
+          !pendingRestore ||
+          pendingRestore.routeKey !== `${readerDocumentMeta.slug}/${chapterId}` ||
+          pendingRestore.locationKey !== location.key ||
+          pendingRestore.pathname !== location.pathname ||
+          manualScrollVersionRef.current !== pendingRestore.manualScrollVersion
+        ) {
+          return;
+        }
+
         postRenderFrame = window.requestAnimationFrame(() => {
           postRenderFrame2 = window.requestAnimationFrame(() => {
-            alignHashTarget(currentHash, 'auto');
+            const latestPendingRestore = pendingPostRenderRestoreRef.current;
+            if (
+              latestPendingRestore &&
+              latestPendingRestore.routeKey === `${readerDocumentMeta.slug}/${chapterId}` &&
+              latestPendingRestore.locationKey === location.key &&
+              latestPendingRestore.pathname === location.pathname &&
+              !window.location.hash &&
+              manualScrollVersionRef.current === latestPendingRestore.manualScrollVersion
+            ) {
+              runProgrammaticScroll(() => {
+                restoreArticleScrollPosition(latestPendingRestore.position, READER_SCROLL_OFFSET, 'auto');
+              });
+              pendingPostRenderRestoreRef.current = null;
+            }
           });
         });
       })
@@ -646,7 +765,7 @@ export default function ChapterPage({
         window.cancelAnimationFrame(postRenderFrame2);
       }
     };
-  }, [chapter, shouldRenderArticle, theme]);
+  }, [chapter, chapterId, location.key, location.pathname, readerDocumentMeta.slug, shouldRenderArticle, theme]);
 
   useEffect(() => {
     if (!expandedMermaid || !mermaidModalDiagramRef.current) {

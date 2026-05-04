@@ -220,6 +220,18 @@ function AppShell() {
     return layoutWidthPreference;
   }, [layoutWidthPreference, recommendedLayoutWidth]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) {
+      return undefined;
+    }
+
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
+  }, []);
+
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
