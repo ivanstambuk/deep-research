@@ -11906,6 +11906,18 @@ Five distinct patterns for consent lifecycle management have emerged across IAM 
 
 > 🔑 **Important** — **Connection to §14.3 (Enterprise-Managed Authorization)**: The organization-managed consent pattern maps directly to the Enterprise-Managed Authorization extension (SEP-990, §14.3) and Auth0's Cross App Access (XAA, §H.5). In both patterns, IT departments — not individual users — control which agents can access which resources, eliminating per-user consent prompts for pre-approved agents.
 
+**Consent branches for enterprise-managed and autonomous-payment delegation** — Agentic systems now need at least five distinct consent branches, because "user consent" is no longer a single browser prompt:
+
+| Branch | Authority Record | Best Fit | Revocation / Evidence Obligation |
+|:-------|:-----------------|:---------|:---------------------------------|
+| **OAuth user consent** | User-scoped grant, consent record, refresh-token family | User-present CIAM agents that need ordinary API scopes | Revoke consent record and tokens; retain GDPR Art. 7 proof |
+| **Enterprise-managed delegation** | Org policy + Identity Assertion / ID-JAG exchange | Workforce agents connecting pre-approved SaaS applications without repeated end-user prompts | Admin policy rollback must block new exchanges; audit must show requesting app, resource app, user, and enterprise policy decision |
+| **Human-present AP2 payment** | Closed Checkout Mandate + Closed Payment Mandate | Agent helps a present user complete a specific cart/payment | Evidence must bind user approval to exact cart, amount, merchant, instrument, and agent disclosure |
+| **Human-Not-Present AP2 payment** | Open mandate constraints followed by closed transaction mandates | Standing or conditional purchase instructions such as "buy below this price before Friday" | Runtime policy must enforce amount, merchant, instrument, TTL, and challenge rules; issuer/network challenge can still force user re-entry |
+| **URL elicitation / browser handoff** | Browser session artifact plus post-return token or credential | Credential acquisition when the agent cannot complete the flow in-band | Treat as credential intake, not durable authorization; persist only the resulting grant and its revocation path |
+
+The design consequence is that AP2 mandates and XAA/Identity Assertion exchanges should not be collapsed into ordinary OAuth consent rows. XAA is a centrally governed enterprise authorization decision, while AP2 is a payment-domain evidence envelope. Both may produce tokens downstream, but the durable record that matters for audit and revocation is the policy decision or signed mandate, not merely the access token.
+
 The most mature pattern — **consent as a first-class entity** — treats each consent grant as an independent record:
 
 ```json
@@ -14110,11 +14122,25 @@ when {
 
 This policy is evaluated by the PDP (§16.2) on every tool invocation, composing with identity-based policies (§19.1) and consent checks (§14). See §19 for additional Cedar and OPA policy examples across authorization models.
 
+##### 16.5.1 Implementation Reality: Traefik TBAC vs. Conceptual TBAC/RAR
+
+TBAC should be treated as an authorization **model**, not as a single standard. Current implementations split across product middleware, OAuth carriers, and policy engines:
+
+| Layer | What It Carries | Current Reality | Design Consequence |
+|:------|:----------------|:----------------|:-------------------|
+| **Conceptual TBAC** | Task, tool, transaction parameters, runtime context, budgets, and lifecycle state | Architecture pattern defined by this section; not standardized as an OAuth or MCP profile | Use it as the internal PDP model even when external tokens expose only scopes or claims |
+| **Traefik Hub TBAC** | Task/tool/transaction checks over MCP request fields and JWT claims | Concrete gateway middleware that operationalizes TBAC for MCP traffic | Strongest current product proof that TBAC is deployable, but policy syntax and lifecycle remain product-specific |
+| **OAuth scopes** | Coarse grant ceiling such as `mcp:tools` or `payments:create` | Widely deployable, discoverable, and challengeable through OAuth / RFC 6750 | Good for grant negotiation; insufficient as the final runtime decision for high-risk tools |
+| **RAR / `authorization_details`** | Structured action constraints such as amount, recipient, instrument, TTL, and purpose | Mature OAuth extension for structured authorization requests; not yet a common MCP gateway control plane | Best standards-shaped carrier for transaction constraints when the AS must approve them before token issuance |
+| **Policy engine context** | Runtime attributes: task ID, method/name, arguments, risk, consent ID, session binding | Cedar, OPA, OpenFGA, and vendor PDPs can evaluate these attributes today | Keep final permit/deny at the gateway/PDP so late-arriving context can still reduce authority |
+
+The practical pattern is therefore two-stage. The authorization server grants a ceiling using scopes, RAR, Identity Assertion, or AP2 mandate evidence. The gateway then lowers that ceiling at execution time using the TBAC context: the current MCP method, named tool/resource/prompt, parameters, task budget, risk score, and consent or mandate identifier. This keeps §16 vendor-agnostic while recognizing Traefik Hub as the first surveyed product to make the model concrete.
+
 #### 16.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization
 
 > **See also**: §7.6 (CSA ATF maturity levels), §7.8 ASI10 (rogue agent detection gap), §8.7.4 Layer 4 (behavioral trust), §15.9.1 (Adaptive Risk Engine trigger), §19 (policy engines), §12.3.6 (CAEP graduated responses)
 
-TBAC tiers (§16.1–12.5) are assigned at task creation and remain **static** — the agent's effective permissions do not change regardless of its runtime behavior. This is architecturally incomplete: an agent assigned a "High trust" TBAC context at task start can behave anomalously mid-task (tool drift, error rate spikes, guardrail violations) without any authorization consequence. Behavioral trust scoring extends TBAC by making trust **dynamic** — continuously adjusting an agent's effective permissions based on observed behavior. This closes the architectural gap explicitly acknowledged in §7.8 (ASI10: "real-time behavioral anomaly detection for rogue agent identification is **not architecturally specified**") and operationalizes Layer 4 of the cross-org trust architecture (§8.7.4).
+TBAC tiers (§16.1–§16.5) are assigned at task creation and remain **static** — the agent's effective permissions do not change regardless of its runtime behavior. This is architecturally incomplete: an agent assigned a "High trust" TBAC context at task start can behave anomalously mid-task (tool drift, error rate spikes, guardrail violations) without any authorization consequence. Behavioral trust scoring extends TBAC by making trust **dynamic** — continuously adjusting an agent's effective permissions based on observed behavior. This closes the architectural gap explicitly acknowledged in §7.8 (ASI10: "real-time behavioral anomaly detection for rogue agent identification is **not architecturally specified**") and operationalizes Layer 4 of the cross-org trust architecture (§8.7.4).
 
 In March 2026, a rogue AI agent at Meta exposed sensitive company and user data by operating with valid credentials in unintended ways (TechCrunch, March 18, 2026). The agent possessed legitimate access tokens but pursued goals diverging from its intended purpose — validating that credential validity alone is an insufficient security boundary for non-deterministic actors. This incident is cited by Ping Identity as a motivating example for its Runtime Identity framework (§B.1), which shifts the enforcement boundary from authentication-time to action-time.
 
@@ -14680,7 +14706,7 @@ Sampling requests map to the §15 Human Oversight Architecture tiers based on th
 
 ### 18. API-to-MCP Scope Mapping
 
-A key architectural challenge is mapping existing API operation authorizations to MCP primitive-level permissions. When an organization wraps its existing REST APIs as MCP tools, prompts, and resources, the authorization model must bridge both worlds. Sections §18.1–13.4 focus on the tool-specific mapping problem; §18.5 extends the analysis to Prompts and Resources.
+A key architectural challenge is mapping existing API operation authorizations to MCP primitive-level permissions. When an organization wraps its existing REST APIs as MCP tools, prompts, and resources, the authorization model must bridge both worlds. Sections §18.1–§18.4 focus on the tool-specific mapping problem; §18.5 extends the analysis to Prompts and Resources.
 
 #### 18.1 The Mapping Problem
 
@@ -14918,9 +14944,24 @@ flowchart TB
 
 ```
 
+##### 18.4.1 Transport-Derived Policy Inputs
+
+The draft Streamable HTTP headers from §2 should feed this scope-resolution pipeline as **policy inputs**, not as a replacement for body validation. `Mcp-Method` gives the gateway a cheap primitive signal before full JSON-RPC parsing, while `Mcp-Name` gives a named-object signal for the methods that carry tool names, prompt names, or resource URIs. The gateway should still reject header/body mismatch and evaluate the canonical JSON-RPC request before forwarding.
+
+| Policy Input | Source | PDP Use |
+|:-------------|:-------|:--------|
+| **Primitive / method family** | `Mcp-Method` mirrored from JSON-RPC `method` | Select the policy template: tool call, prompt retrieval, resource read, subscription, completion, sampling, or lifecycle method |
+| **Named object** | `Mcp-Name` mirrored from `params.name` or `params.uri` when applicable | Match tool allowlists, prompt allowlists, resource URI patterns, and audit dimensions without waiting for application-specific parsing |
+| **Canonical object identity** | JSON-RPC body fields such as `params.name`, `params.uri`, and tool arguments | Resolve header/body mismatches and enforce argument-sensitive constraints such as amount, repository, channel, table, path, or instrument |
+| **Grant ceiling** | Access-token scopes, `authorization_details`, Identity Assertion exchange result, or AP2 mandate constraints | Establish the maximum authority the request may use |
+| **Lifecycle context** | `Mcp-Session-Id`, task ID, consent ID, mandate ID, risk score, CAEP/SSF state | Lower or terminate authority when a session, task, consent, mandate, or assurance level changes |
+| **Obligation** | PDP output | Allow, filter, require step-up/CIBA, challenge for additional scope, deny, or emit a structured audit event |
+
+This gives gateways a deterministic method/name-to-policy map without duplicating the transport rules in every authorization module. The headers are useful because they move primitive classification into a standard location; the policy decision remains grounded in the validated request body and the grant/lifecycle context.
+
 #### 18.5 Prompts and Resources: Primitive-Specific Authorization
 
-> **Cross-reference**: §18.1–13.4 address tool-specific scope mapping. This section extends the scope mapping architecture to MCP's other two server-side primitives — **Prompts** and **Resources** — which have fundamentally different authorization semantics than Tools. See also §17 for the fourth primitive (Sampling), which was addressed separately due to its reverse-direction (server-to-client) authorization gap.
+> **Cross-reference**: §18.1–§18.4 address tool-specific scope mapping. This section extends the scope mapping architecture to MCP's other two server-side primitives — **Prompts** and **Resources** — which have fundamentally different authorization semantics than Tools. See also §17 for the fourth primitive (Sampling), which was addressed separately due to its reverse-direction (server-to-client) authorization gap.
 
 DR-0001's authorization analysis has been tool-centric because `tools/call` carries the highest risk — write-side mutations, API calls, and payments. However, MCP defines three server-side primitives — **Tools**, **Prompts**, and **Resources** — each with distinct authorization semantics. The scope strings `mcp:tools`, `mcp:prompts`, and `mcp:resources` already appear in DR-0001's RFC 9728 Protected Resource Metadata examples (§3, §B) but have never been architecturally differentiated. A scope grant for `mcp:resources` has fundamentally different risk characteristics than `mcp:tools`: Resources are read-only but can expose bulk data, while Tools execute side effects. Policy engine rules (Cedar, OPA) need different policy templates for each primitive type.
 
@@ -15149,7 +15190,7 @@ The thirteen gateways documented in §A–§M all enforce authorization at the b
 
 **Current gap**: No gateway implements URI-level resource access control or prompt argument validation. All 13 gateways treat `mcp:resources` and `mcp:prompts` as boolean scope grants — if the scope is present in the token, all resources/prompts are accessible. Fine-grained enforcement requires policy engine integration (Cedar, OPA) at the gateway layer, as proposed in the Cedar examples above. This is a deployment gap, not an architectural gap — the gateway→policy engine integration pattern already exists for tools (§19.2) and can be extended to resources and prompts.
 
-> **Cross-reference note — extending §18**: This subsection extends DR-0001's scope mapping architecture from tool-only (§18.1–13.4) to all three MCP primitives. The scope hierarchy proposed in §18.5.5 follows the same pattern as §18.2 (tool-level scope metadata) and integrates with the gateway enforcement patterns documented in §18.3 (scope filtering) and §18.4 (multi-layer resolution). The nine threat vectors identified (§18.5.4) complement the OWASP NHI mapping (§7.8), CoSAI threat taxonomy (§7.9), and the sampling-specific threat taxonomy (§17.2). Together, all four MCP primitives — Tools (§18.1–13.4), Prompts and Resources (this section), and Sampling (§17) — now have dedicated authorization analysis.
+> **Cross-reference note — extending §18**: This subsection extends DR-0001's scope mapping architecture from tool-only (§18.1–§18.4) to all three MCP primitives. The scope hierarchy proposed in §18.5.5 follows the same pattern as §18.2 (tool-level scope metadata) and integrates with the gateway enforcement patterns documented in §18.3 (scope filtering) and §18.4 (multi-layer resolution). The nine threat vectors identified (§18.5.4) complement the OWASP NHI mapping (§7.8), CoSAI threat taxonomy (§7.9), and the sampling-specific threat taxonomy (§17.2). Together, all four MCP primitives — Tools (§18.1–§18.4), Prompts and Resources (this section), and Sampling (§17) — now have dedicated authorization analysis.
 
 ---
 
@@ -28112,6 +28153,7 @@ The goal of this section is practical reproducibility: it points to concrete pro
 - [Traefik MCP Gateway](https://traefik.io/solutions/mcp-gateway) — MCP gateway product page covering TBAC, session-smart routing, runtime guardrails, and audit-ready observability
 - [Traefik Hub MCP Gateway Documentation](https://doc.traefik.io/traefik-hub/mcp-gateway/mcp) — MCP middleware configuration, OAuth 2.1 resource-server behavior, protected-resource metadata, TBAC, and session-affinity guidance
 - [Traefik Hub — MCP Gateway Best Practices](https://doc.traefik.io/traefik-hub/mcp-gateway/guides/mcp-gateway-best-practices) — On-behalf-of authentication, TBAC, and the Triple Gate defense-in-depth pattern
+- [Traefik Hub — Understanding Task-Based Access Control](https://doc.traefik.io/traefik-hub/mcp-gateway/guides/understanding-tbac) — Product guide describing TBAC task, tool, and transaction layers for MCP gateway authorization (§16)
 - [TrueFoundry AI Gateway — Authentication & Security](https://docs.truefoundry.com/docs/ai-gateway/mcp/mcp-gateway-auth-security) — Inbound/outbound auth architecture, Virtual MCP Servers, Identity Injection
 - [TrueFoundry AI Gateway — Introduction](https://docs.truefoundry.com/docs/ai-gateway) — Unified API for 1000+ LLMs with MCP Registry, RBAC, guardrails
 - [TrueFoundry MCP Gateway](https://www.truefoundry.com/mcp) — Centralized MCP gateway with OAuth lifecycle management
