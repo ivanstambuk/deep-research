@@ -18532,7 +18532,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ | ✅ Admin UI (port 4000) |
 | **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz | Callbacks + hooks |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA (Vault EA) | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ AI Agents GA; MCP Limited EA; Vault EA; XAA Beta | 🟡 RC2 (GA 28 Mar) | ✅ GA | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
 | **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 | ✅ MIT |
 | **Nov 2025 Spec** | | | | | | | | | | | | | |
 | **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -18686,7 +18686,7 @@ Not all lock-in is equal. Some components (like a PII filtering plugin) can be r
 | **Kong (§C)** | 100+ Kong plugins (proprietary ecosystem), Konnect SaaS management plane, Kong-specific plugin configuration format, auto-generation MCP tool logic | Standard proxy/LB concepts, OAuth plugin logic is replicable, OPA integration uses standard Rego | **Medium**: Plugin ecosystem is the lock-in vector — custom plugins and their configuration are Kong-specific. Standard proxy behavior is commodity. OPA policies are portable. |
 | **TrueFoundry (§D)** | Virtual MCP server registry (proprietary), Virtual Accounts (agent identity), Control Plane + Gateway Plane architecture, credential store format, guardrails configuration format, Agent Hub / A2A envelope format, custom guardrails plugin API | OAuth 2.0 proxy pattern, K8s deployment model, Cedar/OPA policies (OSS engines), OpenTelemetry observability | **Medium**: Virtual MCP abstraction is conceptually unique — migrating requires re-registering all MCP servers with a new gateway and re-creating Virtual Account identities. Guardrails use OSS policy engines (Cedar/OPA) but TrueFoundry-specific configuration format. Agent Hub A2A routing is proprietary. |
 | **WSO2 IS (§G)** | Agent Identity REST APIs (vendor-specific), Asgardeo SaaS (if cloud-hosted), XACML policy format | Self-hostable (reduced cloud lock-in), standard OAuth 2.0/OIDC flows, SCIM user provisioning | **Medium**: Agent Identity APIs are vendor-specific. Self-hosted deployments own the identity data; Asgardeo SaaS deployments rely on standard user profile exports. XACML policies must be rewritten for a different PDP. Standard OAuth flows are portable. |
-| **Auth0 (§H)** | Token Vault (SaaS-only credential lifecycle, current docs still mark it Early Access), Auth0 FGA (ReBAC engine), Auth0-specific SDKs, Auth0 for AI Agents primitives, SaaS-only deployment | Standard OAuth 2.0/OIDC, M2M credentials (portable), XAA (IETF standardized extension), Actions (webhooks — conceptually portable) | **Medium–High**: Token Vault remains Public Cloud exclusively with no self-hosted OSS equivalent — all managed third-party credentials must be re-provisioned upon exit. FGA policies (ReBAC) must be migrated to OpenFGA OSS or another ReBAC engine. |
+| **Auth0 (§H)** | Token Vault (SaaS-only credential lifecycle; Token Vault-specific docs still mark it Early Access for public cloud tenants), Auth0 FGA (ReBAC engine), Auth0-specific SDKs, Auth0 for AI Agents primitives, SaaS-only deployment | Standard OAuth 2.0/OIDC, M2M credentials (portable), XAA (IETF standardized extension), Actions (webhooks — conceptually portable) | **Medium–High**: Token Vault remains Public Cloud exclusively with no self-hosted OSS equivalent — all managed third-party credentials must be re-provisioned upon exit. FGA policies (ReBAC) must be migrated to OpenFGA OSS or another ReBAC engine. |
 
 **🟢 Low Lock-In:**
 
@@ -20079,13 +20079,13 @@ The trade-off is that WSO2 IS provides **authorization only** — no tool federa
 
 Auth0/Okta's approach reveals a wider scope than MCP authorization alone. Four capabilities distinguished this model:
 
-1.  **Token Vault** (RFC 8693) provides the most complete delegation implementation — managed third-party credential storage with auto-refresh, meaning agents never handle long-lived tokens for services like Google, Slack, or GitHub. While currently in Early Access (Public Cloud only), this solves a problem that no gateway (§A–§F) or IdP (§G) natively addresses.
+1.  **Token Vault** (RFC 8693) provides the most complete delegation implementation — managed third-party credential storage with auto-refresh, meaning agents never handle long-lived tokens for services like Google, Slack, or GitHub. Auth0's AI-agent docs now present Token Vault as a current building block for agentic applications, while the Token Vault-specific docs still label the underlying capability Early Access for Public Cloud tenants. This solves a problem that no gateway (§A–§F) or IdP (§G) natively addresses.
 
 2.  **Async authorization via CIBA** enables human-in-the-loop for sensitive agent operations — the user approves on a separate device before the agent proceeds. This is a native implementation offering real-time, out-of-band human approval for individual agent actions.
 
 3.  **OpenFGA (CNCF) for RAG** provides document-level relationship-based access control, ensuring AI agents only retrieve authorized documents during RAG. This is finer-grained than any tool-level authorization model in this investigation (Cedar, PingAuthorize, Virtual MCP Servers).
 
-4.  **CIMD + XAA (Beta)** (November 2025 MCP spec) show Auth0 actively shaping the MCP specification itself — Client ID Metadata Documents simplify MCP client registration, while Cross App Access (Identity Assertion Grant) addresses enterprise consent fatigue through IT-managed agent delegation policies.
+4.  **Auth for MCP + CIMD + XAA** show Auth0 actively shaping the MCP identity surface — Auth for MCP is a Limited Early Access surface for OAuth 2.1/OIDC protection of MCP servers, Client ID Metadata Documents simplify MCP client registration, and Cross App Access remains a Beta implementation of enterprise consent delegation through IT-managed agent policies.
 
 The trade-off is that Auth0 is a **SaaS-only CIAM platform** — no self-hosted option, no gateway/proxy capabilities, and no MCP traffic proxying. Organizations needing tool federation, API→MCP conversion, or protocol-native multiplexing still need a gateway (§A–§F). Auth0 secures the **agent**; gateways secure the **communication**.
 
@@ -25053,7 +25053,7 @@ Both share the same core architecture and feature set (MCP server templates, age
 ### Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform
 
 
-Auth0 (an Okta company) provides a **CIAM-native AI agent platform** through **Auth0 for AI Agents**. The umbrella platform reached general availability on **November 19, 2025**, but its components do not all share one maturity level. As of **April 17, 2026**, current public docs treat **Token Vault** as **Early Access for public cloud tenants**, **Cross App Access (XAA)** as **Beta**, and **Auth for MCP** as **Limited Early Access**. Representing the **IdP-Native** archetype, Auth0's approach is to provide a **purpose-built security stack for AI agents** rather than proxying MCP traffic. It combines user authentication, Token Vault credential brokerage, asynchronous authorization for human-in-the-loop approval, and fine-grained authorization for RAG. On the Token Treatment Spectrum (§11.1), Token Vault represents a managed form of **OBO Token Exchange** in which the platform stores and exchanges third-party credentials on the agent's behalf.
+Auth0 (an Okta company) provides a **CIAM-native AI agent platform** through **Auth0 for AI Agents**. The umbrella platform reached general availability on **November 19, 2025**, but its components do not all share one maturity level. As of the **May 5, 2026 Auth0-specific re-check**, current public docs treat **Token Vault** as **Early Access for public cloud tenants**, **Cross App Access (XAA)** as **Beta**, and **Auth for MCP** as **Limited Early Access**. Representing the **IdP-Native** archetype, Auth0's approach is to provide a **purpose-built security stack for AI agents** rather than proxying MCP traffic. It combines user authentication, Token Vault credential brokerage, asynchronous authorization for human-in-the-loop approval, and fine-grained authorization for RAG. On the Token Treatment Spectrum (§11.1), Token Vault represents a managed form of **OBO Token Exchange** in which the platform stores and exchanges third-party credentials on the agent's behalf.
 
 Auth0's MCP story now has two distinct surfaces. **Auth for MCP** is the product surface for securing arbitrary MCP servers with OAuth 2.1 / OpenID Connect sign-in, standards-based discovery and client registration, resource-scoped tokens, and token exchange. Separately, the **Auth0 MCP Server** is a concrete MCP tool for managing Auth0 itself; current docs say it uses the OAuth 2.0 Device Authorization Flow, requests minimal API permissions, and stores credentials in the system keychain. This separation matters: one surface is a general MCP authorization building block, while the other is a specific MCP server for Auth0 operations.
 
@@ -25133,7 +25133,7 @@ Cloudflare's current remote MCP documentation independently uses Auth0 as a conc
 
 #### H.2 Token Vault (Early Access): Managed Third-Party Credential Store
 
-The Token Vault (currently in Early Access for Auth0 Public Cloud tenants) is Auth0's solution to the **third-party API delegation problem** — when an AI agent needs to call Gmail, Slack, or GitHub on behalf of a user:
+The Token Vault (currently documented as Early Access for Auth0 Public Cloud tenants in the Token Vault-specific docs, while also presented in the current Auth0 AI-agent docs) is Auth0's solution to the **third-party API delegation problem** — when an AI agent needs to call Gmail, Slack, or GitHub on behalf of a user:
 
 ```mermaid
 ---
@@ -25378,7 +25378,7 @@ This maps to the **most secure end** of the consent spectrum (§14) — real-tim
 
 #### H.5 MCP Integration: CIMD and Cross App Access (XAA)
 
-As of April 17, 2026, Auth0's MCP-specific story has two layers. **Auth for MCP** is a Limited Early Access product surface for securing arbitrary MCP servers with OAuth 2.1 / OIDC sign-in, standards-based discovery and client registration, resource-scoped tokens, and token exchange. In parallel, Auth0's January 7, 2026 analysis of the November 25, 2025 MCP spec update highlights two identity-side changes it is especially aligned with: **CIMD** and **XAA**.
+As of the May 5, 2026 Auth0-specific re-check, Auth0's MCP-specific story has three component-specific maturity signals. **Auth for MCP** is a Limited Early Access product surface for securing arbitrary MCP servers with OAuth 2.1 / OIDC sign-in, standards-based discovery and client registration, resource-scoped tokens, and token exchange. **Token Vault** is the documented credential-brokerage layer used when MCP servers or AI agents need third-party API access on a user's behalf; its Token Vault-specific docs still mark the underlying capability Early Access for public cloud tenants. **Cross App Access (XAA)** remains Beta. In parallel, Auth0's January 7, 2026 analysis of the November 25, 2025 MCP spec update highlights two identity-side changes it is especially aligned with: **CIMD** and **XAA**.
 
 **Client ID Metadata Documents (CIMD)** — Replaces DCR in many MCP scenarios:
 
@@ -25398,10 +25398,11 @@ As of April 17, 2026, Auth0's MCP-specific story has two layers. **Auth for MCP*
 | **Identity Assertion Grant** | OAuth extension enabling agent → app delegation via IdP |
 | **No Per-Interaction Consent** | IT pre-approves agent access; users aren't prompted each time |
 | **Enterprise / Workforce** | Designed for managed environments where IT controls agent access |
+| **Beta constraints** | Participation requires Auth0 Support / TAM coordination; requesting apps must be confidential first-party clients; ID-JAG token exchanges are capped at 5 RPS during Beta |
 
 XAA directly addresses the **consent fatigue** problem from Open Question #3 — in enterprise contexts, IT admins pre-authorize agent access rather than burdening users with per-interaction consent.
 
-Current XAA docs now describe the feature in the same enterprise-managed terms as §14.3: IT admins centrally define app and agent access controls through the enterprise IdP, eliminating repeated end-user consent prompts while still grounding the flow in the Identity Assertion Authorization Grant.
+Current XAA docs now describe the feature in the same enterprise-managed terms as §14.3: IT admins centrally define app and agent access controls through the enterprise IdP, eliminating repeated end-user consent prompts while still grounding the flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
 
 #### H.6 Auth0 MCP Server
 
@@ -27845,11 +27846,14 @@ The goal of this section is practical reproducibility: it points to concrete pro
 - [Amazon Bedrock AgentCore Policy](https://docs.aws.amazon.com/bedrock/latest/userguide/agentcore-policy.html) — Cedar-based policy enforcement for AI agent tool authorization (GA March 2026)
 - [Asgardeo — End-to-End MCP Authorization Tutorial](https://wso2.com/asgardeo/docs/tutorials/end-to-end-mcp-authorization-with-asgardeo/) — Cloud-native MCP authorization with WSO2's IDaaS
 - [Auth0 Cross App Access (XAA)](https://auth0.com/docs/secure/call-apis-on-users-behalf/xaa) — Beta enterprise agent-to-app delegation via the Identity Assertion Authorization Grant
+- [Auth0 for AI Agents product page](https://auth0.com/ai/) — Current product-page maturity signal: Auth0 for AI Agents product family plus Auth for MCP Limited Early Access label
+- [Auth0 — Auth0 for AI Agents is Now Generally Available (GA)](https://auth0.com/blog/auth0-for-ai-agents-generally-available/) — November 19, 2025 GA announcement for the Auth0 for AI Agents umbrella product family
 - [Auth0 for AI Agents](https://auth0.com/docs/get-started/auth0-for-ai-agents) — Current product docs covering user auth, Token Vault, async authorization, FGA for RAG, and framework integrations
 - [Auth0 — Secure MCP with Auth0](https://auth0.com/ai/docs/mcp/intro/overview) — Auth for MCP overview: sign in, discovery/client registration, resource-scoped tokens, and token exchange for protected MCP servers
+- [Auth0 — Token Vault for AI Agents](https://auth0.com/ai/docs/intro/token-vault) — Current AI-agent docs for Token Vault account linking, RFC 8693 token exchange, supported providers, and agent-side credential use
 - [Auth0 — MCP Nov 2025 Specification Update](https://auth0.com/blog/mcp-november-2025-specification-update/) — Auth0's January 7, 2026 analysis of the November 2025 MCP update introducing CIMD and XAA
 - [Auth0 MCP Server](https://auth0.com/docs/get-started/auth0-mcp-server) — Auth0's own MCP server for tenant management via natural language, using Device Authorization Flow and secure keychain storage
-- [Auth0 Token Vault](https://auth0.com/docs/secure/call-apis-on-users-behalf/token-vault) — Current docs describe Token Vault as Early Access for public cloud tenants; stores external provider tokens for delegated API access
+- [Auth0 Token Vault](https://auth0.com/docs/secure/tokens/token-vault/call-apis-with-token-vault) — Token Vault-specific docs describe the capability as Early Access for public cloud tenants; stores external provider tokens for delegated API access
 - [Auth0 — Asynchronous Authorization Quickstart](https://auth0.com/ai/docs/get-started/asynchronous-authorization) — CIBA + RAR style human-in-the-loop approval flows for AI agents (§15.5.6.2)
 - [Auth0 — CIBA Backchannel Login](https://auth0.com/docs/authenticate/login/backchannel-login) — CIBA implementation guide with mobile push notifications and RAR integration (§15.5.6.2)
 - [Authorino — Cloud-Native Authorization Engine](https://github.com/Kuadrant/authorino) — Kubernetes-native external authorization service (Envoy `ext_authz`); supports JWT, API key, mTLS, K8s TokenReview, OPA Rego, CEL, pattern matching, wristband JWTs, and multi-phase AuthPolicy pipelines (§L)
