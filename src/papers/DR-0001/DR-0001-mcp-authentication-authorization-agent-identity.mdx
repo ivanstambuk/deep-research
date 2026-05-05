@@ -3632,6 +3632,18 @@ Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class i
 Cloud-based Approach C implementations — Microsoft **Entra Agent ID** (§A.4.1), **Google Cloud Agent Identity** (§11.4.2) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP or managed agent platform, cannot be self-hosted or exported, and require user principals and agent principals to live inside provider-specific policy and audit surfaces for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** (§G) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See §A.4.2 for a detailed portability comparison table and §11.4.5 for a cloud-platform synthesis.
 :::
 
+**Approach C implementation variants** — "Agent-as-identity" is no longer one idea. Current product evidence splits it into several distinct patterns that should not be collapsed into a single first-class-agent bucket:
+
+| Variant | Concrete Pattern | Authority Boundary | Strength | Portability Risk |
+|:--------|:-----------------|:-------------------|:---------|:-----------------|
+| **IdP-managed agent object** | Entra Agent ID, WSO2 agent identity, Ping Agent IAM Core | Agent is a directory object with lifecycle, sponsor/owner, consent, audit, and entitlement policy | Best fit for enterprise governance and human accountability | Medium to hard, depending on whether the IdP is self-hosted or cloud-only |
+| **Cloud-platform agent principal** | Google Cloud Agent Identity / Gemini Enterprise Agent Platform | Agent is a cloud resource principal, often SPIFFE-shaped and bound to platform runtime | Strong runtime binding, bound tokens, IAM/PAB/VPC-SC integration | Hard if the agent must move outside that cloud platform |
+| **Workload-derived agent identity** | SPIFFE/WIMSE with OAuth client authentication | Agent identity derives from workload attestation and runtime placement | Vendor-neutral, secretless, instance-level provenance | Requires SPIFFE/WIMSE infrastructure and AS support |
+| **Agent user-account bridge** | Entra optional agent user account for systems requiring user-context tokens | Agent has a first-class identity plus a linked user-shaped account for legacy APIs | Practical bridge for APIs that reject app-only tokens | High misuse risk if treated as a normal human user account |
+| **NHI governance overlay** | Astrix/Oasis/Clutch/Aembit-style discovery, ownership, risk, and JIT control | Governance platform observes or brokers identities created elsewhere | Useful fleet-scale inventory, ownership, and risk scoring | Overlay does not itself standardize agent token semantics |
+
+The decision point is therefore not "Approach C or not." It is **where the agent identity lives**, who owns lifecycle state, whether credentials are runtime-bound, and whether the identity can leave the provider boundary without losing audit history and policy semantics.
+
 #### 6.4 Recommendation: Layered Identity Strategy
 
 **Classification claims**: The `entity_type: "ai_agent"` field in the Approach C schema above has a direct counterpart in [`draft-mora-oauth-entity-profiles-01`](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) (§21.11) — the `client_profile` and `sub_profile` JWT claims. Entity Profiles standardizes the **classification** concern, not delegation itself: `client_profile: "ai_agent"` classifies the client software, top-level `sub_profile: "ai_agent"` classifies the primary token subject, and `sub_profile` may also appear within `act` nodes as an **Actor Profile** in RFC 8693 delegation chains. The current `-01` draft explicitly says Entity Profiles do **not**, by themselves, create or imply delegation relationships, and that `client_profile` must remain top-level rather than appearing inside `act` nodes. The initial registry contents include `ai_agent` with Client, Subject, and Actor Profile usage; the draft also specifies AS metadata discovery (`entity_profiles_supported` with `client`, `subject`, and `actor` arrays), DCR integration, and token introspection parameters. However, Entity Profiles covers **classification only** — it does not standardize Approach C's richer metadata model (`vendor`, `model_family`, `trust_level`, `capabilities`, `max_delegation_depth`, attestation binding). That broader metadata gap is addressed partially by OIDC-A (§21.8.4), which defines agent-specific claims (`agent_type`, `agent_model`, `agent_provider`, `capabilities`), though OIDC-A remains a pre-standard community proposal. The interaction between Entity Profiles (classification) and OIDC-A (rich metadata) is tracked as OQ #22 (Entity Profile harmonization). Entity Profiles is a **layering mechanism** that applies regardless of the underlying identity source — it classifies entities from Approach A (OAuth client), B (SPIFFE SVID), or C (IdP-managed entity) alike. The layered identity strategy below (§6.4) reflects this: Entity Profiles appears as Layer 1 (classification) above the identity layers.
@@ -3683,6 +3695,19 @@ flowchart TB
     style IID text-align:left
     style Token text-align:left
 ```
+
+**Deployment-profile guidance** — The layered model should be assembled differently by environment:
+
+| Deployment Profile | Recommended Identity Stack | Why | Avoid |
+|:-------------------|:---------------------------|:----|:------|
+| **Internal enterprise agents** | Entity Profiles for classification + IdP-managed agent object + enterprise NHI governance overlay | Gives administrators sponsor accountability, access reviews, Conditional Access / policy controls, and fleet inventory | Treating the agent as a generic OAuth client with no owner or lifecycle review |
+| **Cloud-native autonomous agents** | SPIFFE/WIMSE or cloud Agent Identity + bound tokens + short-lived credentials | Binds access to the runtime instance, reducing stolen-token replay and long-lived key exposure | Shared service accounts or developer-generated keys |
+| **Third-party SaaS agent integrations** | OAuth client identity + rich client metadata/CIMD + Token Vault or credential manager | Preserves user consent, developer accountability, and token isolation without giving agents raw upstream credentials | Per-agent static API keys or opaque "integration user" accounts |
+| **Regulated/high-assurance agents** | Layered IdP object + SPIFFE/WIMSE attestation + policy engine + CIBA/HITL for sensitive actions | Separates identity proof, runtime proof, authorization decision, and human oversight evidence | Single broad app role that authorizes all downstream tool execution |
+| **Cross-organization federation** | OIDC Federation organization trust + Signed Agent Cards or VC attestations + SPIFFE workload identity | Separates organization trust, agent metadata integrity, and runtime proof before a remote tool is exposed | Registry membership as a trust signal by itself |
+| **Multi-IdP / hybrid environments** | External IdP or self-hosted IdP for agent records + SPIFFE/WIMSE for runtime identity | Keeps agent identity portable across clouds and gateways | Cloud-only agent identity as the only durable system of record |
+
+The practical default for 2026 is **classification + OAuth delegation + runtime attestation**, with first-class IdP agent objects added where the organization can tolerate the lifecycle and portability implications. This keeps standards-based tokens usable now while preserving a migration path toward richer agent identity schemas.
 
 #### 6.5 Decentralized Identity (DID/VC) for Agent Identity
 
@@ -3981,6 +4006,17 @@ Organizations should **monitor three convergence signals**: (1) **MCP-I maturati
 #### 6.6 Multi-User Agent Authorization
 
 The identity models in §6.3–§6.5 implicitly assume a **one-to-one relationship** between a delegating user and an agent: Alice delegates to her travel assistant, and the agent acts on Alice's behalf with Alice's attenuated permissions. However, shared agents — team assistants serving an entire department, household agents acting for a family, or cross-functional copilots serving multiple project members — break this assumption. When Alice grants the shared agent scope A (e.g., `calendar:read`) and Bob grants scope B (e.g., `email:send`), the agent's **effective permission set** becomes ambiguous. Three models are possible: (1) **union** — the agent can exercise any permission granted by any user (`A ∪ B`), maximizing utility but creating a privilege escalation risk where the agent acts with combined permissions no single user intended; (2) **intersection** — the agent can only exercise permissions granted by all users (`A ∩ B`), which is maximally conservative but may reduce the agent to near-zero effective permissions; or (3) **per-request** — the agent exercises the permissions of whichever user's context is active for the current request, requiring the agent to maintain and switch between multiple delegation contexts.
+
+**Shared-agent control examples**:
+
+| Scenario | Unsafe Shortcut | Required Control | Audit Evidence |
+|:---------|:----------------|:-----------------|:---------------|
+| **Team inbox agent** | One shared mailbox token with union permissions across all team members | Per-request initiator binding; outbound email authorization based on the current user's delegated token and team policy | `initiator`, `agent`, `delegation_id`, `tool=email.send`, recipient domain, approval/deny reason |
+| **Household / family assistant** | Ambient household agent chooses any stored user credential based on natural-language guess | Explicit active user context or household policy rule; fail closed on ambiguous speaker / channel context | Speaker/user proof, selected delegation, household role, policy rule used |
+| **Service desk copilot** | Agent inherits all permissions of the ticket queue or helpdesk application | Ticket-bound authorization: agent may act only on resources linked to the active ticket and assigned operator | Ticket ID, operator ID, affected resource, action, scope attenuation result |
+| **Cross-functional project agent** | Union of calendar, repository, document, and deployment permissions from all project members | Resource-specific delegated tokens and policy-engine check per tool call | Project ID, requesting user, tool/resource ID, selected token subject, policy decision |
+
+For all four cases, the gateway should treat the **initiating human context** as a required authorization attribute, not as optional chat metadata. If the request lacks a cryptographically reliable initiator, the only defensible default is no tool execution.
 
 ```mermaid
 ---
@@ -4360,9 +4396,32 @@ flowchart LR
 | **Deprovisioning** | Manual, risk of orphaned accounts | Automatic: credentials expire with workload | §6.3 Approach B: SVID lifespan = workload lifespan |
 | **Ownership** | Often unclear (orphaned accounts) | Tied to human owner or organizational unit | NHI governance requirement |
 
+**Lifecycle evidence artifacts**:
+
+| Lifecycle Phase | Required Owner | Control Artifact | Failure Mode Prevented |
+|:----------------|:---------------|:-----------------|:-----------------------|
+| **Provision** | Agent sponsor, platform owner, or tenant admin | Agent record with purpose, owner, blueprint/template, allowed tools, risk tier, and expiration policy | Shadow agents and unowned automation |
+| **Authorize** | Authorization owner / app owner | Consent record, grant package, scope mapping, and policy decision baseline | Overprivileged agent identity or undocumented delegation |
+| **Credential issue** | Identity platform / workload platform | Short-lived token, SVID, certificate, or secretless broker lease tied to agent instance | Long-lived secrets and NHI reuse |
+| **Monitor** | SOC / NHI governance owner | Behavioral baseline, tool-call trace, risk score, and owner alert route | Unattributed actions and dormant compromise |
+| **Review** | Sponsor + entitlement owner | Access review result, unused-scope report, and exception decision | Permission creep after task or team changes |
+| **Revoke / suspend** | Incident responder or policy engine | Revocation event, disabled identity state, session kill record, downstream propagation status | Orphaned tokens after offboarding or compromise |
+| **Decommission** | Platform owner | Deleted/retired agent record, retained audit log, purged credentials, dependency cleanup | Ghost agents and stale tool grants |
+
 #### 7.3 NHI Governance Platform Landscape
 
-A new category of security platforms has emerged to manage the NHI lifecycle at scale, with several now offering **AI agent-specific capabilities**:
+NHI governance should be evaluated as a set of control tiers rather than as a vendor category. A mature agent program needs each tier, but a single product rarely owns all of them:
+
+| Governance Tier | Question Answered | Typical Control Plane | DR-0001 Connection |
+|:----------------|:------------------|:----------------------|:-------------------|
+| **Inventory and discovery** | Which agents, service accounts, OAuth apps, secrets, and workload identities exist? | NHI-native platform, cloud inventory, MCP registry, agent registry | §7.2 lifecycle; §13.7.4 registry ecosystem |
+| **Ownership and sponsorship** | Who is accountable for this agent and its delegated authority? | IdP agent records, Entra sponsor, governance platform owner field | §6.3 Approach C; §24.8 accountability gap |
+| **Entitlement governance** | What can the agent do, and who approved it? | IdP groups/roles, entitlement management, OpenFGA/Cedar/OPA policy | §16 TBAC; §19 policy engines |
+| **Credential and runtime binding** | Which runtime instance can use the credential? | SPIFFE/WIMSE, DPoP/mTLS, secretless brokers, vault leases | §6.3 Approach B; §11 credential patterns; §12.2 |
+| **Behavioral monitoring and response** | Is the agent acting within expected context and risk limits? | SIEM/UEBA, NHI risk scoring, CAEP/SSF events, gateway audit | §12.3 CAEP; §13.5.4 authorization decision tracing |
+| **Lifecycle closure** | Are tokens, sessions, grants, and downstream delegations removed when the agent is retired? | SCIM/IdP deprovisioning, revocation fan-out, ticketed offboarding workflow | §7.12; §12.1 revocation propagation |
+
+The products below are evidence examples for those tiers, not a substitute for the architecture decision. They differ mainly in whether they start from NHI discovery, workload credentials, cloud IAM, IdP-native agent identity, PKI, or runtime behavior:
 
 | Platform | Agent-Specific Capability | Approach | Connection to DR-0001 |
 |:---------|:------------------------|:---------|:----------------------|
@@ -4377,7 +4436,7 @@ A new category of security platforms has emerged to manage the NHI lifecycle at 
 | **Keyfactor** | X.509 certificate-based identity for AI agents. PKI + CLM for agentic AI (Nov 2025). | Machine identity | Extends §6.3 Approach B with enterprise certificate governance |
 | **Venafi (CyberArk)** | Machine identity management (CyberArk Certificate Manager). Certificate lifecycle for NHIs. | Machine identity | Foundation for certificate-based agent identity |
 
-> **Market evolution**: The NHI governance platform landscape is rapidly maturing. The 2025–2026 period has seen the emergence of three distinct tiers: **NHI-native platforms** (Astrix, Oasis, Clutch) focused on discovery and governance; **workload IAM platforms** (Aembit) providing secretless credential management with MCP integration; and **cloud IAM extensions** (Microsoft Entra Agent ID, Google Cloud Agent Identity) treating agents as first-class cloud identities. The closest convergence point is the intersection of **NHI platforms** (discovery, risk, governance) with **IdP-native agent identity** (§G WSO2, §H Auth0), **workload identity standards** (§21.3 SPIFFE/WIMSE), and **cloud-native credential delegation** (§11.4). DR-0001 recommends evaluating NHI governance platforms as a complementary layer to IdP-based agent identity management, particularly for organizations operating at scale with hundreds or thousands of agent identities.
+> **Market evolution**: The 2025–2026 platform shift is from "find my secrets" toward **govern my autonomous principals**. NHI-native platforms are strongest at inventory, ownership, risk, and orphan detection; workload IAM platforms are strongest at secretless runtime credentialing; cloud IAM extensions are strongest where the agent is already hosted inside that cloud; IdP-native platforms are strongest at consent, entitlement, and audit semantics. DR-0001 recommends treating NHI governance as a complementary control plane above IdP-based agent identity and SPIFFE/WIMSE runtime identity, especially for organizations operating hundreds or thousands of agents.
 
 #### 7.4 Credential Architecture for AI Agents
 
@@ -4515,6 +4574,17 @@ The [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai/) (Februa
 The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context-protocol-security) (January 2026, OASIS Open — Coalition for Secure AI) identifies 12 threat categories with ~40 specific threats targeting MCP deployments. This taxonomy distinguishes between traditional security concerns amplified by AI mediation and novel attack vectors unique to LLM–tool interactions. The mapping below evaluates DR-0001's coverage of each category.
 
 CoSAI's April 2026 **Agentic Identity and Access Management** resource is adjacent rather than a replacement for the MCP Security taxonomy. The practical implication for DR-0001 is that the MCP threat categories below should be read together with agent identity governance: MCP transport and tool controls reduce protocol exposure, while Agentic IAM closes the ownership, lifecycle, and authority questions that appear in §6, §7.2, and §11.
+
+**Agentic IAM crosswalk**:
+
+| CoSAI Agentic IAM Principle | DR-0001 Control Surface | Implementation Consequence |
+|:----------------------------|:------------------------|:---------------------------|
+| **Agents are first-class identities** | §6.3 Approach C; §6.4 layered identity; §7.2 lifecycle | Do not hide agents behind generic app registrations; preserve agent ID in tokens, logs, and policy decisions |
+| **No standing broad privilege** | §3.4 scope minimization; §16 TBAC; §20 Rich Authorization Requests; §11 secretless delegation | Use short-lived, task/context-bounded entitlements instead of durable all-tool grants |
+| **Runtime-verifiable identity claims** | §6.3 Approach B; §21.12 SPIFFE client auth; §12.2 DPoP | Bind access tokens to workload/runtime proof so stolen tokens cannot be replayed from arbitrary infrastructure |
+| **Delegated authority remains attributable** | §5 `act` claim; §6.6 multi-user context; §13.5 authorization decision observability | Log human principal, agent actor, selected delegation, policy reason, and tool/resource in the same trace |
+| **Lifecycle and revocation are governance requirements** | §7.2 lifecycle; §7.12 deprovisioning; revocation propagation in §12.1 and §12.3 | Agent retirement must trigger token, session, delegation, and downstream grant cleanup, not just account deletion |
+| **Tenant/audit isolation matters** | Audit schema in §13.2, Art. 12 logging in §24.4, and lock-in analysis in §23.5 | Multi-tenant agent platforms need tenant-partitioned audit stores and tamper-evident retention |
 
 | # | CoSAI Threat Category | Key Threats | DR-0001 Coverage | Coverage Level |
 |:--|:---------------------|:------------|:------------------|:---------------|
