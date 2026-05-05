@@ -6590,6 +6590,17 @@ The experimental **Tasks primitive** (November 2025 spec, §1.3) introduces dura
 
 This creates an authorization problem distinct from both the standard short-lived token gap (§10.1) and the A2A task lifecycle (§8.3.1). A2A tasks inherit the agent-to-agent authentication context established via Agent Card `securitySchemes` (§8.2), and A2A's `contextId` provides conversational continuity across task boundaries. MCP Tasks have no equivalent — each task is standalone, with no built-in mechanism to bind authorization context to the task's durable state or to validate that the entity polling for results is authorized to access them.
 
+The practical answer is to treat every durable task as having a **task authority record** alongside the task state. The task record is not merely job metadata; it is the authorization ledger that tells the receiver which principal, agent, scopes, budgets, refresh authority, and revocation signals still govern the task after the original HTTP exchange has disappeared.
+
+| Durable Task Artifact | What Must Persist | Owner | Revocation / Re-Evaluation Trigger | Audit Evidence |
+|:----------------------|:------------------|:------|:-----------------------------------|:---------------|
+| **Task handle** | `taskId`, creation time, terminal-state TTL, originating `Mcp-Session-Id` when present | MCP receiver or gateway task store | Explicit `tasks/cancel`, terminal state, result-retention expiry | Task created/completed/cancelled events with trace ID |
+| **Authorization snapshot** | `sub`, `act` chain, audience, scopes, `authorization_details`, consent or approval reference | Gateway or authorization server | Scope challenge failure, policy change, role/claim change | Original token hash, policy decision ID, approver/consent artifact |
+| **Refresh authority** | Whether the task may refresh autonomously, via gateway-managed refresh, task-bound lifecycle token, or `offline_access` | Authorization server, gateway, or credential platform | Refresh-token revocation, credential rotation, maximum autonomy window | Refresh events bound to `taskId`, token family, and agent ID |
+| **Budget ledger** | Tool invocation count, token/spend budget, rate-limit bucket, high-risk action count | Gateway policy engine | Budget exhaustion, anomalous velocity, tier escalation | Cumulative budget entries keyed by `taskId`, not only session ID |
+| **Result access policy** | Which subject/agent may call `tasks/get`, `tasks/result`, `tasks/list`, and for how long | MCP receiver, gateway, or resource server | Session change, agent handoff, data-retention deadline | Retrieval/cancellation audit records with caller identity |
+| **Continuous-access state** | Last CAEP/SSF event applied, current assurance tier, device/compliance posture | Gateway SSF receiver and policy engine | `session-revoked`, `assurance-level-change`, `token-claims-change`, compliance events | SET `jti`, event type, gateway response, and task disposition |
+
 ##### 10.6.1 Tasks Spec Security Requirements vs. DR-0001 Architecture
 
 The Tasks specification's Security Considerations section defines six requirements for task isolation and access control. The following table maps each requirement to the DR-0001 mechanisms that could fulfill it, and identifies the remaining gap:
@@ -6993,6 +7004,17 @@ flowchart TB
 
 > **Key principle**: These patterns are **complementary, not competing**. An enterprise MCP deployment typically combines multiple patterns — e.g., Pattern B (Auth0 Token Vault for Slack/Google API delegation) + Pattern C (TrueFoundry gateway injection for same-trust MCP servers) + Pattern E (Azure Key Vault for Azure-native services).
 
+The five-pattern taxonomy is intentionally stable, but current product implementations now show several important **variants inside** those patterns. These variants are where most implementation mistakes occur: teams correctly choose "vault" or "gateway injection" but then miss who owns consent, refresh, fallback, signer keys, or per-user resolution.
+
+| Variant | Base Pattern | Current Product Evidence | Architectural Meaning | Failure Mode to Avoid |
+|:--------|:-------------|:-------------------------|:----------------------|:----------------------|
+| **Connected-account token vault** | B: Managed Credential Store | Auth0 Token Vault stores third-party access/refresh tokens after user consent, then exchanges Auth0 tokens for provider access tokens | The vault owns provider refresh logic; the agent receives only short-lived provider tokens | Treating the agent as the refresh-token holder or bypassing the disconnect/revocation path |
+| **Credential manager with user-delegated connection** | B/E hybrid | Azure API Management Credential Manager can resolve configured connections at runtime with managed identity or `identity-type="jwt"` user context | The gateway becomes the OAuth client and token lifecycle manager for backend SaaS APIs | Confusing unattended managed-identity connections with per-user delegated backend access |
+| **Verify-and-re-sign wristband** | C: Gateway Identity Injection | LiteLLM MCPJWTSigner and Red Hat/Kuadrant wristband-style flows validate inbound identity and issue a short-lived downstream assertion | Downstream tools trust the gateway's JWKS and receive bounded identity/context claims, not the original bearer token | Letting tools accept direct calls that bypass the gateway or forwarding raw upstream tokens into tool code |
+| **Vault plus priority fallback** | B/C hybrid | Kuadrant AuthPolicy can fetch per-user secrets from Vault and fall back to token exchange patterns in a declarative gateway policy | The gateway resolves the best credential source per request while keeping policy in versioned infrastructure config | Hiding fallback behavior in custom code with no audit trail or policy review surface |
+| **Runtime secret injection** | D: Secret Injection | Docker MCP Gateway runs MCP servers in isolated containers, injects required credentials, and manages server lifecycle/routing | The secret boundary is the process/container runtime rather than the OAuth layer | Assuming container injection provides user-delegated semantics; it prevents exposure but does not prove user consent by itself |
+| **Cloud agent identity plus vault** | E: Cloud Managed Identity | Entra Agent ID + Key Vault, GCP Agent Identity + Secret Manager, Bedrock AgentCore + Secrets Manager, and Vault dynamic secrets | The cloud or infrastructure platform owns workload identity and credential retrieval; user delegation must still be modeled separately | Treating workload identity as equivalent to human user delegation or portable agent identity |
+
 
 #### 11.2 Credential Delegation Comparison Matrix
 
@@ -7024,6 +7046,16 @@ When evaluating the overarching Token Treatment Spectrum (Stripping vs. Injectio
 | **OWASP NHI risk addressed** | NHI4 (insecure AuthN) | NHI1 (offboarding), NHI7 (long-lived secrets) | NHI2 (secret leakage) | NHI2, NHI7 (strongest mitigation) | NHI1, NHI4, NHI7 |
 | **Best suited for** | Standard OAuth flows, single-AS MCP servers | IAM platform + third-party API delegation | Same-trust-domain MCP servers | High-security / regulated workloads | Cloud-native MCP deployments |
 | **MCP gateway support** | Traefik Hub (§I) | Auth0 (§H) | TrueFoundry (§D) | Docker (§J), Aembit | Azure APIM (§A), Bedrock AgentCore |
+
+##### 11.2.3 Use/Avoid Guidance by Delegation Pattern
+
+| Pattern | Use When | Avoid When | Evidence Owner |
+|:--------|:---------|:-----------|:---------------|
+| **A: Direct Token Exchange** | The downstream resource server needs a standards-based delegated token and the agent/gateway can tolerate an AS round trip for each delegation boundary | The agent would need to store refresh tokens, call many tools at swarm speed, or operate across providers with no common STS | Authorization server logs, token exchange request, `act`/audience claims |
+| **B: Managed Credential Store** | Users connect external SaaS accounts once and expect the platform to handle refresh, provider-specific scopes, disconnect, and re-consent | The enterprise needs fully self-hosted credential custody or cannot accept the platform as credential processor | Vault connection record, consent artifact, token exchange event, disconnect event |
+| **C: Gateway Identity Injection** | The gateway and MCP servers are in the same trust domain and the security goal is keeping raw user tokens out of tool code | Downstream services require native third-party OAuth tokens with provider-visible user delegation | Gateway decision log, injected assertion hash, upstream token hash, tool-call trace |
+| **D: Secret Injection** | MCP servers run as managed workloads and the primary risk is secrets leaking into prompts, logs, local config, or the agent process | The task requires per-user OAuth consent semantics that the runtime secret store cannot express | Container/server lifecycle event, secret mount/injection event, process isolation audit |
+| **E: Cloud Managed Identity** | The agent workload lives on a cloud/control-plane substrate that can issue identity, enforce IAM, and retrieve vault material without static secrets | Cross-cloud portability, self-hosted agent identity, or multi-IdP user+agent composite claims are hard requirements | IAM policy decision, vault access log, cloud audit trail, workload identity attestation |
 
 
 #### 11.3 Credential Lifecycle for AI Agent Delegation
@@ -7093,6 +7125,17 @@ flowchart LR
 :::important[Credential storage and purge should move off the agent whenever possible]
 If the agent is responsible for holding delegated credentials or cleaning them up, the lifecycle has already been pushed onto the least reliable boundary. Prefer platform-owned vault, gateway, runtime, or cloud identity patterns whenever they are available.
 :::
+
+The lifecycle table above should be read as an **ownership map**, not just a feature checklist. A production architecture needs one accountable component for each transition, plus an audit artifact proving that the transition occurred.
+
+| Lifecycle Control | Primary Owner | Required Evidence | Product-Backed Implementation Pattern |
+|:------------------|:--------------|:------------------|:--------------------------------------|
+| **Consent capture** | IdP / authorization server | Consent grant, RAR payload, connected-account record, or CIBA approval ID | Auth0 Connected Accounts, APIM user-delegated connection, AP2 mandate, CIBA flow |
+| **Credential custody** | Vault, gateway, runtime, or cloud secret manager | Encrypted storage record, key-management policy, access policy, or secret lease | Auth0 Token Vault, Azure Credential Manager/Key Vault, Docker secret store, Vault dynamic secrets |
+| **Per-request credential release** | Gateway or credential broker | Token exchange event, injected header/JWT hash, secret mount event, or SigV4/JWKS verification log | LiteLLM JWT signer, Kuadrant AuthPolicy, Docker gateway injection, APIM `get-authorization-context` |
+| **Refresh / rotation** | Credential platform or AS | Refresh event, token-family ID, rotation status, refresh failure reason | Token Vault provider refresh, APIM Credential Manager auto-refresh, cloud IAM rotation, Vault TTL renewal |
+| **Revocation / suspension** | IdP, gateway, policy engine, or runtime orchestrator | Revocation event, CAEP SET `jti`, gateway decision, task/session disposition | SSF/CAEP receiver, Entra CAE, gateway deny list, container stop, Vault lease revoke |
+| **Purge / retention** | Credential store and audit platform | Deleted connection/secret, retention timer, result TTL, compliance export | Token Vault disconnect, Key Vault delete/purge, Docker container destruction, task result TTL expiry |
 
 ##### 11.3.1 Lifecycle Coverage by Implementation
 
@@ -7902,6 +7945,16 @@ Unlike Patterns A–E where credentials have a lifecycle that must be managed, V
 | **Identity portability** | ❌ Agent identities non-exportable; delegated mode requires user principals in same Entra tenant | ❌ Agent identity itself is not portable; only adjacent workload federation is portable | 🟡 Multi-IdP support reduces lock-in; identities still managed in AWS | ✅ SPIFFE SVIDs portable to any infrastructure |
 | **Cross-IdP delegation** | ❌ No composite user(external)+agent(Entra) tokens; users must be imported to Entra | 🟡 Custom frontend + OAuth can bridge user-delegated flows, but agent identity does not itself solve cross-IdP composition | ✅ Native multi-IdP token exchange for agent credentials | ✅ Trust domain federation across IdPs |
 
+The synthesis table hides an important boundary: **agent identity**, **workload identity**, **credential custody**, and **user delegation** are different planes. Cloud platforms are strongest on workload identity and first-party IAM; they become delegation platforms only when they also preserve the user, agent, consent, and downstream resource relationship in the credential flow.
+
+| Plane | What It Proves | Typical Owner | Examples | What It Does Not Prove |
+|:------|:---------------|:--------------|:---------|:-----------------------|
+| **Agent identity** | Which named agent or agent blueprint is accountable for behavior | IdP, agent platform, or registry | Entra Agent ID, GCP Agent Identity, A2A Agent Card, DID/VC agent identity | That a specific user authorized this action |
+| **Workload identity** | Which runtime, pod, VM, container, or service account is making the call | Cloud IAM, SPIFFE/WIMSE, Kubernetes, service mesh | Managed Identity, Workload Identity Federation, IAM Roles Anywhere, SPIFFE SVID | That the workload is acting within a user-approved delegation |
+| **Credential custody** | Where long-lived provider credentials or secrets are stored and rotated | Vault, gateway, secret manager, credential manager | Auth0 Token Vault, APIM Credential Manager, Docker secrets, Key Vault, Secret Manager, Vault | That the retrieved credential is scoped to the right task unless policy binds it |
+| **Delegation broker** | How user authority becomes a bounded tool/API credential for this execution | Authorization server, gateway, or identity platform | RFC 8693 Token Exchange, XAA/Identity Assertion, APIM `identity-type="jwt"`, Red Hat AuthPolicy, LiteLLM verify-and-re-sign | That the resulting authority will be revoked across every gateway without event propagation |
+| **Continuous enforcement** | Whether the still-running task/session remains allowed after risk, role, or device changes | Gateway SSF receiver, policy engine, SIEM/SOAR | CAEP/SSF, Entra CAE, gateway revocation bus, task authority record | That the original consent was valid without a stored consent/approval artifact |
+
 ---
 
 ### 12. Credential Security and Revocation
@@ -8384,7 +8437,7 @@ The revocation strategies in §12.1 (Push, Pull, Hybrid) address **how** revocat
 
 ##### 12.3.1 Shared Signals Framework (SSF) and CAEP
 
-The [Shared Signals Framework (SSF)](https://openid.net/specs/openid-sharedsignals-framework-1_0.html) and [Continuous Access Evaluation Profile (CAEP)](https://openid.net/specs/openid-caep-specification-1_0.html) are OpenID Foundation specifications that achieved **Final Specification** status in September 2025. Together, they define a standardized mechanism for real-time security event propagation between identity providers, relying parties, and security infrastructure:
+The [Shared Signals Framework (SSF)](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) and [Continuous Access Evaluation Profile (CAEP)](https://openid.net/specs/openid-caep-1_0-final.html) are OpenID Foundation specifications that achieved **Final Specification** status in September 2025. Together, they define a standardized mechanism for real-time security event propagation between identity providers, relying parties, and security infrastructure:
 
 | Specification | Purpose | Mechanism | Status |
 |:-------------|:--------|:----------|:-------|
@@ -8621,6 +8674,20 @@ The following table maps each CAEP event type to MCP-specific trigger scenarios 
 | `token-claims-change` | User's role changes in HR system (SCIM → IdP → CAEP); user's compliance clearance expires | Re-evaluate policy engine (§19) with updated claims; block tools no longer authorized under new role or compliance status |
 | `credential-change` (revoke/delete) | Agent's client credential rotated or revoked by admin; user's password reset | Terminate all sessions using the old credential; require re-authentication |
 | `device-compliance-change` (not-compliant) | Device leaves trusted network; device OS falls out of compliance policy | Invalidate delegation chains originating from that device; require re-authentication from a compliant device |
+
+For MCP gateways, the enforcement model should be a **response ladder**, not a single "kill session" branch. The gateway must decide whether the event affects only future tool calls, an already-running task, a stored credential, a containerized MCP server, or the delegation chain itself.
+
+| Response Level | Gateway Action | Use For | Required Control Evidence |
+|:---------------|:---------------|:--------|:--------------------------|
+| **0. Observe and annotate** | Attach event context to the session/task record and keep serving low-risk tools | Informational risk increase, assurance increase, non-critical claim addition | SET `jti`, event timestamp, trace ID, no-op policy decision |
+| **1. Restrict** | Remove high-risk tools, reduce scopes, cap budgets, or downgrade to read-only operations | Assurance decrease, role narrowing, suspicious but not terminal behavior | New policy decision ID, previous vs. current scope set, affected tool list |
+| **2. Step up** | Require CIBA/HITL approval or fresh MFA before the next sensitive tool call | MFA expiry, device posture drift, payment or data-export action after risk change | Challenge ID, approver identity, approval/denial artifact |
+| **3. Suspend** | Pause active tasks, stop polling, hold result retrieval, and wait for re-authentication or policy repair | Token-claims change, credential rotation, temporary compliance failure | Task authority record disposition, pause reason, resume criteria |
+| **4. Revoke** | Terminate session, invalidate token family, disconnect vault credential, and deny all further calls | `session-revoked`, credential compromise, user/admin consent revocation | Revocation event, affected token/connection IDs, deny-list update |
+| **5. Kill runtime** | Stop connector container, revoke secret lease, unmount credential, or quarantine MCP server | Runtime secret exposure, compromised MCP server image, direct-bypass attempt against signer policy | Container/lease termination event, image/server ID, incident ticket |
+| **6. Notify and reconcile** | Emit SIEM/SOAR event, notify user/admin, and reconcile downstream gateways or connected accounts | Any level 2-5 response with user, compliance, or cross-gateway impact | Notification ID, downstream delivery status, reconciliation report |
+
+This ladder is also how product-specific credential platforms should be integrated. Token Vault or Credential Manager can revoke or require reauthorization for a connected account; Docker-style runtime injection can stop the affected container; a LiteLLM-style signer can block direct tool bypass by rejecting unsigned calls; Kuadrant/Authorino can change AuthPolicy outcomes without rewriting application code. The common architectural requirement is that the response must update the same task/session authority record that future MCP calls will consult.
 
 **Token lifetime extension**: The Entra CAE model reveals a counterintuitive architectural insight — CAE enables **extending** access token lifetimes rather than shortening them. Entra CAE sessions use token lifetimes of up to 28 hours (vs. the default 1-hour lifetime), because real-time CAEP events provide near-instant revocation for critical state changes, making short token lifetimes (a crude proxy for revocation) unnecessary. For long-running MCP agent sessions (§10), this means a gateway implementing SSF Receiver functionality can safely issue longer-lived tokens — reducing AS load, eliminating token refresh failures as a session disruption source, and simplifying the Hybrid revocation strategy (§12.1.1) — while maintaining Zero Trust continuous verification because CAEP events compensate for the extended lifetime.
 
@@ -27813,8 +27880,8 @@ Entries in this section are grouped for research coverage, not to imply equal ma
 - [OAuth Client ID Metadata Documents (draft-ietf-oauth-client-id-metadata-document-01)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-client-id-metadata-document) — URL-based client_id with hosted metadata (adopted by OAuth WG, v01 March 2, 2026)
 - [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) — Client Initiated Backchannel Authentication, OpenID Foundation (finalized September 1, 2021) (§15.5)
 - [OpenID Authorization API 1.0](https://openid.net/specs/openid-authzen-authorization-api-1_0.html) — PDP/PEP interoperability standard (ratified January 2026)
-- [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-specification-1_0.html) — Profile defining continuous access evaluation events: session-revoked, credential-changed, compliance-changed, device-posture-changed (Final Specification, September 2025) (§12.3)
-- [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0.html) — Framework for real-time security event transmission between identity systems via Security Event Tokens (SET, RFC 8417); push (webhook) and poll delivery modes (Final Specification, September 2025) (§12.3)
+- [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-1_0-final.html) — Profile defining continuous access evaluation events: session-revoked, credential-changed, token-claims-change, assurance-level-change, and device-compliance-change (Final Specification, September 2025) (§12.3)
+- [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) — Framework for real-time security event transmission between identity systems via Security Event Tokens (SET, RFC 8417); push (webhook) and poll delivery modes (Final Specification, September 2025) (§12.3)
 - [OpenTelemetry — CNCF Observability Framework](https://opentelemetry.io/) — Vendor-neutral, open-source observability framework for traces, metrics, and logs; CNCF incubating project; semantic conventions for MCP attributes (`mcp.method.name`, `mcp.session.id`) (§13.5)
 - [RFC 6750 — The OAuth 2.0 Authorization Framework: Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750) — WWW-Authenticate Bearer challenge format (scope, error, insufficient_scope)
 - [RFC 7009 — OAuth 2.0 Token Revocation](https://datatracker.ietf.org/doc/html/rfc7009) — Token revocation endpoint for explicit credential invalidation (§12.1)
@@ -28015,6 +28082,7 @@ The goal of this section is practical reproducibility: it points to concrete pro
 - [Descope — Inbound Apps (OAuth Consent for AI Agents)](https://docs.descope.com/agentic-identity/inbound-apps/) — OAuth-based consent flows with Consent ID, time-bounded expiry, and progressive scoping for AI agents (§14.7)
 - [Docker MCP Catalog](https://hub.docker.com/catalogs/mcp) — Curated, verified MCP server images on Docker Hub
 - [Docker MCP Gateway](https://docs.docker.com/ai/mcp-gateway/) — Container-based MCP gateway with server isolation, interceptors, and secret management
+- [Docker MCP secret CLI](https://docs.docker.com/reference/cli/docker/mcp/secret/) — Docker MCP command reference for managing MCP secrets in the local OS keychain and active Secrets Engine providers (§J)
 - [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) — Micro VM isolation for AI agent execution with network proxy and secret injection
 - [IBM ContextForge (GitHub)](https://github.com/IBM/mcp-context-forge) — Open-source AI gateway, registry, and proxy for MCP/A2A/REST/gRPC federation
 - [IBM ContextForge Documentation](https://ibm.github.io/mcp-context-forge/) — Architecture, configuration, authentication, safety guardrails, and deployment guides
@@ -28024,6 +28092,7 @@ The goal of this section is practical reproducibility: it points to concrete pro
 - [Kong AI MCP Proxy Plugin](https://docs.konghq.com/hub/kong-inc/ai-mcp-proxy/) — Protocol bridge enabling HTTP↔MCP, REST→MCP auto-generation
 - [Kuadrant — Kubernetes Gateway API Policy](https://kuadrant.io/) — CNCF Sandbox project providing AuthPolicy, RateLimitPolicy, and DNSPolicy CRDs for Gateway API; powers Red Hat MCP Gateway auth (§L)
 - [Kuadrant Blog — Protecting AI Agent Tool Access](https://kuadrant.io/blog/mcp-gateway) — Technical case study documenting wristband JWTs, declarative RFC 8693 token exchange, and Vault credential translation for MCP gateways (§L)
+- [Kuadrant — Vault Token Exchange guide](https://docs.kuadrant.io/dev/mcp-gateway/docs/guides/vault-token-exchange/) — MCP Gateway guide showing Authorino AuthPolicy fetching per-user credentials from HashiCorp Vault and injecting them into upstream MCP requests (§L)
 - [LiteLLM (GitHub)](https://github.com/BerriAI/litellm) — Open-source AI Gateway (Python/FastAPI) providing unified OpenAI-compatible API for 200+ LLM providers with native MCP gateway, seven-entity spend tracking, and JWT-based RBAC; MIT license (§M)
 - [LiteLLM — MCP Gateway Documentation](https://docs.litellm.ai/docs/mcp) — MCP server management, transport configuration (HTTP/SSE/STDIO), authentication methods, access control, and tool namespacing (§M)
 - [LiteLLM — MCP Zero Trust (JWT Signer)](https://docs.litellm.ai/docs/mcp_zero_trust) — Outbound RS256 JWT signing for MCP tool calls with IdP identity threading, claim operations, and AWS Bedrock dual-JWT support (§M)
