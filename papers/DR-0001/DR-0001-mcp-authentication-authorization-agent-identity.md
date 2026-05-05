@@ -19036,7 +19036,7 @@ gantt
 |:---|:---|:---|
 | **GDPR** | [Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) | Personal data processing by AI agents; consent as lawful basis; Art. 22 automated decisions |
 | **eIDAS 2.0** | [Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) | Cross-border digital identity; EUDI Wallet; agent identity verification |
-| **AI Liability Directive** | [COM/2022/496](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) | **Withdrawn** (February 2025) — Commission assessing need for new proposal; PLD (2024/2853) is now the sole EU-harmonized AI liability instrument. See [§24.14](#2414-liability-apportionment-in-multi-vendor-agent-chains) |
+| **AI Liability Directive** | [COM/2022/496](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) | **Withdrawn** — withdrawal was announced in the 2025 Commission work programme and formalized in the 2025 withdrawal notice; PLD (2024/2853) is now the sole EU-harmonized AI liability instrument. See [§24.14](#2414-liability-apportionment-in-multi-vendor-agent-chains) |
 | **Product Liability Directive** | [Directive (EU) 2024/2853](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) | AI systems as "products" with strict liability for defective AI |
 
 
@@ -19054,6 +19054,20 @@ This matrix maps each relevant EU AI Act article to the DR-0001 sections that im
 | **Art. 15** — Cybersecurity | *\"resilient against unauthorized third-party attempts to alter their use, outputs, or performance\"* | [§1](#1-mcp-authorization-spec-evolution) (RFC 8707/9728), §2 (Streamable HTTP), [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker), [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (guardrails) | ✅ Strong | Token binding, container isolation, edge security, prompt injection detection |
 | **Art. 26** — Deployer Obligations | *\"retain automatically generated logs for at least six months\"* | [§13.2](#132-gateway-responsibilities) (audit logging) | 🟡 Gap: retention period not specified | See [§24.4](#244-art-12-and-art-26-audit-trail-requirements) |
 | **Art. 50** — Transparency (All AI) | *\"inform the natural person [...] that they are interacting with an AI system\"* | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§4.2](#42-why-delegation-is-the-default) (new Art. 50 bullet) | 🔴 Gap: no disclosure mechanism | See [§24.3](#243-art-50-ai-interaction-disclosure-for-mcp) — net-new pattern needed |
+
+##### 24.2.1 Compliance Evidence Artifact Map
+
+The traceability matrix above answers "which architecture pattern helps satisfy the article?" A deployer still needs the audit packet that proves the control was operating at the time of a tool call. The following table turns each article into evidence that an MCP gateway, IdP, policy engine, or application owner can retain and produce.
+
+| EU AI Act Article | MCP Control | Evidence Artifact | Evidence Owner | Retention / Review Rule | Verification Question |
+|:---|:---|:---|:---|:---|:---|
+| **Art. 9** Risk management | Tool `riskLevel`, TBAC tier, policy decision, guardrail result | Tool registration record; risk classification approval; Cedar/OPA policy bundle version; guardrail decision trace | Deployer risk owner + gateway owner | Review at tool onboarding, material tool change, and incident postmortem | Can the deployer show why this tool was classified at this risk tier and which control reduced the risk? |
+| **Art. 12** Record-keeping | Gateway audit log and authorization decision trace | `trace_id`, `tool_call_id`, `sub`, `act` chain, scopes, policy match, outcome, timestamp, MCP server ID | Gateway operator / PEP owner | Retain for the system lifetime needed for traceability; coordinate with Art. 26 minimum | Can an auditor reconstruct who caused the action, which agent acted, and why the gateway permitted or denied it? |
+| **Art. 13** Transparency to deployers | Agent identity and tool metadata surfaced to operators | Agent profile, Agent Card / registry metadata, tool description, intended purpose, known limitation record | AI system provider + deployer documentation owner | Review on agent/model/tool version change | Can the deployer interpret the tool outcome and understand the agent/tool limitations before relying on it? |
+| **Art. 14** Human oversight | Oversight tier, CIBA/step-up workflow, approval/denial event | `auth_req_id`, approval actor, binding message, step-up result, timeout/denial reason, override/stop event | Deployer operations owner + IdP owner | Preserve with the action log; review high-risk approval policies at least per release or control change | Can a natural person intervene, approve, reverse, or stop the specific action class? |
+| **Art. 15** Cybersecurity | Token validation, sender constraint, session binding, isolation, guardrail enforcement | Token validation result, `aud`/issuer check, DPoP or mTLS proof, session-token binding result, container/edge policy log, prompt-injection decision | Gateway/security platform owner | Retain with security logs; review after CVE, policy change, or new gateway release | Can the operator prove the system resisted unauthorized alteration, replay, and prompt/tool abuse for this call? |
+| **Art. 26** Deployer logs | Deployer-controlled log retention | Retention policy, storage bucket/index configuration, legal hold setting, deletion/pseudonymization job evidence | Deployer compliance owner | At least **six months** for high-risk AI logs under deployer control | Can the deployer prove the automatically generated logs were retained and available for the required period? |
+| **Art. 50** AI disclosure | Gateway-injected disclosure metadata and application rendering | `ai_disclosure` object, response `_meta`, UI render event, outbound-message disclosure marker, content provenance ID where applicable | Gateway owner + application owner | Retain with the user/outbound interaction record; update when Commission marking/labelling code changes | Can the recipient or user see that the interaction/content was AI-mediated, and can the deployer prove the notice was generated? |
 
 
 #### 24.3 Art. 50: AI Interaction Disclosure for MCP
@@ -19547,6 +19561,20 @@ This creates **accountability gaps** that the Act does not fully resolve:
 | **Consent propagation** | Provider ensures transparency | User consented for Agent A — does this cover Agent B? | [OQ #5](#oq-5) (multi-agent consent) |
 | **Incident attribution** | Provider reports malfunctions | Cascading failure: Agent A's output triggers Agent B's error | [OQ #7](#oq-7) (cross-org federation) |
 
+##### 24.8.1 Multi-Agent Accountability Evidence Chain
+
+For MCP, A2A, AP2, and Transaction Token deployments, the practical compliance question is not only "who is the provider?" but "can the deployer join the evidence across protocol boundaries?" The evidence chain below is the minimum join model for multi-agent accountability.
+
+| Chain Stage | Protocol / Artifact | Legal Role Signal | Audit Join Key | Failure Mode | Required Log Field |
+|:---|:---|:---|:---|:---|:---|
+| **User authorization** | OAuth consent, CIBA approval, or AP2 mandate | Natural person grants authority; enterprise may be deployer | `consent_id`, `auth_req_id`, `mandate_id` | Later agent action exceeds the user's approved purpose | Approved scope, consent text/hash, approval actor, expiry, revocation state |
+| **Agent A invocation** | MCP `tools/call` plus access token `act` chain | Agent provider and enterprise deployer become identifiable | `trace_id`, `tool_call_id`, `agent_instance_id` | Agent identity is collapsed into the user identity | `sub`, `act.sub`, `client_id`, agent profile, model/vendor metadata |
+| **Agent-to-agent delegation** | A2A task, signed Agent Card, registry record | Second provider/deployer enters the chain | `a2a_task_id`, `agent_card_digest`, `registry_entry_id` | Downstream agent/provider cannot be attributed after failure | Upstream agent, downstream agent, card signature status, task intent, delegated scope |
+| **Payment or mandate execution** | AP2 Human Present / Human Not Present mandate | Merchant, PSP, agent, and user authority are separable | `mandate_id`, `payment_intent_id`, `transaction_id` | Payment executes outside mandate boundaries | Mandate constraints, user-present flag, merchant ID, amount/currency ceiling, mandate revocation |
+| **Policy authorization** | Transaction Token or gateway policy decision | Gateway/deployer shows duty-of-care decision | `txn`, `policy_decision_id`, `traceparent` | Permit/deny cannot be explained after harm | Policy version, attributes evaluated, matched rule, decision rationale, risk tier |
+| **Tool execution** | MCP server log and tool result | Tool provider / component operator is attributable | `mcp_session_id`, `tool_call_id`, `server_request_id` | Tool output cannot be joined to the authorizing agent action | Tool name, argument digest, result status, side-effect identifier, data classification |
+| **Disclosure and retention** | `ai_disclosure` metadata and retention policy | Provider/deployer transparency obligation is evidenced | `disclosure_id`, `trace_id`, retention index ID | Art. 50 notice or Art. 12/26 log retention cannot be reconstructed | Disclosure text/hash, render/outbound timestamp, recipient class, retention class |
+
 Art. 25 of the AI Act provides a partial answer through the **product integration** rule: when a high-risk AI system is a component of another product, the product manufacturer becomes the provider. However, MCP tool chains are not "products" in the traditional sense — they are **dynamic service compositions** that may change at runtime.
 
 > **Regulatory outlook**: Legal scholars note that the Act *\"fails to supply horizontal rules for delegation credentials, machine-to-machine contracting, or tamper-evident behavioural logs for autonomous action systems outside of strict high-risk silos\"* — suggesting that future implementing acts or the emerging concept of *\"agentic law\"* may need to extend lifecycle control, logging, and oversight requirements specifically to multi-agent systems. See [§24.14](#2414-liability-apportionment-in-multi-vendor-agent-chains) for the liability apportionment analysis that maps the accountability gaps identified above to EU liability frameworks (Product Liability Directive, AI Act, and national tort law).
@@ -19591,10 +19619,11 @@ The AI Act explicitly states (Recital 63) that it *\"does not provide a legal ba
 | Milestone | Date | Agent Architecture Impact |
 |:---|:---|:---|
 | eIDAS 2.0 entered into force | May 20, 2024 | Legal basis established |
-| Implementing Acts publication | Q2 2025 (expected) | Technical standards defined |
-| Member States offer EUDI Wallets | H1 2026 | Wallet-verified identity available for delegation chains |
-| All Member States issue ≥1 EUDI Wallet; priority sector acceptance mandatory | December 31, 2026 | Cross-border agent identity verification becomes operational |
-| Mandatory acceptance extends to broader sectors | 2027 | Agent QEAA verification widely available |
+| Core implementing regulations adopted | December 4, 2024 | Core wallet functionality, protocols/interfaces, PID/attribute attestations, certification, and notification rules defined |
+| Large-scale pilots and reference implementation | 2023–2026 | Wallet-verified identity remains in pilot/reference-implementation mode before mandatory Member State rollout |
+| Member States provide EUDI Wallets | End of 2026 | Wallet-verified identity becomes available for delegation chains across Member States |
+| Priority-sector and relying-party acceptance obligations | From end-2026 onward, depending on sector and implementing rules | Cross-border agent identity verification becomes operational where the wallet is accepted |
+| Broader ecosystem maturity | 2027+ | Agent QEAA verification becomes more practical as wallet issuance, relying-party acceptance, and trust-service integrations mature |
 
 
 #### 24.11 Cross-Border Legal Framework for Agent Delegation
@@ -19607,7 +19636,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 |:---|:---|:---|:---|
 | EU agent → EU MCP tool | GDPR, EU AI Act | None (intra-EU) | Standard delegation chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
 | EU agent → US MCP tool | GDPR, EU AI Act (extraterritorial) + DPF | DPF certification check by gateway | Gateway validates DPF self-certification status before tool invocation |
-| EU agent → Brazil MCP tool | GDPR + LGPD | EU-Brazil adequacy decision (draft Sep 2025, expected H1 2026) or SCCs | Simplified if mutual adequacy adopted; otherwise gateway enforces SCC compliance |
+| EU agent → Brazil MCP tool | GDPR + LGPD | EU-Brazil mutual adequacy decisions (adopted Jan/Feb 2026) | Gateway can treat Brazil as an adequacy destination after validating destination and recipient context; still record jurisdictional transition |
 | US agent → EU MCP tool | EU AI Act Art. 2(1) extraterritoriality | SCCs or DPF | EU gateway enforces AI Act requirements regardless of agent's origin |
 | Cross-border multi-hop (EU → US → Brazil) | GDPR + DPF + LGPD + AI Act | Compound: each hop requires its own transfer basis | Delegation chain audit must record jurisdictional transitions |
 
@@ -19617,7 +19646,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 2. **Data localization requirements**: Some jurisdictions (e.g., Russia, China, certain sectors in India and Brazil) require personal data to be stored and/or processed locally. Agent architectures may need edge computing or split-processing models where the agent invokes a local tool proxy rather than directly accessing cross-border resources.
 
-3. **Adequacy decisions as federation enablers**: GDPR adequacy decisions (Art. 45) function as de facto trust establishment for data flows — analogous to OIDC Federation Trust Anchors for identity. The EU-Brazil mutual adequacy decision (draft September 2025) would simplify agent data flows between these jurisdictions without requiring Standard Contractual Clauses.
+3. **Adequacy decisions as federation enablers**: GDPR adequacy decisions (Art. 45) function as de facto trust establishment for data flows — analogous to OIDC Federation Trust Anchors for identity. The EU-Brazil mutual adequacy decisions adopted in early 2026 simplify agent data flows between these jurisdictions without requiring Standard Contractual Clauses for covered transfers.
 
 4. **Delegation chain → audit trail → jurisdictional record**: The `act` claim chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) must record not just *who* delegated to *whom*, but implicitly *where* — since the delegating organization's jurisdiction determines which data protection law governs that delegation step. Gateway audit logs ([§13.2](#132-gateway-responsibilities)) should include jurisdictional metadata for compliance reporting.
 
@@ -19681,7 +19710,7 @@ Three legal layers govern liability in multi-vendor AI agent chains:
 |:------|:----------------|:--------------|:-------|:-----------------|
 | **Product liability** | [Directive (EU) 2024/2853](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) (revised PLD) | **Strict** — no need to prove fault, only defectiveness + causation + damage | In force Dec 2024; transposition deadline **Dec 9, 2026** | MCP servers, AI agents, and gateways are all "products" (software is explicitly included) |
 | **Regulatory obligations** | [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) (AI Act) | **Administrative** — fines up to €35M / 7% revenue for non-compliance | Phased: Art. 50 from Aug 2026; high-risk from Aug 2027 | Provider/deployer obligations (Art. 9, 12, 14, 26) create duties whose breach supports product liability claims |
-| **National tort law** | Member State civil codes | **Fault-based** — requires proof of negligence or breach of duty of care | Varies by jurisdiction | Fills the gap left by the [AI Liability Directive (COM/2022/496)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496), which was **withdrawn in February 2025** due to lack of co-legislator agreement |
+| **National tort law** | Member State civil codes | **Fault-based** — requires proof of negligence or breach of duty of care | Varies by jurisdiction | Fills the gap left by the [AI Liability Directive (COM/2022/496)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496), whose withdrawal was announced in the 2025 Commission work programme and formalized in the 2025 withdrawal notice |
 
 **The PLD as primary instrument**: With the withdrawal of the AI Liability Directive, the revised Product Liability Directive (2024/2853) is the **sole EU-harmonized liability framework** for AI systems. Its key provisions for MCP chains:
 
@@ -19774,7 +19803,7 @@ When Agent A (EU) delegates to Agent B (US) via RFC 8693 token exchange ([§5](#
 
 | Transfer Mechanism | GDPR Basis | MCP Applicability | Limitation |
 |:-------------------|:-----------|:-----------------|:-----------|
-| **Adequacy decision** | Art. 45 | Gateway checks destination jurisdiction against Commission adequacy list before forwarding token | Only 15 countries have adequacy; does not cover most global destinations |
+| **Adequacy decision** | Art. 45 | Gateway checks destination jurisdiction against Commission adequacy list before forwarding token | Limited to Commission-recognized adequacy destinations and scoped recipients; verify the live list, sector coverage, and law-enforcement exclusions before routing |
 | **EU-US Data Privacy Framework** | Art. 45 (adequacy) | EU→US token transfers to DPF-certified organizations | Covers bilateral EU→US only; onward US→third-country requires separate basis; legally fragile (third attempt after Safe Harbor and Privacy Shield) |
 | **Standard Contractual Clauses** | Art. 46(2)(c) | SCC agreements between gateway operator and each cross-border MCP server operator | Contractual overhead per tool provider; supplementary measures (EDPB Recommendations 01/2020) may be required; Schrems II DTIA for each route |
 | **Binding Corporate Rules** | Art. 47 | Intra-group transfers only | Not applicable to cross-organization MCP delegation chains |
@@ -19792,7 +19821,7 @@ Beyond GDPR's transfer mechanisms, several jurisdictions impose **data localizat
 | **China** | [PIPL Art. 38–43](http://www.npc.gov.cn/npc/c30834/202108/a8c4e3672c74491a80b53a172bb753fe.shtml) | Three transfer mechanisms: CAC security assessment, PI protection certification, or standard contract. Security assessment mandatory for CIIOs or transfers of ≥1M individuals' PI or ≥10K individuals' sensitive PI. Guidelines v3 (June 2025): remote access by overseas personnel counts as cross-border transfer. | Effectively **blocks real-time** cross-border agent delegation chains involving Chinese resident PI unless pre-approved via CAC security assessment |
 | **Russia** | [Federal Law 242-FZ](http://publication.pravo.gov.ru/Document/View/0001201407220002) | Personal data of Russian citizens must be recorded, stored, and updated in databases physically located in Russia. Processing abroad permitted only if initial recording happened in Russia. | **Hard localization** — delegation tokens containing Russian citizen PII must originate from Russia-based systems; cross-border MCP chains cannot carry original Russian citizen PII |
 | **India** | [DPDP Act 2023, §21](https://www.meity.gov.in/writereaddata/files/Digital%20Personal%20Data%20Protection%20Act%202023.pdf) + DPDP Rules (Nov 2025) | "Negative list" approach — transfers permitted except to blacklisted countries. Significant Data Fiduciaries (SDFs) face additional localization for government-specified categories. Cross-border provisions effective ~mid-2027. | More **permissive** than China/Russia until blacklist is populated; SDFs processing government-specified categories face localization |
-| **Brazil** | [LGPD Art. 33–36](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm) | Similar to GDPR: adequacy decisions, SCCs, BCRs, specific consent. EU-Brazil mutual adequacy decision in draft (Sep 2025, expected H1 2026). | If mutual adequacy adopted, EU↔Brazil agent delegation chains simplified; otherwise SCCs required |
+| **Brazil** | [LGPD Art. 33–36](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/L13709compilado.htm) | Similar to GDPR: adequacy decisions, SCCs, BCRs, specific consent. EU-Brazil mutual adequacy decisions were adopted in early 2026. | EU↔Brazil agent delegation chains are simplified for covered transfers, but gateways should still validate recipient scope and log the jurisdictional transition |
 
 > **Cross-reference**: [§24.11](#2411-cross-border-legal-framework-for-agent-delegation) identifies data localization as one of four key legal principles affecting architecture (principle #2, line 16106). The table above provides the jurisdiction-specific analysis that [§24.11](#2411-cross-border-legal-framework-for-agent-delegation) references at a high level. See also [§25.6](#256-nist-sp-800-207-and-zero-trust-for-agent-architectures) for the broader multi-jurisdiction regulatory comparison covering AI governance frameworks beyond data localization.
 
@@ -20024,13 +20053,13 @@ The NCCoE concept paper identifies three enterprise deployment scenarios that co
 
 ##### 25.4.4 Desired Outcomes and Current Status
 
-The NCCoE project aims to produce a **practice guide** with concrete implementation details for securing AI agent identity and authorization. The expected deliverables include reference architectures, technology-specific configurations, and deployment guidance. The concept paper's comment phase has now closed, and the NCCoE project page indicates that community input is being reviewed to inform subsequent planning activities, including a draft project description. Given NCCoE's typical project timeline, the practice guide is expected in **mid-to-late 2027**.
+The NCCoE project aims to produce practical implementation guidance for securing AI agent identity and authorization. The expected deliverables could include reference architectures, technology-specific configurations, and deployment guidance, but the official project page currently says community input is being reviewed to inform subsequent planning activities, including a draft project description. No official practice-guide publication date has been announced; any mid-to-late 2027 planning assumption should be treated as an internal roadmap estimate, not an NCCoE commitment.
 
 > **Architectural implication**: Organizations should not wait for the NCCoE practice guide. DR-0001's gateway-mediated architecture ([§13](#13-gateway-mediated-mcp-architecture)), combined with the credential delegation patterns ([§11](#11-credential-delegation-patterns)) and policy engine recommendations ([§19](#19-authorization-models-and-policy-engines-pattern-synthesis)), provides an implementable framework *today* that aligns with NCCoE's stated goals.
 
 #### 25.5 NIST AI Agent Standards Initiative: Three Pillars
 
-The **AI Agent Standards Initiative**, created **February 17, 2026** and updated by NIST on **April 20, 2026**, is run through the **Center for AI Standards and Innovation (CAISI)**. NIST's current initiative page lists three related activity streams — the AI Agent Security RFI, the NCCoE identity and authorization concept paper, and sector listening sessions — and defines three pillars for AI agent governance:
+The **AI Agent Standards Initiative**, announced **February 17, 2026** and updated by NIST on **February 18, 2026**, is run through the **Center for AI Standards and Innovation (CAISI)**. NIST's current initiative page lists three related activity streams — the AI Agent Security RFI, the NCCoE identity and authorization concept paper, and sector listening sessions — and defines three pillars for AI agent governance:
 
 | Pillar | Focus | DR-0001 Mapping |
 |:-------|:------|:----------------|
@@ -20039,6 +20068,19 @@ The **AI Agent Standards Initiative**, created **February 17, 2026** and updated
 | **3. Agent Security and Identity Research** | Advancing research on authentication, authorization, and trust for agents | DR-0001 as reference architecture; NCCoE concept paper ([§25.3](#253-nist-ai-800-1-the-model-agent-system-and-tool-misuse)) as first concrete output |
 
 The Initiative explicitly positions itself as complementary to existing standards-body work. The OIDF AIIM Community Group's **March 2026 NIST RFI response** (NIST-2025-0035) — referenced in [§21.8.1](#2181-agent-identity-claims) — explicitly frames agent security as a *"failure of trust"* and advocates for NIST guidance directing organizations toward practical standards. This creates a **standards-body feedback loop**: the OpenID Foundation defines the technical primitives (OIDC-A, Federation), while NIST provides the governance framework and validation infrastructure.
+
+##### 25.5.1 NIST/CAISI/NCCoE to MCP Control Map
+
+The US track is voluntary, but it is operationally useful because it turns agent identity into a standards and measurement program. The deployer action is to map each NIST/CAISI/NCCoE workstream to a concrete MCP control and to monitor the government page for follow-on deliverables rather than waiting for binding law.
+
+| NIST / CAISI / NCCoE Workstream | Deployer Action | DR-0001 Control | Evidence Artifact | Source / Event to Monitor |
+|:---|:---|:---|:---|:---|
+| **Industry-led agent standards** | Track standards-body outputs and avoid proprietary identity claims where OAuth/OIDC/SPIFFE primitives exist | [§21](#21-emerging-standards-for-ai-agent-authorization) emerging standards; [§6](#6-agent-identity-vs-user-identity) agent identity taxonomy; [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A signed cards | Standards watchlist; accepted/rejected profile decisions; gateway claim mapping | NIST AI Agent Standards Initiative updates; IETF/OIDF adoption status |
+| **Open-source protocol development** | Keep MCP and A2A gateway behavior aligned with current protocol versions and registry/signing expectations | [§1](#1-mcp-authorization-spec-evolution) MCP auth; [§2](#2-mcp-over-streamable-http-transport-layer-auth-implications) transport; [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A; [§13](#13-gateway-mediated-mcp-architecture) gateway architecture | Protocol-version inventory; compatibility test output; registry trust policy | CAISI/NIST initiative page, MCP/A2A release notes, registry governance changes |
+| **Agent security and identity research** | Treat NHI lifecycle, runtime attestation, and delegated authority as first-class risk controls | [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) NHI governance; [§11](#11-credential-delegation-patterns) credential delegation; [§12](#12-credential-security-and-revocation) revocation; [§21](#21-emerging-standards-for-ai-agent-authorization) WIMSE/SPIFFE | Agent inventory; credential lifecycle log; attestation evidence; revocation/CAEP test | CAISI research outputs and RFIs; NCCoE project-description updates |
+| **NCCoE area: Identification of AI agents** | Assign unique agent identities and bind them to runtime or organizational provenance | [§6](#6-agent-identity-vs-user-identity) identity taxonomy; [§7.10](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity) SP 800-63-4; [§21.12](#2112-spiffe-client-authentication-oauth-integration) SPIFFE client auth | Agent ID registry; assurance-level record; SPIFFE/SVID or OIDC client evidence | NCCoE draft project description and reference architecture |
+| **NCCoE area: Authorization and access delegation** | Enforce per-tool authorization and delegated-scope attenuation at the gateway | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) token exchange; [§13](#13-gateway-mediated-mcp-architecture) PEP; [§16](#16-task-based-access-control-tbac) TBAC; [§19](#19-authorization-models-and-policy-engines-pattern-synthesis) policy engines | Policy decision trace; token-exchange record; `act` chain; scope attenuation test | NCCoE demonstration scenarios and selected standards |
+| **NCCoE area: Logging, transparency, and data flows** | Preserve traceable logs across MCP, A2A, and cross-border delegation hops | [§13.2](#132-gateway-responsibilities) audit logging; Art. 12 mapping in [§24.4](#244-art-12-and-art-26-audit-trail-requirements); multi-agent evidence chain in [§24.8.1](#2481-multi-agent-accountability-evidence-chain); data sovereignty in [§24.15](#2415-data-sovereignty-in-cross-border-agent-delegation-chains) | `trace_id` lineage; cross-protocol join fields; jurisdiction transition metadata | NCCoE follow-on outputs; NIST AI measurement and monitoring guidance |
 
 #### 25.6 NIST SP 800-207 and Zero Trust for Agent Architectures
 
@@ -20109,7 +20151,7 @@ Organizations operating in both the EU and US markets must satisfy both framewor
 | **Human oversight** | Art. 14 mandatory for high-risk AI systems | GOVERN function: accountability structures, voluntary |
 | **Enforcement mechanism** | Market surveillance authorities; fines up to €35M / 7% revenue | Self-assessment; peer validation; no penalties |
 | **Agent identity standard** | Not specified (eIDAS 2.0 for cross-border identity) | NCCoE exploring MCP + OAuth + SPIFFE + SCIM + NGAC |
-| **Timeline** | Art. 50 and Annex III high-risk: Aug 2, 2026; Annex I product-safety high-risk: Aug 2, 2027 | NCCoE practice guide expected mid-to-late 2027 |
+| **Timeline** | Art. 50 and Annex III high-risk: Aug 2, 2026; Annex I product-safety high-risk: Aug 2, 2027 | NCCoE follow-on project description / practice guide not yet officially scheduled |
 
 ##### 25.7.1 Global Regulatory Landscape: Beyond EU and US
 
@@ -20186,6 +20228,20 @@ flowchart LR
     eIDAS --> ID --> MAP
     A9 --> POL --> MAN
 ```
+
+##### 25.7.3 Dual-Compliance Evidence Pack
+
+The operational packaging is a shared evidence pack: one MCP control should produce artifacts that satisfy the EU's binding obligation and the NIST framework's voluntary risk-management function. This table keeps the W8-01 article-by-article map distinct from the cross-jurisdiction operating model.
+
+| EU Obligation | NIST Function | Shared MCP Control | Evidence Owner | Audit Artifact |
+|:---|:---|:---|:---|:---|
+| **Art. 9** risk management | MAP / MANAGE | Tool risk classification, TBAC tiering, policy-engine enforcement | Risk owner + gateway owner | Tool risk register, policy version, risk acceptance or mitigation record |
+| **Art. 12 / Art. 26** logging and retention | MEASURE | Gateway audit log, authorization decision trace, retention policy | Deployer compliance owner + SIEM owner | `trace_id` lineage, `act` chain, tool call log, six-month retention evidence |
+| **Art. 13** deployer transparency | GOVERN / MAP | Agent/tool metadata, Agent Card, registry entry, intended-use documentation | Provider documentation owner + deployer owner | Agent profile, tool description, known limitations, versioned deployer instructions |
+| **Art. 14** human oversight | GOVERN / MANAGE | Oversight tiers, CIBA, step-up approval, stop/override controls | Operations owner + IdP owner | Approval event, binding message, denial/timeout, override/stop event |
+| **Art. 15** cybersecurity | MANAGE / MEASURE | Token validation, session binding, guardrails, isolation, continuous revocation | Security platform owner | Token validation log, sender-constraint proof, guardrail result, CAEP/SSF event handling |
+| **Art. 50** AI disclosure | GOVERN / MAP | `ai_disclosure` metadata and application rendering | Gateway owner + application owner | Disclosure object, render/outbound evidence, content provenance identifier where applicable |
+| **GDPR/eIDAS cross-border identity and transfers** | MAP / MANAGE | EUDI/eIDAS trust checks, jurisdictional routing, PPID token transformation | Privacy owner + identity federation owner | Transfer-basis decision, jurisdiction transition metadata, PPID mapping custody record |
 
 > **Practical guidance**: For organizations subject to both jurisdictions, implement the **EU AI Act requirements as the binding baseline** (since they are mandatory) and use the **NIST AI RMF functions as the organizational structure** for documenting compliance. The NIST framework's GOVERN/MAP/MEASURE/MANAGE taxonomy provides a natural structure for mapping technical controls to risk management processes — even when the underlying controls are driven by EU regulatory obligations.
 
@@ -28253,15 +28309,22 @@ This enables MCP clients (Claude Code, Cursor) to use OAuth-protected MCP server
 
 - [COM/2022/496 — AI Liability Directive (proposal)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:52022PC0496) — Proposed directive on adapting non-contractual civil liability to artificial intelligence
 - [Directive (EU) 2024/2853 — Product Liability Directive (revised)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024L2853) — Liability for defective products including AI systems
+- [EUR-Lex C/2025/5423 — Withdrawal of Commission Proposals](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ%3AC_202505423) — Formal 2025 withdrawal notice covering pending Commission proposals, including the AI Liability Directive withdrawal context ([§24.14](#2414-liability-apportionment-in-multi-vendor-agent-chains))
+- [European Commission — AI Act](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) — Official AI Act policy page and implementation timeline, including 2 Aug 2026 and 2 Aug 2027 application milestones ([§24](#24-eu-regulatory-framework-ai-act-compliance-mapping))
 - [EU AI Act Service Desk — Implementation Timeline](https://ai-act-service-desk.ec.europa.eu/en/ai-act/timeline/timeline-implementation-eu-ai-act) — Official EU timeline: Article 50 and Annex III high-risk rules start applying on Aug 2, 2026; Annex I product-safety high-risk rules apply on Aug 2, 2027
+- [European Commission — Code of Practice on Marking and Labelling AI-Generated Content](https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content) — Article 50 marking/labelling code process and August 2026 transparency-obligation preparation track ([§24.3](#243-art-50-ai-interaction-disclosure-for-mcp))
 - [EU AI Office — General-Purpose AI Code of Practice](https://digital-strategy.ec.europa.eu/en/policies/ai-pact) — Voluntary code of practice for GPAI providers
+- [European Commission — European Digital Identity (EUDI) Regulation](https://digital-strategy.ec.europa.eu/en/policies/eudi-regulation) — Official EUDI/eIDAS 2.0 implementation status; Member States must provide EUDI Wallets by the end of 2026 ([§24.10](#2410-eidas-20-and-cross-border-agent-identity))
+- [European Commission — Implementing Regulation for European Digital Identity Wallets](https://digital-strategy.ec.europa.eu/en/library/implementing-regulation-european-digital-identity-wallets) — Five December 2024 implementing regulations for wallet core functionality, protocols/interfaces, PID/attributes, certification, and notification ([§24.10](#2410-eidas-20-and-cross-border-agent-identity))
+- [European Commission — Data Protection Adequacy Decisions](https://commission.europa.eu/law/law-topic/data-protection/international-dimension-data-protection/adequacy-decisions_en) — Official adequacy-decision list, including Brazil and the EU-US Data Privacy Framework scope ([§24.11](#2411-cross-border-legal-framework-for-agent-delegation), [§24.15](#2415-data-sovereignty-in-cross-border-agent-delegation-chains))
+- [EDPB — EU-US Data Privacy Framework FAQ for European Businesses v2.0](https://www.edpb.europa.eu/our-work-tools/our-documents/other-guidance/eu-us-data-privacy-framework-faq-european-businesses-0_en) — January 2026 EDPB guidance for EU-US Data Privacy Framework transfers ([§24.15](#2415-data-sovereignty-in-cross-border-agent-delegation-chains))
 - [White House — Initial Rescissions of Executive Orders and Actions](https://www.whitehouse.gov/presidential-actions/2025/01/initial-rescissions-of-harmful-executive-orders-and-actions/) — January 20, 2025 order rescinding EO 14110
 - [Executive Order 14179 — Removing Barriers to American Leadership in Artificial Intelligence](https://www.whitehouse.gov/presidential-actions/2025/01/removing-barriers-to-american-leadership-in-artificial-intelligence/) — January 23, 2025 order directing an AI Action Plan and review of actions taken under EO 14110
 - [White House — America's AI Action Plan](https://www.whitehouse.gov/articles/2025/07/white-house-unveils-americas-ai-action-plan/) — July 23, 2025 release of "Winning the AI Race: America's AI Action Plan"
 - [NIST AI 100-1 — Artificial Intelligence Risk Management Framework (AI RMF 1.0)](https://doi.org/10.6028/NIST.AI.100-1) — Four-function framework (Govern, Map, Measure, Manage) for AI risk management (January 2023)
 - [NIST AI 600-1 — Artificial Intelligence Risk Management Framework: Generative Artificial Intelligence Profile](https://doi.org/10.6028/NIST.AI.600-1) — GenAI-specific risk profile extending AI RMF 1.0 with 12 GAI risk categories (July 2024)
 - [NIST AI 800-1 — Managing Misuse Risk for Dual-Use Foundation Models](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.800-1.ipd2.pdf) — Second Public Draft providing prescriptive safeguards for dual-use models, including explicit warnings about model-agent systems and tool usage (January 2025)
-- [NIST AI Agent Standards Initiative — Three Pillars](https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative) — Industry-led standards, open-source protocols, and agent security/identity research; NIST page created Feb 17, 2026 and updated Apr 20, 2026
+- [NIST AI Agent Standards Initiative — Three Pillars](https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative) — Industry-led standards, open-source protocols, and agent security/identity research; NIST page created Feb 17, 2026 and updated Feb 18, 2026
 - [NIST NCCoE — Accelerating the Adoption of Software and Artificial Intelligence Agent Identity and Authorization](https://csrc.nist.gov/pubs/other/2026/02/05/accelerating-the-adoption-of-software-and-ai-agent/ipd) — Concept paper for demonstration project on AI agent identity standards (February 5, 2026; public comment period closed April 2, 2026)
 - [NIST SP 800-207 — Zero Trust Architecture](https://doi.org/10.6028/NIST.SP.800-207) — Reference architecture for zero trust security models, applicable to NHI and agent identity (August 2020)
 - [Regulation (EU) 2016/679 — General Data Protection Regulation (GDPR)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679) — Protection of natural persons with regard to the processing of personal data
