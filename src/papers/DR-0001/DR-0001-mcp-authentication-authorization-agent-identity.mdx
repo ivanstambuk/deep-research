@@ -7572,6 +7572,7 @@ config:
 sequenceDiagram
     autonumber
     participant Runtime as ⚙️ AgentCore Runtime<br/>(Firecracker microVM)
+    %% lint-sequence: allow-disconnected Runtime
     participant Agent as 🤖 Agent
     participant Identity as 🔑 AgentCore<br/>Identity
     participant GW as 🛡️ AgentCore<br/>Gateway
@@ -15317,8 +15318,8 @@ The engines appear in the surveyed gateways as follows (9 of 13 gateways now hav
 | **Cedar** | TrueFoundry (§D) | Managed guardrail — "Cedar Guardrail for MCP tools" (Feb 2026) | Cedar-based tool authorization alongside existing RBAC and Virtual MCP Servers |
 | **OPA** | Kong AI Gateway (§C) | Official plugin — OPA evaluates on each request | Custom Rego rules for MCP traffic: rate limiting, IP filtering, custom claim validation |
 | **OPA** | Traefik Hub (§I) | Built-in — OPA middleware (OPA spec v1.3.0) | MCP request authorization via Rego policies; complements TBAC middleware |
-| **OPA** | IBM ContextForge (§F) | Plugin — OPA policy enhancements in the v1.0.0 release-candidate line | JWT `resource_access` claim extraction; tool-level access control via Rego |
-| **Cedar** | IBM ContextForge (§F) | Plugin — Cedar RBAC in the v1.0.0 release-candidate line | Cedar-based RBAC alongside existing OPA and built-in RBAC |
+| **OPA** | IBM ContextForge (§F) | Plugin — OPA policy enhancements in the v1.0.0 release line | JWT `resource_access` claim extraction; tool-level access control via Rego |
+| **Cedar** | IBM ContextForge (§F) | Plugin — Cedar RBAC in the v1.0.0 release line | Cedar-based RBAC alongside existing OPA and built-in RBAC |
 | **OpenFGA** | Auth0 (§H) | Built-in — Auth0 FGA (OpenFGA-based) | RAG document-level ReBAC: `check("user:alice", "reader", "document:q3-report")` |
 | *PingAuthorize* | PingGateway (§B) | Companion product — centralized policy engine | Fine-grained MCP scope decisions (not Cedar/OPA/OpenFGA but functionally comparable ABAC) |
 | *None* | APIM (§A), Docker (§J), Cloudflare (§K) | N/A | Use scopes, container isolation, or edge policies; see Adoption Matrix below for extensibility options |
@@ -18678,7 +18679,7 @@ Applying the evidence tiers above to each gateway deep-dive:
 | Kong | §C | ✅ Strong | Official docs + two MCP plugins GA: AI MCP Proxy (v3.12, Oct 2025; MCP ACL built-in since v3.13, Dec 2025) + AI MCP OAuth2 (v3.12); PII sanitization (v3.10); Lakera Guard + NeMo guardrails (v3.13–3.14); MCP protocol 2025-11-25 support; Kong AI Gateway 3.14 shipped native A2A support and structured A2A logging on Apr 14, 2026 | Enterprise-only plugins (not in OSS edition); no RFC 9728 or RFC 8707 support; MCP federation/aggregation posture remains less standards-native than AgentGateway/ContextForge |
 | TrueFoundry | §D | ✅ Strong | Official docs + product documentation + Gartner 2025 Market Guide recognition; Virtual MCP Servers, extensive guardrails (Cedar + OPA + 7 built-in + 12 external providers), A2A Agent Hub, Agentic Flight Recorder, $21M funding (Series A, Intel Capital) | Series A startup |
 | AgentGateway | §E | ✅ Strong | Open-source code (Rust) + Cedar policy examples + built-in guardrails (prompt guards, PII detection/masking, webhook API) + admin UI (port 15000) + developer portal + LLM gateway (multi-provider) + 77 releases | Solo.io offers enterprise distribution with commercial support; open-source edition includes all features |
-| ContextForge | §F | ✅ Strong | GitHub repo + detailed release notes through v1.0.0-RC-3 (Apr 14, 2026); IBM-developed open-source (Apache 2.0); RFC 9728 + RFC 8707 + Cedar RBAC plugin + OPA + 40+ plugins; multi-arch containers and Rust runtime work in RC-3 | Still pre-GA as of the latest checked release; no official IBM product support — community-driven; mDNS federation deprecated |
+| ContextForge | §F | ✅ Strong | GitHub repo + detailed release notes through v1.0.0 GA (release notice dated Apr 30, 2026); IBM-developed open-source (Apache 2.0); RFC 9728 + RFC 8707 + Cedar RBAC plugin + OPA + 40+ plugins; multi-arch containers, Rust runtime work, A2A 1.0 runtime support, and MCP 2025-11-25 compliance harness | Open-source/community support posture still differs from commercial IBM product support; MySQL/MariaDB/MongoDB backends removed before GA; mDNS federation deprecated |
 | WSO2 IS | §G | ✅ Strong | Official docs + IS 7.2 features + deprecated proxy | Agent ID is GA (7.2); adoption growing but full A2A support is emerging |
 | Auth0 | §H | ✅ Strong | Official docs + Auth0 for AI Agents GA (Nov 19, 2025) + Auth for MCP limited early access + current Token Vault docs still marking the feature Early Access | Mixed maturity: Token Vault docs still say Early Access for public cloud tenants; XAA remains Beta; Auth for MCP is limited early access |
 | Traefik Hub | §I | ✅ Strong | Official docs + MCP Gateway GA (Feb 2026, v3.19+); TBAC + OBO (RFC 8693) middleware; Triple Gate architecture | Traefik Hub control plane is a managed SaaS, creating a minor lock-in vector; Kubernetes dependent |
@@ -18713,7 +18714,7 @@ While the focus of this investigation is on general-purpose patterns, it's valua
 | **WSO2 Open MCP Auth Proxy** | Sidecar auth proxy (⚠️ deprecated Feb 2026) | Yes (March 2025 spec) | OAuth 2.1 pass-through + DCR | External IdP consent (Asgardeo/Auth0/Keycloak) | Built-in logging |
 | **WSO2 Identity Server 7.2 / Asgardeo** | IdP-native AS with MCP templates (successor) | Yes (GA, includes RFC 9396) | Native OAuth 2.1 + DCR + RFC 9728 + RFC 8707 | Native consent UI (per-scope, incremental) | WSO2 IS audit + agent audit |
 | **Auth0 / Okta** | CIAM-native AI agent platform (Auth0 for AI Agents) | Yes (Auth0 MCP Server docs live; Auth for MCP limited early access; XAA Beta) | RFC 8693 Token Exchange + Token Vault (current docs still label it Early Access) | FGA/OpenFGA + async authorization (CIBA) + XAA / enterprise-managed delegation | Auth0 Logs + agent audit |
-| **IBM ContextForge** | Batteries-included AI gateway (Python, v1.0.0-RC-3 pre-GA) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys + RFC 9728 + RFC 8707 | RBAC + Cedar (plugin) + OPA + 40+ guardrail/integration plugins | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
+| **IBM ContextForge** | Batteries-included AI gateway (Python, v1.0.0 GA) | Yes (MCP + A2A + REST/gRPC) | OAuth SSO (EntraID/Keycloak/Okta) + JWT + API keys + RFC 9728 + RFC 8707 | RBAC + Cedar (plugin) + OPA + 40+ guardrail/integration plugins | OpenTelemetry (Phoenix/Jaeger/Zipkin) |
 | **Kong AI Gateway** | API gateway + MCP plugins (GA, v3.12+) | Yes (AI MCP Proxy + OAuth2 + ACL) | AI MCP OAuth2 validation/exchange + token stripping; existing Kong auth plugins | Plugin-based (OPA, ACL, RBAC) + PII sanitization + Lakera Guard | Kong Analytics + Prometheus + OTel |
 | **Traefik Hub** | K8s-native MCP gateway (v3.19+, MCP GA Feb 2026) | Yes (MCP middleware + TBAC) | OAuth 2.1 RS + OBO (RFC 8693) + OIDC | TBAC (per-task/tool/transaction) + Triple Gate | OpenTelemetry + Traefik Hub observability |
 | **Docker MCP Gateway** | Container runtime + MCP catalog (GA) | Yes (MCP Gateway + Toolkit + Catalog) | Centralized OAuth/API key + secret injection | Container isolation + interceptors + signature checks | Call logging + interceptor audit |
@@ -18750,7 +18751,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Architecture** | API GW | Filter chain | CP/GP | Data plane | IdP AS | CIAM | Converged GW | API GW + plugins | K8s GW | Container runtime | Edge GW | Envoy-native | LLM Gateway |
 | **Language** | C# | Java | Undisclosed | Rust | Java | SaaS | Python + Rust | Lua | Go | Go | JS/Rust (Workers) | Go | Python |
 | **AS/RS Model** | Facade AS | RS (PingOne = AS) | Auth proxy | OAuth2 Proxy | ✅ Native AS | Auth0 for AI Agents | SSO | OAuth2 plugin | OAuth 2.1 RS | Centralized auth | CF Access (OAuth) | ext_authz (Authorino) | JWT RBAC + API keys |
-| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ RC1 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint | ❌ |
+| **RFC 9728** | ❌ | ✅ Auto-registered | ❌ Registry | ✅ MCP auth spec | ✅ Templates | ❌ | ✅ v1.0.0 | ❌ | Resource Metadata | ❌ | ❌ | ✅ Broker endpoint | ❌ |
 | **RFC 8707** | ❌ | ✅ Audience-bound | ❌ | ✅ | ✅ Resource Indicators | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ Dynamic via CEL | ❌ |
 | **OBO/Delegation** | ✅ Custom OBO (`send-request`) | JwtBuilderFilter | Identity Injection | OAuth2 Proxy | ❌ | ✅ Token Vault (EA) | ❌ | 🟡 AI MCP OAuth2 token exchange + stripping | ✅ RFC 8693 | ❌ | ❌ | ✅ RFC 8693 (YAML) | ❌ |
 | **TBAC** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Middleware | ❌ | ❌ | ❌ | ❌ |
@@ -18772,7 +18773,7 @@ This section provides the **definitive comparison** across all thirteen implemen
 | **Async Auth (CIBA)** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Human-in-loop | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Admin UI** | Azure Portal | 🟡 AIC Console | Dashboard + Playground | ✅ Built-in + Dev Portal | IS Console | Auth0 Dashboard | ✅ Built-in | Konnect | ❌ | ✅ Toolkit + CLI | ✅ CF Dashboard | ❌ | ✅ Admin UI (port 4000) |
 | **Plugins** | ❌ | Groovy filters | ✅ Guardrails+custom | Guardrail webhook | ❌ | AI SDKs | 40+ | ✅ Guardrails+100+ | ❌ | ❌ | Workers | ext_proc + ext_authz | Callbacks + hooks |
-| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ AI Agents GA; MCP Limited EA; Vault EA; XAA Beta | 🟡 RC-3 pre-GA (Apr 2026) | ✅ GA; MCP/A2A AI plugins are licensed features | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
+| **Status** | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ GA | ✅ AI Agents GA; MCP Limited EA; Vault EA; XAA Beta | ✅ GA (v1.0.0, Apr 2026 release notice) | ✅ GA; MCP/A2A AI plugins are licensed features | ✅ GA (Feb 2026) | ✅ GA | ✅ GA | 🟡 Dev Preview (0.5) | ✅ GA (OSS + Enterprise) |
 | **Open Source** | ❌ | ❌ | ❌ | ✅ Apache 2.0 | ✅ Apache 2.0 | OpenFGA | ✅ Apache 2.0 | OSS core | OSS core | ✅ MIT | ❌ (proprietary) | ✅ Apache 2.0 | ✅ MIT |
 | **Nov 2025 Spec** | | | | | | | | | | | | | |
 | **CIMD Support** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -19105,6 +19106,7 @@ sequenceDiagram
     participant GW as 🛡️ MCP Gateway
     participant MCP as 🔌 MCP Server
     participant App as 📱 Application Layer
+    %% lint-sequence: allow-disconnected App
 
     rect rgba(148, 163, 184, 0.14)
     Note right of User: Phase 1: Tool Invocation
@@ -20317,15 +20319,15 @@ ContextForge's guardrail plugin ecosystem — now including PII detection, secre
 
 1.  **gRPC→MCP conversion is unique** — ContextForge is the only gateway that can translate gRPC services into MCP tools via server reflection, broadening the potential tool ecosystem beyond REST and native MCP. Azure APIM now offers gRPC proxy (preview, managed gateway, March 2026) that can route gRPC traffic, but it does not convert gRPC services into MCP tools — the conversion distinction remains ContextForge's unique capability.
 
-2.  **RFC 9728 support** (v1.0.0-RC1) — ContextForge now publishes OAuth Protected Resource Metadata per RFC 9728, joining PingGateway, AgentGateway, and WSO2 IS as gateways with standards-compliant MCP authorization discovery. This closes a significant gap from the initial investigation.
+2.  **RFC 9728 support** — ContextForge now publishes OAuth Protected Resource Metadata per RFC 9728, joining PingGateway, AgentGateway, and WSO2 IS as gateways with standards-compliant MCP authorization discovery. This closes a significant gap from the initial investigation.
 
-3.  **Cedar RBAC plugin** — ContextForge now offers Cedar policy engine integration via plugin in the v1.0.0 release-candidate line, complementing its existing OPA integration. This positions ContextForge alongside AgentGateway (§E) and TrueFoundry (§D) as the three gateways with Cedar support.
+3.  **Cedar RBAC plugin** — ContextForge now offers Cedar policy engine integration via plugin in the v1.0.0 release line, complementing its existing OPA integration. This positions ContextForge alongside AgentGateway (§E) and TrueFoundry (§D) as the three gateways with Cedar support.
 
 4.  **TOON compression** — A unique token optimization format that reduces MCP server response payload size by ~40%, directly addressing context window efficiency for LLM-based agents.
 
 > **mDNS deprecation note**: ContextForge's mDNS/Zeroconf federation auto-discovery, previously listed as a unique differentiator, was **deprecated and removed** in v1.0.0-BETA-2 (January 2026). Federation peer management continues via the `/gateways` REST API but without automatic discovery.
 
-The trade-off is **maturity**: ContextForge's latest checked release is v1.0.0-RC-3 (April 14, 2026), not a completed v1.0.0 GA; it is not officially supported by IBM (community-driven open source), and its 300+ configuration variables suggest operational complexity. Its auth model is now more comprehensive with RFC 9728 and Cedar but still lacks novel patterns like Token Vault, CIBA, or TBAC. The growing ecosystem — Desktop app, CLI, and a dedicated `contextforge-org` GitHub organization — signals increasing community investment.
+The trade-off is **operational maturity and support posture**: ContextForge has reached v1.0.0 GA (release notice dated April 30, 2026), but it remains an open-source/community-supported gateway rather than a commercial IBM product, and its 300+ configuration variables suggest operational complexity. Its auth model is now more comprehensive with RFC 9728 and Cedar but still lacks novel patterns like Token Vault, CIBA, or TBAC. The growing ecosystem — Desktop app, CLI, and a dedicated `contextforge-org` GitHub organization — signals increasing community investment.
 
 ##### 26.4.5 Key Finding 13: TrueFoundry/Bifrost Introduces the Control Plane/Gateway Plane Split, Tool-Level Governance, and the Broadest Guardrails Ecosystem
 
@@ -21690,6 +21692,7 @@ sequenceDiagram
     participant Client as 💻 MCP Client
     participant APIM as 🛡️ Azure APIM
     participant Entra as 🔑 Entra ID
+    %% lint-sequence: allow-disconnected Entra
     participant Tool as 🔌 Backend Tool API
 
     rect rgba(148, 163, 184, 0.14)
@@ -22774,6 +22777,7 @@ sequenceDiagram
     participant Client as 🤖 MCP Client
     participant PG as 🛡️ PingGateway
     participant Server as 🔌 MCP Server
+    %% lint-sequence: allow-disconnected Server
 
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Inbound Request Structure
@@ -24702,7 +24706,7 @@ ContextForge's auth model is comprehensive but not architecturally novel:
 
 The auth pattern is closest to **PingGateway (§B)** — a filter chain with external IdP — but without purpose-built MCP authentication filters.
 
-> **OPA Integration and current release line**: ContextForge added OPA policy engine support in the v1.0.0 release-candidate line, and the latest checked GitHub release is v1.0.0-RC-3 (April 14, 2026):
+> **OPA Integration and current release line**: ContextForge added OPA policy engine support before v1.0.0, and the latest checked GitHub release is v1.0.0 GA (release notice dated April 30, 2026):
 >
 > - **Capabilities**: Customizable policy paths, improved input mapping, and JWT `resource_access` claim extraction for tool-level permissions
 > - **Positioning**: One of five gateways with OPA integration (alongside Kong §C, Traefik Hub §I, and via custom integration on APIM §A and Cloudflare §K)
@@ -24740,11 +24744,11 @@ ContextForge has the **deepest observability integration** in this investigation
 | **PyPI** | `pip install mcp-contextforge-gateway` (Python ≥3.10) |
 | **Docker** | Single container or Docker Compose (full stack) |
 | **Kubernetes** | Helm chart with Redis-backed multi-cluster federation |
-| **Databases** | PostgreSQL, MySQL, SQLite |
+| **Databases** | PostgreSQL, SQLite |
 | **Caching** | Redis (L1/L2 with connection pooling) |
 | **Performance** | 100+ optimizations (N+1 elimination, PgBouncer, Granian HTTP, `orjson`) |
 
-> **⚠️ Pre-release**: ContextForge's latest checked release is v1.0.0-RC-3 (April 14, 2026), not a completed v1.0.0 GA. It is open source but not an officially supported IBM product — community-driven development and support only.
+> **Status note**: ContextForge's latest checked release is v1.0.0 GA (release notice dated April 30, 2026). It is open source and IBM-developed, but not positioned here as a commercially supported IBM product; production adopters should still plan community-support and upgrade-governance controls.
 
 #### F.8 Pattern Traceability
 
@@ -24755,7 +24759,7 @@ ContextForge has the **deepest observability integration** in this investigation
 | **§14 Consent** | OAuth SSO consent handled by external IdP (EntraID, Google, Okta); ContextForge itself relies on admin-configured access |
 | **§16 TBAC** | RBAC via SSO claims, not task-based — guardrails provide an orthogonal authorization layer |
 | **§18 Scope Mapping** | Virtual Server Manager maps REST/gRPC operations to MCP tools; tool-level permissions via API key scoping |
-| **§19 Policy Engine** | OPA integration in the v1.0.0 release-candidate line adds Rego-based policy evaluation alongside the guardrail pipeline |
+| **§19 Policy Engine** | OPA integration in the v1.0.0 release line adds Rego-based policy evaluation alongside the guardrail pipeline |
 | **§2.4 Session-Token Binding** | ContextForge has no documented `Mcp-Session-Id` ↔ bearer token binding mechanism — sessions are managed at the proxy level without identity correlation — **no binding** (Finding 26) |
 
 
@@ -28206,7 +28210,7 @@ The goal of this section is practical reproducibility: it points to concrete pro
 - [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) — Micro VM isolation for AI agent execution with network proxy and secret injection
 - [IBM ContextForge (GitHub)](https://github.com/IBM/mcp-context-forge) — Open-source AI gateway, registry, and proxy for MCP/A2A/REST/gRPC federation
 - [IBM ContextForge Documentation](https://ibm.github.io/mcp-context-forge/) — Architecture, configuration, authentication, safety guardrails, and deployment guides
-- [IBM ContextForge Releases](https://github.com/IBM/mcp-context-forge/releases) — Release history through v1.0.0-RC-3, including auth hardening, plugin multi-tenancy, Rust runtime work, and multi-architecture packaging (§F)
+- [IBM ContextForge Releases](https://github.com/IBM/mcp-context-forge/releases) — Release history through v1.0.0 GA, including auth hardening, plugin multi-tenancy, Rust runtime work, A2A 1.0 runtime support, MCP 2025-11-25 compliance harness, and multi-architecture packaging (§F)
 - [Kong AI Gateway 3.14 Release](https://konghq.com/blog/product-releases/kong-ai-gateway-3-14) — April 14, 2026 release adding native A2A support, structured A2A logging, and expanded AI gateway controls
 - [Kong AI Gateway](https://konghq.com/products/kong-ai-gateway) — API gateway with AI MCP Proxy and MCP OAuth2 plugins for MCP traffic management
 - [Kong AI MCP OAuth2 Plugin Changelog](https://developer.konghq.com/plugins/ai-mcp-oauth2/changelog/) — AI MCP OAuth2 plugin release history; plugin introduced for Kong Gateway 3.12 and adds token-exchange, upstream header mapping, token pass-through, and multiple validation methods in the 3.14 line
