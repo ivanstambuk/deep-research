@@ -5341,10 +5341,23 @@ A2A agent discovery follows several patterns, each with a corresponding MCP/OAut
 |:---|:---|:---|
 | **Direct discovery** | `GET /.well-known/agent-card.json` | RFC 9728 `.well-known/oauth-protected-resource` |
 | **Authenticated discovery** | `GetExtendedAgentCard` (JSON-RPC, §8.2.1) | No direct MCP equivalent |
-| **Registry-based** | Central catalog (ContextForge REST API, AgentGateway federation) | DCR (RFC 7591) |
+| **Registry-based** | Central catalog (ContextForge REST API, AgentGateway federation) | DCR (RFC 7591) as a *registration analogy*, not as an A2A registry API |
 | **Federated trust** | Cross-org trust via Agent Cards + TLS certificate chains | OIDC Federation / eIDAS trust lists (§24.10) |
 
 The architectural merging of discovery is accelerating. Advanced gateways (like ContextForge) are beginning to act as **Dual-Registry Endpoints**. Rather than maintaining siloed registries, these gateways advertise both MCP tools (for synchronous human-to-agent access) and A2A Agent Cards (for asynchronous agent-to-agent negotiation) over the same trusted domain boundary, using REST-based federation APIs. See §13.7.4 for the broader agent discovery and registry ecosystem comparison across six discovery mechanisms, including AGNTCY and DIF MCP-I.
+
+**Registry authorization taxonomy** — Because A2A deliberately standardizes the Agent Card rather than one global registry API, registry design becomes an authorization decision, not just a discovery convenience:
+
+| Registry / Discovery Mode | Publish Authorization | Query Authorization | Main Failure Mode | Gateway Consequence |
+|:--------------------------|:----------------------|:--------------------|:------------------|:--------------------|
+| **Well-known Agent Card** | Domain control over `/.well-known/agent-card.json`; optionally signed card metadata | Public by default, unless the card is sensitive | Domain spoofing, stale cards, or accidental exposure of sensitive skills | Treat the card as discovery metadata only; still perform TLS, OAuth, and policy checks before task execution |
+| **Authenticated extended card** | A2A server controls who can fetch richer card details | Per-client auth, usually OAuth, mTLS, network policy, or direct relationship | Selective disclosure drift: different clients see different capabilities | Cache by client/session and bind authorization decisions to the specific card version observed |
+| **Enterprise registry/catalog** | RBAC, workflow approval, or platform ownership before publication | Enterprise RBAC, group membership, or policy filters | Central registry becomes both trust anchor and choke point | Enforce publisher ownership, lifecycle review, and delisting workflows as NHI governance controls (§7.2) |
+| **Public marketplace/catalog** | Catalog-specific publisher policy; may verify namespace but not behavior | Often public or account-gated search | Dependency-confusion-style discovery and over-trust in catalog membership | Do not treat listing as endorsement; apply the same tool descriptor integrity and risk checks as §13.7.2 |
+| **Federated signed-card ecosystem** | Publisher signs Agent Card; trust anchor validates issuer/key chain | Query may be public, but acceptance depends on signature and trust path | Key rotation, revocation, and stale trust bundles | Verify signatures and trust anchors before exposing the agent to MCP tools or user-delegated scopes |
+| **Gateway-mediated federation** | Local gateway imports or mirrors remote cards after policy review | Local policy decides which users/agents can see each remote agent | Local catalog hides remote policy changes or stale remote capabilities | Maintain card version, source, import time, and policy decision in the audit trail |
+
+The operational rule is simple: **registry discovery is not authorization**. Discovery tells an agent *where* a peer claims to be and *what* it claims to do. Authorization still requires identity verification, scope evaluation, policy checks, and runtime context binding. This is the same boundary that applies to MCP Registry membership in §13.7.4: publishing or discovering metadata does not prove that a tool, server, or agent is safe to invoke.
 
 ##### 8.6.2 Emerging Specifications
 
@@ -6064,6 +6077,19 @@ flowchart TD
 | **Human-Not-Present** | Intent Mandate (user pre-signs constraints) | Tier 5 analogue (pre-authorized CIBA) | Upfront delegation; agent acts within constraints | ⚠️ Gap — PSD2 requires SCA per transaction (§8.8.4) |
 | **Merchant-Forced Re-Entry** | Merchant rejects Intent Mandate as insufficient → forces user back | Equivalent to A2A `input-required` (§8.3.1) | User returns to review/confirm specific items | ✅ Escalates to human-present flow |
 | **3DS2 Challenge** | Any party (issuer, CP, merchant) triggers challenge via redirect | Tier 3 (Step-Up with redirect to trusted surface) | User resolves challenge on banking app/website | ✅ Standard 3DS2 liability shift preserved |
+
+**Mandate lifecycle checkpoints** — The security value of AP2 is not the existence of a signed object; it is the sequence of checkpoints that keep human-present and Human-Not-Present authority bounded:
+
+| Checkpoint | Human-Present Flow | Human-Not-Present Flow | Authorization Evidence | Enforcement Question |
+|:-----------|:-------------------|:-----------------------|:-----------------------|:---------------------|
+| **Intent capture** | User asks the Shopping Agent to find or price an item; intent may be recorded but is not the final authorization | User pre-signs an Intent Mandate that defines product category, price ceiling, timing, merchant constraints, payment-method class, and TTL | Signed or recorded intent plus agent interpretation of the user's natural-language instruction | Did the agent preserve the user's constraints, or did it broaden them during negotiation? |
+| **Cart construction** | Merchant returns a specific cart and signs the exact goods, price, payee, shipping, and expiry | Merchant attempts to satisfy the pre-signed intent; ambiguous or underspecified carts can force user re-entry | Cart Mandate, cart hash, merchant identity, expiry, and risk signals | Does the cart fit the mandate constraints, or must the flow escalate back to a human-present approval? |
+| **Mandate matching** | User signs the Cart Mandate after reviewing exact details | Agent or merchant validates that the cart is within the Intent Mandate envelope before payment proceeds | Constraint evaluation record: price, SKU/category, merchant, geography, TTL, refund terms | Which party is accountable for deciding that the cart is "close enough" to the delegated intent? |
+| **Payment signaling** | Payment Mandate signals AI involvement and human-present modality to PSP/network/issuer | Payment Mandate signals AI involvement and Human-Not-Present modality to PSP/network/issuer | Payment Mandate plus references to Cart/Intent Mandates | Can the issuer distinguish user-clicked commerce from autonomous agent commerce for risk scoring? |
+| **Challenge and re-entry** | 3DS2 or CP challenge can occur before authorization completes | Merchant, CP, issuer, or network can force the user back into session when mandate confidence is insufficient | Challenge result, trusted-surface approval, updated mandate if needed | Is challenge policy based on transaction risk, mandate ambiguity, merchant confidence, or regulatory requirement? |
+| **Post-transaction evidence** | Cart Mandate and Payment Mandate support dispute resolution | Intent, Cart, and Payment Mandates together explain delegated authority and final execution | Non-repudiable mandate chain plus payment authorization result | Can auditors reconstruct who authorized what, within which constraints, and which agent acted? |
+
+For DR-0001 architecture, this makes AP2 closest to a **domain-specific delegation envelope**. It is more precise than a generic OAuth scope, because it carries transaction constraints and signed evidence, but it is narrower than a general agent authorization framework, because it is payment-specific and still relies on the payment network, issuer, or Credentials Provider to perform SCA and risk challenge decisions.
 
 ##### 8.8.4 PSD2 Compliance Gap Analysis
 
