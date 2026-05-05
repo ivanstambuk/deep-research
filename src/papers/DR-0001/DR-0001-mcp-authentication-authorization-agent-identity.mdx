@@ -639,6 +639,16 @@ The MCP authorization specification has undergone significant evolution between 
 The March 2025 material is useful for migration analysis, but the November 2025 release is the operational baseline for new deployments because it formalizes scope lifecycle behavior and modern client registration guidance.
 :::
 
+**2026 implementation baseline** — For a new MCP deployment, the version question should be answered as an implementation profile, not as a historical preference:
+
+| Baseline Layer | Use in New Deployments | Why It Matters |
+|:---------------|:-----------------------|:---------------|
+| **Stable authorization baseline** | Implement the 2025-11-25 MCP authorization specification for HTTP transports. | This is the first released baseline with formal scope selection, runtime 403 scope challenge handling, Client ID Metadata Documents, OIDC discovery support, and authorization extensions. |
+| **Minimum compatibility floor** | Accept 2025-06-18 only where SDK or gateway support has not yet caught up. | June 2025 still has the crucial Resource Server, RFC 9728, and RFC 8707 corrections, but lacks the November scope lifecycle and CIMD profile. |
+| **Migration-only baseline** | Treat 2025-03-26 as legacy. | It is useful for interpreting older deployments, but it predates the resource-server-only model and audience-bound resource indicator requirements. |
+| **Draft watchlist** | Track draft transport and authorization pages without treating every draft requirement as production-stable. | Draft `Mcp-Method` / `Mcp-Name` headers and registration refinements are valuable gateway inputs, but should be isolated behind compatibility logic until the next stable release. |
+| **Enterprise bridge** | Use Enterprise-Managed Authorization / ID-JAG only where the enterprise IdP and MCP authorization server already have a trust relationship. | It replaces interactive consent with administrator policy, but it does not by itself establish multilateral federation or runtime tool authorization. |
+
 #### 1.1 March 2025 Spec (2025-03-26)
 
 The initial spec established the foundation:
@@ -1532,6 +1542,18 @@ The June 2025 MCP spec (2025-06-18) replaced the legacy HTTP+SSE dual-endpoint t
 | **Infrastructure compatibility** | Poor — long-lived SSE connections break proxies/LBs/WAFs | Good — standard HTTP POST works with all middleware |
 
 The current draft transport also adds a standards-visible header surface for compliance and observability. Client POST requests carry `Mcp-Method`, and calls to named primitives (`tools/call`, `resources/read`, `prompts/get`) also carry `Mcp-Name`. Gateways can use these draft headers for routing, policy selection, and audit enrichment without parsing the full JSON-RPC body first, but they should treat them as draft-era compliance signals until the next stable MCP specification incorporates them.
+
+**Transport compliance signals for gateways**:
+
+| Signal | Source | Gateway Use | Failure Mode |
+|:-------|:-------|:------------|:-------------|
+| `Authorization` | HTTP header | Token validation, subject/actor extraction, policy context construction | Missing or invalid token → `401`; wrong audience → reject before JSON-RPC handling |
+| `MCP-Protocol-Version` | HTTP header negotiated during initialization | Compatibility routing, feature gates, stale-client detection | Unsupported or invalid version → `400`; missing version may force legacy assumptions |
+| `Mcp-Session-Id` | HTTP header after initialization | Session affinity, session-token binding, resumable context lookup | Stolen or unbound session ID enables session confusion or post-revocation replay |
+| `Last-Event-ID` | SSE resumability header | Reconnection authorization and message redelivery boundary | Resume without token revalidation can replay events after authorization changes |
+| `Mcp-Method` | Draft HTTP request header mirrored from JSON-RPC `method` | Method-level policy, WAF rules, cheap audit attributes, routing before full payload parse | Header/body mismatch should be treated as malformed or suspicious request metadata |
+| `Mcp-Name` | Draft HTTP request header mirrored from `params.name` or `params.uri` for named primitives | Tool/resource/prompt-specific policy selection and audit enrichment | Missing name on named primitives hides the resource decision until deeper JSON parsing |
+| `Origin` | Browser/client HTTP header | CSRF defense for Streamable HTTP endpoints | Invalid origin → reject before session or tool dispatch |
 
 #### 2.2 Security Improvements
 
@@ -2841,8 +2863,11 @@ This scope lifecycle connects to several patterns discussed elsewhere in the doc
 | **§14 Incremental Consent** | The 403 `insufficient_scope` challenge is the *mechanism* through which incremental consent is triggered at the protocol level |
 | **§16 TBAC** | Task-based scopes (`task:travel:book:flight`) can be returned in the 401/403 `scope` parameter, enabling the MCP server to demand task-specific authorization |
 | **§18 Tool Scope Mapping** | The gateway can use tool `requiredScopes` metadata to populate the `scope` parameter in 403 responses when the agent attempts to call a tool it lacks permission for |
+| **§2 Transport Headers** | Draft `Mcp-Method` / `Mcp-Name` headers give the gateway a cheap primitive signal before full JSON-RPC parsing, helping it select the right scope-mapping rule for `tools/call`, `resources/read`, and `prompts/get` |
 | **§20 RAR** | Scopes and `authorization_details` (RAR) can coexist — scopes for broad access categories via `WWW-Authenticate`, RAR for structured constraints in the authorization request |
 | **§13 Gateway** | The gateway intercepts 401/403 responses from the MCP server and can **rewrite** the scope challenge before forwarding to the client, implementing policy-driven scope selection |
+
+**Policy consequence**: scope challenges should be generated from the *same request context* the gateway uses for authorization: token claims, negotiated protocol version, session binding evidence, primitive method, primitive name, and any tool/resource metadata. That keeps runtime 403 challenges aligned with the actual denied operation instead of returning a generic scope catalog.
 
 #### 3.6 Evolution: March 2025-to-June 2025-to-November 2025-to-Draft
 
@@ -9728,7 +9753,9 @@ The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI
 | **Scope-to-Tool Mapping** | Map OAuth scopes to MCP tool permissions | Custom (§18) | Art. 9 — see §24.6 |
 | **Token Exchange** | Exchange user token for scope-attenuated tool-specific token (OBO) | RFC 8693 | — |
 | **Session Enrichment** | Inject additional claims (user profile, entitlements) into backend JWT | JwtBuilderFilter pattern | Art. 13 — see §24.7 |
+| **Transport Signal Normalization** | Normalize protocol version, session ID, resumability headers, and draft method/name headers into a single request context | MCP Streamable HTTP | Art. 12/15 — see §24.4, §24.6 |
 | **Request Validation** | Validate MCP JSON-RPC message format | MCP spec | Art. 15 — see §24.6 |
+| **Policy Context Assembly** | Combine token claims, scope grants, session-binding evidence, primitive method/name, tool metadata, and risk attributes before PDP evaluation | MCP + local policy schema | Art. 9/15 — see §24.6 |
 | **Rate Limiting** | Throttle per-user, per-agent, per-tool invocations | Gateway policy | Art. 15 — see §24.6 |
 | **Audit Logging** | Log every tool invocation with user + agent identity | SIEM integration | Art. 12 — see §24.4 |
 | **TLS Termination** | Ensure end-to-end encryption | TLS 1.3 | Art. 15 — see §24.6 |
@@ -16030,6 +16057,15 @@ This chapter is a forward-looking standards map. Use it to shape architecture de
 > **See also**: §20 (Rich Authorization Requests) covers `draft-chen-oauth-rar-agent-extensions-00`, which extends RAR for AI agent scenarios. That draft is included in the landscape table below alongside the other agent-focused work.
 
 #### 21.1 Draft Landscape (as of May 5, 2026)
+
+The table below is a landscape map, not a deployment priority list. Read it in four maturity bands:
+
+| Maturity Band | What Belongs Here | Deployment Treatment |
+|:--------------|:------------------|:---------------------|
+| **Production baseline** | Ratified OAuth/OIDC/RFC mechanisms already used by MCP: OAuth 2.1 profile behavior, RFC 8693 Token Exchange, RFC 8707 Resource Indicators, RFC 9728 Protected Resource Metadata, RFC 9396 RAR, CAEP/SSF, and OpenID Authorization API. | Safe to build against today; these are the foundations used in §§1-3, §12, §19, and §20. |
+| **Near-term standards track** | WG-adopted or foundation-backed drafts with clear implementation paths, such as CIMD, Identity Chaining, Identity Assertion Grant, SPIFFE Client Auth, and OpenID Federation. | Design extension points around them, but record exact draft version and avoid treating fields as immutable. |
+| **Directional agent drafts** | Individual IETF drafts and community proposals for agent identity, operation-bound authorization, AAuth, Transaction Tokens for Agents, structured agent scopes, and execution context tokens. | Use as vocabulary and gap analysis; implement only behind local profiles or vendor contracts. |
+| **Expired/replaced proposals** | Drafts that introduced useful concepts but are expired, archived, or superseded by newer work. | Preserve concept lineage, but do not cite as deployable standards. |
 
 | Draft | Focus | Status | Key Contribution |
 |:---|:---|:---|:---|
@@ -22952,7 +22988,7 @@ flowchart TD
               "client_id": "${contexts.oauth2.accessToken.info.client_id}",
               "act": "${contexts.oauth2.accessToken.info.act}",
               "scope": "${contexts.oauth2.accessToken.info.scope}",
-              "mcp_method": "${request.headers['X-MCP-Method'][0]}"
+              "mcp_method": "${request.headers['Mcp-Method'][0]}"
             },
             "secretsProvider": "JwtSigningKeyProvider"
           }
@@ -23031,7 +23067,7 @@ PingGateway's `ScriptableFilter` aggregates the full context for the authorizati
 ```mermaid
 stateDiagram-v2
     direction LR
-    ParseHeader --> ExtractJWT: Read X-MCP-Method
+    ParseHeader --> ExtractJWT: Read Mcp-Method
     ExtractJWT --> ParseBody: Retrieve Subject/Actor
     ParseBody --> BuildRequest: Extract tools/call args
 ```
@@ -23101,7 +23137,7 @@ import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
 
 def accessToken = contexts.oauth2?.accessToken
-def mcpMethod = request.headers?.getFirst("X-MCP-Method") ?: "unknown"
+def mcpMethod = request.headers?.getFirst("Mcp-Method") ?: "unknown"
 
 // Build decision request
 def decisionRequest = [
