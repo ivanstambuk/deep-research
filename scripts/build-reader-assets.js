@@ -67,6 +67,37 @@ function logLikelyFalsePositiveExternalSkipReport(prefix, diagnostics) {
   }
 }
 
+async function maybeWriteCrossReferenceDiagnosticsReport({
+  scope,
+  diagnostics,
+  likelyFalsePositiveExternalSkips,
+}) {
+  const reportPath = process.env.DR_XREF_DIAGNOSTICS_JSON;
+
+  if (!reportPath) {
+    return;
+  }
+
+  const byCategory = diagnostics.reduce((summary, diagnostic) => {
+    const category = diagnostic?.category ?? 'unknown';
+    summary[category] = (summary[category] ?? 0) + 1;
+    return summary;
+  }, {});
+
+  await fs.mkdir(path.dirname(path.resolve(reportPath)), { recursive: true });
+  await fs.writeFile(
+    reportPath,
+    `${JSON.stringify({
+      scope,
+      count: diagnostics.length,
+      byCategory,
+      likelyFalsePositiveExternalSkipCount: likelyFalsePositiveExternalSkips.length,
+      likelyFalsePositiveExternalSkips,
+      diagnostics,
+    }, null, 2)}\n`,
+  );
+}
+
 function stringifyHtml(tree) {
   return String(htmlCompiler.stringify(tree));
 }
@@ -693,6 +724,7 @@ async function build() {
     const markdownTree = mdastParser.parse(cleaned.body);
     const labelTargets = collectMarkdownLabelTargets(markdownTree, {
       documentSlug: filename,
+      source: cleaned.body,
     });
     const bodyWithLabelAnchors = applyTextReplacements(cleaned.body, labelTargets.anchorReplacements);
     const tree = await processor.run(processor.parse(bodyWithLabelAnchors), { path: file });
@@ -819,6 +851,11 @@ async function build() {
     console.log(`[reader xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
   }
   logLikelyFalsePositiveExternalSkipReport('reader xrefs', likelyFalsePositiveExternalSkips);
+  await maybeWriteCrossReferenceDiagnosticsReport({
+    scope: 'reader',
+    diagnostics: crossReferenceDiagnostics,
+    likelyFalsePositiveExternalSkips,
+  });
 
   console.log(`Built chapter reader assets for ${processedDocuments.length} documents.`);
 }

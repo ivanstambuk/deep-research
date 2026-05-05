@@ -223,6 +223,10 @@ export function normalizeLabelReferenceToken(tokenText) {
 function classifyCanonicalHeading(candidate) {
   const normalizedHeading = stripLeadingSectionEnumeration(candidate?.contextHeadingText ?? '').toLowerCase();
 
+  if (candidate?.anchorStyle === 'heading-tail') {
+    return 4;
+  }
+
   if (candidate?.family === 'oq') {
     if (normalizedHeading === 'open questions') {
       return 3;
@@ -1438,6 +1442,19 @@ function computeHeadingTailInsertOffset(node) {
   return endOffset;
 }
 
+function extractOrderedListItemNumber(item, fallbackNumber, source) {
+  const startOffset = item?.position?.start?.offset;
+
+  if (typeof source === 'string' && Number.isInteger(startOffset)) {
+    const markerMatch = source.slice(startOffset, startOffset + 32).match(/^\s*(\d+)[.)]\s+/);
+    if (markerMatch) {
+      return Number.parseInt(markerMatch[1], 10);
+    }
+  }
+
+  return fallbackNumber;
+}
+
 function inferHeadingContext(headingStack) {
   const findingsHeading = findNearestHeading(headingStack, isFindingsHeading);
   const openQuestionsHeading = findNearestHeading(headingStack, isOpenQuestionsHeading);
@@ -1450,7 +1467,7 @@ function inferHeadingContext(headingStack) {
   };
 }
 
-function collectListTargets(node, headingContext, candidates) {
+function collectListTargets(node, headingContext, candidates, source) {
   if (!node.ordered || (!headingContext.inOpenQuestions && !headingContext.inFindings)) {
     return false;
   }
@@ -1458,7 +1475,7 @@ function collectListTargets(node, headingContext, candidates) {
   const startNumber = Number.isInteger(node.start) ? node.start : 1;
   node.children.forEach((item, index) => {
     const insertOffset = item.children?.[0]?.position?.start?.offset;
-    const itemNumber = startNumber + index;
+    const itemNumber = extractOrderedListItemNumber(item, startNumber + index, source);
 
     if (headingContext.inFindings) {
       pushCanonicalCandidate(candidates, {
@@ -1596,7 +1613,7 @@ export function collectMarkdownLabelTargets(tree, options = {}) {
     const headingContext = inferHeadingContext(headingStack);
 
     if (node.type === 'list') {
-      if (collectListTargets(node, headingContext, candidates)) {
+      if (collectListTargets(node, headingContext, candidates, options.source)) {
         return;
       }
     }

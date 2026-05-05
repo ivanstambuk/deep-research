@@ -4612,7 +4612,7 @@ While SP 800-63-4 targets human digital identity, its three-tier assurance frame
 
 | Assurance Level | NIST SP 800-63-4 Definition | Agent Identity Mapping | Example Agent Scenarios |
 |:----------------|:---------------------------|:----------------------|:-----------------------|
-| **IAL** (Identity Assurance Level) | Strength of the identity proofing process — how confident are we that the claimed identity is real? | **Agent registration verification strength** — how rigorously was the agent's identity established? | IAL1: Self-asserted agent metadata (CIMD, §1.3) — no verification of claims. IAL2: Verified publisher identity (e.g., Signed Agent Cards §8.7.3 with organizational PKI). IAL3: Attested identity with hardware binding (SPIFFE SVID with TEE attestation, §6.3/§21) |
+| **IAL** (Identity Assurance Level) | Strength of the identity proofing process — how confident are we that the claimed identity is real? | **Agent registration verification strength** — how rigorously was the agent's identity established? | IAL1: Self-asserted agent metadata (CIMD, §1.3) — no verification of claims. IAL2: Verified publisher identity (e.g., Signed Agent Cards §8.7.3 with organizational PKI). IAL3: Attested identity with hardware binding (SPIFFE SVID with TEE attestation, §6.3 and §21) |
 | **AAL** (Authenticator Assurance Level) | Strength of the authentication process — how confident are we that the entity presenting credentials is the registered entity? | **Agent credential strength** — what mechanism proves the agent is who it claims to be? | AAL1: API key or client secret (§7.4). AAL2: mTLS with software-managed private key (RFC 8705, §12.2.3) or DPoP (RFC 9449, §12.2). AAL3: SPIFFE SVID with hardware-bound key (TPM/TEE) or mTLS with HSM-backed certificate |
 | **FAL** (Federation Assurance Level) | Strength of the federation assertion — how confident are we in cross-domain identity claims? | **Cross-org trust chain strength** — how secure is the identity assertion when agents cross organizational boundaries? | FAL1: Bearer assertion (standard JWT access token, §5). FAL2: Holder-of-key assertion (DPoP-bound or mTLS-bound federation token). FAL3: Holder-of-key + encrypted assertion (signed + encrypted OIDC Federation Entity Statement, §8.7.2) |
 
@@ -11329,7 +11329,7 @@ The MCP Server finalizes its internal session bindings and transparently returns
 
 #### 14.2 Third-Party Consent (Cross-Organization/External Tool)
 
-The MCP March 2025 spec explicitly defines a **Third-Party Authorization Flow** in §4.10:
+The MCP March 2025 spec explicitly defines a **Third-Party Authorization Flow** in section 4.10:
 
 ```mermaid
 ---
@@ -16267,7 +16267,7 @@ The table below is a landscape map, not a deployment priority list. Read it in f
 
 | Maturity Band | What Belongs Here | Deployment Treatment |
 |:--------------|:------------------|:---------------------|
-| **Production baseline** | Ratified OAuth/OIDC/RFC mechanisms already used by MCP: OAuth 2.1 profile behavior, RFC 8693 Token Exchange, RFC 8707 Resource Indicators, RFC 9728 Protected Resource Metadata, RFC 9396 RAR, CAEP/SSF, and OpenID Authorization API. | Safe to build against today; these are the foundations used in §§1-3, §12, §19, and §20. |
+| **Production baseline** | Ratified OAuth/OIDC/RFC mechanisms already used by MCP: OAuth 2.1 profile behavior, RFC 8693 Token Exchange, RFC 8707 Resource Indicators, RFC 9728 Protected Resource Metadata, RFC 9396 RAR, CAEP/SSF, and OpenID Authorization API. | Safe to build against today; these are the foundations used in §1–§3, §12, §19, and §20. |
 | **Near-term standards track** | WG-adopted or foundation-backed drafts with clear implementation paths, such as CIMD, Identity Chaining, Identity Assertion Grant, SPIFFE Client Auth, and OpenID Federation. | Design extension points around them, but record exact draft version and avoid treating fields as immutable. |
 | **Directional agent drafts** | Individual IETF drafts and community proposals for agent identity, operation-bound authorization, AAuth, Transaction Tokens for Agents, structured agent scopes, and execution context tokens. | Use as vocabulary and gap analysis; implement only behind local profiles or vendor contracts. |
 | **Expired/replaced proposals** | Drafts that introduced useful concepts but are expired, archived, or superseded by newer work. | Preserve concept lineage, but do not cite as deployable standards. |
@@ -17895,10 +17895,10 @@ forbid(
 The spec includes extensive security guidance relevant to agent deployments:
 
 - **Entity Profile Spoofing** (§12.2 of the draft): Malicious clients may self-assert false profiles. Authorization Servers must verify profile values against registration data, trusted issuers, attestation evidence, or other policy inputs rather than copying untrusted assertions
-- **Misclassification Risk** (§12.9): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies
-- **Token Bloating** (§12.10): Multiple profiles increase JWT size. For MCP's per-request bearer token model (§2), the additional `client_profile` and `sub_profile` claims are still modest compared to existing `scope`, `act`, and `authorization_details` material
-- **Actor Profile Verification** (§12.11): `sub_profile` values inside `act` nodes must be assigned and verified from trusted inputs, not blindly copied from inbound delegation assertions
-- **Confused Deputy Risk** (§12.13): Resource servers must not treat the top-level `sub_profile` as fully describing the active actor when an inner `act` node carries a different `sub_profile`
+- **Misclassification Risk** (draft section 12.9): If an agent is classified as `service` instead of `ai_agent`, it may bypass agent-specific policies
+- **Token Bloating** (draft section 12.10): Multiple profiles increase JWT size. For MCP's per-request bearer token model (§2), the additional `client_profile` and `sub_profile` claims are still modest compared to existing `scope`, `act`, and `authorization_details` material
+- **Actor Profile Verification** (draft section 12.11): `sub_profile` values inside `act` nodes must be assigned and verified from trusted inputs, not blindly copied from inbound delegation assertions
+- **Confused Deputy Risk** (draft section 12.13): Resource servers must not treat the top-level `sub_profile` as fully describing the active actor when an inner `act` node carries a different `sub_profile`
 
 :::important[Verify Entity Profiles at Registration Time]
 Entity profile assignment should be verified during client registration (DCR or CIMD), and any `sub_profile` values placed in `act` nodes should be assigned from trusted policy or attestation inputs rather than copied from untrusted assertions.
@@ -26391,7 +26391,7 @@ The older appendix was directionally right that Cloudflare spans more than one p
 | **Browser Run WebMCP** | Browser-native website tool execution with typed parameters | Shows Cloudflare spans the browser-side trust boundary too; some tools pause for user confirmation before sensitive actions |
 | **Browser Run automatic headers** | Non-configurable browser-automation headers and HTTP signatures | `Signature-agent`, `Signature`, and `Signature-Input` let websites verify Browser Run origin and detect tampering in transit |
 
-This does **not** mean Cloudflare has collapsed browser automation into MCP authorization. It means the same vendor now spans both sides of the boundary that matters in §§14.5, 14.8, and 21.9: backend MCP authorization on one side, website-layer automated traffic identification on the other. That makes Cloudflare unusually strong for mixed MCP + browser-use deployments, while still leaving business authorization decisions to the MCP server, origin API, or external policy layer.
+This does **not** mean Cloudflare has collapsed browser automation into MCP authorization. It means the same vendor now spans both sides of the boundary that matters in §14.5, §14.8, and §21.9: backend MCP authorization on one side, website-layer automated traffic identification on the other. That makes Cloudflare unusually strong for mixed MCP + browser-use deployments, while still leaving business authorization decisions to the MCP server, origin API, or external policy layer.
 
 #### K.7 Pattern Traceability
 

@@ -114,6 +114,37 @@ function logLikelyFalsePositiveExternalSkipReport(prefix, diagnostics) {
   }
 }
 
+async function maybeWriteCrossReferenceDiagnosticsReport({
+  scope,
+  diagnostics,
+  likelyFalsePositiveExternalSkips,
+}) {
+  const reportPath = process.env.DR_XREF_DIAGNOSTICS_JSON;
+
+  if (!reportPath) {
+    return;
+  }
+
+  const byCategory = diagnostics.reduce((summary, diagnostic) => {
+    const category = diagnostic?.category ?? 'unknown';
+    summary[category] = (summary[category] ?? 0) + 1;
+    return summary;
+  }, {});
+
+  await fs.mkdir(path.dirname(path.resolve(reportPath)), { recursive: true });
+  await fs.writeFile(
+    reportPath,
+    `${JSON.stringify({
+      scope,
+      count: diagnostics.length,
+      byCategory,
+      likelyFalsePositiveExternalSkipCount: likelyFalsePositiveExternalSkips.length,
+      likelyFalsePositiveExternalSkips,
+      diagnostics,
+    }, null, 2)}\n`,
+  );
+}
+
 function isPathInside(childPath, parentPath) {
   const relative = path.relative(parentPath, childPath);
   return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
@@ -257,6 +288,7 @@ async function compileMdxToMarkdown() {
     const headings = collectMarkdownHeadingTargets(tree);
     const labelTargets = collectMarkdownLabelTargets(tree, {
       documentSlug: path.basename(relativePath, '.mdx'),
+      source: loweredBody,
     });
     const firstChapterId = headings.find((heading) => heading.text && !heading.text.startsWith('Table of Contents'))?.headingId ?? null;
     const targetIndex = buildSectionTargetIndex({
@@ -286,6 +318,7 @@ async function compileMdxToMarkdown() {
     const anchoredLinkedTree = parser.parse(linkedBody);
     const linkedBodyLabelTargets = collectMarkdownLabelTargets(anchoredLinkedTree, {
       documentSlug: path.basename(relativePath, '.mdx'),
+      source: linkedBody,
     });
     const linkedBodyWithAnchors = applyTextReplacements(linkedBody, linkedBodyLabelTargets.anchorReplacements);
     const linkedBodyWithViewerBanner = insertPublishedViewerBanner(linkedBodyWithAnchors, viewerBanner);
@@ -343,6 +376,11 @@ async function compileMdxToMarkdown() {
     console.log(`[markdown xrefs] collected ${crossReferenceDiagnostics.length} diagnostics`);
   }
   logLikelyFalsePositiveExternalSkipReport('markdown xrefs', likelyFalsePositiveExternalSkips);
+  await maybeWriteCrossReferenceDiagnosticsReport({
+    scope: 'markdown',
+    diagnostics: crossReferenceDiagnostics,
+    likelyFalsePositiveExternalSkips,
+  });
 
   console.log('MDX to Markdown compilation complete!');
 }
