@@ -220,6 +220,18 @@ When the user specifies an explicit process (e.g., "sequentially," "one at a tim
 
 The same principle applies to any user-specified workflow: editing order, review gates, approval checkpoints, or sequential task execution. Respect the process even when it feels inefficient.
 
+## Revision Passes Overwrite In Place
+
+When the user asks for "another pass", "make another pass", "revise it", "tighten it", or similar wording against an existing draft, scratch artifact, plan, analysis, or generated document, treat that as an instruction to **rewrite the existing artifact in place**.
+
+### Rules
+
+1. **Do not append a new pass section.** Do not add "Second pass", "Additional notes", "Further recommendations", or a new trailing section unless the user explicitly asks for an additive changelog or comparison.
+2. **Replace the relevant existing content.** Integrate the improved thinking into the current structure so the artifact reads as the latest coherent version, not a history of revisions.
+3. **Keep the same file path unless instructed otherwise.** If the artifact already exists in `.scratch/`, update that file rather than creating a sibling `-v2`, `-pass-2`, or `-revised` file.
+4. **Remove superseded claims.** If the new pass changes a recommendation, delete or rewrite the old recommendation so conflicting guidance does not remain.
+5. **Use append-only only when explicitly requested.** Phrases like "add a section", "append notes", "keep the original and add a critique", or "compare pass 1 vs pass 2" are the exceptions.
+
 ## WORKFLOW.md Phase Order Is Non-Negotiable
 
 **WORKFLOW.md defines a strict phase ordering for DR document production. You MUST NOT deviate from it — ever.** The phases are sequential gates, not suggestions:
@@ -622,18 +634,14 @@ This rule applies to any file that is not intended to be committed. If you are u
 
 **Never stage or commit `.scratch/` files.** `.scratch/` exists only for working artifacts, review drafts, plans, proposals, audits, and other gitignored intermediate material. Even if the user asks to commit "all changes" or "everything from this chat," `.scratch/` files must stay unstaged and uncommitted. If a `.scratch/` artifact has been incorporated into tracked files, commit only the tracked files and leave the `.scratch/` file alone for the user to keep or delete. If the user wants the content preserved in git history, move or rewrite it into a tracked location first; do not commit the `.scratch/` path itself.
 
-**.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, or overwrite `.scratch/` files. Never use `run_in_terminal` to write to, truncate, or modify `.scratch/` files — only `create_file` (for new files) and `replace_string_in_file` (for existing files) may touch `.scratch/` content. To modify an existing `.scratch/` file, use `replace_string_in_file`. To supersede a `.scratch/` file, create a new versioned file (e.g., `plan-v2.md`) and leave the original intact. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
+**.scratch file safety.** `.scratch/` files are gitignored and unrecoverable. Never use `rm`, `mv`, or any shell command to delete, rename, truncate, or overwrite `.scratch/` files. Never use `run_in_terminal` to write to, truncate, or modify `.scratch/` files — only `create_file` (for new files) and `replace_string_in_file` (for existing files) may touch `.scratch/` content. To modify an existing `.scratch/` file, update the existing file in place with targeted replacements. Do not create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. Never create a `.scratch/` file with the same filename as an existing one — this destroys the previous version irrecoverably. Only the user may delete `.scratch/` files.
 
 **.scratch editing rules — same as DR documents.** All rules under "Editing Large Documents" that apply to DR documents also apply to `.scratch/` plan files, trackers, and analysis documents. Specifically:
 - **Never read-then-rewrite the whole `.scratch/` file.** Do not read the entire file, then attempt to overwrite it with `create_file` or a single massive `replace_string_in_file`. Use targeted, surgical edits — replace only the section that changed.
 - **No wholesale file replacement.** If a `.scratch/` plan or tracker needs updating, identify the specific paragraphs, table rows, or status values that changed and replace those individually. Do not delete the file and recreate it, and do not replace the entire file content in one operation.
 - **Incremental section updates.** When a tracker has 6 tier tables, update each tier table separately if the change is confined to that tier. When a status header changes, replace only the status line.
 
-**Spec / tracker refinement rule.** When the user asks to "refine", "improve", "make another pass", or otherwise iterate on an existing `.scratch/` specification, plan, tracker, or analysis document, you must update the existing file in place. Do **not** create `-v2`, `-v3`, `-final`, or similar variant files unless the user explicitly asks for parallel alternatives or versioned drafts. The default behavior is one evolving canonical document.
-
-**Canonical spec rule.** When iterating on a user-facing `.scratch/` specification, proposal, plan, tracker, or analysis document, the file itself is the deliverable and must read as a clean source of truth. Do **not** accumulate process-history sections such as "first pass", "second pass", "third pass", "changes from previous pass", or similar meta narration inside the document unless the user explicitly asks for review history. On each refinement round, rewrite the document as needed so the current file stands alone as the canonical target artifact. Preserve the substance; remove the editorial archaeology.
-
-**Another-pass integration rule.** When the user says "do another pass", "one more pass", "another in-depth pass", or similar on an existing `.scratch/` plan, audit, tracker, or impact-analysis document, you must treat that as an instruction to **rewrite the current document into a better canonical form**, not to append a new pass log. New findings must be merged into the relevant existing sections, tables, decisions, or recommendations so the document still reads as one seamless artifact. Do **not** add headings such as `First-Pass Findings`, `Sixth-Pass Adjustment`, `Third-Pass Conclusion`, or any equivalent revision-history structure unless the user explicitly asks for pass-by-pass review notes.
+**Canonical refinement rule.** When iterating on a user-facing `.scratch/` specification, proposal, plan, tracker, or analysis document, the file itself is the deliverable and must read as a clean source of truth. Treat "another pass", "one more pass", "refine", "improve", and similar wording as instructions to rewrite the current document into a better canonical form. New findings must be merged into the relevant existing sections, tables, decisions, or recommendations. Do **not** append a new pass log, create revision-history headings, or add process-history sections such as "first pass", "second pass", "third pass", or "changes from previous pass" unless the user explicitly asks for pass-by-pass review notes.
 
 **Lightweight retro workflow.** Retrospectives are **not** automatic for every session. Use them only rarely, after costly debugging or architectural sessions — for example: multi-hour bug hunts, repeated regressions in the same subsystem, reader/runtime architecture changes, or when the user explicitly asks for a retro. In those cases:
 - **Proactively propose** a short retro to the user; do not silently create one every session.
