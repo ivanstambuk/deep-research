@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-05-07
+date_updated: 2026-05-10
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-05-07 · ~41,200 lines
+**DR-0002** · Published · Last updated 2026-05-10 · ~41,200 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -1385,10 +1385,10 @@ config:
   flowchart:
     subGraphTitleMargin:
       bottom: 20
-    nodeSpacing: 45
-    rankSpacing: 55
+    nodeSpacing: 30
+    rankSpacing: 40
 ---
-flowchart LR
+flowchart TB
     User(("`**User**`"))
     WU["`**Wallet Unit**
     Stores and presents
@@ -1402,6 +1402,7 @@ flowchart LR
     Publishes trust anchors`"]
 
     subgraph Issuers["`**Issuance and Attribute Roles**`"]
+        direction TB
         PID["`**PID Provider**`"]
         QEAA["`**QEAA Provider**`"]
         PUBEAA["`**PuB-EAA Provider**`"]
@@ -1413,6 +1414,7 @@ flowchart LR
     end
 
     subgraph Registration["`**Registration and Certificate Roles**`"]
+        direction TB
         REG["`**Registrar**`"]
         ACA["`**Access Certificate Authority**
         Issues WRPAC`"]
@@ -1421,6 +1423,7 @@ flowchart LR
     end
 
     subgraph Governance["`**Governance and Oversight**`"]
+        direction TB
         NAB["`**National Accreditation Body**`"]
         CAB["`**Conformity Assessment Body**`"]
         SB["`**Supervisory Body**`"]
@@ -1432,35 +1435,35 @@ flowchart LR
     and Subsystem Providers**`"]
 
     User -->|"controls / activates"| WU
-    WP -->|"wallet solution and support"| User
-    Device -. "device, tools, libraries" .-> User
-    WU -->|"presents PID or attestations"| RP
+    WP -->|"wallet solution<br/>and support"| User
+    Device -. "device, tools,<br/>libraries" .-> User
+    WU -->|"presents PID<br/>or attestations"| RP
 
     PID -->|"issues PID"| WU
     QEAA -->|"issues QEAA"| WU
     PUBEAA -->|"issues PuB-EAA"| WU
     EAA -->|"issues EAA"| WU
-    QESRC -->|"provides qualified certificate / signing service"| WU
-    AS -. "source data / verification" .-> PID
-    AS -. "source data / verification" .-> QEAA
-    AS -. "source data / verification" .-> PUBEAA
+    QESRC -->|"provides qualified<br/>certificate / signing service"| WU
+    AS -. "source data<br/>/ verification" .-> PID
+    AS -. "source data<br/>/ verification" .-> QEAA
+    AS -. "source data<br/>/ verification" .-> PUBEAA
 
     REG -->|"registers"| RP
-    ACA -->|"issues access certificate"| RP
-    RCP -->|"issues registration certificate"| RP
-    REG -->|"notifies / feeds status"| LoTE
-    LoTE -->|"RP trust anchors"| WU
-    LoTE -->|"issuer trust anchors"| RP
-    LoTE -->|"provider trust anchors"| PID
-    LoTE -->|"provider trust anchors"| QEAA
-    LoTE -->|"provider trust anchors"| PUBEAA
+    ACA -->|"issues access<br/>certificate"| RP
+    RCP -->|"issues registration<br/>certificate"| RP
+    REG -->|"notifies / feeds<br/>status"| LoTE
+    LoTE -->|"RP trust<br/>anchors"| WU
+    LoTE -->|"issuer trust<br/>anchors"| RP
+    LoTE -->|"provider trust<br/>anchors"| PID
+    LoTE -->|"provider trust<br/>anchors"| QEAA
+    LoTE -->|"provider trust<br/>anchors"| PUBEAA
 
     NAB -. "accredits" .-> CAB
-    CAB -. "certifies Wallet Solutions / audits TSPs" .-> WP
-    SB -. "supervises RP compliance" .-> RP
-    ASP -. "rulebooks and schemes" .-> QEAA
-    ASP -. "rulebooks and schemes" .-> PUBEAA
-    ASP -. "rulebooks and schemes" .-> EAA
+    CAB -. "certifies Wallet Solutions<br/>/ audits TSPs" .-> WP
+    SB -. "supervises RP<br/>compliance" .-> RP
+    ASP -. "rulebooks<br/>and schemes" .-> QEAA
+    ASP -. "rulebooks<br/>and schemes" .-> PUBEAA
+    ASP -. "rulebooks<br/>and schemes" .-> EAA
 
     style User text-align:center
     style WU text-align:left
@@ -22937,7 +22940,7 @@ sequenceDiagram
     Wallet->>WSCD: Sign request hash with private key
     WSCD->>Wallet: Return KB-JWT
     Wallet->>PSP: VP Token (SCA Attestation + KB-JWT)
-    PSP->>PSP: Verify signature, nonce, freshness (+ dynamic linking for payments)
+    PSP->>PSP: Verify signature, nonce, freshness<br/>(+ dynamic linking for payments)
     PSP->>PSU: Action authorised
     Note right of PSP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end

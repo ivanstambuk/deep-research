@@ -220,6 +220,27 @@ When the user specifies an explicit process (e.g., "sequentially," "one at a tim
 
 The same principle applies to any user-specified workflow: editing order, review gates, approval checkpoints, or sequential task execution. Respect the process even when it feels inefficient.
 
+## Diagram Rendering Fixes Must Preserve Full Diagram Semantics
+
+When fixing Mermaid, SVG, or reader-rendered diagram defects, **do not simplify, reduce, summarize, collapse, or substitute the diagram's content** unless the user explicitly asks for a content rewrite.
+
+### Allowed fixes
+
+- Rearrange layout only: graph direction, subgraph direction, node ordering, rank spacing, node spacing, and edge routing hints.
+- Wrap existing labels with line breaks, `<br/>`, or equivalent formatting that preserves the same words and meaning.
+- Add invisible spacing or non-breaking-space padding only when it is strictly a rendering workaround and does not change visible content.
+- Adjust Mermaid configuration values that affect rendering geometry.
+
+### Forbidden fixes
+
+- Do not remove nodes, edges, notes, labels, fields, classes, cardinalities, annotations, or relationships.
+- Do not merge multiple entities into a grouped summary node when the original diagram showed them separately.
+- Do not move diagram detail into surrounding prose or tables as a substitute for preserving it in the diagram.
+- Do not replace a class diagram, sequence diagram, or architecture diagram with a simplified conceptual map.
+- Do not shorten labels by dropping technical qualifiers, legal references, protocol names, or obligations.
+
+If a diagram cannot be made readable through layout-preserving changes, stop and report the constraint. The next decision belongs to the user.
+
 ## Revision Passes Overwrite In Place
 
 When the user asks for "another pass", "make another pass", "revise it", "tighten it", or similar wording against an existing draft, scratch artifact, plan, analysis, or generated document, treat that as an instruction to **rewrite the existing artifact in place**.
