@@ -13,7 +13,7 @@ related: []
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0003/DR-0003-authentication-and-session-management.mdx. DO NOT EDIT. -->
 
-**DR-0003** · Published · Last updated 2026-05-10 · ~48,700 lines
+**DR-0003** · Published · Last updated 2026-05-10 · ~49,200 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0003-authentication-and-session-management/reader-orientation)
@@ -6115,7 +6115,7 @@ The following table compares the OAuth/OIDC/FAPI capabilities of the five most w
 
 **Okta** has the most comprehensive FAPI 2.0 support, with full compliance for both the Security Profile and Message Signing profile. Okta's implementation serves as the reference for Open Banking deployments in the UK, Australia, and Brazil. DPoP support is production-ready with SDK support for major platforms.
 
-**Microsoft Entra ID** is the enterprise default for organizations in the Microsoft ecosystem. FAPI 2.0 support is partial — PAR and DPoP are in preview as of early 2026. The proprietary "On-Behalf-Of" (OBO) flow predates RFC 8693 but provides equivalent delegation semantics. Conditional Access provides step-up authentication capabilities beyond standard OIDC `acr_values`.
+**Microsoft Entra ID** is the enterprise default for organizations in the Microsoft ecosystem. FAPI 2.0 support is partial — PAR and DPoP are in preview as of mid-2026. The proprietary "On-Behalf-Of" (OBO) flow predates RFC 8693 but provides equivalent delegation semantics. Conditional Access provides step-up authentication capabilities beyond standard OIDC `acr_values`.
 
 **Auth0** (an Okta company) offers strong FAPI 2.0 support and a developer-friendly management API. Auth0's extensibility model (Custom APIs, Actions, Rules) enables custom token exchange logic and claim mapping beyond standard specifications. PAR and DPoP are fully supported.
 
@@ -8284,6 +8284,8 @@ Upon receiving a `wsignoutcleanup1.0` request, each RP terminates the user's loc
 **Reliability issues** — WS-Federation sign-out shares the same fundamental reliability problems as SAML SLO ([§2.2](#22-bindings)) and OIDC Front-Channel Logout ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)). The cleanup notifications are front-channel — they depend on the user's browser loading iframes from each RP. If the browser blocks third-party cookies, if the user closes the browser before the iframes load, or if any RP is temporarily unreachable, that RP's session remains active. There is no back-channel sign-out mechanism in WS-Federation — unlike OIDC, which offers Back-Channel Logout as a server-to-server alternative.
 
 #### 6.7 Comparison with SAML 2.0 and OIDC
+
+WS-Federation occupies an awkward middle ground in the federation protocol landscape — newer than SAML 2.0 ([§2](#2-saml-20)) but older than OpenID Connect ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)), simpler in its binding model than either, yet unable to match their capabilities for modern API-driven and mobile architectures. The table below frames WS-Federation against these two successors across 20 dimensions, from token format and transport encoding to logout sophistication and mobile support. Readers evaluating migration strategies (see [§6.8](#68-migration-patterns-ws-fed-to-oidc)) should focus on the rows for API protection, mobile support, and dynamic registration — these three dimensions explain why WS-Federation deployments converge on OIDC as the natural successor protocol.
 
 | Dimension | WS-Federation | SAML 2.0 ([§2](#2-saml-20)) | OpenID Connect ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)) |
 |:----------|:-------------|:--------------|:-------------------|
@@ -15296,6 +15298,8 @@ The Payment Card Industry Data Security Standard (PCI DSS v4.0) does not mandate
 
 #### 13.7 HOTP vs. TOTP vs. OCRA: Comprehensive Comparison
 
+The three OATH algorithm families — HOTP (RFC 4226, §11), TOTP (RFC 6238, §12), and OCRA (RFC 6287) — represent successive generations of HMAC-based one-time authentication, each adding capability at the cost of implementation complexity. HOTP, the simplest, derives codes from a monotonic counter; TOTP replaces the counter with a time-derived value, enabling stateless verification and eliminating synchronisation issues; OCRA generalises both by accepting a structured data input that can include challenge values, transaction details, and timestamps, enabling bidirectional authentication and transaction signing. The comparison below examines these trade-offs across 12 dimensions. Readers selecting an algorithm for a given deployment should consult [§13.7.1](#1371-algorithm-selection-guide) for scenario-specific guidance, but the key axis is whether the use case requires transaction binding (→ OCRA) or only possession-based second-factor verification (→ TOTP, or HOTP when clocks are unavailable).
+
 | Dimension | HOTP (RFC 4226, §11) | TOTP (RFC 6238, §12) | OCRA (RFC 6287) |
 |:----------|:--------------------|:---------------------|:----------------|
 | **Direction** | One-way: client → server | One-way: client → server | Bidirectional: client ↔ server (mutual auth supported) |
@@ -22208,6 +22212,9 @@ flowchart TD
 ```
 
 #### 19.2 Cross-Platform Attestation Comparison
+
+Android, Apple, and Windows/enterprise platforms each implement device attestation through fundamentally different architectural mechanisms — different roots of trust, certificate formats, privacy models, and boot integrity reporting. The following matrix compares the three major attestation implementations across 12 dimensions, highlighting where cross-platform consistency exists and where platform-specific handling is unavoidable. Security architects implementing device trust policies must account for these differences when building attestation validation pipelines (NIST SP 800-147B).
+
 | Dimension | Android Key Attestation | Apple App Attest | TPM 2.0 Attestation |
 |:----------|:----------------------|:----------------|:--------------------|
 | **What is attested** | Cryptographic key properties, device security state, app identity | Key pair on genuine device, app identity (teamID.bundleID) | Platform boot state (PCR measurements), key properties |
@@ -22998,7 +23005,7 @@ The hardware security key market has expanded beyond Yubico, with multiple vendo
 
 - **Level 1 (L1) — Functional:** Verifies correct implementation of the FIDO2/WebAuthn specification (registration, authentication, attestation, credential management). All commercially available FIDO2 keys must achieve L1
 - **Level 2 (L2) — Security:** Verifies required security measures including secure boot chain, protected key storage, updatable firmware, resistance to basic physical attacks, attestation certificate chain validation, and PIN/UV protocol implementation
-- **Level 3 (L3) — Formal:** Requires formal security evaluation equivalent to Common Criteria EAL4+ or higher. As of early 2026, no consumer hardware key has achieved L3. The YubiKey 5 FIPS series meets FIPS 140-3 Level 1 (overall) with Level 3 physical security, providing equivalent assurance in some regulatory contexts
+- **Level 3 (L3) — Formal:** Requires formal security evaluation equivalent to Common Criteria EAL4+ or higher. As of mid-2026, no consumer hardware key has achieved L3. The YubiKey 5 FIPS series meets FIPS 140-3 Level 1 (overall) with Level 3 physical security, providing equivalent assurance in some regulatory contexts
 
 $$\text{FIDO L3} \approx \text{Common Criteria EAL4+} \approx \text{FIPS 140-3 Level 3 (physical)}$$
 
@@ -26668,7 +26675,7 @@ flowchart TD
 - **AiTM proxy** (row 4): The most critical row. Every method except WebAuthn and mTLS falls to real-time relay — the proxy transparently forwards credentials, OTP codes, and push approvals. WebAuthn resists because the authenticator signs over the phishing domain's origin, producing an invalid assertion. mTLS resists because the client certificate is bound to the TLS session with the proxy, not the legitimate server. Number matching does NOT resist AiTM — the proxy relays the matching number from the legitimate server's page to the phishing page
 - **SIM swap / SS7** (row 5): Defeats SMS OTP exclusively. All other methods are unaffected because they do not rely on the telephone network
 - **Push fatigue** (row 6): Specific to push notification authentication. Number matching reduces the attack from "blind approve" to "informed approve" — the user must see the number — but does not eliminate the social engineering vector (vishing combined with push relay)
-- **Token theft** (row 7): Defeats ALL authentication methods at the session layer — the attacker steals the *result* of authentication, not the authentication credentials. Hardware-bound keys (WebAuthn with device-bound passkey, mTLS with hardware certificate) receive ⚠️ because token binding ([§38](#38-kerberos-deep-dive)) can cryptographically bind the session to the device key, making stolen tokens unusable — but only if token binding is implemented, which remains rare as of early 2026
+- **Token theft** (row 7): Defeats ALL authentication methods at the session layer — the attacker steals the *result* of authentication, not the authentication credentials. Hardware-bound keys (WebAuthn with device-bound passkey, mTLS with hardware certificate) receive ⚠️ because token binding ([§38](#38-kerberos-deep-dive)) can cryptographically bind the session to the device key, making stolen tokens unusable — but only if token binding is implemented, which remains rare as of mid-2026
 - **Consent phishing** (row 8): N/A across all methods because consent phishing targets **authorisation** (OAuth consent), not **authentication**. The user authenticates legitimately and then grants permissions to a malicious application — no authentication method prevents the user from clicking "Allow" on a consent screen. Defense is through OAuth governance, not authentication strength
 - **Fraudulent device registration** (row 9): ⚠️ across all MFA methods because the vulnerability is in the **enrollment process**, not in the authentication mechanism itself. If the attacker can complete enrollment (by exploiting a weak enrollment flow), any MFA method they enroll is valid. Defense is through enrollment hardening ([§22.7.3](#2273-defenses)), not authentication method selection
 
@@ -29248,6 +29255,9 @@ Machine authentication and user authentication solve the same fundamental proble
 For detailed coverage of non-human identity lifecycle management, AI agent authentication, and service account governance, see [§25](#25-non-human-identity-governance) (Non-Human Identity Governance). For M2M-specific threat modelling (credential theft, replay, MITM, token forwarding, supply chain, insider threats), see [§22](#22-authentication-attack-taxonomy-threat-vectors) (Attack Vectors). For secret management platforms and credential rotation strategies, see [§37](#37-session-token-types) (Token Lifecycle).
 
 #### 24.10 Comparison Matrix
+
+The eight primary M2M authentication mechanisms span a wide range of security properties — from API keys (shared bearer secrets with no sender binding) to SPIFFE/SPIRE (platform-managed ephemeral identities with automatic mTLS). The following comparison evaluates each mechanism across seven critical dimensions: credential type, secret existence, rotation model, sender binding, trust anchor, scalability, and optimal deployment context. This matrix is designed to support the authentication method selection guide that follows.
+
 | Method | Credential Type | Secret Exists? | Rotation | Sender Binding | Trust Anchor | Scale | Best For |
 |:-------|:---------------|:--------------|:---------|:---------------|:------------|:------|:---------|
 | **Client Credentials (`client_secret`)** | Shared secret | ✅ Yes — on both client and server | Manual | ❌ None (bearer) | Authorization server | Medium | Simple M2M with token scoping; low-security internal APIs |
@@ -31928,6 +31938,9 @@ The **Relying Party Application** mathematically validates the step-up JWT conte
 </details>
 
 #### 26.7 Comprehensive Comparison Matrix
+
+CIAM and WIAM diverge across every operational dimension — scale, trust model, session architecture, regulatory basis, and account lifecycle. The following matrix compares the two paradigms across 22 dimensions, synthesizing the analysis from [§26.1](#261-ciam-customer-identity-and-access-management)–[§26.6](#266-convergence-patterns-ciam-and-wiam-unified-platforms) into a single reference. The contrast is not merely a matter of policy tuning; the two domains operate under fundamentally different threat models, legal bases for data processing, and user expectations.
+
 | Dimension | CIAM (Customer) | WIAM (Workforce) |
 |:----------|:---------------|:-----------------|
 | **Primary objective** | User acquisition and retention | Security and compliance |
@@ -32023,6 +32036,168 @@ Microsoft Entra ID B2B Collaboration allows an organization to invite external u
 4. The inviting organization's tenant creates a "guest" user object linked to the guest's home account.
 5. The guest can now access shared applications using their home credentials (via OIDC federation).
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Admin as Inviting Tenant Admin
+    participant Invite as Inviting Tenant (IdP)
+    participant Guest as Guest User
+    participant Home as Home Tenant (IdP)
+    participant App as Target Application
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over Admin, Guest: Phase 1 — Invitation
+        Admin->>Invite: Create B2B invitation for external user
+        Invite->>Guest: Send invitation email with redemption link
+        Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over Guest, Home: Phase 2 — Home Tenant Authentication
+        Guest->>Invite: Click redemption link
+        Invite->>Guest: Redirect to home tenant IdP
+        Guest->>Home: Authenticate with corporate credentials
+        Home->>Home: Enforce MFA and conditional access
+        Home->>Guest: Issue authentication assertion
+        Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over Guest, Invite: Phase 3 — Guest Account Provisioning (JIT)
+        Guest->>Invite: Present home tenant assertion
+        Invite->>Invite: Validate assertion and create guest user object
+        Invite->>Invite: Map home tenant claims to guest attributes
+        Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(148, 163, 184, 0.14)
+        Note over Guest, App: Phase 4 — Application Access
+        Guest->>Invite: Request access token for target application
+        Invite->>Invite: Evaluate conditional access policies
+        Invite->>Guest: Issue access token (tid = inviting tenant)
+        Guest->>App: Present access token
+        App->>Guest: Authorise based on guest group/role membership
+        Note right of App: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. Inviting Tenant Admin creates B2B invitation</strong></summary>
+
+The inviting organisation's administrator initiates the B2B collaboration by creating an invitation for an external user in the Entra ID portal or via the Microsoft Graph API. The invitation specifies the guest's email address and, optionally, the target application and group assignments. Entra ID generates a unique redemption URL for this invitation.
+
+</details>
+
+<details>
+<summary><strong>2. Inviting Tenant sends invitation email to guest</strong></summary>
+
+Entra ID sends an invitation email to the guest user's external email address. The email contains a redemption link that the guest must click to accept the invitation and begin the authentication flow.
+
+</details>
+
+<details>
+<summary><strong>3. Guest clicks redemption link in invitation email</strong></summary>
+
+The guest user clicks the redemption link in the invitation email. The link resolves to the inviting tenant's B2B redemption endpoint, which initiates the home tenant authentication flow.
+
+</details>
+
+<details>
+<summary><strong>4. Inviting Tenant redirects guest to home tenant IdP</strong></summary>
+
+The inviting tenant's IdP determines the guest's home tenant from their email domain (or from an explicitly configured federation relationship) and redirects the guest's browser to the home tenant's IdP for authentication.
+
+</details>
+
+<details>
+<summary><strong>5. Guest authenticates with home tenant corporate credentials</strong></summary>
+
+The guest authenticates at their home organisation's IdP using their existing corporate credentials — no new password or account is required. The home tenant may enforce MFA, conditional access policies, and device compliance checks.
+
+</details>
+
+<details>
+<summary><strong>6. Home Tenant enforces MFA and conditional access</strong></summary>
+
+The home tenant applies its own security policies during authentication — MFA challenges, device compliance checks, location-based access controls. These policies are enforced independently of the inviting tenant's policies.
+
+</details>
+
+<details>
+<summary><strong>7. Home Tenant issues authentication assertion to guest</strong></summary>
+
+After successful authentication, the home tenant issues an authentication assertion (typically a SAML token or OIDC ID token) that the guest's browser carries back to the inviting tenant. This assertion proves the guest's identity and authentication strength.
+
+</details>
+
+<details>
+<summary><strong>8. Guest presents home tenant assertion to inviting tenant</strong></summary>
+
+The guest's browser delivers the home tenant's authentication assertion to the inviting tenant's IdP via a redirect or form POST. The inviting tenant validates the assertion's signature and extracts the guest's identity claims.
+
+</details>
+
+<details>
+<summary><strong>9. Inviting Tenant validates assertion and creates guest user object</strong></summary>
+
+The inviting tenant validates the home tenant's assertion (signature, issuer, audience, expiry) and creates a guest user object in its own directory — this is the Just-In-Time (JIT) provisioning step. The guest user object is linked to the home tenant identity and receives a unique object ID.
+
+</details>
+
+<details>
+<summary><strong>10. Inviting Tenant maps home tenant claims to guest attributes</strong></summary>
+
+The inviting tenant maps the claims from the home tenant's assertion (display name, email, job title, department) to the guest user object's attributes. These mapped attributes are visible in the inviting tenant's directory and can be used for authorisation decisions.
+
+</details>
+
+<details>
+<summary><strong>11. Guest requests access token for target application</strong></summary>
+
+After provisioning, the guest requests an access token for the target application from the inviting tenant's token endpoint. The inviting tenant issues a token scoped to the inviting tenant (with `tid` claim set to the inviting tenant's ID).
+
+</details>
+
+<details>
+<summary><strong>12. Inviting Tenant evaluates conditional access policies</strong></summary>
+
+The inviting tenant applies its own conditional access policies on top of the home tenant's authentication — these may include device compliance, location-based access, and session lifetime restrictions. This dual-policy evaluation provides defence-in-depth.
+
+</details>
+
+<details>
+<summary><strong>13. Inviting Tenant issues access token with tenant-scoped claims</strong></summary>
+
+The inviting tenant issues an access token with the `tid` (tenant ID) claim set to the inviting tenant's ID. The token contains the guest's group memberships and role assignments within the inviting tenant, enabling authorisation at the target application.
+
+</details>
+
+<details>
+<summary><strong>14. Guest presents access token to target application</strong></summary>
+
+The guest presents the access token to the target application via the Authorization header. The application validates the token's signature, issuer, audience, and tenant ID to ensure it was issued by the correct inviting tenant.
+
+</details>
+
+<details>
+<summary><strong>15. Target Application authorises guest based on group/role membership</strong></summary>
+
+The target application evaluates the guest's group and role memberships from the access token to determine authorisation. Guest users can be assigned to the same groups and roles as internal users, providing consistent access control across the tenant.
+
+</details>
+
+<br/>
+
 **Key properties:**
 - **No duplicate accounts.** The guest uses their existing corporate identity — no new password to manage.
 - **Home tenant controls authentication.** The guest's home tenant enforces MFA, conditional access, and other policies.
@@ -32052,6 +32227,217 @@ When two organizations need to exchange API tokens (M2M), cross-tenant OAuth pat
 **Cross-tenant session isolation.** A guest user's session in the inviting tenant should not grant access to the guest's home tenant's resources, and vice versa. Each tenant's session cookies and tokens should be scoped to that tenant's domain. Mitigation: use separate session cookies per tenant domain, and validate the `tid` (tenant ID) claim in OIDC tokens.
 
 **Attribute mapping conflicts.** Different tenants may use different attribute schemas (email, UPN, employee ID). Cross-tenant attribute mapping must handle conflicts gracefully (e.g., two tenants have users with the same email address). Mitigation: use immutable identifiers (object ID) rather than mutable attributes (email) for user mapping.
+
+**Identity Provider Compromise Cascade.** The following diagram illustrates how a compromised home tenant propagates access to all B2B-connected resource tenants — and the defence-in-depth layers that mitigate blast radius:
+
+```mermaid
+flowchart TD
+    Compromise["`**Compromised Home Tenant**
+    Attacker gains admin or IdP
+    configuration access`"]
+    Forge["`**Forged Guest Tokens**
+    Attacker issues tokens for
+    legitimate guest accounts`"]
+    RT1["`**Resource Tenant A**
+    Application access granted`"]
+    RT2["`**Resource Tenant B**
+    Application access granted`"]
+    RT3["`**Resource Tenant C**
+    Application access granted`"]
+    Cascade["`**Blast Radius: All Connected Tenants**
+    Without mitigation, compromise
+    propagates laterally`"]
+
+    Compromise --> Forge
+    Forge --> RT1
+    Forge --> RT2
+    Forge --> RT3
+    RT1 --> Cascade
+    RT2 --> Cascade
+    RT3 --> Cascade
+
+    subgraph "Mitigation Layers"
+        direction TB
+        M1["`**Conditional Access Policy**
+        Device compliance + location
+        enforced by resource tenant`"]
+        M2["`**Token Claims Validation**
+        Verify tid, auth_time, acr
+        against expected values`"]
+        M3["`**Continuous Access Evaluation**
+        CAEP/SSF real-time signal
+        propagation (§41)`"]
+        M4["`**Access Reviews**
+        Periodic recertification of
+        guest account entitlements`"]
+    end
+
+    M1 -.->|"Blocks non-compliant devices"| RT1
+    M2 -.->|"Rejects forged claims"| RT2
+    M3 -.->|"Revokes sessions on event"| RT3
+    M4 -.->|"Removes stale guest accounts"| Forge
+
+    style Compromise text-align:left
+    style Forge text-align:left
+    style RT1 text-align:left
+    style RT2 text-align:left
+    style RT3 text-align:left
+    style Cascade text-align:left
+    style M1 text-align:left
+    style M2 text-align:left
+    style M3 text-align:left
+    style M4 text-align:left
+```
+
+#### 27.3 SaaS Multi-Tenancy Authentication Models
+
+SaaS applications face a distinct authentication challenge: multiple customer organisations (tenants) share a common application infrastructure while requiring strict identity isolation. The authentication architecture determines how tenant identity is established, how users from different organisations are kept separate, and how each tenant's identity governance policies are enforced. Three architectural models have emerged, each trading off isolation strength against operational complexity.
+
+##### 27.3.1 Shared Identity Provider Model
+
+In the shared IdP model, the SaaS platform operates its own identity provider — every tenant's users authenticate against the same IdP instance. Tenant isolation is enforced through claims, scopes, and application-level access control rather than through separate identity databases. Salesforce, ServiceNow, and most multi-tenant SaaS platforms built before 2018 use this model.
+
+Users authenticate with credentials stored in the SaaS platform's directory (username + password, MFA), and the resulting token carries a `tenant_id` claim that the application uses to scope all data access. The SaaS operator manages the IdP infrastructure, applies a uniform authentication policy baseline, and offers tenant-scoped customisation (per-tenant MFA requirements, password complexity rules, SSO integration via SAML or OIDC bridge).
+
+The shared model is operationally simple — one IdP to manage, one set of federation configurations, one certificate rotation schedule. Its weakness is that tenant isolation depends entirely on the application layer. A bug in tenant-scoping logic can expose one tenant's data to another. The IdP itself does not enforce data isolation; it merely asserts which tenant a user belongs to. For regulated industries (healthcare, finance, government), this model may not satisfy compliance requirements that mandate cryptographic or infrastructure-level tenant separation.
+
+##### 27.3.2 Dedicated Identity Provider Model
+
+In the dedicated IdP model, each tenant brings its own identity provider — the SaaS application federates with the tenant's corporate IdP using SAML 2.0 ([§2](#2-saml-20)) or OpenID Connect ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)). The SaaS platform has no user directory of its own for these tenants; it trusts the tenant's IdP to authenticate users and issue assertions.
+
+Workday, Atlassian Cloud (enterprise tier), and most large-enterprise SaaS platforms support this model. The tenant administrator configures a federation trust between their corporate IdP (Okta, Entra ID, Ping Identity) and the SaaS application — exchanging metadata, mapping attributes, and defining access policies. Users authenticate with their corporate credentials and are transparently redirected through their home IdP.
+
+The dedicated model provides the strongest isolation — each tenant's authentication infrastructure is completely independent. If Tenant A's IdP is compromised, Tenant B is unaffected because there is no shared authentication path. The trade-off is operational complexity: the SaaS operator must maintain federation configurations for every tenant, handle IdP-specific quirks (different SAML NameID formats, varying attribute schemas, incompatible OIDC claim sets), and troubleshoot authentication failures across heterogeneous IdP stacks. At scale (hundreds or thousands of tenants), this model requires automated federation lifecycle management — see [§27.4](#274-cross-tenant-provisioning-and-lifecycle) on SCIM-based provisioning and OpenID Federation ([§7](#7-openid-federation-10)) for trust establishment.
+
+##### 27.3.3 Hybrid Model
+
+Most production SaaS platforms use a hybrid approach: a shared IdP for small and mid-market tenants who do not bring their own IdP, with dedicated federation for enterprise tenants who require SSO through their corporate identity infrastructure. A tenant can migrate from the shared model to the dedicated model as it grows, without disrupting existing user sessions.
+
+The hybrid model introduces a routing layer at the authentication entry point: when a user navigates to the SaaS application, the platform determines the user's tenant (via subdomain, email domain, or tenant selection page), checks whether that tenant has a dedicated IdP configured, and either redirects to the corporate IdP or falls back to the shared IdP. This routing decision must be resilient — if the corporate IdP is unreachable, the platform may offer a fallback authentication path (shared IdP with MFA) rather than denying access entirely.
+
+##### 27.3.4 Comparison of Multi-Tenancy Models
+
+| Dimension | Shared IdP | Dedicated IdP | Hybrid |
+|:----------|:-----------|:--------------|:-------|
+| **Tenant isolation** | Application-enforced (claims/scopes) | Infrastructure-enforced (separate IdP) | Mixed — dedicated for enterprise, shared for SMB |
+| **Operational complexity** | Low — single IdP | High — per-tenant federation configs | Medium — routing layer + dual management |
+| **User experience** | Uniform for all tenants | Varies by tenant IdP policy | Tailored per tenant tier |
+| **Compliance posture** | Suitable for low-regulation verticals | Suitable for regulated industries | Tiered compliance — enterprise tenants get strongest isolation |
+| **Onboarding speed** | Fast — no federation setup required | Slow — requires IdP administrator coordination | Fast for SMB, slower for enterprise |
+| **Protocol requirements** | Any (platform-controlled) | SAML 2.0 ([§2](#2-saml-20)) or OIDC ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)) per tenant | Both, plus routing logic |
+| **Typical platforms** | Salesforce, ServiceNow, HubSpot | Workday, Atlassian Enterprise, SAP SuccessFactors | Most modern SaaS (Slack, Zoom, M365) |
+
+##### 27.3.5 Tenant Isolation Mechanisms
+
+Regardless of the model, tenant isolation requires enforcement at multiple layers:
+
+- **Token scopes and claims.** Every access token must carry a `tenant_id` claim that the application validates on every request. Token scopes should be scoped to tenant-specific resources — a token issued for Tenant A must not grant access to Tenant B's data even if the underlying API is shared.
+- **Separate session domains.** Session cookies must be scoped to tenant-specific domains or paths. Using a single cookie across tenants creates a cross-tenant session leakage risk. In the dedicated IdP model, each tenant's session is already naturally isolated because it originates from a different IdP; in the shared model, the application must enforce domain-level separation.
+- **Encryption key separation.** Tenant-specific encryption keys prevent cryptographic blast radius — if one tenant's keys are compromised, other tenants' encrypted data remains protected. This is particularly important for tokens stored server-side (refresh tokens, session references) and for data at rest. Key management systems (AWS KMS, Azure Key Vault, HashiCorp Vault) support per-tenant key hierarchies with minimal operational overhead.
+- **OpenID Federation for trust management.** OpenID Federation 1.0 ([§7](#7-openid-federation-10)) provides a standardised mechanism for establishing and managing trust relationships between the SaaS platform and each tenant's IdP — automating metadata exchange, trust mark verification, and federation lifecycle that would otherwise require manual configuration per tenant.
+
+#### 27.4 Cross-Tenant Provisioning and Lifecycle
+
+Authentication is only the first cross-tenant challenge — the identity lifecycle must also cross organisational boundaries. A new hire at a partner organisation needs access to shared resources on their first day; a departing employee must be deprovisioned from all B2B tenants immediately; attribute changes (department, role, manager) must propagate across tenant boundaries to maintain correct authorisation. Without automated lifecycle management, cross-tenant environments accumulate stale accounts, orphaned permissions, and security gaps.
+
+##### 27.4.1 SCIM 2.0 for Automated Cross-Tenant Provisioning
+
+The System for Cross-domain Identity Management (SCIM 2.0, RFC 7644) provides a REST API standard for user and group provisioning. In the cross-tenant context, SCIM operates as a push protocol: the home tenant (the user's employer) pushes identity changes to the resource tenant (the B2B partner or SaaS platform) via a standardised endpoint.
+
+The provisioning flow follows a defined sequence: the home tenant's identity governance system detects a change (new hire, role change, termination) and pushes the update to the resource tenant's SCIM endpoint. The resource tenant's provisioning service processes the change — creating, updating, or deactivating the corresponding local account. SCIM defines three core endpoints: `/Users` for individual identity records, `/Groups` for group membership, and `/Bulk` for batched operations essential at scale.
+
+At B2B scale (1000+ partner organisations, tens of thousands of guest accounts), bulk operations and filtering become critical. A single onboarding event for a new partner with 500 users should not generate 500 individual SCIM requests — the `/Bulk` endpoint allows up to 100 operations per request. Filtering (`filter=userName eq "jdoe"`) enables the resource tenant to query for specific users without full synchronisation, reducing bandwidth and processing overhead.
+
+##### 27.4.2 Just-In-Time Provisioning at First Authentication
+
+Not all cross-tenant environments support SCIM-based push provisioning. In ad-hoc B2B collaborations (inviting a single external user to a project), JIT provisioning creates the local account at the moment of first authentication — no pre-provisioning required. The inviting tenant defines attribute mapping rules that extract the user's identity claims from the home tenant's assertion and populate the local guest account:
+
+- **Subject mapping.** The home tenant's `sub` or `NameID` claim maps to the guest account's immutable identifier. This must be stable — if the home tenant re-issues a different `sub`, the guest account loses its association.
+- **Attribute pass-through.** Display name, email, department, and job title are mapped from the assertion claims. These attributes may be stale if the home tenant does not refresh them on subsequent authentications.
+- **Group/role assignment.** The inviting tenant may assign the guest to groups based on the partner organisation (all users from Partner X get "read-only" access) or based on specific claims in the assertion (users with `role = "contractor"` get a restricted access tier).
+
+JIT provisioning trades convenience for lifecycle control. Without a push mechanism (SCIM), the inviting tenant has no way to know when a user's attributes change at the home tenant, or when the user is terminated. The guest account persists until explicitly reviewed and removed — a significant source of guest account sprawl ([§27.2](#272-cross-tenant-security-considerations)).
+
+##### 27.4.3 Deprovisioning Across Tenant Boundaries
+
+Deprovisioning in a single-tenant environment is straightforward: disable the account, revoke sessions, remove from groups. In cross-tenant B2B, deprovisioning must propagate across organisational boundaries with different trust relationships and different latency expectations.
+
+**Home tenant-initiated deprovisioning.** When the user's employer terminates their account, the home tenant should propagate the deprovisioning event to all connected resource tenants. Three mechanisms exist, in order of preference:
+
+1. **SCIM deprovisioning** — the home tenant sends a PATCH or DELETE to the resource tenant's SCIM endpoint, deactivating or removing the guest account. This is the most reliable mechanism but requires SCIM connectivity to every resource tenant.
+2. **Continuous Access Evaluation Protocol (CAEP)** ([§41](#41-continuous-access-evaluation)) — the home tenant emits a `session-revoked` or `identifier-changed` security event that participating resource tenants consume in near-real-time. CAEP enables session revocation within seconds of deprovisioning, even without direct SCIM connectivity.
+3. **Federation metadata staleness** — if neither SCIM nor CAEP is available, the resource tenant detects deprovisioning only when the guest attempts to re-authenticate and the home tenant refuses to issue a new assertion. This leaves the guest's existing sessions active until they expire naturally.
+
+**Resource tenant-initiated deprovisioning.** The resource tenant may independently revoke a guest's access — through access reviews, policy violations, or partner relationship termination. The resource tenant disables the guest account locally; the home tenant is not notified (the home tenant does not control the guest's authorisation in the resource tenant). This asymmetry is by design: the inviting tenant retains full control over authorisation decisions.
+
+##### 27.4.4 Guest Account Lifecycle at Scale
+
+At enterprise scale, guest account lifecycle management requires automated processes rather than manual review:
+
+- **Invitation expiry.** B2B invitations should expire after a configurable period (typically 30–90 days). Unredeemed invitations represent potential attack surface — an attacker who gains access to the invitation email can redeem it long after the business need has passed.
+- **Periodic access reviews.** Guest accounts should be reviewed on a cadence (quarterly for standard partners, monthly for privileged guests). The review process confirms that the guest still requires access, that their group/role assignments are appropriate, and that the partner relationship is still active. Microsoft Entra ID's Access Reviews and Okta's Governance features automate this workflow.
+- **Automated account expiration.** Guest accounts can be configured with a maximum lifetime (e.g., 12 months) after which they are automatically disabled unless explicitly renewed. This provides a safety net for accounts that escape periodic review.
+- **Attribute mapping refresh.** For SCIM-connected tenants, attribute changes (department, manager, job title) propagate automatically. For JIT-provisioned tenants, attribute staleness is an inherent limitation. The inviting tenant should periodically re-evaluate the guest's claims on re-authentication and update the local profile accordingly.
+
+##### 27.4.5 Practical Considerations for Large-Scale B2B
+
+Deployments with 1000+ partner organisations face challenges that do not appear in smaller environments:
+
+- **Attribute mapping conflict resolution.** With thousands of partners, attribute namespace collisions are inevitable. Two partners may both use `employeeType` to mean different things, or may use different claim names for the same concept. A claim transformation layer (normalising incoming claims to a canonical schema) is essential — OpenID Federation ([§7](#7-openid-federation-10)) Entity Configuration statements can encode these transformations declaratively.
+- **Provisioning latency.** Large-scale SCIM synchronisation (millions of identity records across thousands of tenants) requires careful capacity planning. Rate limiting (both inbound and outbound), retry with exponential backoff, and eventual consistency models replace the simple request-response pattern suitable for small deployments.
+- **Audit trail aggregation.** Cross-tenant provisioning generates audit events in both the home and resource tenants. Correlating these events for compliance reporting requires a unified audit trail that spans organisational boundaries — typically achieved through a SIEM integration that ingests provisioning logs from all connected tenants.
+
+#### 27.5 Cross-Tenant Session Architecture
+
+Once a user is authenticated across tenant boundaries, the session architecture must maintain isolation while enabling seamless access. Cross-tenant sessions differ fundamentally from single-tenant sessions: the authentication event occurred in one security domain (the home tenant), but the session authorises access in another (the resource tenant). This split creates unique challenges for session propagation, token exchange, and logout coordination.
+
+##### 27.5.1 Session Isolation Between Tenants
+
+Each tenant must maintain an independent session state — a guest user's session in the resource tenant must not grant access to the home tenant's resources, and the home tenant's session must not implicitly authorise access to all B2B-connected tenants.
+
+- **Separate session cookies.** Session cookies are scoped to the tenant's domain: the home tenant issues cookies scoped to `home.example.com`, while the resource tenant issues cookies scoped to `resource.example.com`. Cookie attributes (`SameSite`, `Secure`, `HttpOnly`) prevent cross-domain leakage. The resource tenant must not accept the home tenant's session cookie as proof of authentication — only a valid token issued by the resource tenant's own IdP (or a trusted federation assertion) should establish a session.
+- **Tenant-scoped token claims.** Access tokens carry a `tid` (tenant ID) claim that the resource server validates on every request. A token with `tid: tenant-a` must not be accepted by an API serving `tenant-b`, even if both tenants share the same application infrastructure. The `aud` (audience) claim provides an additional isolation layer — each tenant's API resources have a distinct audience value.
+- **Session reference isolation.** Server-side session stores (Redis, databases) must partition session data by tenant. Using a shared session store without tenant-scoped key prefixes creates a risk of cross-tenant session data leakage. Best practice: prepend the tenant ID to every session key (`tenant-a:session:abc123`), and enforce tenant-scoped access at the session store layer.
+
+##### 27.5.2 Token Exchange Across Tenant Boundaries
+
+When a user or service needs to access resources in a different tenant than where authentication occurred, the token from the home tenant must be exchanged for a token valid in the resource tenant. The OAuth 2.0 Token Exchange protocol (RFC 8693, §3.6) provides the standard mechanism:
+
+The client presents the home tenant's access token as the `subject_token` to the resource tenant's token endpoint, with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`. The resource tenant validates the home token's signature (using federation trust metadata), maps the home claims to local claims (using the attribute transformation rules from [§27.4.2](#2742-just-in-time-provisioning-at-first-authentication)), and issues a new access token scoped to the resource tenant with a `tid` claim matching the resource tenant.
+
+Token exchange introduces a trust decision: the resource tenant must decide how much of the home tenant's authentication context to honour. A home tenant's AAL3 authentication should translate to a high-assurance claim in the resource token — but the resource tenant may also require its own conditional access evaluation (device compliance, location check) before issuing the token. This dual-evaluation model is the session-level analogue of the defence-in-depth principle described in [§27.2](#272-cross-tenant-security-considerations).
+
+##### 27.5.3 Cascading B2B Session Propagation
+
+In complex B2B scenarios, a user's identity may traverse multiple tenants: Tenant A (home) → Tenant B (direct B2B partner) → Tenant C (Tenant B's partner, not directly federated with Tenant A). Each hop requires a separate token exchange, and each intermediate tenant must decide whether to propagate the original authentication context or issue its own.
+
+Three propagation strategies exist:
+
+- **Original assertion passthrough.** Tenant B forwards Tenant A's original assertion (or a derivative token) to Tenant C. This preserves the full authentication context (AAL, MFA status, authentication timestamp) but requires Tenant C to trust Tenant A's IdP — which may violate Tenant C's federation policy (Tenant C only trusts Tenant B, not Tenant A).
+- **Re-issued assertion.** Tenant B issues its own assertion for the user, acting as a claims provider for Tenant C. This breaks the chain of trust at each hop — Tenant C sees the user as authenticated by Tenant B, with no visibility into the original home tenant. The authentication context is regenerated at each hop, potentially at a lower assurance level.
+- **Token chaining.** Tenant B includes the original Tenant A token as an `actor_token` in a token exchange request to Tenant C (RFC 8693 delegation semantics). Tenant C receives both the delegated identity (Tenant A user) and the delegator (Tenant B), preserving provenance while respecting trust boundaries.
+
+Token chaining is architecturally the cleanest but requires all participants to support RFC 8693 and to agree on claim propagation semantics — which is uncommon outside of tightly managed ecosystems (e.g., government identity federations). In practice, most B2B deployments use re-issued assertions at each hop, accepting the assurance level degradation.
+
+##### 27.5.4 Cross-Tenant Logout Propagation
+
+Logout in a cross-tenant session is harder than login. When a user signs out of the resource tenant, the home tenant's session may still be active — and vice versa. Three logout propagation challenges arise:
+
+- **Home-initiated logout.** If the user signs out at the home tenant, the resource tenant's session must also be terminated. OIDC back-channel logout ([§40.4](#404-oidc-front-channel-vs-back-channel-logout)) provides a mechanism: the home tenant sends a logout token to the resource tenant's back-channel logout endpoint, which invalidates the session without browser interaction. SAML SLO ([§40.5](#405-saml-single-logout-slo)) provides an equivalent front-channel mechanism but suffers from reliability issues in cross-domain scenarios (the user's browser may not have an active session with the resource tenant's SAML SP).
+- **Resource-initiated logout.** When the user signs out of the resource tenant, the resource tenant should notify the home tenant via a front-channel or back-channel logout request. However, the home tenant may have sessions with multiple other resource tenants — terminating the home session would cascade logout to all of them, which is rarely desired. The resource tenant should typically invalidate only its own session, leaving the home tenant's session intact.
+- **Cascading logout in multi-hop B2B.** In the A → B → C scenario, logout at Tenant A should propagate to B and then to C. Each hop adds latency and a potential failure point. If Tenant B's logout endpoint is unavailable, Tenant C's session persists after the user signed out at Tenant A — a latent security gap. CAEP ([§41](#41-continuous-access-evaluation)) session-revoked events provide an out-of-band mechanism to propagate logout across hops without relying on synchronous logout endpoints.
+
+##### 27.5.5 Conditional Access in Cross-Tenant Scenarios
+
+Conditional access evaluation in cross-tenant sessions must account for two distinct policy sources: the home tenant's policies (applied during initial authentication) and the resource tenant's policies (applied when the guest accesses resources). These policies may conflict — the home tenant may permit authentication from any location, while the resource tenant requires access only from managed devices.
+
+Production B2B platforms resolve this through one of three approaches:
+
+- **Resource tenant policy always wins.** The resource tenant evaluates its own conditional access policies independently, regardless of the home tenant's evaluation. This is the Microsoft Entra ID B2B model — the resource tenant applies its own device compliance, location, and risk policies to guest users, treating the home tenant's authentication as merely one input signal.
+- **Union of both policies.** Both the home and resource tenant policies are evaluated, and the stricter outcome is enforced. This provides the strongest security but requires policy metadata exchange between tenants — standardised in OpenID Federation ([§7](#7-openid-federation-10)) through trust marks and entity statements.
+- **Home tenant policy trusted.** The resource tenant delegates conditional access evaluation entirely to the home tenant, accepting the home tenant's assurance claims at face value. This model is only appropriate when the resource tenant trusts the home tenant's security posture — typically in closely aligned organisations (subsidiaries, joint ventures) rather than ad-hoc B2B partnerships.
+
+The resource-tenant-wins model has become the de facto industry standard because it aligns with the principle that the resource owner controls access to its own resources — regardless of where the user originally authenticated.
 
 ---
 
@@ -33347,6 +33733,9 @@ The Financial Grade API (FAPI) 2.0 specification, defined by the OpenID Foundati
 FAPI 2.0 also requires `prompt=consent` or `prompt=login` for step-up scenarios to prevent silent re-authentication that could bypass the user's awareness of the elevated assurance requirement. These constraints make FAPI 2.0 one of the most prescriptive specifications regarding ACR handling, and implementations should consult the full specification (FAPI 2.0 §12.5) for normative details.
 
 #### 28.8 Platform Comparison: Adaptive Authentication Approaches
+
+Five major identity platforms — Microsoft Entra, Okta, Google BeyondCorp, PingOne, and RSA SecurID — implement adaptive authentication with different architectural philosophies, risk signal sources, and policy models. Entra integrates deeply with the Microsoft 365 ecosystem; BeyondCorp evaluates every request independently (no persistent session trust); Okta leverages cross-tenant threat intelligence from its shared cloud. The following matrix compares all five across 13 dimensions, from risk signal count and ML approach to step-up support and continuous evaluation capability.
+
 | Dimension | Microsoft Entra CA | Okta Adaptive MFA | Google BeyondCorp | PingOne Risk | RSA SecurID Adaptive |
 |:----------|:-------------------|:-------------------|:------------------|:-------------|:--------------------|
 | **Architecture** | Centralised policy engine within the IdP — policies evaluated at sign-in time and continuously via CAE | Adaptive policies per application sign-on policy — risk engine evaluates pre-authentication (ThreatInsight) and at-authentication (Adaptive MFA) | Per-request access gateway — context evaluated for every resource request, not just authentication | Centralised risk engine with policy evaluation layer | Risk scoring service with policy engine |
@@ -36465,6 +36854,9 @@ Several major blockchain systems deploy ZKPs for privacy-preserving transactions
 | **Post-quantum resistant** | ❌ No | ❌ No | Partial | ❌ No | ✅ Yes |
 
 #### 32.6 ZKP Standardisation Landscape
+
+Zero-Knowledge Proof deployment in identity systems depends on a complex stack of cryptographic primitives — each at a different stage of standardisation maturity. BBS+ signatures have reached W3C Recommendation status for verifiable credentials; OPAQUE is now RFC 9807 for password-authenticated key exchange; zk-STARKs offer post-quantum resistance but lack formal IETF standardisation. The following table maps the ZKP primitives relevant to authentication and identity to their respective standards bodies, mechanisms, and current publication status.
+
 | Standard/body | ZKP mechanism | Status | Scope |
 |:--------------|:--------------|:-------|:------|
 | **IETF CFRG** (Schnorr signatures) | Schnorr/EdDSA | RFC 8032 (EdDSA), draft-irtf-cfrg-schnorr-sigs | Digital signatures, key exchange |
@@ -37413,6 +37805,9 @@ The Device Authorization Grant and Client-Initiated Backchannel Authentication (
 | **Standard** | RFC 8628 (IETF) | OpenID Connect CIBA (OpenID Foundation) |
 
 #### 33.7 Flow Topology Comparison Matrix
+
+The preceding sections analyzed same-device and cross-device authentication topologies in isolation — redirect flows, pop-up flows, embedded browsers, passkeys, QR codes, BLE transport, and push notifications. The following matrix compares all ten topologies across six dimensions: phishing resistance, UX friction, proximity guarantees, credential storage location, underlying standard, and primary use cases. The phishing-resistance column is the most operationally significant — it distinguishes topologies where phishing is structurally impossible (origin-bound WebAuthn assertions) from those where security depends on user vigilance and implementation quality.
+
 | Topology | Phishing Resistance | UX Friction | Proximity Guarantee | Credential Location | Standard | Key Use Cases |
 |:---------|:-------------------|:------------|:-------------------|:-------------------|:---------|:-------------|
 | **Same-device redirect** | Medium — URL bar visible, user can verify IdP domain; no origin binding | Medium — full-page navigation context switch | N/A — single device | Browser cookies / credential manager on same device | OAuth 2.0 / OIDC ([§3](#3-openid-connect-and-oauth-20-protocol-foundations)) | Web application SSO; primary OIDC/SAML flow |
@@ -40159,7 +40554,7 @@ The IdP must set the `Set-Login` header in response to a same-site top-level nav
 | **Firefox** | Under consideration | Not yet | Not yet | Privacy review ongoing |
 | **Safari** | Not implemented | Not yet | Not yet | Apple has not committed |
 
-As of early 2026, FedCM is production-ready in Chromium-based browsers (approximately 72% global market share). Firefox and Safari support remains uncertain. Organizations requiring cross-browser compatibility should implement FedCM as a progressive enhancement alongside traditional OAuth flows.
+As of mid-2026, FedCM is production-ready in Chromium-based browsers (approximately 72% global market share). Firefox and Safari support remains uncertain. Organizations requiring cross-browser compatibility should implement FedCM as a progressive enhancement alongside traditional OAuth flows.
 
 > **Editorial Note:** **Cross-chapter references.** See [§22](#22-authentication-attack-taxonomy-threat-vectors) (Attack Vectors) for the full XSS impact analysis across OAuth architectures — including the formal HttpOnly cookie value model ($V_{\text{no-HttpOnly}} = V_{\text{session}} + V_{\text{persistence}} + V_{\text{stealth}}$) — and CSRF protection in OAuth contexts (OAuth state parameter, double-submit cookie pattern, per-architecture defense comparison).
 
@@ -40173,6 +40568,9 @@ The Credential Manager API surfaces both FedCM credentials and passkey credentia
 The browser's Credential Manager provides the unified interface — the user sees a single credential selection UI that may include both passkeys and federated accounts. The BFF receives whichever credential the user selects and processes it accordingly: a passkey assertion is validated against the WebAuthn relying party; a FedCM assertion is exchanged for OAuth tokens at the authorization server.
 
 #### 35.6 Architecture Comparison Matrix
+
+The four dominant SPA authentication architectures — OAuth Proxy, Backend-for-Frontend (BFF), Token Handler, and Direct SPA with PKCE — differ fundamentally in a single design decision: where do the OAuth tokens live? In three of the four patterns, the browser holds only an opaque `HttpOnly` session cookie; only the direct SPA pattern exposes tokens to client-side JavaScript, making it the IETF's acknowledged fallback (RFC 6819, §4.1.3). The matrix below compares these patterns across 14 security and operational dimensions. Readers should focus on the token location, XSS token exposure, and IETF recommendation rows first — these determine the baseline security posture — then evaluate reusability and deployment topology to select the pattern that fits their infrastructure constraints.
+
 | Dimension | OAuth Proxy | BFF | Token Handler | Direct SPA (PKCE) |
 |:----------|:-----------|:----|:-------------|:-----------------|
 | **Token location** | Server-side (proxy session) | Server-side (BFF session store) | Server-side (OAuth Agent) | Browser (memory / localStorage) |
@@ -42581,6 +42979,9 @@ Kerberos v5 (RFC 4120) is a ticket-based network authentication protocol that re
 This chapter provides a protocol-level deep dive into Kerberos — covering the full authentication exchange in three phases, pre-authentication mechanisms (including FAST armoring), the encryption type evolution from DES through RC4 to AES, the Privilege Attribute Certificate (PAC) and its vulnerability history, the delegation models (unconstrained, constrained S4U, and resource-based), hybrid identity integration with Entra ID, and cross-realm authentication trust mechanics.
 
 #### 38.1 AS-REQ/AS-REP and TGS-REQ/TGS-REP Protocol Exchange
+
+The Kerberos authentication exchange proceeds through three distinct phases: the client first authenticates to the Authentication Service (AS) using a long-term key derived from its password, receiving a Ticket-Granting Ticket (TGT); the client then presents the TGT to the Ticket-Granting Service (TGS) to obtain a service ticket for a specific resource; finally, the client presents the service ticket to the target server. Each phase produces a cryptographic ticket that the client uses in the next phase, and the client's long-term key never traverses the network. The port table below identifies the network endpoints for these services — the KDC itself (port 88), the password change protocol (port 464), the administration interface (port 749), and the KDC proxy (ports 80/443) defined in RFC 6111 for environments where direct KDC access is blocked by firewalls. TCP is preferred over UDP for all AS and TGS exchanges because large Privilege Attribute Certificate (PAC) structures cause UDP fragmentation.
+
 | Service | Port | Protocol | Usage |
 |:--------|:-----|:---------|:------|
 | **KDC** | 88/TCP, 88/UDP | Kerberos | AS and TGS exchanges (TCP preferred — UDP fragmentation issues with large PACs) |
@@ -43910,7 +44311,7 @@ DBSC has progressed from a Google-internal proposal to a shipping web platform f
 | **2025-11** | Chrome 140 — Third-party cookie context | DBSC adapts for Privacy Sandbox ecosystem |
 | **2026-03** | Chrome 145 — General Availability | DBSC ships as a stable web platform feature |
 
-As of March 2026, DBSC is available in Chrome 145+ (enabled by default for compatible origins) and in experimental builds of Firefox. Safari support remains under development in WebKit. Server-side adoption is concentrated among large-scale web properties (Google, Microsoft, Cloudflare) with open-source implementations emerging.
+As of mid-2026, DBSC is available in Chrome 145+ (enabled by default for compatible origins) and in experimental builds of Firefox. Safari support remains under development in WebKit. Server-side adoption is concentrated among large-scale web properties (Google, Microsoft, Cloudflare) with open-source implementations emerging.
 
 ##### 39.1.6 Privacy Design
 
@@ -47114,6 +47515,44 @@ Accumulator-based revocation is more complex to implement but provides stronger 
 
 Authentication systems operate within a complex regulatory landscape. Governments and industry bodies mandate specific authentication requirements for different sectors and use cases. This chapter consolidates the regulatory requirements most relevant to authentication practitioners, covering phishing-resistant MFA mandates, PCI DSS 4.0 requirements, and accessibility obligations.
 
+```mermaid
+flowchart TD
+    %% Regulatory Compliance Mapping
+    subgraph regs["Regulatory Frameworks"]
+        direction TB
+        US["`🇺🇸 **United States**<br/>EO 14028 + CISA BOD 23-02`"]
+        EU["`🇪🇺 **European Union**<br/>DORA + PSD2/PSD3 + eIDAS 2.0`"]
+        UK["`🇬🇧 **United Kingdom**<br/>NCSC Secure by Design`"]
+        PCI["`💳 **Industry**<br/>PCI DSS 4.0`"]
+    end
+
+    subgraph reqs["Authentication Requirements"]
+        direction TB
+        PR["`🔐 Phishing-resistant MFA<br/>FIDO2/WebAuthn`"]
+        SCA["`🏦 Strong Customer Auth (SCA)<br/>Possession + Knowledge/Inherence`"]
+        MFACDE["`💳 MFA for ALL CDE access<br/>Not just administrators`"]
+        A11Y["`♿ Accessible Authentication<br/>WCAG 2.1 AA + EN 301 549`"]
+    end
+
+    US -- "Mandates" --> PR
+    EU -- "SCA for payments" --> SCA
+    EU -- "Wallet auth (§31)" --> PR
+    UK -- "All gov services" --> PR
+    PCI -- "Req 8.4.2" --> MFACDE
+
+    PR -. "Must be accessible" .-> A11Y
+    SCA -. "Must be accessible" .-> A11Y
+
+    style US text-align:left
+    style EU text-align:left
+    style UK text-align:left
+    style PCI text-align:left
+    style PR text-align:left
+    style SCA text-align:left
+    style MFACDE text-align:left
+    style A11Y text-align:left
+```
+
 #### 42.1 Phishing-Resistant MFA Mandates
 
 Multiple governments and regulators have issued mandates requiring phishing-resistant authentication (FIDO2/WebAuthn, hardware security keys, or equivalent) for high-risk access scenarios. These mandates represent a shift from "recommend MFA" to "require phishing-resistant MFA."
@@ -48705,6 +49144,8 @@ Questions rated ✅ Ready can be investigated immediately with existing data and
 
 
 #### Findings to Recommendations to Open Questions Traceability
+
+This traceability matrix closes the analytical loop of the document by linking every finding (F1–F28) back to the evidence that produced it and forward to the recommendations and open questions it generated. Read left to right, each row answers: what did the research discover (Core Insight), what should practitioners do about it (Recommendation(s)), and what remains unresolved (Open Question(s)). Entries without an open question represent problems for which the current state of the art provides a sufficient answer; entries with multiple open questions — such as F3 (legacy MFA insufficiency) and F16 (phishing-device binding convergence) — indicate areas where the industry consensus is still forming and where future DR updates are most likely to add new material.
 
 | Finding | Core Insight | Recommendation(s) | Open Question(s) |
 |:--------|:-------------|:-------------------|:-----------------|
