@@ -5,13 +5,13 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-04-27
+date_updated: 2026-05-10
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
 
 ---
 
-**DR-0003** · Published · Last updated 2026-04-27 · ~47,700 lines
+**DR-0003** · Published · Last updated 2026-05-10 · ~47,700 lines
 
 ---
 
@@ -1921,9 +1921,9 @@ Finalizing architectural construction, the IdP securely pushes the Base64-encode
 
 </details>
 <details>
-<summary><strong>12. Browser completes explicit delivery loop</strong></summary>
+<summary><strong>12. User Agent submits SAMLResponse to Service Provider</strong></summary>
 
-Strictly operating as a courier, the client Browser triggers the hidden HTML Javascript, launching the SAML `Base64` architecture securely toward the mandated Service Provider ACS URI.
+The User Agent (Browser) executes the auto-submitting JavaScript embedded in the IdP's HTML form, POSTing the Base64-encoded `SAMLResponse` to the SP's Assertion Consumer Service (ACS) endpoint. The `RelayState` parameter preserves the user's original destination across the redirect chain.
 
 </details>
 <details>
@@ -1939,9 +1939,9 @@ Locating the crucial `AuthnContextClassRef` node, the SP observes the `TimeSyncT
 
 </details>
 <details>
-<summary><strong>15. Platform officially orchestrates validated execution context</strong></summary>
+<summary><strong>15. Service Provider grants authenticated session</strong></summary>
 
-Concluding all architectural verification securely, the Service Provider executes its local session-creation sequence, definitively unlocking the requested enterprise infrastructure.
+Concluding all architectural verification securely, the Service Provider executes its local session-creation sequence, definitively unlocking the requested enterprise infrastructure. The resulting session cookie binds the user's browser to the authenticated identity established through the federated SAML assertion and TOTP step-up.
 
 **Artifact Produced:** Local Application Session Cookie
 
@@ -2854,37 +2854,37 @@ Cookie: idp-session=s%3A1x9z...
 <details>
 <summary><strong>8. Identity Provider records SP1 logged out and determines next SP</strong></summary>
 
-The IdP updates its session matrix, marking SP1 as successfully logged out. It peeks at the index and prepares to trigger SP2.
+The IdP updates its session matrix, marking SP1 as successfully logged out. It peeks at the index and prepares to trigger SP2. This bookkeeping is critical: the IdP must track which SPs have confirmed logout so it can re-issue logout requests only to remaining sessions, and so it knows when all sessions are destroyed and can finally clean up its own IdP session state.
 
 </details>
 <details>
 <summary><strong>9. Identity Provider issues redirect to SP2 SLO endpoint</strong></summary>
 
-The IdP generates a fresh `LogoutRequest` aimed precisely at SP2's registered logout endpoint. It packages it up as another HTTP-Redirect binding containing the same IdP continue endpoint as the `RelayState`.
+The IdP generates a fresh `LogoutRequest` aimed precisely at SP2's registered logout endpoint. It packages it up as another HTTP-Redirect binding containing the same IdP continue endpoint as the `RelayState`. Each `LogoutRequest` targets a single SP — SAML SLO does not broadcast a single request to all SPs simultaneously, which avoids race conditions where an SP processes logout before receiving its own request.
 
 </details>
 <details>
 <summary><strong>10. User Agent requests SP2 SLO endpoint</strong></summary>
 
-The browser executes the next bounce in the chain, presenting the `LogoutRequest` to SP2.
+The browser executes the next bounce in the chain, presenting the `LogoutRequest` to SP2. The front-channel SLO approach requires the browser to act as the transport — without it, the IdP has no direct HTTP path to the SP's logout endpoint because the SP session cookie is browser-scoped.
 
 </details>
 <details>
 <summary><strong>11. Service Provider 2 validates and terminates session</strong></summary>
 
-SP2 intercepts the request, verifies the signature, and destroys its local instance of the application session for this principal.
+SP2 intercepts the request, verifies the IdP's digital signature on the `LogoutRequest`, confirms the `NotOnOrAfter` freshness window, and destroys its local instance of the application session for this principal. Signature validation prevents a malicious actor from forging logout requests to perform a denial-of-service on another user's session.
 
 </details>
 <details>
 <summary><strong>12. Service Provider 2 issues redirect to RelayState</strong></summary>
 
-SP2 complies with the protocol, ejecting the browser back out to the IdP's `RelayState` continuation callback URL.
+SP2 complies with the protocol, ejecting the browser back out to the IdP's `RelayState` continuation callback URL. The `RelayState` parameter is what makes the chained logout loop possible — it tells the IdP where to resume after each SP confirms, enabling sequential multi-SP logout without the IdP losing track of progress.
 
 </details>
 <details>
 <summary><strong>13. User Agent requests IdP continue endpoint</strong></summary>
 
-The browser returns to the IdP, registering that SP2 has completed its operation.
+The browser returns to the IdP, registering that SP2 has completed its operation. The IdP checks its session matrix again — if all SPs are now marked as logged out, it destroys its own IdP session cookie and redirects the browser to a final "logged out" landing page. If more SPs remain, the loop continues.
 
 </details>
 <details>
@@ -3599,7 +3599,7 @@ flowchart LR
         SPC["SP-C"]
     end
 
-    Hub{"SAML Proxy<br/>(Hub)"}
+    Hub{{"`SAML Proxy (Hub)`"}}
 
     subgraph IdPs[Identity Providers]
         direction TB
@@ -3649,21 +3649,24 @@ SAML's XML-based design and browser-mediated message flow create a distinct atta
 6. The SP grants access based on the forged assertion content
 
 ```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 520
+---
 flowchart TD
     subgraph S1 ["1. Interception & Relocation"]
         Doc1["`**Original SAML Response**`"]
         TrueAssert["`**✅ Valid signed &lt;saml:Assertion&gt;**`"]
         Doc1 --- TrueAssert
-        
+
         Attacker["`👿 **Attacker**
         Intercepts Response`"]
-        
         Doc2["`**Manipulated SAML Response**
         Maintains structural validity`"]
         Relocated["`**✅ Relocated Valid Assertion**
         (Moved deep in XML tree, e.g., to &lt;Extensions&gt;)
         Signature Reference URI still points here`"]
-        
         TrueAssert -. "Moves node" .-> Attacker
         Attacker -. "Injects" .-> Doc2
         Doc2 --- Relocated
@@ -3679,14 +3682,12 @@ flowchart TD
     subgraph S3 ["3. Flawed SP Processing"]
         SP_Sig["`**Signature Validator**`"]
         SP_Logic["`**Business Logic Parser**`"]
-        
         Doc2 --> SP_Sig
         Doc2 --> SP_Logic
-        
-        SP_Sig -- "1. Verifies Signature<br/>(Validates relocated node via URI)" --> Success["`✅ **Signature Passed**`"]
-        SP_Logic -- "2. Extracts Assertion<br/>(Grabs node from default position)" --> Fail["`⚠️ **Consumes Forged Assertion**`"]
+        SP_Sig -- "1. Verifies Signature (Validates relocated node via URI)" --> Success["`✅ **Signature Passed**`"]
+        SP_Logic -- "2. Extracts Assertion (Grabs node from default position)" --> Fail["`⚠️ **Consumes Forged Assertion**`"]
     end
-    
+
     style Doc1 text-align:left
     style TrueAssert text-align:left
     style Attacker text-align:left
@@ -4587,7 +4588,7 @@ The Authorization Server interrogates its database and validates that RT-002 was
 <details>
 <summary><strong>11. Authorization Server returns error to Legitimate Client</strong></summary>
 
-The Authorization Server blocks the flow, replying with an HTTP 400 `invalid_grant` exception to the Client Application.
+The Authorization Server blocks the flow, replying with an HTTP 400 `invalid_grant` exception to the Client Application. This is an intentional false positive — the legitimate client's refresh token was collateral damage from the family revocation triggered by the attacker's reuse. The trade-off is deliberate: revoking the entire token family guarantees the attacker is locked out, at the cost of forcing the legitimate user to re-authenticate.
 
 </details>
 <details>
@@ -6355,7 +6356,7 @@ The Client Application initiates the front-channel flow by issuing an HTTP 302 r
 <details>
 <summary><strong>5. User Agent requests authorization endpoint</strong></summary>
 
-The User Agent executes the redirect and hits the Authorization Server's `/authorize` endpoint passing the opaque `request_uri` reference.
+The User Agent executes the redirect and hits the Authorization Server's `/authorize` endpoint passing the opaque `request_uri` reference. Because the sensitive parameters (redirect URI, scopes, PKCE challenge) are stored server-side inside the PAR, the browser URL never exposes them — an attacker who intercepts the URL sees only the opaque `request_uri` and cannot tamper with the underlying request parameters.
 
 </details>
 <details>
@@ -6367,7 +6368,7 @@ The Authorization Server uses the `request_uri` to pluck the original full PAR p
 <details>
 <summary><strong>7. User Agent submits credentials</strong></summary>
 
-The user enters their credentials (password, passkey, MFA) into the authorization server's native form boundary.
+The user enters their credentials (password, passkey, MFA) into the authorization server's native form boundary. The AS is responsible for rendering the credential challenge — not the client application — which prevents malicious clients from harvesting credentials through a spoofed login form (the "client impersonation" attack vector that PAR alone does not address).
 
 </details>
 <details>
@@ -6379,19 +6380,19 @@ The AS authenticates the user, processes consent, and mints a single-use authori
 <details>
 <summary><strong>9. Authorization Server redirects User Agent</strong></summary>
 
-The AS issues an HTTP 302 sending the browser back to the registered callback URL, appending the generated code and the original CSRF `state`.
+The AS issues an HTTP 302 sending the browser back to the registered callback URL, appending the generated code and the original CSRF `state`. The authorization code is deliberately short-lived (typically 30–60 seconds) and single-use to prevent replay attacks — the code itself is not a credential, only the back-channel token exchange that follows produces the access token.
 
 </details>
 <details>
 <summary><strong>10. User Agent delivers code to Client Application</strong></summary>
 
-The browser executes the redirect and drops the authorization code at the client application's `/callback` route.
+The browser executes the redirect and drops the authorization code at the client application's `/callback` route. The client never sees the user's credentials — it only receives this ephemeral code, which it must immediately exchange for tokens via a back-channel request before the code expires.
 
 </details>
 <details>
 <summary><strong>11. Client Application verifies state locally</strong></summary>
 
-The client extracts the `state` parameter and validates it against its local session cache to prevent CSRF callback manipulation.
+The client extracts the `state` parameter and validates it against its local session cache to prevent CSRF callback manipulation. If the `state` does not match, the client MUST discard the authorization code and abort the flow — a mismatch indicates that the callback was injected by an attacker attempting to bind a victim's authorization code to the attacker's session (the classic OAuth CSRF attack described in RFC 6819 §4.4.1).
 
 </details>
 <details>
@@ -7945,6 +7946,7 @@ sequenceDiagram
     participant RP as Relying Party<br/>(SharePoint / Custom App)
     participant ADFS as ADFS Federation Service<br/>(Home Realm Discovery)
     participant CP1 as Claims Provider 1<br/>(Contoso AD)
+    %% lint-sequence: allow-disconnected CP1
     participant CP2 as Claims Provider 2<br/>(Partner IdP — Fabrikam)
 
     rect rgba(148, 163, 184, 0.14)
@@ -7999,7 +8001,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Agent requests Relying Party application</strong></summary>
 
-The User Agent issues an unauthenticated HTTP GET request attempting to access a fundamentally protected application resource.
+The User Agent issues an unauthenticated HTTP GET request attempting to access a fundamentally protected application resource. This request arrives without a valid `FedAuth` session cookie, which the RP detects and triggers the federated authentication redirect chain.
 
 </details>
 <details>
@@ -8045,7 +8047,7 @@ Location: https://idp.fabrikam.com/adfs/ls/?wa=wsignin1.0&wtrealm=urn:federation
 <details>
 <summary><strong>7. User Agent requests Partner authentication endpoint</strong></summary>
 
-The User Agent executes the cross-domain jump, initiating an HTTPS session with the Partner's securely exposed authentication domain.
+The User Agent executes the cross-domain jump, initiating an HTTPS session with the Partner's securely exposed authentication domain. This is the boundary-crossing step where the user leaves the corporate network perimeter and enters the partner organization's identity infrastructure — a trust boundary that relies on the federation metadata contract established between ADFS and the Partner Claims Provider.
 
 </details>
 <details>
@@ -8181,13 +8183,13 @@ The Relying Party concludes the back-and-forth authentication orchestration by i
 <details>
 <summary><strong>22. User Agent requests protected resource with valid cookie</strong></summary>
 
-The browser executes the deep link, attaching the now-valid `FedAuth` session credential cookie.
+The browser executes the deep link, attaching the now-valid `FedAuth` session credential cookie. This is the first request in the entire flow where the User Agent carries a valid RP-scoped session — every previous request was either unauthenticated or carried IdP/Partner-internal cookies invisible to the RP.
 
 </details>
 <details>
 <summary><strong>23. Relying Party returns protected application resource</strong></summary>
 
-The RP processes the authenticated call and returns the web application interface successfully.
+The RP processes the authenticated call and returns the web application interface successfully. The entire federated authentication journey — spanning three independent security domains (RP, ADFS Hub, Partner Claims Provider) — has concluded, and the user's local session at the RP is now backed by the Partner's identity assurance, relayed through the central ADFS trust intermediary.
 
 </details>
 
@@ -9958,7 +9960,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Agent captures password during registration</strong></summary>
 
-The user inputs their desired username and plaintext password into the Client Application's sign-up form.
+The user inputs their desired username and plaintext password into the Client Application's sign-up form. At this point the password exists only in browser memory — it has not yet traversed any network boundary.
 
 </details>
 <details>
@@ -10063,13 +10065,13 @@ Content-Type: application/json
 <details>
 <summary><strong>12. Client Application displays registration success message</strong></summary>
 
-The frontend UI formally transitions to a success state, informing the user their account is completely provisioned and ready.
+The frontend UI formally transitions to a success state, informing the user their account is completely provisioned and ready. The plaintext password has been fully discarded from all browser and server memory — only the Argon2id hash digest and salt persist in the Credential Store.
 
 </details>
 <details>
 <summary><strong>13. User Agent submits credentials for login</strong></summary>
 
-Some time later, the user enters their username and plaintext password natively into the application's login screen.
+Some time later, the user enters their username and plaintext password natively into the application's login screen. This is the authentication phase — unlike registration, the server must now verify the submitted password against the stored hash without ever recovering the original plaintext.
 
 </details>
 <details>
@@ -10092,13 +10094,13 @@ Content-Type: application/json
 <details>
 <summary><strong>15. Authentication Server queries Credential Store for username</strong></summary>
 
-The core authentication controller queries the backend Credential Store utilizing the inbound username identity.
+The core authentication controller queries the backend Credential Store utilizing the inbound username identity. The lookup is intentionally username-first — the server must retrieve the stored hash parameters before it can perform the Argon2id computation, because the salt and cost parameters are unique to each user record.
 
 </details>
 <details>
 <summary><strong>16. Credential Store returns stored PHC string</strong></summary>
 
-The Credential Store retrieves and safely returns the full PHC record string committed during the original registration flow.
+The Credential Store retrieves and safely returns the full PHC record string committed during the original registration flow. This string contains everything the Authentication Server needs to re-derive the hash: the algorithm identifier (`$argon2id$`), version, memory/time/parallelism parameters, Base64-encoded salt, and Base64-encoded digest.
 
 </details>
 <details>
@@ -13931,19 +13933,19 @@ sequenceDiagram
 <details>
 <summary><strong>1. User provides credentials to VPN Client</strong></summary>
 
-The User provides their standard username, password, and the generated OTP code to the VPN Client.
+The User provides their standard username, password, and the generated OTP code to the VPN Client. This combines two authentication factors: the password (something the user knows) and the TOTP code (something the user has, derived from the shared secret stored in their authenticator app).
 
 </details>
 <details>
 <summary><strong>2. VPN Client encapsulates credentials and forwards Access-Request to RADIUS Server</strong></summary>
 
-The VPN Client encapsulates the credentials into an `Access-Request` packet and transmits it to the RADIUS Server.
+The VPN Client encapsulates the credentials into an `Access-Request` packet and transmits it to the RADIUS Server. The RADIUS protocol (RFC 2865) uses shared secrets between the NAS (Network Access Server) and the RADIUS server to authenticate the packet origin, but the user credentials themselves are not individually encrypted — the entire UDP packet is protected by the RADIUS shared secret HMAC.
 
 </details>
 <details>
 <summary><strong>3. RADIUS Server looks up User's associated TOTP secret key</strong></summary>
 
-The RADIUS Server (via `rlm_oauth2` or similar module) looks up the User's associated TOTP secret key (K) in the database.
+The RADIUS Server (via `rlm_oauth2` or similar module) looks up the User's associated TOTP secret key (K) in the database. This is the same seed that was provisioned into the user's authenticator app during initial TOTP enrollment — the server and the user's device share this secret independently.
 
 </details>
 <details>
@@ -13955,7 +13957,7 @@ The RADIUS Server generates the expected TOTP values for the current timestep ($
 <details>
 <summary><strong>5. RADIUS Server securely compares submitted OTP against computed value array</strong></summary>
 
-The RADIUS Server securely compares the User's submitted OTP against the array of computed expected values.
+The RADIUS Server securely compares the User's submitted OTP against the array of computed expected values. The comparison uses constant-time equality to prevent timing side-channels from leaking information about which digits match. A failed comparison increments the failed-attempt counter; exceeding the threshold triggers a temporary account lockout to defend against brute-force OTP guessing.
 
 </details>
 <details>
@@ -13967,7 +13969,7 @@ Upon successful validation, the RADIUS Server returns an `Access-Accept` message
 <details>
 <summary><strong>7. VPN Client resolves connection session based on RADIUS decision</strong></summary>
 
-The VPN Client receives the RADIUS decision and either grants the User access to the network tunnel or denies the connection.
+The VPN Client receives the RADIUS decision and either grants the User access to the network tunnel or denies the connection. An `Access-Accept` may also carry RADIUS attributes (e.g., `Framed-IP-Address`, `Filter-Id`) that configure the specific network permissions for this session, enabling role-based access control at the VPN layer.
 
 </details>
 
@@ -16246,7 +16248,7 @@ DATA:  [0x1A 2B 3C 4D 5E 6F 70 81]
 <details>
 <summary><strong>4. Authenticator returns CTAPHID_INIT response</strong></summary>
 
-The security key echoes the nonce to prove liveliness and returns the allocated CID alongside its protocol capability flags.
+The security key echoes the nonce to prove liveliness and returns the allocated CID alongside its protocol capability flags. The nonce echo prevents replay of stale INIT responses and confirms the authenticator is physically present on the bus, not a virtualized HID device injected by malware.
 
 </details>
 <details>
@@ -16329,7 +16331,7 @@ Following the touch event, the secure enclave computes the ECDSA signature over 
 <details>
 <summary><strong>16. USB Driver reassembles raw fragments</strong></summary>
 
-The OS driver catches the stream of 64-byte packets and re-stitches them back into a single continuous buffer for the browser.
+The OS driver catches the stream of 64-byte packets and re-stitches them back into a single continuous buffer for the browser. This is the mirror image of Step 12 — the CTAPHID reassembly uses the channel ID to ensure packets from different authenticators (if multiple are connected) are not interleaved.
 
 </details>
 <details>
@@ -16341,7 +16343,7 @@ The browser engine wraps the raw signature bytes, the authenticator data, and th
 <details>
 <summary><strong>18. JavaScript POSTs payload back to Relying Party Server</strong></summary>
 
-The frontend scripts bundle the assertion object into a JSON payload and fire it back to the backend server via an AJAX POST request.
+The frontend scripts bundle the assertion object into a JSON payload and fire it back to the backend server via an AJAX POST request. The payload contains the raw authenticator signature, the `authData` buffer (which embeds the RP ID, counter, and user presence bits), and the `clientDataJSON` — the server needs all three components to independently verify the cryptographic proof.
 
 </details>
 <details>
@@ -18042,7 +18044,7 @@ For massive defense-in-depth, the app generates a secondary 128-bit random salt 
 <details>
 <summary><strong>5. Secure Element returns safe public reference to App</strong></summary>
 
-The SE locks the salt away and hands back a safe reference ID (`salt_id`) to the application software.
+The SE locks the salt away and hands back a safe reference ID (`salt_id`) to the application software. Like the TEE reference in Step 3, this ID is useless outside the device — even a fully compromised OS kernel cannot extract the raw salt from the SE's hardware-isolated storage.
 
 </details>
 <details>
@@ -18061,7 +18063,7 @@ The app POSTs the two opaque public references (`device_secret_id` and `salt_id`
 <details>
 <summary><strong>7. Bank Server confirms registration to App</strong></summary>
 
-The server records the hardware mapping into the user's profile and returns an HTTP 200 OK to the mobile application.
+The server records the hardware mapping into the user's profile and returns an HTTP 200 OK to the mobile application. At this point, the server has no key material — only opaque handles that reference secrets locked inside the device's physical hardware. The server's credential database is useless to an attacker who steals it, because the handles are meaningless without the originating TEE and SE.
 
 </details>
 <details>
@@ -18085,19 +18087,19 @@ Inside the hardware boundary, the system pushes the PIN, the `device_secret`, an
 <details>
 <summary><strong>11. KDF Engine returns derived key to TEE</strong></summary>
 
-The hashing engine finishes its agonizingly slow calculation and outputs the resulting 256-bit master key back to the enclave controller.
+The hashing engine finishes its agonizingly slow calculation and outputs the resulting 256-bit master key back to the enclave controller. The 310,000-iteration cost is the primary defense against offline brute-force — an attacker who extracts the salt and attempts to guess the 6-digit PIN must run the full KDF for each of the 1,000,000 possible PINs, at approximately 310 million PBKDF2 iterations total.
 
 </details>
 <details>
 <summary><strong>12. TEE securely stores derived key</strong></summary>
 
-The hardware enclave permanently saves this derived master key into its own non-exportable, hardware-backed memory storage.
+The hardware enclave permanently saves this derived master key into its own non-exportable, hardware-backed memory storage. The key never leaves the TEE — not even the OS kernel can read it. The only operation the TEE exposes is "sign with this key," ensuring the master key cannot be extracted even with full root access.
 
 </details>
 <details>
 <summary><strong>13. TEE returns safe key handle to App</strong></summary>
 
-The enclave hands an opaque `key_handle` string back up to the application software.
+The enclave hands an opaque `key_handle` string back up to the application software. This handle is a reference — the application uses it in future API calls to ask the TEE to sign data, but the handle itself contains no cryptographic material and cannot be reverse-engineered to recover the master key.
 
 </details>
 <details>
@@ -18116,7 +18118,7 @@ The application asks the enclave to sign a payload using the new master key, and
 <details>
 <summary><strong>15. Bank Server confirms public key registration</strong></summary>
 
-The server attaches the public key to the user profile and confirms the initial setup is fully complete and secured.
+The server attaches the public key to the user profile and confirms the initial setup is fully complete and secured. The registration phase is now complete: the server holds the public key for verification, the device holds the private key locked in the TEE, and the user's PIN is the human-knowledge factor that unlocks the private key through the KDF chain.
 
 </details>
 <details>
@@ -18128,19 +18130,19 @@ Hours or days later, the user opens the banking application and types their 6-di
 <details>
 <summary><strong>17. Banking App requests authentication key derivation from TEE</strong></summary>
 
-The app passes the entered PIN into the Secure Enclave and asks it to re-derive the mathematical key sequence.
+The app passes the entered PIN into the Secure Enclave and asks it to re-derive the mathematical key sequence. This is the same KDF path used during registration — if the user entered the correct PIN, the derived key will match the stored master key.
 
 </details>
 <details>
 <summary><strong>18. TEE passes parameters to internal KDF Engine</strong></summary>
 
-The enclave again subjects the submitted PIN, the stored `device_secret`, and the salt to the brutal 310,000-iteration PBKDF2 grinder.
+The enclave again subjects the submitted PIN, the stored `device_secret`, and the salt to the brutal 310,000-iteration PBKDF2 grinder. The identical parameters and iteration count ensure deterministic output — the same PIN produces the same derived key every time, enabling comparison against the stored master key.
 
 </details>
 <details>
 <summary><strong>19. KDF Engine returns authentication candidate key</strong></summary>
 
-The hashing engine produces the 256-bit candidate authentication key.
+The hashing engine produces the 256-bit candidate authentication key. This is the moment of truth — if the user entered the correct PIN, this candidate will be bit-for-bit identical to the master key stored during registration. If the PIN is wrong, the candidate will be a completely different 256-bit value with no partial matches possible.
 
 </details>
 <details>
@@ -21946,7 +21948,7 @@ The backend requests assertion parameters from the FIDO2 server. The FIDO2 serve
 <details>
 <summary><strong>15. FIDO2 Server returns challenge parameters to Relying Party Server</strong></summary>
 
-The FIDO2 server hands back the challenge, the timeout constraints, the origin `rpId`, and the array of allowed credentials.
+The FIDO2 server hands back the challenge, the timeout constraints, the origin `rpId`, and the array of allowed credentials. The `allowCredentials` list is critical for privacy on discoverable credentials (passkeys): it tells the authenticator which specific credentials to check, preventing a rogue RP from enumerating all credentials stored on the device.
 
 </details>
 <details>
@@ -21988,7 +21990,7 @@ The user interacts with the sensor, proving their physical presence (UP) and cry
 <details>
 <summary><strong>20. Browser / OS performs sensor capture and liveness check</strong></summary>
 
-The sensor hardware ensures the input is live and matches the previously enrolled biometric template stored completely isolated from the OS.
+The sensor hardware ensures the input is live and matches the previously enrolled biometric template stored completely isolated from the OS. This liveness check prevents presentation attacks — a photograph, 3D-printed mask, or recorded fingerprint cannot pass the hardware's anti-spoofing defenses.
 
 </details>
 <details>
@@ -22034,7 +22036,7 @@ The RP hands the assertion to the FIDO2 component. The FIDO2 server recalculates
 <details>
 <summary><strong>25. FIDO2 Server returns verification result</strong></summary>
 
-If all checks pass and the mathematical signature is valid, the FIDO2 server returns a definitive success status to the RP backend.
+If all checks pass and the mathematical signature is valid, the FIDO2 server returns a definitive success status to the RP backend. A failed verification — invalid signature, wrong origin, replayed challenge, or signature counter regression — returns failure, and the RP must reject the authentication attempt and log the event for security monitoring.
 
 </details>
 <details>
@@ -23691,22 +23693,31 @@ Wallet SDKs implement a **layered protection model** that combines hardware, sof
 The following diagram visualises the four entropy layers of the wallet SDK protection model:
 
 ```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 520
+---
 flowchart TD
     %% 3. Wallet SDK Layered Protection Model
     subgraph "Wallet SDK: 4-Layer Entropy Model"
         direction TB
-        
-        L1["`📱&nbsp;**Layer&nbsp;1:&nbsp;Device&nbsp;Binding&nbsp;(Possession)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Asymmetric&nbsp;private&nbsp;key&nbsp;permanently&nbsp;constrained&nbsp;inside&nbsp;hardware&nbsp;TEE/SEP.`"]
-        
-        L2["`🧠&nbsp;**Layer&nbsp;2:&nbsp;PIN&nbsp;/&nbsp;KEK&nbsp;(Knowledge)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Key&nbsp;Encryption&nbsp;Key&nbsp;derived&nbsp;from&nbsp;UI&nbsp;PIN&nbsp;entry&nbsp;or&nbsp;Vault&nbsp;Password.`"]
-        
-        L3["`👆&nbsp;**Layer&nbsp;3:&nbsp;Biometric&nbsp;Policy&nbsp;(Inherence)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FIDO2/WebAuthn&nbsp;UV&nbsp;bit&nbsp;required.&nbsp;OS&nbsp;unbinds&nbsp;key&nbsp;only&nbsp;upon&nbsp;face/finger&nbsp;scan.`"]
-        
-        L4["`🛡️&nbsp;**Layer&nbsp;4:&nbsp;RASP&nbsp;Constraints&nbsp;(Environment)**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Zero-trust&nbsp;verification&nbsp;of&nbsp;runtime&nbsp;memory,&nbsp;debugger&nbsp;attachment,&nbsp;and&nbsp;OS&nbsp;integrity.`"]
-        
+
+        L1["`📱 **Layer 1: Device Binding (Possession)**
+        Asymmetric private key permanently constrained inside hardware TEE/SEP.`"]
+
+        L2["`🧠 **Layer 2: PIN / KEK (Knowledge)**
+        Key Encryption Key derived from UI PIN entry or Vault Password.`"]
+
+        L3["`👆 **Layer 3: Biometric Policy (Inherence)**
+        FIDO2/WebAuthn UV bit required. OS unbinds key only upon face/finger scan.`"]
+
+        L4["`🛡️ **Layer 4: RASP Constraints (Environment)**
+        Zero-trust verification of runtime memory, debugger attachment, and OS integrity.`"]
+
         L1 --> L2 --> L3 --> L4
     end
-    
+
     style L1 text-align:left
     style L2 text-align:left
     style L3 text-align:left
@@ -24945,25 +24956,25 @@ sequenceDiagram
 <details>
 <summary><strong>1. Attacker acquires breach corpus</strong></summary>
 
-The attacker downloads massive credential datasets from previous data breaches via dark web forums or paste sites.
+The attacker downloads massive credential datasets from previous data breaches via dark web forums or paste sites. These "combo lists" contain millions of email/password pairs harvested from breached services — the attacker bets that users who reuse passwords across services will have the same credentials on the target.
 
 </details>
 <details>
 <summary><strong>2. Attacker cleans and de-duplicates credential pairs</strong></summary>
 
-The attacker normalizes the raw data, strips out invalid formats, and removes duplicate email/password pairs to optimize the attack payload.
+The attacker normalizes the raw data, strips out invalid formats, and removes duplicate email/password pairs to optimize the attack payload. This preprocessing reduces the credential list from potentially billions of raw records to a focused attack set, improving the hit rate per request and reducing the chance of triggering rate limits with obviously malformed inputs.
 
 </details>
 <details>
 <summary><strong>3. Attacker configures botnet</strong></summary>
 
-The attacker programs the botnet infrastructure with the target URL, IP rotation rules, proxy lists, and CAPTCHA-solving API keys.
+The attacker programs the botnet infrastructure with the target URL, IP rotation rules, proxy lists, and CAPTCHA-solving API keys. Modern credential stuffing tools like OpenBullet and SNIPR include built-in config files for popular websites, pre-configuring the correct endpoint paths, parameter names, and anti-bot bypass strategies.
 
 </details>
 <details>
 <summary><strong>4. Attacker distributes credential lists to Botnet</strong></summary>
 
-The master node pushes the cleaned credential batches out to thousands of compromised worker nodes across the botnet.
+The master node pushes the cleaned credential batches out to thousands of compromised worker nodes across the botnet. Distribution is critical: by spreading the attack across diverse IP ranges and geographic locations, the attacker prevents any single IP from accumulating enough requests to trigger per-IP rate limiting.
 
 </details>
 <details>
@@ -24992,13 +25003,13 @@ The web application firewall evaluates the incoming request against volumetric t
 <details>
 <summary><strong>7. CDN forwards request to Target Service</strong></summary>
 
-If the request falls under the configured thresholds, the CDN allows the payload to pass through to the backend login engine.
+If the request falls under the configured thresholds, the CDN allows the payload to pass through to the backend login engine. The attacker's IP rotation strategy aims to keep each individual IP below this threshold, making each request appear to originate from a unique, low-volume user.
 
 </details>
 <details>
 <summary><strong>8. Target Service validates credentials</strong></summary>
 
-The backend authentication engine hashes the submitted password and compares it directly against the stored hash database.
+The backend authentication engine hashes the submitted password and compares it directly against the stored hash database. A timing-safe comparison prevents the attacker from using response latency to infer partial password matches (a timing side-channel attack against the login endpoint).
 
 </details>
 <details>
@@ -25018,7 +25029,7 @@ If the password matches perfectly, the backend engine flags a success state and 
 <details>
 <summary><strong>10. CDN forwards success response to Botnet</strong></summary>
 
-The proxy relays the HTTP 200 payload seamlessly back to the attacking worker node.
+The proxy relays the HTTP 200 payload seamlessly back to the attacking worker node. The attacker now has a valid session token for a real user account — this single successful hit among millions of attempts represents a compromised account that can be monetized through account takeover, data exfiltration, or resale on dark markets.
 
 </details>
 <details>
@@ -25038,7 +25049,7 @@ If the password hash fails the comparison check, the backend authentication engi
 <details>
 <summary><strong>13. CDN forwards Unauthorized response to Botnet</strong></summary>
 
-The proxy relays the HTTP 401 payload back to the attacker, indicating the credential pair is dead.
+The proxy relays the HTTP 401 payload back to the attacker, indicating the credential pair is dead. The attacker's tooling automatically discards failed pairs and continues iterating through the remaining combo list — a typical credential stuffing campaign tests millions of pairs with a hit rate of 0.1–2%, meaning 1,000–20,000 compromised accounts per million attempts.
 
 </details>
 <details>
@@ -28047,7 +28058,7 @@ The metadata service hands back a digitally signed Instance Identity Document pr
 <details>
 <summary><strong>3. SPIRE Agent presents evidence to SPIRE Server</strong></summary>
 
-The Agent opens a gRPC stream to the Trust Authority and submits the cloud provider's signed cryptographic evidence.
+The Agent opens a gRPC stream to the Trust Authority and submits the cloud provider's signed cryptographic evidence. This is the node attestation phase — the Agent must prove it is running on a specific, authorized VM instance before the Server will issue any identity material.
 
 </details>
 <details>
@@ -28075,7 +28086,7 @@ The authorized Agent uses OS-native tools (like Linux cgroups or the Kubelet API
 <details>
 <summary><strong>7. SPIRE Agent requests SVIDs for discovered workloads</strong></summary>
 
-The Agent fires a `FetchX509SVID` request up to the Server, asking it to mint certificates for the specific workloads it just found.
+The Agent fires a `FetchX509SVID` request up to the Server, asking it to mint certificates for the specific workloads it just found. The request includes workload selectors (e.g., Kubernetes namespace, container image digest, Linux UID) that the Server will match against its authorization policy.
 
 </details>
 <details>
@@ -28089,37 +28100,37 @@ The Server evaluates the workload request against its central registration datab
 <details>
 <summary><strong>9. SPIRE Server returns signed X.509-SVIDs to Agent</strong></summary>
 
-The Server mints the requested workload certificates and streams them—alongside the global trust bundle—back down to the Node Agent.
+The Server mints the requested workload certificates and streams them—alongside the global trust bundle—back down to the Node Agent. The trust bundle contains the root CA certificate that all workloads in the trust domain use to verify each other's SVIDs during mTLS handshakes.
 
 </details>
 <details>
 <summary><strong>10. SPIRE Agent delivers SVID to Workload via socket</strong></summary>
 
-The Agent pushes the fresh certificate down into the application container over a heavily restricted local Unix domain socket.
+The Agent pushes the fresh certificate down into the application container over a heavily restricted local Unix domain socket. The workload never talks to the SPIRE Server directly — the Agent acts as the sole intermediary, isolating the Server from direct workload contact and limiting the attack surface.
 
 </details>
 <details>
 <summary><strong>11. SPIRE Agent rotation timer expires</strong></summary>
 
-Halfway through the certificate's extremely short lifespan, the Agent's internal renewal timer aggressively fires.
+Halfway through the certificate's extremely short lifespan, the Agent's internal renewal timer aggressively fires. SPIRE certificates typically have TTLs of 1 hour or less — the short lifespan limits the damage window if a private key is compromised, ensuring that any stolen SVID becomes useless quickly.
 
 </details>
 <details>
 <summary><strong>12. SPIRE Agent sends renewal request to Server</strong></summary>
 
-The Agent proactively reaches back up to the Trust Authority and demands a fresh replacement certificate for the workload.
+The Agent proactively reaches back up to the Trust Authority and demands a fresh replacement certificate for the workload. This is an automated process — the workload itself is unaware that rotation is happening, which is critical for zero-downtime operation in production environments.
 
 </details>
 <details>
 <summary><strong>13. SPIRE Server returns newly minted X.509-SVID</strong></summary>
 
-The Server mints a mathematically distinct certificate that carries the exact same SPIFFE identity, pushing it back down to the Agent.
+The Server mints a mathematically distinct certificate that carries the exact same SPIFFE identity, pushing it back down to the Agent. The identity (SPIFFE ID) remains constant across rotations — only the key pair and serial number change, so existing authorization policies and mTLS connections remain valid.
 
 </details>
 <details>
 <summary><strong>14. SPIRE Agent delivers rotated SVID to Workload</strong></summary>
 
-The Agent streams the fresh cryptographic wrapper down the Unix socket into the application container.
+The Agent streams the fresh cryptographic wrapper down the Unix socket into the application container. The workload's SPIFFE-aware library (e.g., Envoy, nginx with SPIRE integration, or a custom SPIFFE workload API client) detects the new certificate and prepares for the graceful TLS hot-swap in the next step.
 
 </details>
 <details>
@@ -32413,7 +32424,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Agent initiates unauthenticated navigation to relying party application</strong></summary>
 
-The user initiates an unauthenticated browser request to the target relying party application.
+The user initiates an unauthenticated browser request to the target relying party application. This triggers the OIDC redirect chain that will carry the user through conditional access evaluation, MFA challenge, and token issuance before access is granted.
 
 </details>
 <details>
@@ -32911,7 +32922,7 @@ The Identity Provider validates the submitted password against its directory bac
 <details>
 <summary><strong>4. Identity Provider returns authorization code to Application</strong></summary>
 
-The Identity Provider issues the short-lived authorization code and redirects the User Agent back to the relying party deployment.
+The Identity Provider issues the short-lived authorization code and redirects the User Agent back to the relying party deployment. The authorization code encodes the AAL1 assurance level — it will only ever produce tokens at the AAL1 tier, regardless of how the client later tries to use it.
 
 </details>
 <details>
@@ -32942,7 +32953,7 @@ The Identity Provider executes the token exchange, returning the final access an
 <details>
 <summary><strong>7. Application establishes AAL1 session cookie for User Agent</strong></summary>
 
-The application provisions a secure, `HttpOnly` browser session cookie cryptographically bound to the baseline `AAL1` assurance boundary.
+The application provisions a secure, `HttpOnly` browser session cookie cryptographically bound to the baseline `AAL1` assurance boundary. This cookie carries the `acr` claim from the ID token, enabling the application's PEP to make real-time authorization decisions on subsequent requests without consulting the IdP on every page load.
 
 </details>
 <details>
@@ -32975,7 +32986,7 @@ The application gracefully suspends the privileged execution, returning a `403 F
 <details>
 <summary><strong>11. User Agent navigates to step-up authentication endpoint</strong></summary>
 
-The user's browser automatically follows the instructional redirect, officially initiating the explicit session elevation workflow.
+The user's browser automatically follows the instructional redirect, officially initiating the explicit session elevation workflow. The user's existing AAL1 session is NOT terminated — the step-up flow augments it with an additional authentication factor rather than forcing a full re-login.
 
 </details>
 <details>
@@ -33019,13 +33030,13 @@ The Identity Provider verifies the FIDO2 ECDSA/EdDSA signature against the user'
 <details>
 <summary><strong>16. Identity Provider returns high-assurance authorization code to Application</strong></summary>
 
-The Identity Provider routes the new, higher-assurance authorization code back to the relying party over the browser redirect channel.
+The Identity Provider routes the new, higher-assurance authorization code back to the relying party over the browser redirect channel. This authorization code is distinct from the AAL1 code issued earlier — it is bound to the AAL2 authentication context and will produce tokens reflecting the elevated assurance level.
 
 </details>
 <details>
 <summary><strong>17. Application executes back-channel token exchange</strong></summary>
 
-The application securely executes a secondary back-channel HTTP POST exchange for the newly elevated OIDC tokens.
+The application securely executes a secondary back-channel HTTP POST exchange for the newly elevated OIDC tokens. This exchange uses the same `client_id` and `client_secret` as the original AAL1 exchange — the difference is entirely in the authorization code, which carries the elevated assurance context from the IdP's step-up authentication ceremony.
 
 </details>
 <details>
@@ -34393,19 +34404,24 @@ The identity verification pipeline inherited from physical credentials operates 
 ```mermaid
 flowchart LR
     %% 1. Full-Disclosure vs. Zero-Knowledge
-    subgraph bad["❌&nbsp;Full-Disclosure&nbsp;(Physical&nbsp;ID)"]
+    subgraph bad["❌ Full-Disclosure (Physical ID)"]
         direction LR
         P1["`👤 **User**`"]
-        P2["`🪪 **Physical ID Card**<br/>Leaks: Name, DOB, Address,<br/>License #`"]
-        P3["`🍷 **Bartender (Verifier)**<br/>Learns ALL PII`"]
+        P2["`🪪 **Physical ID Card**
+        Leaks: Name, DOB, Address,
+        License #`"]
+        P3["`🍷 **Bartender (Verifier)**
+        Learns ALL PII`"]
         P1 -- "Hands over" --> P2
         P2 -- "Inspects" --> P3
     end
-    subgraph good["✅&nbsp;Zero-Knowledge Proof (EUDI Wallet)"]
+    subgraph good["✅ Zero-Knowledge Proof (EUDI Wallet)"]
         direction LR
-        Z1["`👤&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**User**`"]
-        Z2(("`🧮 **ZKP Circuit**<br/>Evaluates f(DOB) ≥ 18`"))
-        Z3["`🍷&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Bartender (Verifier)**<br/>Learns strictly boolean<br/>value`"]
+        Z1["`👤 **User**`"]
+        Z2(("`🧮 **ZKP Circuit**
+        Evaluates f(DOB) ≥ 18`"))
+        Z3["`🍷 **Bartender (Verifier)**
+        Learns strictly boolean value`"]
         Z1 -- "Generates ZKP" --> Z2
         Z2 -- "\{Age ≥ 18: True\}" --> Z3
     end
