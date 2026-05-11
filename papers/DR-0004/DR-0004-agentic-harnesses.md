@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-28
-date_updated: 2026-04-27
+date_updated: 2026-05-11
 tags: [agentic-ai, coding-assistants, claude-code, github-copilot, cursor, cline, roo-code, kilo-code, goose, opencode, crush, aider, mcp, agentic-harnesses, privacy, security, data-sovereignty, byok, agents-md]
 related: []
 ---
@@ -14,7 +14,7 @@ related: []
 
 # Agentic Harnesses: Architecture, Privacy, and Evaluation of AI-Powered Coding Assistants
 
-**DR-0004** · Published · Last updated 2026-04-27 · ~8,600 lines
+**DR-0004** · Published · Last updated 2026-05-11 · ~8,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0004-agentic-harnesses/executive-decision-summary)

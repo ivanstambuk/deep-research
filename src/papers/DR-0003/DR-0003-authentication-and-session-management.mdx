@@ -5,13 +5,13 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-05-10
+date_updated: 2026-05-11
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
 
 ---
 
-**DR-0003** · Published · Last updated 2026-05-10 · ~47,700 lines
+**DR-0003** · Published · Last updated 2026-05-11 · ~47,700 lines
 
 ---
 
@@ -9188,6 +9188,289 @@ SCIM 2.0 is supported by every major IdP (Azure AD/Entra ID, Okta, Google Worksp
 | Security | Low (shared credentials, no audit) | Moderate (LDAP bind, TLS) | Bearer tokens, mutual TLS |
 | Cloud compatibility | Poor (designed for on-prem) | Poor (LDAP over VPN) | Native (REST over HTTPS) |
 
+**SCIM 2.0 provisioning lifecycle.** The following sequence diagram illustrates the three core provisioning events — joiner, mover, and leaver — as they propagate from the HR system through the IdP to downstream service providers via SCIM.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant HR as HR System
+    participant IdP as Identity Provider
+    participant SCIM as SCIM Endpoints
+    participant SP1 as SaaS App A
+    participant SP2 as SaaS App B
+    participant SP3 as SaaS App C
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over HR, SP3: Joiner — New Hire Provisioning
+        HR->>IdP: New employee event (name, email, department)
+        IdP->>IdP: Create user in directory
+        IdP->>SCIM: POST /Users (to all connected SPs)
+        SCIM->>SP1: Create account + assign groups
+        SCIM->>SP2: Create account + assign groups
+        SCIM->>SP3: Create account + assign groups
+        SP1->>IdP: 201 Created (user active)
+        SP2->>IdP: 201 Created (user active)
+        SP3->>IdP: 201 Created (user active)
+        Note right of SP3: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over HR, SP3: Mover — Role/Attribute Change
+        HR->>IdP: Department change event (new role, new groups)
+        IdP->>SCIM: PATCH /Users/{id} (attribute update)
+        IdP->>SCIM: PATCH /Groups/{id} (membership change)
+        SCIM->>SP1: Update user attributes
+        SCIM->>SP2: Update group membership
+        SCIM->>SP3: Update user attributes + groups
+        Note right of SP3: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+        Note over HR, SP3: Leaver — Termination Deprovisioning
+        HR->>IdP: Termination event
+        IdP->>IdP: Deactivate user in directory
+        IdP->>SCIM: PATCH /Users/{id} (active: false)
+        SCIM->>SP1: Deactivate account
+        SCIM->>SP2: Deactivate account
+        SCIM->>SP3: Deactivate account
+        SP1->>IdP: 200 OK (account disabled)
+        SP2->>IdP: 200 OK (account disabled)
+        SP3->>IdP: 200 OK (account disabled)
+        Note right of SP3: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. HR system emits new employee event to identity provider</strong></summary>
+
+The HR system generates a joiner event when a new employee is hired. The payload includes the employee's full name, corporate email address, department, start date, and initial role. This event is the authoritative trigger for identity creation — the IdP does not create accounts without an HR source event, ensuring a single source of truth for the joiner lifecycle.
+
+</details>
+
+<details>
+<summary><strong>2. Identity provider creates user record in directory</strong></summary>
+
+The IdP creates the user in its internal directory (e.g., Azure AD, Okta Universal Directory, or Keycloak's LDAP backend). This step establishes the canonical identity record — the user's distinguished name, primary email, group memberships, and authentication credentials are stored here. All subsequent provisioning and authentication flows reference this directory entry as the authoritative source.
+
+</details>
+
+<details>
+<summary><strong>3. Identity provider pushes new user to SCIM endpoints</strong></summary>
+
+The IdP, acting as the SCIM client, sends a `POST /Users` request to every connected service provider's SCIM endpoint. The SCIM payload follows the standard user schema defined in RFC 7643 §4.1, including `userName`, `displayName`, `emails`, and enterprise extension attributes such as `department` and `title`. This push-based model eliminates polling latency and ensures near-real-time provisioning.
+
+</details>
+
+<details>
+<summary><strong>4. SCIM endpoint provisions account at SaaS App A</strong></summary>
+
+SaaS App A's SCIM endpoint receives the `POST /Users` request, validates the bearer token, and creates a local account for the new user. The SP maps SCIM attributes to its internal schema and assigns the user to application-specific groups based on the department and role claims in the payload. This is the first of three parallel provisioning operations across connected SPs.
+
+</details>
+
+<details>
+<summary><strong>5. SCIM endpoint provisions account at SaaS App B</strong></summary>
+
+SaaS App B receives the same `POST /Users` payload and creates its own local account. Depending on the SP's group mapping configuration, the user may be placed into different application roles than at SaaS App A — each SP interprets the SCIM enterprise extension attributes according to its own authorization model.
+
+</details>
+
+<details>
+<summary><strong>6. SCIM endpoint provisions account at SaaS App C</strong></summary>
+
+SaaS App C completes the third parallel provisioning operation. Once all three SPs have processed the creation request, the joiner phase is functionally complete — the new employee now has accounts across all business applications. If any SP fails to create the account, the IdP's SCIM client will retry with exponential backoff, logging the failure for administrator review.
+
+</details>
+
+<details>
+<summary><strong>7. SaaS App A confirms user creation to identity provider</strong></summary>
+
+SaaS App A returns a `201 Created` response with the full SCIM user representation, including the SP-assigned `id` and the `active: true` status. The IdP records this response to confirm successful provisioning. The 201 status code is mandatory per RFC 7644 §3.3 — it signals that the resource was created and is immediately usable.
+
+</details>
+
+<details>
+<summary><strong>8. SaaS App B confirms user creation to identity provider</strong></summary>
+
+SaaS App B returns its `201 Created` confirmation, completing the second leg of the joiner phase. The IdP tracks each SP's response independently, maintaining a per-SP provisioning status that administrators can audit. A successful 201 means the user can authenticate to SaaS App B immediately via OIDC.
+
+</details>
+
+<details>
+<summary><strong>9. SaaS App C confirms user creation to identity provider</strong></summary>
+
+SaaS App C returns the final `201 Created` response. All three SPs have confirmed account creation — the joiner phase is complete. The total provisioning latency from HR event to full account availability is typically under 30 seconds for push-based SCIM, compared to hours or days for batch LDAP synchronization or manual account creation.
+
+</details>
+
+<details>
+<summary><strong>10. HR system emits department change event to identity provider</strong></summary>
+
+When an employee transfers to a new department or receives a role change, the HR system emits a mover event. The payload includes the updated department, new role title, and the effective date. This event initiates the mover lifecycle — updating the user's attributes and group memberships to reflect their new organizational position. Without this automation, stale group memberships would persist indefinitely, violating the principle of least privilege.
+
+</details>
+
+<details>
+<summary><strong>11. Identity provider patches user attributes at SCIM endpoints</strong></summary>
+
+The IdP sends a `PATCH /Users/{id}` request to all connected SCIM endpoints with the updated attributes — department, title, and any custom enterprise extension fields. The SCIM PATCH operations follow RFC 7644 §3.5.2, using `Operations` arrays with `replace` actions to update specific attributes without replacing the entire user record. This granular patching avoids overwriting SP-local attributes that the IdP does not manage.
+
+</details>
+
+<details>
+<summary><strong>12. Identity provider patches group membership at SCIM endpoints</strong></summary>
+
+In parallel with the user attribute patch, the IdP sends a `PATCH /Groups/{id}` request to update group memberships. The patch adds the user to new groups (corresponding to the new department's access profiles) and removes them from groups associated with the old role. This dual-patch approach — user attributes and group memberships — ensures that authorization changes propagate atomically across all SPs.
+
+</details>
+
+<details>
+<summary><strong>13. SCIM endpoint updates user attributes at SaaS App A</strong></summary>
+
+SaaS App A applies the user attribute patch, updating the employee's department and title in its local directory. If SaaS App A uses attribute-based access control (ABAC), these changes may immediately alter the user's permissions within the application — for example, granting access to new project repositories or internal documentation spaces.
+
+</details>
+
+<details>
+<summary><strong>14. SCIM endpoint updates group membership at SaaS App B</strong></summary>
+
+SaaS App B applies the group membership patch — adding the user to new groups and removing them from old ones. For role-based access control (RBAC) systems, this is the primary mechanism for privilege adjustment: the user's application roles change to match their new department, immediately granting or revoking access to application features and data.
+
+</details>
+
+<details>
+<summary><strong>15. SCIM endpoint updates attributes and groups at SaaS App C</strong></summary>
+
+SaaS App C receives both the user attribute patch and the group membership patch, applying them in sequence. Some SPs batch these into a single operation to avoid transient states where the user has updated attributes but stale group memberships. The mover phase is complete once all SPs acknowledge the patches.
+
+</details>
+
+<details>
+<summary><strong>16. HR system emits termination event to identity provider</strong></summary>
+
+When an employee leaves the organization — through resignation, termination, or contract end — the HR system emits a leaver event. This is the highest-priority provisioning event because any delay in deprovisioning creates a window where a former employee retains access to corporate systems. The payload typically contains only the employee identifier and the effective termination timestamp.
+
+</details>
+
+<details>
+<summary><strong>17. Identity provider deactivates user in directory</strong></summary>
+
+The IdP immediately deactivates the user in its internal directory, blocking all new authentication attempts. This is the first and most critical step — even if downstream SCIM deprovisioning fails or is delayed, the deactivated directory entry prevents the user from obtaining new OIDC tokens. Existing sessions may persist until their natural expiration unless the IdP also revokes active tokens or the RP implements back-channel logout.
+
+</details>
+
+<details>
+<summary><strong>18. Identity provider pushes deactivation to SCIM endpoints</strong></summary>
+
+The IdP sends a `PATCH /Users/{id}` request to all connected SPs with `{ "active": false }` in the operations array. Per RFC 7644 §3.5.1, setting `active` to `false` is the standard mechanism for account deactivation — the user record is retained (for audit and potential reactivation) but the account is no longer usable for authentication.
+
+</details>
+
+<details>
+<summary><strong>19. SCIM endpoint deactivates account at SaaS App A</strong></summary>
+
+SaaS App A processes the deactivation patch, disabling the user's local account. The SP may revoke active sessions, invalidate API tokens, and remove the user from shared resources. The exact behavior depends on the SP's deactivation policy — some applications offer a "soft disable" that preserves data for a grace period before permanent deletion.
+
+</details>
+
+<details>
+<summary><strong>20. SCIM endpoint deactivates account at SaaS App B</strong></summary>
+
+SaaS App B deactivates the user account in parallel with SaaS App A. For compliance-sensitive applications (e.g., financial systems, healthcare platforms), the deactivation may also trigger an automated audit log entry recording the timestamp, the source of the deactivation command, and the user's last access time. This audit trail is required by regulations such as SOX and HIPAA.
+
+</details>
+
+<details>
+<summary><strong>21. SCIM endpoint deactivates account at SaaS App C</strong></summary>
+
+SaaS App C completes the deactivation across all three service providers. Once this step succeeds, the former employee's accounts are disabled everywhere — there is no gap where some applications remain accessible while others are locked. This is a fundamental advantage of centralized SCIM deprovisioning over manual per-app account disablement.
+
+</details>
+
+<details>
+<summary><strong>22. SaaS App A confirms deactivation to identity provider</strong></summary>
+
+SaaS App A returns a `200 OK` response confirming the account has been disabled. The IdP records this acknowledgment in its provisioning audit log. Per RFC 7644 §3.5.2, a successful PATCH response includes the updated resource representation, allowing the IdP to verify that `active: false` was applied correctly.
+
+</details>
+
+<details>
+<summary><strong>23. SaaS App B confirms deactivation to identity provider</strong></summary>
+
+SaaS App B returns its `200 OK` confirmation. The IdP now has confirmation from two of three SPs. If this response is delayed beyond the configured timeout (typically 5–10 minutes), the IdP's SCIM client will retry the PATCH operation and alert administrators. Persistent failures may indicate a broken SCIM endpoint at the SP and should be investigated to prevent orphaned active accounts.
+
+</details>
+
+<details>
+<summary><strong>24. SaaS App C confirms deactivation to identity provider</strong></summary>
+
+SaaS App C returns the final `200 OK`, completing the leaver phase. All three SPs have confirmed account deactivation — the former employee is fully deprovisioned across the enterprise application landscape. The entire deprovisioning process, from HR termination event to full account disablement, typically completes in under 60 seconds with push-based SCIM — orders of magnitude faster than manual deactivation or batch-based LDAP sync, which can take hours or overnight.
+
+</details>
+
+<br/>
+
+**SCIM-to-OIDC integration.** The following flowchart illustrates how SCIM provisioning and OIDC authentication work together in a typical enterprise deployment. SCIM creates and maintains the identity records that OIDC consumes at authentication time.
+
+```mermaid
+flowchart LR
+    subgraph "Identity Governance"
+        HR["`**HR System**
+        Joiner / Mover / Leaver
+        events`"]
+        Gov["`**Access Reviews**
+        Quarterly recertification
+        Compliance reporting`"]
+    end
+
+    subgraph "Identity Provider"
+        Dir["`**Directory**
+        User records, groups
+        Password hash, MFA config`"]
+        OIDC["`**OIDC Provider**
+        Authorization endpoint
+        Token endpoint`"]
+        SCIM_Client["`**SCIM Client**
+        Push provisioning
+        to connected SPs`"]
+    end
+
+    subgraph "Service Provider"
+        SCIM_EP["`**SCIM Endpoint**
+        /Users, /Groups
+        Provisioning API`"]
+        App["`**Application**
+        Protected resources
+        Session management`"]
+    end
+
+    HR -->|"Employee event"| Dir
+    Dir -->|"Create / Update / Deactivate"| SCIM_Client
+    SCIM_Client -->|"SCIM 2.0 REST"| SCIM_EP
+    SCIM_EP -->|"Local account"| App
+    Dir -->|"User lookup"| OIDC
+    OIDC -->|"OIDC auth flow"| App
+    Gov -->|"Review / Certify"| Dir
+
+    style HR text-align:left
+    style Gov text-align:left
+    style Dir text-align:left
+    style OIDC text-align:left
+    style SCIM_Client text-align:left
+    style SCIM_EP text-align:left
+    style App text-align:left
+```
+
 #### 8.2 Data Model: Users, Groups, and Enterprise Extensions
 
 SCIM 2.0 defines a resource-oriented data model built on JSON. The two primary resource types are **User** and **Group**, with a core schema and optional extensions.
@@ -17368,6 +17651,70 @@ All three vendors claim end-to-end encryption of synced passkeys, meaning the ve
 | Enterprise attestation | Limited (depends on sync provider) | Full (manufacturer attestation) |
 | Best suited for | Consumer authentication | Enterprise/banking authentication |
 
+```mermaid
+flowchart TD
+    subgraph "Platform Sync Providers"
+        direction TB
+        Apple["`**Apple iCloud Keychain**
+E2EE via device passcode
++ Apple ID password
+HSM-backed key wrapping`"]
+        Google["`**Google Password Manager**
+Encrypted with Google account key
+Cross-platform (Android, iOS, Desktop)
+PIN fallback + security key backup`"]
+        MS["`**Microsoft Windows Hello**
+TPM-bound storage
+Entra ID policy enforcement
+Cloud sync via MS account`"]
+    end
+
+    subgraph "Third-Party Providers"
+        direction TB
+        TP1["`**1Password / Bitwarden / Dashlane**
+Provider's encrypted vault
+Master-password-derived key
+Cross-platform via browser extension`"]
+    end
+
+    subgraph "Credential Types"
+        direction TB
+        Synced["`**Synced Passkey**
+Shared across devices via cloud
+Single credential ID on all devices
+Consumer AAL2 convenience`"]
+        Bound["`**Device-Bound Passkey**
+Single device, no cloud sync
+Reliable signature counter
+Full enterprise attestation`"]
+    end
+
+    Apple --> Synced
+    Google --> Synced
+    MS --> Synced
+    TP1 --> Synced
+    Apple -.->|"Enterprise policy"| Bound
+    MS -.->|"Entra ID enforcement"| Bound
+
+    Synced --> Consumer["`**Consumer Authentication**
+Social media, email, shopping
+Cloud backup recovery
+AAL2 equivalence`"]
+    Bound --> Enterprise["`**Enterprise / Banking**
+Financial services, admin access
+Credential re-registration
+AAL3 potential with attestation`"]
+
+    style Apple text-align:left
+    style Google text-align:left
+    style MS text-align:left
+    style TP1 text-align:left
+    style Synced text-align:left
+    style Bound text-align:left
+    style Consumer text-align:left
+    style Enterprise text-align:left
+```
+
 #### 15.2 W3C Credential Management API
 
 The Credential Management API (W3C Credential Management Level 1) is a browser API that provides a unified interface for storing, retrieving, and presenting credentials to users. It was originally designed for password management but has been extended to support WebAuthn credentials (passkeys).
@@ -17533,6 +17880,282 @@ Revocation flow:
 **Synced vs. device-bound lifecycle:**
 
 Synced passkeys complicate revocation: a single credential ID may exist on multiple devices, and the RP cannot distinguish which device is being used. When the RP revokes a synced credential, it is revoked on *all* devices simultaneously (because the credential ID is the same across all synced devices). Device-bound credentials, by contrast, are scoped to a single device — revoking a device-bound credential only affects that device.
+
+##### 15.4.1 Passkey Credential Lifecycle
+
+The following sequence diagram illustrates the complete credential lifecycle — registration, usage tracking, rotation, and revocation — from the perspectives of the user, the browser/authenticator, the relying party server, and the credential sync provider.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant User as User
+    participant Browser as Browser / Authenticator
+    participant RP as Relying Party Server
+    participant Sync as Credential Sync Provider
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over User, Sync: Phase 1 — Registration
+        User->>Browser: Initiate passkey enrollment
+        Browser->>RP: Request registration challenge
+        RP->>Browser: Return challenge + user info + RP ID
+        Browser->>Browser: Prompt biometric / PIN verification
+        Browser->>Browser: Generate key pair (authenticator)
+        Browser->>Sync: Sync private key to cloud (if synced passkey)
+        Sync->>Sync: Encrypt with E2EE key
+        Browser->>RP: Return public key + credential ID + attestation
+        RP->>RP: Store credential ID, public key, AAGUID
+        RP->>User: Display success + recovery codes
+        Note right of Sync: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over User, RP: Phase 2 — Authentication Usage
+        User->>Browser: Attempt login (autofill or explicit)
+        Browser->>RP: Request authentication challenge
+        RP->>Browser: Return challenge + allowCredentials
+        Browser->>Browser: Prompt biometric / PIN verification
+        Browser->>RP: Return signed assertion
+        RP->>RP: Verify signature, update sign_count and last_used_at
+        RP->>User: Authentication successful
+        Note right of Sync: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over User, RP: Phase 3 — Rotation
+        User->>RP: Request passkey rotation (new device / policy)
+        RP->>User: Authenticate with existing passkey
+        User->>Browser: Complete authentication
+        Browser->>RP: Signed assertion from old credential
+        RP->>Browser: Issue new registration challenge
+        Browser->>Browser: Generate new key pair
+        Browser->>RP: Return new public key + credential ID
+        RP->>RP: Deprecate old credential (grace period)
+        RP->>RP: Store new credential as active
+        Note right of Sync: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(231, 76, 60, 0.14)
+        Note over User, Sync: Phase 4 — Revocation
+        User->>RP: Report lost device / request revocation
+        RP->>RP: Delete credential ID and public key
+        RP->>User: Prompt registration of new passkey
+        Note over Sync: Revoked credential remains on device but RP rejects all assertions
+        Note right of Sync: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. User initiates passkey enrollment on relying party</strong></summary>
+
+The user triggers passkey registration through the RP's account settings or during initial account setup. The browser receives the registration request and prepares to create a new WebAuthn credential.
+
+</details>
+
+<details>
+<summary><strong>2. Browser requests registration challenge from relying party server</strong></summary>
+
+The browser calls `navigator.credentials.create()` which triggers a request to the RP's WebAuthn registration endpoint. The RP generates a cryptographically random challenge and returns it with the user's information (user handle, display name) and the RP's identity (rpId, rpName).
+
+</details>
+
+<details>
+<summary><strong>3. Relying party server returns challenge with user info and RP ID</strong></summary>
+
+The RP's response includes the challenge, user entity (id, name, displayName), RP entity (id, name), and credential parameters (supported algorithms, authenticator selection criteria). The `authenticatorSelection` property determines whether the passkey will be discoverable (resident key) and whether platform or cross-platform authenticators are preferred.
+
+</details>
+
+<details>
+<summary><strong>4. Browser prompts user for biometric or PIN verification</strong></summary>
+
+The authenticator requests user verification — biometric (fingerprint, face recognition) or device PIN — before generating the credential. This step ensures that only the device owner can create a passkey on that device. User verification is governed by the `userVerification` parameter in the registration options.
+
+</details>
+
+<details>
+<summary><strong>5. Browser generates new key pair on the authenticator</strong></summary>
+
+The authenticator's secure element generates a fresh asymmetric key pair (typically ECDSA P-256). The private key never leaves the authenticator's secure hardware. The public key, along with the credential ID and optional attestation, is prepared for transmission to the RP.
+
+</details>
+
+<details>
+<summary><strong>6. Browser syncs private key to cloud via credential sync provider</strong></summary>
+
+If the passkey is a synced credential (not device-bound), the authenticator wraps the private key with a key derived from the user's account password and sends it to the platform sync provider (iCloud Keychain, Google Password Manager, Microsoft sync). The sync provider stores the encrypted key in its cloud infrastructure with end-to-end encryption.
+
+</details>
+
+<details>
+<summary><strong>7. Sync provider encrypts private key with E2EE key</strong></summary>
+
+The sync provider applies end-to-end encryption to the wrapped private key. Apple uses HSM-backed key wrapping with the user's Apple ID password; Google uses the Google account key; Microsoft uses TPM-bound storage. The provider cannot access the plaintext private key on its servers.
+
+</details>
+
+<details>
+<summary><strong>8. Browser returns public key, credential ID, and attestation to RP</strong></summary>
+
+The authenticator returns the public key, a unique credential ID (random byte string), and optionally an attestation statement proving the authenticator model (AAGUID). The attestation allows the RP to verify which device manufactured the credential and check it against the FIDO Metadata Service for known vulnerabilities.
+
+</details>
+
+<details>
+<summary><strong>9. Relying party stores credential ID, public key, and AAGUID</strong></summary>
+
+The RP stores the credential ID, public key, AAGUID, registration timestamp, and initial sign count in its credential database. This record links the credential to the user's account. The RP may also store the `backup_eligible` and `backup_state` flags to track whether the credential is synced.
+
+</details>
+
+<details>
+<summary><strong>10. RP displays success and generates recovery codes</strong></summary>
+
+After successful registration, the RP generates single-use recovery codes (analogous to TOTP backup codes per NIST SP 800-63B §10.2) and displays them to the user. These codes provide a fallback authentication mechanism if the user loses all devices containing their passkeys.
+
+</details>
+
+<details>
+<summary><strong>11. User attempts login via autofill or explicit action</strong></summary>
+
+The user initiates authentication by either selecting a passkey from a browser autofill prompt (conditional UI per WebAuthn Level 2 §7.2) or explicitly navigating to a login page and choosing passkey authentication. Conditional UI presents available credentials directly in the username field, reducing friction compared to a separate credential picker.
+
+</details>
+
+<details>
+<summary><strong>12. Browser requests authentication challenge from RP</strong></summary>
+
+The browser sends a WebAuthn authentication request to the RP's server. The RP looks up the user's registered passkey credentials and constructs a `PublicKeyCredentialRequestOptions` object containing a random nonce (`challenge`), the RP's `rpId`, and optionally `allowCredentials` to restrict which credentials are acceptable. If conditional UI is active, `allowCredentials` is typically empty to let the browser discover matching credentials from its local stores.
+
+</details>
+
+<details>
+<summary><strong>13. RP returns challenge and allowCredentials list</strong></summary>
+
+The RP responds with the authentication options. The `challenge` is a cryptographically random value (at least 16 bytes per WebAuthn Level 2 §7.2) that prevents replay attacks. The `allowCredentials` array may include `transports` hints (e.g., `internal`, `hybrid`, `usb`) to help the browser select the right authenticator. For cross-device authentication scenarios, the `hybrid` transport enables the browser to route the request through a cloud-assisted BLE or QR-code pairing mechanism.
+
+</details>
+
+<details>
+<summary><strong>14. Browser prompts user for biometric or PIN verification</strong></summary>
+
+The browser invokes the platform authenticator's user-verification mechanism. On mobile devices, this is typically a fingerprint or face scan; on desktops, Windows Hello (face, fingerprint, or PIN), Touch ID on macOS, or a device PIN. The authenticator checks user presence (`up=true`) and user verification (`uv=true`) before signing the challenge. Failed verification attempts are rate-limited by the platform to prevent brute-force attacks on the biometric or PIN.
+
+</details>
+
+<details>
+<summary><strong>15. Browser returns signed assertion to RP</strong></summary>
+
+After successful user verification, the authenticator signs the RP's challenge using the private key stored during registration. The browser returns a `PublicKeyCredential` object containing the `authenticatorData` (RP ID hash, flags, sign count), the `clientDataJSON` (challenge, origin, type), and the DER-encoded `signature`. The `sign_count` in the `authenticatorData` increments with each authentication event, enabling the RP to detect cloned authenticators if the count decreases or skips unexpectedly.
+
+</details>
+
+<details>
+<summary><strong>16. RP verifies signature and updates sign count and last_used_at</strong></summary>
+
+The RP retrieves the stored public key for the credential ID in the assertion, reconstructs the signed data by concatenating `authenticatorData` and the SHA-256 hash of `clientDataJSON`, and verifies the signature. If verification succeeds, the RP checks that the `sign_count` is greater than the stored value (cloning detection). The RP then updates the credential record's `sign_count` and `last_used_at` timestamp. A credential that has not been used for an extended period (e.g., 90 days) may be flagged for re-verification.
+
+</details>
+
+<details>
+<summary><strong>17. RP returns authentication success to user</strong></summary>
+
+The RP establishes an authenticated session (typically via a secure, `HttpOnly`, `SameSite=Strict` session cookie bound to the credential ID) and returns a success response. The response may include the authentication method used (`webauthn`) and the AAGUID of the authenticator, enabling the RP's risk engine to adjust the session's assurance level based on the authenticator's certification level (FIDO Alliance Metadata Service).
+
+</details>
+
+<details>
+<summary><strong>18. User requests passkey rotation for new device or policy</strong></summary>
+
+The user initiates credential rotation because they acquired a new device, switched platform authenticator providers (e.g., Apple to Google), or because the RP's security policy requires periodic key renewal. Rotation creates a new credential while deprecating the old one, maintaining continuity of access without a full re-registration flow.
+
+</details>
+
+<details>
+<summary><strong>19. RP requires authentication with existing passkey</strong></summary>
+
+Before issuing a new credential, the RP requires the user to prove possession of the existing passkey. This prevents an attacker who has compromised the user's session (but not their device) from injecting a rogue credential. The RP initiates a standard WebAuthn authentication flow, potentially with `userVerification=required` to ensure biometric or PIN verification even if the previous session used `preferred`.
+
+</details>
+
+<details>
+<summary><strong>20. User completes authentication with existing passkey</strong></summary>
+
+The user performs biometric or PIN verification on their existing device. This step mirrors the normal authentication flow (steps 11–17) but serves a different purpose: proving possession of the existing credential as a prerequisite for rotation, rather than establishing a new session. The RP records the successful authentication event in its audit log with a `rotation_initiated` tag.
+
+</details>
+
+<details>
+<summary><strong>21. Browser sends signed assertion from old credential</strong></summary>
+
+The browser returns the signed assertion from the existing credential to the RP. The RP verifies this assertion against the stored public key for the old credential, confirming that the user still possesses the corresponding private key. The RP uses the verified assertion as authorization to proceed with the rotation ceremony.
+
+</details>
+
+<details>
+<summary><strong>22. RP issues new registration challenge for replacement credential</strong></summary>
+
+After verifying the old credential's assertion, the RP generates a fresh `PublicKeyCredentialCreationOptions` challenge for the new credential. The challenge includes a new random nonce, the `rpId`, and any policy constraints (e.g., `authenticatorSelection.requireResidentKey=true` for discoverable credentials). The RP may include `excludeCredentials` containing the old credential ID to prevent the authenticator from accidentally reusing it.
+
+</details>
+
+<details>
+<summary><strong>23. Browser generates new key pair on authenticator</strong></summary>
+
+The user's new device (or the same device with a new authenticator) generates a fresh asymmetric key pair. The authenticator creates a new credential ID, signs the attestation object with its attestation key (if available), and stores the private key in its secure enclave or TPM. The user verifies their identity via biometric or PIN to authorize the key generation.
+
+</details>
+
+<details>
+<summary><strong>24. Browser returns new public key and credential ID to RP</strong></summary>
+
+The browser returns the new `PublicKeyCredential` containing the credential ID, the attestation object (with the public key and optional attestation signature), and the `clientDataJSON`. The RP validates the attestation format (packed, tpm, android-key, fido-u2f, or none for self-attestation) and extracts the new public key and AAGUID for storage.
+
+</details>
+
+<details>
+<summary><strong>25. RP deprecates old credential with grace period</strong></summary>
+
+The RP marks the old credential as `deprecated` rather than immediately deleting it. A grace period (typically 7–30 days, configurable per RP policy) allows the user to fall back to the old credential if the new device is lost or the rotation failed silently. During the grace period, both old and new credentials are valid for authentication. The RP records the deprecation timestamp and the grace-period expiry in the credential record.
+
+</details>
+
+<details>
+<summary><strong>26. RP stores new credential as active</strong></summary>
+
+The RP creates a new credential record with `status=active`, linking it to the same user account. The record includes the new credential ID, public key, AAGUID, registration timestamp, and initial `sign_count` of zero. The RP associates the new credential with the old one via a `rotation_from` reference, maintaining a full rotation history for audit and compliance purposes.
+
+</details>
+
+<details>
+<summary><strong>27. User reports lost device or requests revocation</strong></summary>
+
+The user (or an administrator acting on the user's behalf) initiates credential revocation through the RP's account settings, a support portal, or a dedicated "lost device" flow. The request identifies the specific credential to revoke by its credential ID or device label. Multi-credential users should be able to select which credential to revoke; single-credential users trigger an account recovery flow in addition to revocation.
+
+</details>
+
+<details>
+<summary><strong>28. RP deletes credential ID and public key from store</strong></summary>
+
+The RP removes the revoked credential record (credential ID, public key, AAGUID, sign count, and all associated metadata) from its credential database. Immediate deletion is recommended over soft-delete to prevent any authentication attempt from succeeding after revocation. The RP records the revocation event in its audit log, including the reason (user-initiated, admin-initiated, suspicious-activity-triggered) and the timestamp.
+
+</details>
+
+<details>
+<summary><strong>29. RP prompts user to register new passkey</strong></summary>
+
+After revocation, the RP redirects the user to a passkey registration flow to establish a replacement credential. If the user has no remaining passkeys, the RP falls back to an account recovery mechanism — typically a recovery code generated during enrollment (NIST SP 800-63B §10.2), a verified email or SMS OTP, or an identity-verification-assisted recovery process. The new credential is stored as the active credential, and the lifecycle continues from step 1.
+
+</details>
 
 #### 15.5 FedCM (Federated Credential Management) API
 
@@ -26722,7 +27345,7 @@ M2M authentication introduces a distinct threat landscape separate from human-fa
 | **Clock skew exploitation** | Attacker manipulates system clocks to extend credential validity | Token acceptance beyond intended lifetime | Clock synchronisation (NTP), short lifetimes, skew-tolerant validation |
 | **Credential stuffing** | Attacker uses leaked secrets across multiple services | Cross-service compromise, lateral movement | Unique credentials per service, proof-of-possession (not shared secrets) |
 
-Static secrets (API keys, long-lived client secrets) provide minimal protection — they are equally vulnerable to theft, replay, forwarding, and stuffing. Dynamic identity mechanisms with short-lived, scoped, proof-of-possession credentials (SPIFFE SVIDs, managed identity tokens, OIDC federation tokens) provide substantially better protection across the entire threat spectrum. For the full M2M authentication mechanism comparison, see §24.
+Static secrets (API keys, long-lived client secrets) provide minimal protection — they are equally vulnerable to theft, replay, forwarding, and stuffing. Dynamic identity mechanisms with short-lived, scoped, proof-of-possession credentials (SPIFFE SVIDs, managed identity tokens, OIDC federation tokens) provide substantially better protection across the entire threat spectrum. For the full M2M authentication mechanism comparison, see §24. For NHI governance implications of M2M credential sprawl, see §25.
 
 The following diagram maps the primary M2M threat vectors and their corresponding defenses:
 
@@ -27387,7 +28010,7 @@ The M2M authentication landscape has undergone a fundamental architectural shift
 
 When choosing an M2M authentication mechanism, practitioners should evaluate along four dimensions: (1) **security strength** — does the mechanism provide proof of possession? Is the credential scoped and short-lived? (2) **operational complexity** — what infrastructure is required, and how complex is credential rotation? (3) **ecosystem compatibility** — does it integrate with existing infrastructure (API gateways, service meshes, cloud platforms, CI/CD)? (4) **observability** — can authentication events be logged and correlated for incident response? No single mechanism is optimal across all four dimensions simultaneously.
 
-This chapter traces the full spectrum from the foundational OAuth 2.0 Client Credentials grant through mutual TLS, workload identity frameworks (SPIFFE/SPIRE), service mesh transparent authentication, cloud-managed identities, and OIDC-federated cross-platform trust — concluding with an analysis of why API keys, despite their ubiquity, are not authentication in any meaningful security sense.
+This chapter traces the full spectrum from the foundational OAuth 2.0 Client Credentials grant through mutual TLS, workload identity frameworks (SPIFFE/SPIRE), service mesh transparent authentication, cloud-managed identities, and OIDC-federated cross-platform trust — concluding with an analysis of why API keys, despite their ubiquity, are not authentication in any meaningful security sense. For the governance and lifecycle management of non-human identities provisioned through these mechanisms, see §25 (NHI Governance). For continuous access evaluation of M2M sessions, see §41 (CAEP).
 
 #### 24.1 OAuth 2.0 Client Credentials Grant
 The Client Credentials grant (RFC 6749 §6.4) is the canonical OAuth 2.0 flow for M2M authentication. The client authenticates directly with the authorization server using its own credentials and obtains an access token — no user is involved, no authorization code is exchanged, and no redirect URI is needed.
@@ -34159,6 +34782,201 @@ The RP then calls the wallet's presentation endpoint with the access token to re
 | Claims verified by | OP's signature | Issuer's signature (per credential) |
 | User consent | "Allow app to access your info?" | "Share these specific claims with this verifier?" |
 
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant User as User
+    participant Browser as Browser
+    participant RP as Verifier (RP)
+    participant Wallet as Wallet
+    participant Issuer as Credential Issuer
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over User, Issuer: Phase 1 — Authorization Request
+        User->>Browser: Navigate to verifier site
+        Browser->>RP: Request protected resource
+        RP->>RP: Build presentation_definition
+        RP->>Browser: Redirect to wallet with authorization request
+        Note right of Issuer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over User, Wallet: Phase 2 — Credential Selection and Consent
+        Browser->>Wallet: Deliver authorization request
+        Wallet->>Wallet: Parse presentation_definition
+        Wallet->>Wallet: Match available credentials
+        Wallet->>User: Display requested claims and credential selection
+        User->>Wallet: Select credentials and approve disclosure
+        Wallet->>Wallet: Generate VP token (SD-JWT with disclosures)
+        Note right of Issuer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over Wallet, RP: Phase 3 — Presentation and Verification
+        Wallet->>Browser: Redirect to RP callback with authorization code
+        Browser->>RP: Deliver authorization code
+        RP->>Wallet: Exchange code for VP token (POST /token)
+        Wallet->>RP: Return VP token (SD-JWT)
+        RP->>RP: Verify VP token signature
+        RP->>Issuer: Fetch issuer public key (DID document / X.509)
+        Issuer->>RP: Return issuer public key
+        RP->>RP: Validate disclosures against presentation_definition
+        RP->>Browser: Grant access to protected resource
+        Browser->>User: Display authenticated content
+        Note right of Issuer: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. User navigates to verifier site requesting credential-based authentication</strong></summary>
+
+The user accesses a relying party (verifier) that requires verifiable credential presentation rather than traditional username/password authentication. This is the entry point for OpenID4VP — the verifier needs proof of specific attributes (age, qualifications, identity) rather than a simple authentication assertion.
+
+</details>
+
+<details>
+<summary><strong>2. Browser requests protected resource from verifier</strong></summary>
+
+The browser issues an HTTP request to the RP's protected endpoint. The RP detects that the user is not authenticated and determines that verifiable credential presentation is required for this resource.
+
+</details>
+
+<details>
+<summary><strong>3. Verifier builds presentation definition specifying required credentials</strong></summary>
+
+The RP constructs a `presentation_definition` (DIF Presentation Exchange v2) that describes the credential types, claim constraints, and trust requirements. For example, the verifier may request a PID (Person Identification Data) credential with a specific age-over-18 attribute, or a university degree credential from accredited institutions.
+
+</details>
+
+<details>
+<summary><strong>4. Verifier redirects browser to wallet with authorization request</strong></summary>
+
+The RP redirects the user's browser to the wallet's authorization endpoint using the OAuth 2.0 authorization code flow with PKCE. The authorization request URL includes the `presentation_definition`, `client_id` (using a DID scheme such as `did:web`), `client_metadata`, and a cryptographic `nonce` for replay protection.
+
+</details>
+
+<details>
+<summary><strong>5. Browser delivers authorization request to wallet</strong></summary>
+
+The browser forwards the authorization request (containing the `presentation_definition`, `client_id`, `client_metadata`, and `nonce`) to the user's wallet. In same-device flows, this is a redirect to the wallet app; in cross-device flows, it may be delivered via a QR code scan or Bluetooth connection.
+
+</details>
+
+<details>
+<summary><strong>6. Wallet parses presentation definition from authorization request</strong></summary>
+
+The wallet extracts and validates the `presentation_definition` from the authorization request, checking that it is well-formed JSON with valid `input_descriptors`, field constraints, and format requirements. The wallet also validates the `client_id_scheme` and resolves the RP's metadata.
+
+</details>
+
+<details>
+<summary><strong>7. Wallet matches available credentials against input descriptors</strong></summary>
+
+The wallet searches the user's credential store for credentials matching each `input_descriptor` in the `presentation_definition`. It evaluates credential type, issuer, format, and field constraints. If multiple credentials match, the wallet prepares a selection UI. If no credentials match any descriptor, the wallet informs the user that the required credentials are not available.
+
+</details>
+
+<details>
+<summary><strong>8. Wallet displays requested claims and credential selection to user</strong></summary>
+
+The wallet shows the user exactly which claims the verifier is requesting, which credentials would satisfy the request, and which specific disclosures will be shared. For SD-JWT credentials, the user can see and approve selective disclosure of individual claims rather than the full credential.
+
+</details>
+
+<details>
+<summary><strong>9. User selects credentials and approves disclosure</strong></summary>
+
+The user explicitly consents to sharing the selected credential claims with the verifier. This consent step is mandatory in OpenID4VP — the wallet must not present credentials without user approval. The user may choose to share fewer claims than requested if the `presentation_definition` allows it.
+
+</details>
+
+<details>
+<summary><strong>10. Wallet generates VP token (SD-JWT with selective disclosures)</strong></summary>
+
+The wallet constructs a Verifiable Presentation token containing the selected credentials and their disclosure values. For SD-JWT format, this includes the issuer-signed JWT, the disclosure arrays for selectively disclosed claims, and a proof-of-possession binding the presentation to the `nonce` from the authorization request.
+
+</details>
+
+<details>
+<summary><strong>11. Wallet redirects browser to RP callback with authorization code</strong></summary>
+
+The wallet sends the browser back to the RP's `redirect_uri` with an authorization code. The VP token itself is not exposed in this front-channel redirect; the code is the short-lived handle that lets the RP perform a separate token exchange.
+
+</details>
+
+<details>
+<summary><strong>12. Browser delivers authorization code to verifier callback</strong></summary>
+
+The browser follows the redirect and calls the RP callback with the authorization code. This preserves the normal OAuth front-channel pattern while keeping credential material out of browser-visible URLs and logs.
+
+</details>
+
+<details>
+<summary><strong>13. Verifier exchanges authorization code for VP token</strong></summary>
+
+The RP's backend sends a POST request to the wallet's token endpoint, exchanging the authorization code for the VP token. This server-to-server exchange ensures the VP token is not exposed to the browser and prevents token interception.
+
+</details>
+
+<details>
+<summary><strong>14. Wallet returns VP token to verifier</strong></summary>
+
+The wallet returns the VP token, typically an SD-JWT containing the selected credentials and disclosure values. This is the artifact the RP will verify against issuer keys and the original `presentation_definition`.
+
+</details>
+
+<details>
+<summary><strong>15. Verifier checks the VP token signature</strong></summary>
+
+The RP verifies the VP token's cryptographic signature before evaluating any claims. This separates authenticity from policy matching: an unsigned or malformed presentation is rejected before the RP considers whether the disclosed attributes satisfy the request.
+
+</details>
+
+<details>
+<summary><strong>16. Verifier fetches the credential issuer public key</strong></summary>
+
+The RP resolves the credential issuer's verification material, such as a DID document or X.509 certificate chain. This step establishes the key material used to validate the issuer-signed credential inside the presentation.
+
+</details>
+
+<details>
+<summary><strong>17. Credential issuer returns public verification material</strong></summary>
+
+The issuer endpoint, DID resolver, or certificate infrastructure returns the public key material the RP needs. The RP must treat this as verification input, not as a business-policy decision; issuer trust and accreditation are evaluated separately.
+
+</details>
+
+<details>
+<summary><strong>18. Verifier validates disclosures against the presentation definition</strong></summary>
+
+The RP checks that the disclosed claims satisfy the requested descriptors, constraints, credential formats, and trust requirements. For selective-disclosure formats, this is where the RP confirms that each revealed claim maps to the original issuer-signed commitment.
+
+</details>
+
+<details>
+<summary><strong>19. Verifier grants access to the protected resource</strong></summary>
+
+After successful signature, issuer-key, and disclosure validation, the RP establishes an authenticated session or authorizes the requested transaction. The trust anchor is the credential issuer and governing trust framework, not a traditional identity-provider session.
+
+</details>
+
+<details>
+<summary><strong>20. Browser displays authenticated content to user</strong></summary>
+
+The browser renders the protected resource after the RP grants access. From the user's perspective this resembles a normal sign-in completion, but the underlying assurance came from credential presentation and issuer validation rather than password or IdP-session reuse.
+
+</details>
+
 #### 29.3 Presentation Definition and Submission
 
 The **Presentation Definition** is the core mechanism by which an RP specifies what credentials it requires and how the wallet should present them. It is defined by the Decentralized Identity Foundation (DIF) Presentation Exchange v2 specification and is embedded in the OpenID4VP authorization request as a JSON string.
@@ -34654,6 +35472,185 @@ When a VP token or SD-JWT includes a `sub` (or `iss`) claim containing a DID, th
 5. Validates any additional constraints (key expiry, revocation, trust framework requirements).
 
 This is the decentralized equivalent of "verify the certificate chain" in PKI. The key difference: there is no CA hierarchy. The verifier trusts the DID's key directly, based on the DID method's trust model (DNS security for `did:web`, Bitcoin immutability for `did:ion`, EU government accreditation for `did:ebsi`).
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant Verifier as Verifier (RP)
+    participant Resolver as DID Resolver
+    participant DNS as DNS / Web Server
+    participant Ledger as Blockchain / Ledger
+    participant Trust as Trust Registry
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over Verifier, Ledger: Phase 1 — DID Resolution
+        Verifier->>Resolver: Resolve did:web:rp.example.com
+        Resolver->>Resolver: Parse method → "web"
+        Resolver->>DNS: HTTPS GET .well-known/did.json
+        DNS->>Resolver: Return DID document (JSON)
+        Resolver->>Resolver: Validate schema and required properties
+        Resolver->>Verifier: Return DID document with public key
+        Note right of Trust: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over Verifier, Ledger: Phase 2 — Anchored Method Resolution (did:ion)
+        Verifier->>Resolver: Resolve did:ion:EiAnKD8-...
+        Resolver->>Resolver: Parse method → "ion"
+        Resolver->>Ledger: Query operations for DID suffix
+        Ledger->>Resolver: Return DID operations (create, update, recover)
+        Resolver->>Resolver: Reconstruct DID document from operations
+        Resolver->>Verifier: Return DID document with public key
+        Note right of Trust: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over Verifier, Trust: Phase 3 — Assertion Verification
+        Verifier->>Verifier: Extract kid from VP token header
+        Verifier->>Verifier: Lookup verification method in DID document
+        Verifier->>Verifier: Verify signature with public key
+        Verifier->>Trust: Check issuer accreditation status
+        Trust->>Verifier: Confirm issuer is accredited
+        Verifier->>Verifier: Accept credential as verified
+        Note right of Trust: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. Verifier requests DID resolution for a did:web identifier</strong></summary>
+
+The verifier needs the RP's public key to validate a VP token signature. It sends the DID (`did:web:rp.example.com`) to a DID resolver — either an internal library or a universal resolver endpoint. The resolver parses the DID to determine the resolution method.
+
+</details>
+
+<details>
+<summary><strong>2. Resolver parses the did:web method</strong></summary>
+
+The resolver identifies the DID method as `web` and applies the method-specific transformation from the DID identifier to an HTTPS location. This parsing step determines the resolution algorithm and prevents the verifier from treating every DID method as a network lookup with identical semantics.
+
+</details>
+
+<details>
+<summary><strong>3. Resolver queries the web server for the DID document</strong></summary>
+
+For `did:web`, the resolver performs an HTTPS GET to the expected `.well-known/did.json` location. DNS and TLS become part of the method's trust model, so production verifiers need normal web-security controls around redirects, certificate validation, and caching.
+
+</details>
+
+<details>
+<summary><strong>4. Web server returns the DID document</strong></summary>
+
+The web server returns the DID document containing public keys, verification methods, and service endpoints. The resolver must still validate the returned document because transport authenticity does not prove that the DID document is structurally usable.
+
+</details>
+
+<details>
+<summary><strong>5. Resolver validates DID document structure</strong></summary>
+
+The resolver validates the DID document's JSON structure, required properties, verification method references, and method-specific constraints. This step filters malformed or incomplete documents before the verifier relies on any embedded key.
+
+</details>
+
+<details>
+<summary><strong>6. Resolver returns DID document with public key to verifier</strong></summary>
+
+The resolver returns the validated DID document to the verifier. The verifier can now extract the public key or verification method referenced by the credential or presentation token.
+
+</details>
+
+<details>
+<summary><strong>7. Verifier requests resolution for an anchored did:ion identifier</strong></summary>
+
+The verifier resolves an anchored method such as `did:ion` when the identifier's trust model depends on ledger-backed operations rather than DNS. This path has different latency, availability, and audit properties than `did:web`.
+
+</details>
+
+<details>
+<summary><strong>8. Resolver parses the did:ion method</strong></summary>
+
+The resolver identifies the method as `ion` and extracts the DID suffix used to locate Sidetree operations. Method parsing determines which ledger or operation log the resolver must query.
+
+</details>
+
+<details>
+<summary><strong>9. Resolver queries ledger operations for the DID suffix</strong></summary>
+
+The resolver queries the ledger-backed operation history for the DID suffix. This gives the resolver the create, update, recovery, and deactivation operations needed to reconstruct the current DID document.
+
+</details>
+
+<details>
+<summary><strong>10. Ledger returns DID operations to resolver</strong></summary>
+
+The ledger returns the ordered operation data associated with the DID. The returned operations provide an auditable history of key changes, but the resolver still has to apply method rules to derive the current document state.
+
+</details>
+
+<details>
+<summary><strong>11. Resolver reconstructs the DID document from operations</strong></summary>
+
+The resolver applies the method's operation rules to compute the current DID document. For anchored methods, this reconstruction is the equivalent of resolving the latest valid key state from an immutable operation history.
+
+</details>
+
+<details>
+<summary><strong>12. Resolver returns anchored DID document with public key</strong></summary>
+
+The resolver returns the reconstructed DID document to the verifier. The verifier receives the same kind of verification material as in the `did:web` case, but the trust basis comes from ledger anchoring rather than HTTPS publication.
+
+</details>
+
+<details>
+<summary><strong>13. Verifier extracts the key identifier from the VP token header</strong></summary>
+
+The verifier reads the `kid` or equivalent key reference from the VP token header. This tells the verifier which verification method in the DID document should be used for signature validation.
+
+</details>
+
+<details>
+<summary><strong>14. Verifier looks up the verification method in the DID document</strong></summary>
+
+The verifier locates the referenced verification method and checks that it appears in the appropriate DID document relationship, such as `authentication` or `assertionMethod`. This prevents a key intended for one purpose from being silently reused for another.
+
+</details>
+
+<details>
+<summary><strong>15. Verifier validates the signature with the public key</strong></summary>
+
+The verifier uses the extracted public key to validate the credential or presentation signature. A valid signature proves control of the private key corresponding to the DID document method, subject to the method's trust assumptions.
+
+</details>
+
+<details>
+<summary><strong>16. Verifier checks issuer accreditation status</strong></summary>
+
+For regulated ecosystems, cryptographic validity is not enough. The verifier checks a trust registry or governance source to confirm that the issuer is authorized to issue the credential type being presented.
+
+</details>
+
+<details>
+<summary><strong>17. Trust registry confirms issuer accreditation</strong></summary>
+
+The trust registry returns an active accreditation decision for the issuer. This binds the cryptographic proof to ecosystem governance, which is the part ordinary DID signature validation cannot supply by itself.
+
+</details>
+
+<details>
+<summary><strong>18. Verifier accepts the credential as verified</strong></summary>
+
+The verifier accepts the credential after both technical verification and governance checks pass. This final decision combines DID resolution, signature validation, and trust-registry status into a single relying-party authorization result.
+
+</details>
 
 #### 30.4 Wallet Architecture
 
@@ -40957,7 +41954,7 @@ In practice, many production deployments combine multiple patterns. A typical co
 
 HTTP is a stateless protocol — every request-response pair is independent, carrying no inherent memory of prior interactions. Yet virtually every web application requires the concept of "logged in": once a user authenticates (§9–§14), the application must remember that authentication across dozens, hundreds, or thousands of subsequent requests without demanding re-authentication on each one. Session management is the mechanism that bridges this gap — it creates, maintains, and eventually destroys the persistent, verifiable proof that authentication has already occurred. The session is the runtime manifestation of authenticated identity: a finite-lifetime binding between a user, a client, and a server that carries the security properties (AAL, authentication methods, authorization context) established during the authentication ceremony.
 
-Every subsequent topic in the Session Management group builds on these fundamentals. §37 examines the specific token types used to materialise sessions (cookies, JWTs, opaque tokens, refresh tokens). §38 deep-dives into Kerberos — the most sophisticated session ticket system in enterprise IT. §39 covers device-bound sessions (DBSC, DPoP, mTLS certificate binding) that cryptographically prevent session theft. §40 compares CIAM and WIAM session architectures. §41 addresses Continuous Access Evaluation — the paradigm shift from point-in-time session validation to real-time, event-driven session revocation. This chapter establishes the foundational model on which all of those depend.
+Every subsequent topic in the Session Management group builds on these fundamentals. §37 examines the specific token types used to materialise sessions (cookies, JWTs, opaque tokens, refresh tokens). §38 deep-dives into Kerberos — the most sophisticated session ticket system in enterprise IT. §39 covers device-bound sessions (DBSC, DPoP, mTLS certificate binding) that cryptographically prevent session theft. §40 compares CIAM and WIAM session architectures. §41 addresses Continuous Access Evaluation — the paradigm shift from point-in-time session validation to real-time, event-driven session revocation — which is the evolutionary path for the session management patterns described in this chapter. This chapter establishes the foundational model on which all of those depend.
 
 #### 36.1 Session Lifecycle: Creation, Validation, Renewal, Termination
 A session progresses through four distinct phases. Understanding each phase — and the security invariants that must hold during transitions between them — is essential for building a session management system that resists hijacking, fixation, and replay attacks.
@@ -47668,6 +48665,89 @@ Authentication is a gatekeeper — inaccessible authentication means inaccessibl
 | ❌ Color-only error indicators | Colorblind users cannot distinguish | ✅ Icons + text labels |
 | ❌ "3rd, 7th, 12th character" | Memory-intensive | ✅ Full password entry or paste |
 
+### 42b. Post-Quantum Authentication Migration
+
+NIST published the first post-quantum cryptographic standards in August 2024: ML-KEM (FIPS 203, lattice-based key encapsulation), ML-DSA (FIPS 204, lattice-based digital signature), SLH-DSA (FIPS 205, hash-based signature), and FN-DSA (FIPS 206, FFT-based signature). These algorithms address the threat that quantum computers pose to the asymmetric cryptography underpinning every authentication protocol covered in this document. The most pressing concern is "harvest now, decrypt later" — adversaries collecting encrypted authentication traffic today for future decryption once cryptographically relevant quantum computers (CRQC) become available.
+
+This section consolidates the post-quantum references scattered across Chapters 1–42 into a single migration analysis, identifying which authentication components are vulnerable, the recommended hybrid migration strategy per protocol, and current vendor readiness.
+
+#### 42b.1 Authentication Component Vulnerability Assessment
+
+The authentication stack depends on asymmetric cryptography at multiple layers. The following table maps each component to its current algorithm, the quantum threat (Shor's algorithm for key recovery, Grover's algorithm for symmetric key halving), and the migration complexity:
+
+| Component | Current Algorithm | Quantum Threat | PQC Replacement | Migration Complexity |
+|:----------|:------------------|:---------------|:----------------|:---------------------|
+| **TLS handshake** | ECDH (X25519, P-256) + RSA/ECDSA certificates | Shor — key exchange and signature forgery | ML-KEM-768 (key exchange) + ML-DSA-65 (certificates) | High — library updates, certificate re-issuance, hybrid mode |
+| **JWT / OIDC tokens** | RS256, ES256, PS256 | Shor — signature forgery | ML-DSA-65 or SLH-DSA-128f | Medium — library support, token size increase (ML-DSA signatures ~3× larger) |
+| **SAML assertions** | RSA-SHA256, ECDSA-SHA256 | Shor — assertion forgery | ML-DSA-65 | Medium — IdP/SP configuration, XML Signature library updates |
+| **WebAuthn / passkeys** | ECDSA P-256, RSA | Shor — attestation and assertion forgery | ML-DSA-65 via COSE algorithm negotiation | High — authenticator firmware, browser updates, FIDO MDS updates |
+| **mTLS client certificates** | RSA-2048, ECDSA P-256 | Shor — certificate forgery | ML-DSA-65 hybrid certificates | High — PKI infrastructure, certificate authority updates |
+| **DPoP proof JWTs** | ES256 | Shor — proof forgery | ML-DSA-65 | Low — library update only (DPoP proofs are short-lived) |
+| **OAuth PKCE** | S256 (SHA-256 hash of random) | Grover — reduces to 128-bit security | SHA-384 or SHA-512 (sufficient against Grover) | Minimal — PKCE uses symmetric hashing, not asymmetric |
+| **Kerberos encryption** | AES-256 (symmetric) | Grover — reduces to 128-bit security | AES-256 remains sufficient (128-bit post-quantum security) | None — symmetric cryptography is post-quantum adequate |
+
+**Key observation:** Not all authentication components require urgent migration. OAuth PKCE and Kerberos encryption rely on symmetric cryptography that retains adequate security against quantum attacks (Grover's algorithm provides only a quadratic speedup). The urgent migration targets are components using asymmetric cryptography: TLS, JWT signing, SAML assertions, WebAuthn, and mTLS.
+
+#### 42b.2 Hybrid Migration Strategy
+
+The recommended approach is **hybrid cryptography** — signing or encrypting with both a classical algorithm and a PQC algorithm simultaneously. This provides immediate protection against "harvest now, decrypt later" while maintaining compatibility with existing systems that have not yet migrated.
+
+**TLS hybrid key exchange (X25519 + ML-KEM-768):**
+
+The TLS 1.3 hybrid key exchange mechanism (draft-ietf-tls-hybrid-design) combines a classical key exchange (X25519) with a post-quantum key exchange (ML-KEM-768) in a single handshake. The shared secret is derived from both key exchanges, so the connection remains secure as long as at least one algorithm is unbroken. Cloudflare, Google, and Amazon have deployed hybrid TLS in production since 2024.
+
+**JWT hybrid signing (ES256 + ML-DSA-65):**
+
+JWT hybrid signing uses a new JOSE algorithm identifier (e.g., `ES256P256-MLDSA65`) that combines an ECDSA P-256 signature with an ML-DSA-65 signature. The JWT header specifies the hybrid algorithm; the verifier validates both signatures. This increases token size (ML-DSA-65 signatures are ~3,309 bytes vs. 64 bytes for ES256) but provides quantum resistance. The size increase is acceptable for server-to-server token exchange but may be problematic for browser-based tokens in constrained environments.
+
+**SAML hybrid XML signatures:**
+
+SAML assertions can be signed with hybrid XML signatures combining RSA-SHA256 with ML-DSA-65. The XML Signature Syntax specification supports multiple `Reference` elements and `SignatureValue` encodings, enabling hybrid signatures without protocol changes. The migration burden falls on the IdP and SP's XML Signature library.
+
+**WebAuthn / passkey hybrid attestation:**
+
+The FIDO Alliance has published a CTAP extension for PQC attestation (draft-hybrid). Authenticators generate both ECDSA P-256 and ML-DSA-65 attestation statements; the relying party verifies both. This requires authenticator firmware updates — existing hardware tokens (YubiKey 5, Feitian) will need firmware or hardware replacement. Platform authenticators (Apple, Google, Microsoft) can be updated via OS updates.
+
+#### 42b.3 Migration Timeline and Cost Model
+
+| Phase | Timeline | Actions | Estimated Effort |
+|:------|:---------|:--------|:-----------------|
+| **Discovery** | 2026 Q1–Q2 | Inventory all cryptographic assets: TLS certificates, JWT signing keys, SAML signing certificates, WebAuthn attestation CAs, mTLS client certificates. Classify by algorithm and expiry. | 2–4 weeks (automated scanning) |
+| **Library readiness** | 2026 Q2–Q4 | Upgrade OpenSSL/BoringSSL to PQC-hybrid-capable versions. Update JWT libraries (jose4j, nimbus-jose-jwt, python-jose) to support ML-DSA. Test XML Signature libraries with hybrid algorithms. | 4–8 weeks per library |
+| **TLS hybrid deployment** | 2026 Q3–2027 Q1 | Enable hybrid TLS (X25519+ML-KEM-768) at load balancers, API gateways, and IdP endpoints. Issue hybrid CA certificates. | 2–4 weeks per endpoint class |
+| **JWT/SAML hybrid signing** | 2027 Q1–Q3 | Deploy hybrid JWT signing at all OAuth authorization servers. Configure SAML IdPs for hybrid XML signatures. Monitor token size impact. | 4–8 weeks per IdP |
+| **WebAuthn PQC attestation** | 2027–2028 | Deploy PQC-hybrid authenticators (platform + security keys). Update FIDO MDS to include PQC attestation roots. | 6–12 months (hardware refresh cycle) |
+| **Full PQC migration** | 2028–2030 | Remove classical-only algorithms once PQC-only mode is proven stable. Rotate all hybrid certificates to PQC-only. | 12–18 months |
+
+**Cost estimate:** For a typical enterprise with 50+ applications, 10+ SAML federations, and 5+ API gateways, total migration cost is estimated at $500K–$2M (USD) over 2–3 years, primarily driven by library updates, certificate re-issuance, testing, and hardware token replacement.
+
+#### 42b.4 Vendor Readiness (2026)
+
+| Vendor / Platform | TLS Hybrid | JWT PQC Signing | WebAuthn PQC | Status |
+|:------------------|:----------:|:---------------:|:------------:|:-------|
+| **Cloudflare** | ✅ Production (X25519+ML-KEM-768 since 2024) | N/A (CDN) | N/A | Full TLS hybrid at edge |
+| **Google Chrome / Android** | ✅ Production (BoringSSL hybrid) | 🔄 Testing | 🔄 Testing | PQC passkeys in development |
+| **Apple (Safari / iCloud)** | ✅ Production (X25519+ML-KEM-768) | 🔄 Testing | 🔄 Testing | Platform authenticator update path TBD |
+| **Microsoft Entra ID** | ✅ Production (Azure TLS hybrid) | 🔄 Preview | 🔄 Planning | AAD TLS hybrid deployed; JWT/WebAuthn on roadmap |
+| **AWS (ALB / API Gateway)** | ✅ Production (TLS hybrid since 2025) | 🔄 Preview | N/A | AWS KMS supports ML-DSA key generation |
+| **Okta** | ✅ Via CDN (Cloudflare) | 🔄 Roadmap | 🔄 Roadmap | Dependent on JWT library PQC support |
+| **Keycloak** | ✅ Via JVM TLS (OpenJDK hybrid) | 🔄 Community plugin | N/A | Open-source; community driving PQC support |
+| **OpenSSL / BoringSSL** | ✅ Production (3.5+ / latest) | ✅ ML-DSA available | N/A | Foundation layer — enables all downstream |
+
+✅ = Production or GA · 🔄 = In progress (preview, testing, or roadmap) · N/A = Not applicable to this vendor's product
+
+#### 42b.5 Algorithm Agility as a Design Principle
+
+The post-quantum migration underscores a critical architectural lesson: authentication systems must be designed for **algorithm agility** — the ability to switch cryptographic algorithms without protocol changes or infrastructure overhaul. Systems that hard-code algorithm identifiers (e.g., `RS256` in JWT validation logic) will require significantly more effort to migrate than systems that configure algorithms dynamically (e.g., reading accepted algorithms from the JWKS endpoint or OIDC discovery document).
+
+Recommendations for algorithm agility:
+- **Never hard-code signature algorithms.** Accept a configurable list of algorithms from environment configuration or the IdP's discovery document.
+- **Support multiple simultaneous algorithms.** During hybrid migration, systems must verify both classical and PQC signatures. Design verification pipelines that accept multiple algorithm identifiers.
+- **Monitor token size.** PQC signatures are significantly larger (ML-DSA-65: ~3,309 bytes vs. ES256: 64 bytes). Ensure token stores, HTTP headers, and proxy buffers can accommodate increased sizes.
+- **Test hybrid mode early.** Deploy hybrid TLS and hybrid JWT signing in test environments before production. The increased handshake and verification latency (ML-KEM-768 adds ~0.5ms to TLS handshake) should be measured under load.
+
+**Cross-references:** §1.1 (AAL cryptographic requirements), §14 (WebAuthn cryptography), §39.3 (DPoP proof JWT structure), §42.1 (phishing-resistant MFA mandates), F14 (privacy-preserving cryptography readiness), OQ8 (post-quantum impact on authentication stack).
+
 ---
 
 ## Synthesis and Conclusions
@@ -47694,6 +48774,20 @@ Each finding is rated on a three-tier evidence scale:
 
 The urgency rating uses a 1–5 scale where 5 represents immediate action required by security architects in 2026 and 1 represents a forward-looking trend with a 5+ year horizon.
 
+**Domain clusters.** The 28 findings cluster into five thematic domains that mirror the layered architecture of modern authentication systems. The domains are ordered from the credential layer (what users present) through the session layer (how access persists) to the governance layer (how identity is managed at scale):
+
+| Domain | Findings | Core Theme |
+|:-------|:---------|:-----------|
+| **Authentication and Credentials** | F1, F3, F11, F16, F21, F22, F23 | The shift from shared secrets to phishing-resistant, device-bound credentials — and the ecosystem fragmentation that slows it |
+| **Architecture and Standards** | F7, F8, F9, F18, F19, F20, F26 | Session management, token binding, and the migration from front-channel to back-channel architectures |
+| **AI and Non-Human Identity** | F4, F5, F6, F28 | The explosive growth of machine identities and the governance gap that accompanies it |
+| **Privacy and Regulation** | F2, F13, F15, F24, F25 | CIAM/WIAM divergence, compliance lag, device posture, and the convergence of identity with network access |
+| **Cryptographic Evolution** | F10, F12, F14, F17, F27 | Continuous evaluation, Kerberos persistence, privacy-preserving proofs, ZKPs, and trust chain federation |
+
+Findings within the same domain often share dependency chains: F8 (bearer token era ending) enables F16 (phishing + device binding convergence), which depends on F3 (legacy MFA insufficiency); F5 (NHI governance gap) drives F28 (provisioning standards lag) and is amplified by F6 (AI agent identity). Reading findings by domain cluster, rather than by numerical sequence, reveals the structural relationships between them.
+
+##### Authentication and Credentials
+
 #### F1: The Authentication Evolution Trajectory is Fundamentally Bifurcated
 The industry is demonstrably advancing from legacy passwords → transitional passkeys → true
 passwordless paradigms, but the velocity and nature of this adoption remains highly uneven
@@ -47708,6 +48802,8 @@ as the tension between frictionless usability and strict hardware-binding cannot
 a single protocol. Adoption statistics for passkeys and hardware tokens reinforce the depth of this divide (§11.6, §14.7). Regulatory mandates further entrench this bifurcation — sector-specific phishing-resistant MFA requirements (§42.1) vary by jurisdiction and industry, making a single universal standard even more elusive: EU financial regulations mandate SCA through PSD2/PSD3 (§5), while US federal directives (CISA BOD 23-02, EO 14028) prescribe phishing-resistant MFA for government systems.
 
 **Contradiction with F23:** F1's bifurcation is both enabled and constrained by F23 (FIDO2 ecosystem fragmentation). Platform vendors each implement credential sync differently, which accelerates consumer adoption but prevents the standardisation needed for enterprise cross-platform credential management.
+
+##### Privacy and Regulation
 
 #### F2: CIAM and WIAM Architectures Will Not Converge
 The historical attempt to unify Consumer Identity and Access Management (CIAM) with Workforce
@@ -47735,6 +48831,8 @@ sound protection that binds the authentication ceremony tightly to the TLS chann
 negotiated.
 
 As catalogued in the attack taxonomy (§22.5), three attack classes now routinely bypass traditional MFA: adversary-in-the-middle (AiTM) proxy attacks, MFA fatigue/prompt bombing, and SIM swapping — with AiTM attacks increasing 250% year-over-year and SMS-based MFA accounts 3.4× more likely to be compromised than security-key MFA. The path forward combines phishing-resistant MFA (§17.9) with continuous session evaluation (F10) and device posture attestation (F15). The regulatory pressure to abandon legacy MFA is intensifying — PSD3 explicitly mandates phishing-resistant authentication for payment service providers (§5), and the EBA's guidance interprets SCA as requiring factor independence that traditional OTP cannot reliably satisfy.
+
+##### AI and Non-Human Identity
 
 #### F4: Zero-Secret Trajectories Define the Future of Machine-to-Machine Identity
 Machine-to-machine (M2M) authentication is systematically deprecating the use of long-lived,
@@ -47791,6 +48889,8 @@ AI agents differ from traditional non-human identities in four critical dimensio
 
 Current AI agent platforms (ChatGPT Enterprise, Claude, Microsoft Copilot) access enterprise resources on behalf of users without fine-grained, auditable permission controls equivalent to human access (§25.2). Emerging protocols such as Google's A2A and Anthropic's MCP address technical interoperability but not governance frameworks.
 
+##### Architecture and Standards
+
 #### F7: Session Management Eclipses the Complexity of Authentication
 While the initial authentication ceremony is largely a commoditized, solved problem using
 mature standardized protocols (e.g., OpenID Connect (§3.1), SAML 2.0 (§2.1)), post-authentication
@@ -47832,6 +48932,8 @@ standards-based path forward for near real-time federated state synchronization 
 revocation.
 
 In practice, "global logout" remains a best-effort operation: front-channel logout is broken by browser cookie restrictions and popup blockers, while back-channel logout (RFC 8414) is inconsistently implemented across IdPs (§40.4). Only 11% of enterprise SSO deployments surveyed in 2025 had functioning global logout across all SPs. The most promising approach combines back-channel logout with short session lifetimes and continuous session validation (F10, §41.1). A harder variant — cross-domain session revocation across independent, non-federated services (§40.14) — lacks even a proposed standard, as the trust infrastructure that back-channel logout depends on does not exist between unrelated services.
+
+##### Cryptographic Evolution
 
 #### F10: Continuous Access Evaluation (CAE) is the Future of Session Security
 The legacy authorization model of "authenticate once, issue token, and blindly trust for the
@@ -48070,11 +49172,28 @@ Gartner predicts that by 2027, 70% of new network access decisions will be based
 
 #### F26: Payment Regulation is the Primary Driver of Sender-Constrained Token Adoption
 The PSD2/PSD3 regulatory pipeline is accelerating the industry's transition from bearer tokens to sender-constrained credentials faster than any pure security argument has achieved. PSD2 mandated Strong Customer Authentication (SCA) with two independent factors and dynamic linking (§5); PSD3 extends this by explicitly requiring phishing-resistant authentication for payment service providers. FAPI 2.0 (§5.4) serves as the compliance mechanism — its Security Profile mandates mTLS or DPoP sender-constrained tokens, JARM encrypted responses, and strict PKCE enforcement, effectively making sender-constrained token binding a regulatory requirement for any organisation interacting with EU open banking APIs.
-This regulatory gravity is creating a ripple effect: banks implementing FAPI 2.0 for PSD2/PSD3 compliance are deploying the same token binding infrastructure for their non-regulated APIs, and identity vendors (Okta, ForgeRock, Keycloak) are defaulting to DPoP support in their FAPI-compliant configurations. Unlike the gradual, security-driven adoption of DPoP in the broader OAuth ecosystem (F8), the payment regulatory pipeline creates a non-negotiable compliance deadline that forces adoption regardless of organisational readiness.
+
+**Evidence of regulatory gravity.** Three converging forces confirm that payment regulation is the dominant adoption driver. First, every major European bank interacting with open banking APIs has implemented FAPI 2.0 sender-constrained tokens — not because of an internal security assessment but because the Berlin Group's NextGenPSD2 specification and the UK Open Banking Implementation Entity mandate it. Second, identity vendor roadmaps confirm the pattern: Okta added DPoP support in its FAPI-compliant configuration before offering it as a general-purpose feature; ForgeRock's AM 8 release prioritised mTLS token binding for financial services customers. Third, the FAPI 2.0 Security Profile's requirement for `x5t#S256` (mTLS) or `jkt` (DPoP) confirmation claims leaves no compliance wiggle room — a bearer token is simply non-compliant for PSD3 open banking.
+
+**Ripple effect beyond financial services.** Banks implementing FAPI 2.0 for PSD2/PSD3 compliance are deploying the same token binding infrastructure for their non-regulated APIs. Identity vendors (Okta, ForgeRock, Keycloak) are defaulting to DPoP support in their FAPI-compliant configurations, and the infrastructure is propagating to adjacent sectors. Insurance, healthcare, and government services that integrate with banking APIs are adopting the same sender-constrained patterns by contagion rather than mandate.
+
+**Contrast with security-driven adoption.** The broader OAuth ecosystem's adoption of DPoP (F8) follows a gradual, security-argument-driven trajectory — organisations adopt sender-constrained tokens when they perceive sufficient risk. The payment regulatory pipeline creates a fundamentally different dynamic: a non-negotiable compliance deadline that forces adoption regardless of organisational readiness. This is the first instance where a regulatory mandate has directly dictated the cryptographic properties of access tokens at the protocol level.
+
+**Cross-references:** §5 (PSD2/PSD3 SCA and FAPI 2.0), §39.3 (DPoP), §39.4 (mTLS certificate-bound tokens), F8 (bearer token era ending), R4 (sender-constrained tokens via DPoP).
 
 #### F27: OpenID Federation 1.0 Solves the O(n²) Trust Problem, but Shifts the Attack Surface
 The traditional federated identity model requires bilateral trust agreements between every pair of IdP and SP participants — an O(n²) scaling problem that has historically limited federation to tightly governed sectors (higher education via InCommon, national eID via SAML metadata). OpenID Federation 1.0 (§7) replaces bilateral agreements with a hierarchical trust chain anchored by a Trust Anchor and mediated by entity statements and trust marks. This reduces the configuration burden from O(n²) to O(n), enabling federations of hundreds or thousands of participants with automated trust establishment.
-However, the trust chain introduces new attack surfaces (§7.3): a compromised intermediate entity can issue fraudulent entity statements that propagate trust to malicious actors; trust mark validation is only as rigorous as the policy operator that issued it; and the trust chain's reliance on DNS and HTTPS for entity statement resolution introduces a dependency on PKI infrastructure that itself is a target. The trade-off is clear — OpenID Federation 1.0 makes large-scale federation operationally feasible but shifts security complexity from bilateral configuration to trust chain integrity validation.
+
+**Evidence of O(n²) constraint.** The SAML metadata aggregation model that underpins eduGAIN (connecting 60+ national research federations) requires each federation to manually configure metadata trust for every other federation. InCommon's metadata aggregate contains 10,000+ entity descriptors, but cross-federation trust requires bilateral agreements between federation operators — the configuration complexity scales quadratically. OpenID Federation 1.0 eliminates this by allowing each entity to resolve trust chains dynamically through a Trust Anchor's entity configuration.
+
+**New attack surfaces introduced.** The trust chain shifts, rather than eliminates, security risk across three dimensions (§7.3):
+- **Compromised intermediate entities.** A compromised Subordinate Authority or Trust Mark Issuer can issue fraudulent entity statements that propagate trust to malicious actors. The hierarchical trust model creates single points of failure that did not exist in the bilateral model — compromising one intermediate entity affects all entities that transitively trust it.
+- **Trust mark rigour variance.** Trust mark validation is only as rigorous as the policy operator that issued it. A Trust Mark Issuer with lax verification practices can issue trust marks to entities that do not meet the federation's security requirements. There is no standardised mechanism for trust mark quality assurance across federations.
+- **Infrastructure dependency.** The trust chain's reliance on DNS and HTTPS for entity statement resolution introduces a dependency on PKI infrastructure that is itself a target. DNS hijacking or compromised HTTPS certificates at the entity configuration host can redirect trust resolution to attacker-controlled endpoints.
+
+**Production deployment evidence.** OpenID Federation 1.0 is already in production across education federations (eduGAIN, SWAMID, InCommon) and is a required component of the EUDI Wallet architecture (§30). The Swedish and Italian eID deployments use OpenID Federation for relying party trust establishment. Early operational experience confirms the scalability benefit — new relying parties can join a federation by publishing an entity configuration, without bilateral agreement — but also reveals that trust chain validation errors are the most common integration failure.
+
+**Cross-references:** §7 (OpenID Federation 1.0), §7.3 (federation security attacks), §29 (OpenID4VP), §30 (decentralized identity and trust registries), F9 (federated logout), R8 (deprecate front-channel logout).
 
 #### F28: Identity Provisioning Standards Have Not Kept Pace with Non-Human Identity Growth
 While authentication protocols have undergone rapid evolution (WebAuthn, DPoP, CAEP), the provisioning protocols that manage the identity lifecycle have stagnated. SCIM 2.0 (§8) remains the dominant standard for human identity provisioning — it handles user creation, attribute updates, group membership, and deactivation with reasonable maturity. However, SCIM 2.0 was designed for workforce identities in enterprise directories and has no standardised extension for:
@@ -48082,7 +49201,16 @@ While authentication protocols have undergone rapid evolution (WebAuthn, DPoP, C
 * CI/CD pipeline credential provisioning and rotation
 * AI agent identity registration and permission scoping
 * IoT device credential provisioning at scale
-The result is a two-tier provisioning ecosystem: mature, standardised provisioning for human identities (SCIM 2.0) and ad hoc, fragmented provisioning for non-human identities (vendor-specific APIs, Terraform modules, manual scripts). As the NHI-to-human ratio accelerates toward 500:1 by 2028 (F5, §25.1), the provisioning gap becomes a critical security vulnerability — orphaned non-human identities created without lifecycle management are functionally equivalent to backdoor accounts.
+
+**The two-tier provisioning ecosystem.** The result is a structural divide: mature, standardised provisioning for human identities (SCIM 2.0, with broad IdP and SP support) and ad hoc, fragmented provisioning for non-human identities (vendor-specific APIs, Terraform modules, manual scripts, bespoke automation). Human identities benefit from joiner-mover-leaver automation — HR events trigger SCIM provisioning across dozens of SaaS applications. Non-human identities are created manually, rotated inconsistently, and deprovisioned unreliably.
+
+**Scale of the gap.** Enterprise telemetry indicates the NHI-to-human ratio is approximately 144:1 and accelerating toward 500:1 by 2028 (F5, §25.1). This means the provisioning gap is not a niche concern — it affects the overwhelming majority of identities in any given enterprise. The OWASP NHI Top 10 (2025) specifically identifies "incomplete lifecycle management" as the root cause of three of its ten risk categories: orphaned credentials, over-privileged service accounts, and credential sprawl.
+
+**Emerging but incomplete standards.** Several efforts are attempting to close the gap but none has achieved critical mass. The IETF SCIM working group's draft extensions for machine identities remain experimental. SPIFFE's Workload API (§24.3) provides workload identity provisioning but does not address the broader NHI lifecycle (API keys, CI/CD credentials, AI agent permissions). HashiCorp Vault's dynamic secrets provide rotation but not lifecycle governance. The gap is architectural — provisioning standards were designed around human organisational models (departments, managers, HR events) that do not map to machine identity patterns.
+
+**Security consequence.** Orphaned non-human identities created without lifecycle management are functionally equivalent to backdoor accounts — they persist indefinitely with their original permissions, unnoticed by access reviews designed for human accounts. The provisioning gap is not merely an operational inconvenience; it is the structural enabler of NHI-driven breaches.
+
+**Cross-references:** §8 (SCIM 2.0), §25.1 (NHI lifecycle), §24.3 (SPIFFE/SPIRE), F5 (NHI governance gap), R5 (govern non-human identities), R2 (eliminate long-lived M2M secrets).
 
 ---
 
