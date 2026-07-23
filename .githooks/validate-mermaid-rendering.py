@@ -88,6 +88,10 @@ def check_mermaid_blocks(filepath, full_file=False, include_worktree=False):
             
             with open(mmd_filepath, 'w', encoding='utf-8') as f:
                 f.write(content)
+            # The repository is commonly used with a restrictive 0077 umask.
+            # mermaid-cli runs as an unprivileged container user, so make only
+            # this disposable input readable across the bind mount.
+            os.chmod(mmd_filepath, 0o644)
                 
             if full_file:
                 print(f"Validating Mermaid diagram (lines {block['start']}-{block['end']}) in {filepath}...")

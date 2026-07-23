@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-05-11
+date_updated: 2026-07-23
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
 
@@ -13,7 +13,7 @@ related: []
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0003/DR-0003-authentication-and-session-management.mdx. DO NOT EDIT. -->
 
-**DR-0003** · Published · Last updated 2026-05-11 · ~50,300 lines
+**DR-0003** · Published · Last updated 2026-07-23 · ~50,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0003-authentication-and-session-management/reader-orientation)
@@ -17721,6 +17721,89 @@ AAL3 potential with attestation`"]
     style Enterprise text-align:left
 ```
 
+The provider topology above explains *where* a synced passkey lives; the lifecycle below explains *how* one credential moves from creation to ordinary cross-device use and, if every enrolled device is lost, provider-mediated recovery. The RP never receives the private key in any branch. It sees the same credential identifier and signed WebAuthn assertion whether the authenticator used the original device, a synchronised device, or a replacement device restored through the provider's recovery process.
+
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 280
+---
+flowchart LR
+    subgraph Creation["Credential Creation"]
+        RPCreate["`**RP Registration Challenge**
+Challenge, RP ID, user handle,
+authenticator policy`"]
+        LocalUV["`**Local User Verification**
+Biometric or device PIN
+authorises key creation`"]
+        Generate["`**Authenticator Generates Passkey**
+Private key remains protected;
+RP receives public key`"]
+    end
+
+    subgraph Sync["Encrypted Synchronisation"]
+        Wrap["`**Credential Provider Wraps Key**
+Provider-specific E2EE
+and account-bound recovery`"]
+        Vault["`**Provider Sync Vault**
+Stores encrypted credential
+for authorised devices`"]
+    end
+
+    subgraph CrossDevice["Cross-Device Use"]
+        Device["`**Second Device Joins Provider**
+Account and device trust
+unlock synchronisation`"]
+        Restore["`**Device Restores Credential**
+Encrypted passkey is unwrapped
+inside local protection`"]
+        Assert["`**Authenticator Signs Challenge**
+Fresh WebAuthn assertion after
+local user verification`"]
+        RPVerify["`**RP Verifies Assertion**
+Credential ID, signature,
+origin, RP ID, challenge`"]
+    end
+
+    subgraph Recovery["All-Device-Loss Recovery"]
+        Loss["`**All Enrolled Devices Lost**
+No local copy of the synced
+credential remains available`"]
+        Recover["`**Provider Account Recovery**
+Provider verifies the account
+under its recovery policy`"]
+        Replacement["`**Replacement Device Restore**
+Encrypted credential is restored
+and re-protected locally`"]
+        StepUp["`**RP Risk Response**
+Accept normal assertion, require
+step-up, or re-register`"]
+    end
+
+    RPCreate --> LocalUV --> Generate
+    Generate -->|"Encrypted key material"| Wrap --> Vault
+    Vault -->|"Authorised sync"| Device --> Restore --> Assert --> RPVerify
+    Loss --> Recover
+    Vault -->|"Recovery-authorised restore"| Recover
+    Recover --> Replacement --> Assert
+    RPVerify --> StepUp
+
+    style RPCreate text-align:left
+    style LocalUV text-align:left
+    style Generate text-align:left
+    style Wrap text-align:left
+    style Vault text-align:left
+    style Device text-align:left
+    style Restore text-align:left
+    style Assert text-align:left
+    style RPVerify text-align:left
+    style Loss text-align:left
+    style Recover text-align:left
+    style Replacement text-align:left
+    style StepUp text-align:left
+```
+
 #### 15.2 W3C Credential Management API
 
 The Credential Management API (W3C Credential Management Level 1) is a browser API that provides a unified interface for storing, retrieving, and presenting credentials to users. It was originally designed for password management but has been extended to support WebAuthn credentials (passkeys).
@@ -17759,6 +17842,188 @@ const credential = await navigator.credentials.get(\{
 - **`"optional"`** (default): The browser shows a credential picker if the user has stored credentials, but does not require interaction. If the user has only one credential, the browser may auto-select it (after user verification).
 - **`"required"`**: The browser always shows the credential picker, even if the user has only one credential. Used when the RP wants the user to explicitly select a credential (e.g., for multi-account users).
 - **`"silent"`**: The browser does not show any UI. If a credential is available, it is returned silently. If not, the promise resolves with `null`. Used for proactive authentication — detecting whether a returning user has stored credentials before showing a login form.
+
+The mediation layer is an explicit security boundary. The RP supplies WebAuthn request options, but the browser and credential manager decide which eligible credentials can be shown; the provider supplies candidate metadata without exposing private keys; and the authenticator performs user verification and signing. The RP receives only the resulting assertion.
+
+```mermaid
+---
+config:
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+---
+sequenceDiagram
+    autonumber
+    participant User as User
+    participant Browser as Browser
+    participant CM as Credential Manager
+    participant Provider as Credential Provider
+    participant Auth as Authenticator
+    participant RP as Relying Party
+
+    rect rgba(52, 152, 219, 0.14)
+        Note over User, RP: Phase 1 — RP request and credential discovery
+        User->>Browser: Open passkey sign-in
+        Browser->>RP: Request WebAuthn authentication options
+        RP->>Browser: Return challenge, RP ID, and allowCredentials
+        Browser->>CM: Invoke navigator.credentials.get with mediation policy
+        CM->>Provider: Query RP-matching credential metadata
+        Provider->>CM: Return eligible credential candidates
+        Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+        Note over User, Auth: Phase 2 — User choice and local verification
+        CM->>User: Present browser-controlled credential picker
+        User->>CM: Select account and passkey
+        CM->>Auth: Request assertion for selected credential
+        Auth->>User: Request biometric or device PIN
+        User->>Auth: Complete local user verification
+        Auth->>Auth: Sign challenge with passkey private key
+        Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+        Note over User, RP: Phase 3 — Assertion return and RP verification
+        Auth->>CM: Return signed PublicKeyCredential assertion
+        CM->>Browser: Resolve credential request with assertion
+        Browser->>RP: Submit assertion to verification endpoint
+        RP->>RP: Verify challenge, origin, RP ID, flags, and signature
+        RP->>Browser: Establish authenticated session
+        Note right of RP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. User opens passkey sign-in in the browser</strong></summary>
+
+The user reaches the RP's authentication surface and chooses passkey sign-in, or the page starts a conditional-UI flow. This action begins a WebAuthn ceremony but does not expose the user's credential inventory to the RP.
+
+</details>
+
+<details>
+<summary><strong>2. Browser requests WebAuthn authentication options from the relying party</strong></summary>
+
+The browser calls the RP's authentication-options endpoint. The server must create a fresh challenge and retain enough transaction state to bind the later assertion to this browser session rather than accepting a replayed response.
+
+</details>
+
+<details>
+<summary><strong>3. Relying party returns challenge, RP ID, and credential policy</strong></summary>
+
+The RP returns `PublicKeyCredentialRequestOptions`, including the challenge, `rpId`, user-verification requirement, timeout, and any `allowCredentials` entries. An empty `allowCredentials` list enables discoverable credentials and lets the credential manager find eligible passkeys without the RP naming an account first.
+
+**Artifact Produced:** WebAuthn authentication options bound to the pending login transaction.
+
+</details>
+
+<details>
+<summary><strong>4. Browser invokes the credential manager with the mediation policy</strong></summary>
+
+The browser passes the RP's options to `navigator.credentials.get()` together with the requested mediation mode. The mode controls whether UI must be shown, may be shown, or must remain silent; it does not authorize the RP to enumerate credentials directly.
+
+</details>
+
+<details>
+<summary><strong>5. Credential manager queries providers for RP-matching credential metadata</strong></summary>
+
+The credential manager asks enabled platform or third-party providers for credentials scoped to the RP ID. This discovery occurs inside the browser/OS trust boundary, allowing multiple providers to participate without giving the website access to their vault contents.
+
+</details>
+
+<details>
+<summary><strong>6. Credential provider returns eligible credential candidates</strong></summary>
+
+The provider returns display-safe candidate metadata such as account labels and credential identifiers. Private keys remain inside the provider or authenticator protection boundary; discovery only supplies enough information for mediated selection.
+
+</details>
+
+<details>
+<summary><strong>7. Credential manager presents the browser-controlled credential picker</strong></summary>
+
+For optional, required, or conditional mediation, the credential manager renders trusted browser or OS UI. Because the RP cannot draw or alter this picker, the user can distinguish credential selection from page-controlled content and avoid disclosing unrelated accounts.
+
+</details>
+
+<details>
+<summary><strong>8. User selects the account and passkey</strong></summary>
+
+The user chooses one eligible credential. Selection identifies the credential to use, but it is not yet proof of possession; the authenticator must still require local verification where the RP or authenticator policy demands it.
+
+</details>
+
+<details>
+<summary><strong>9. Credential manager requests an assertion from the authenticator</strong></summary>
+
+The credential manager forwards the challenge, RP ID, and selected credential handle to the platform or roaming authenticator. This handoff preserves origin and RP scoping so a credential registered for one relying party cannot be used for another.
+
+</details>
+
+<details>
+<summary><strong>10. Authenticator requests biometric or device-PIN verification</strong></summary>
+
+The authenticator displays a trusted local verification prompt. The RP can request `userVerification: "required"`, but only the authenticator can evaluate the biometric or PIN and set the WebAuthn user-verification flag.
+
+</details>
+
+<details>
+<summary><strong>11. User completes local verification at the authenticator</strong></summary>
+
+The user supplies the biometric or device PIN locally. The verification secret is not returned to the browser, credential provider, or RP; the resulting assertion carries only signed flags indicating that user presence and, when required, user verification succeeded.
+
+</details>
+
+<details>
+<summary><strong>12. Authenticator signs the relying party challenge</strong></summary>
+
+The authenticator signs the challenge-bound client data and authenticator data with the selected passkey private key. Origin, RP ID hash, user-presence/user-verification flags, and the challenge are therefore cryptographically bound to the response.
+
+**Artifact Produced:** Signed WebAuthn authenticator assertion.
+
+</details>
+
+<details>
+<summary><strong>13. Authenticator returns the signed assertion to the credential manager</strong></summary>
+
+The authenticator returns the credential ID, authenticator data, client data JSON, signature, and optional user handle. The private key remains non-exportable from the authenticator boundary even when the passkey was restored through a synchronisation provider.
+
+</details>
+
+<details>
+<summary><strong>14. Credential manager resolves the browser credential request</strong></summary>
+
+The credential manager returns the selected `PublicKeyCredential` to the browser and resolves the pending API promise. This is the first point at which RP JavaScript receives the assertion, after discovery, selection, and signing have completed under trusted mediation.
+
+</details>
+
+<details>
+<summary><strong>15. Browser submits the assertion to the relying party</strong></summary>
+
+The browser serializes the credential response and posts it to the RP's verification endpoint. The server must consume the retained challenge atomically so the same assertion cannot establish multiple sessions.
+
+</details>
+
+<details>
+<summary><strong>16. Relying party verifies the WebAuthn assertion</strong></summary>
+
+The RP checks the challenge, origin, RP ID hash, credential ID, signature, user-presence and user-verification flags, and any counter or backup-state policy. A successful cryptographic signature is necessary but not sufficient if the response violates the RP's transaction or authenticator policy.
+
+**Artifact Produced:** WebAuthn authentication decision and audit record.
+
+</details>
+
+<details>
+<summary><strong>17. Relying party establishes the authenticated browser session</strong></summary>
+
+After all checks pass, the RP creates a new session with assurance metadata derived from the verified ceremony. The session should record the credential identifier, authentication time, achieved user-verification state, and any synced-versus-device-bound policy signal used in the decision.
+
+</details>
+
+<br/>
 
 **Proactive authentication pattern:**
 
@@ -25458,6 +25723,8 @@ This group bridges the gap between theoretical authentication mechanics and real
 This chapter catalogs the principal attack vectors that adversary groups deploy against authentication systems — from low-sophistication credential spraying to nation-state-grade adversary-in-the-middle proxy infrastructure. Each section describes the attack mechanism, documents real-world breach cases with dates and attribution, identifies which authentication methods the attack defeats, and specifies which methods resist it. The chapter culminates in a comprehensive resistance matrix ([§22.9](#229-biometric-presentation-attacks)) that maps every authentication factor type against every attack class — the single most important decision-support table in this document.
 
 The attack landscape is shaped by a fundamental asymmetry: defenders must protect every authentication endpoint, every session token, and every credential store; attackers need only find one exploitable weakness. The PhaaS (Phishing-as-a-Service) ecosystem ([§22.8](#228-account-recovery-attack-trees)) has industrialised this asymmetry, lowering the skill threshold for sophisticated attacks to near zero and making AiTM proxy phishing — once the exclusive domain of advanced persistent threats — available as a subscription service.
+
+This chapter classifies attack mechanics; it does not own the lifecycle response after an identity or session is compromised. Non-human credential inventory, ownership, rotation, and deprovisioning are covered in Non-Human Identity Governance ([§25](#25-non-human-identity-governance)), while real-time session and account risk propagation is covered in Continuous Access Evaluation ([§41](#41-continuous-access-evaluation)).
 
 **MITRE ATT&CK mapping:** The attacks documented in this chapter map to the following ATT&CK techniques under the **Credential Access** (TA0006) and **Initial Access** (TA0001) tactics:
 
@@ -35664,22 +35931,72 @@ A digital wallet is the software (or hardware) that stores a holder's DIDs, veri
 
 **Wallet reference model:**
 
-```
-┌─────────────────────────────────────────────┐
-│                  Wallet Application          │
-├──────────────┬──────────────┬───────────────┤
-│  Credential   │  Key         │  Presentation │
-│  Manager      │  Manager     │  Engine       │
-├──────────────┼──────────────┼───────────────┤
-│  - Store      │  - Generate  │  - Receive    │
-│  - Retrieve   │  - Sign      │    request    │
-│  - Delete     │  - Rotate    │  - Select     │
-│  - Backup     │  - Attest    │    credentials│
-│               │              │  - Create VP  │
-├──────────────┴──────────────┴───────────────┤
-│           Secure Storage Layer               │
-│  (Secure Enclave / TPM / Encrypted DB)       │
-└─────────────────────────────────────────────┘
+```mermaid
+---
+config:
+  flowchart:
+    wrappingWidth: 300
+---
+flowchart LR
+    Issuer["`**Credential Issuer**
+Issues SD-JWT, VC-JWT,
+mdoc, or other credentials`"]
+    Verifier["`**Verifier / Relying Party**
+Sends OpenID4VP request
+and verifies presentation`"]
+    User["`**Holder**
+Unlocks wallet, reviews request,
+and approves disclosure`"]
+    Trust["`**Trust and Status Services**
+Issuer metadata, trust registry,
+status and revocation evidence`"]
+    Backup["`**Encrypted Backup or Custodian**
+Optional recovery material
+under wallet custody policy`"]
+
+    subgraph Wallet["Wallet Application"]
+        direction TB
+        CM["`**Credential Manager**
+Store, retrieve, delete, renew,
+index, and check credential status`"]
+        KM["`**Key Manager**
+Generate, sign, rotate, attest,
+and bind keys to DIDs/credentials`"]
+        PE["`**Presentation Engine**
+Receive request, match credentials,
+select disclosures, create VP`"]
+        Storage["`**Secure Storage Layer**
+Secure Enclave, TPM, StrongBox,
+or encrypted local database`"]
+
+        CM ~~~ KM
+        KM ~~~ PE
+        CM -->|"Credential records"| Storage
+        KM -->|"Private keys and bindings"| Storage
+        PE -->|"Presentation state"| Storage
+        PE -->|"Select eligible credentials"| CM
+        PE -->|"Request proof or signature"| KM
+    end
+
+    Issuer -->|"Credential issuance"| CM
+    Verifier -->|"Presentation request"| PE
+    User -->|"Consent and claim selection"| PE
+    User -->|"Biometric or PIN unlock"| KM
+    CM -->|"Status and trust lookup"| Trust
+    Trust -->|"Current trust evidence"| CM
+    PE -->|"VP token or credential response"| Verifier
+    Storage -->|"Encrypted backup"| Backup
+    Backup -->|"Policy-authorised restore"| Storage
+
+    style Issuer text-align:left
+    style Verifier text-align:left
+    style User text-align:left
+    style Trust text-align:left
+    style Backup text-align:left
+    style CM text-align:left
+    style KM text-align:left
+    style PE text-align:left
+    style Storage text-align:left
 ```
 
 **Credential Manager**: Stores received credentials (SD-JWTs, VC_JWTs, mDLs), indexes them by type and issuer, and manages the credential lifecycle (expiration, revocation checking, renewal).
@@ -41960,7 +42277,7 @@ In practice, many production deployments combine multiple patterns. A typical co
 
 HTTP is a stateless protocol — every request-response pair is independent, carrying no inherent memory of prior interactions. Yet virtually every web application requires the concept of "logged in": once a user authenticates ([§9](#9-password-authentication-three-generations)–[§14](#14-webauthn-and-ctap2-architecture)), the application must remember that authentication across dozens, hundreds, or thousands of subsequent requests without demanding re-authentication on each one. Session management is the mechanism that bridges this gap — it creates, maintains, and eventually destroys the persistent, verifiable proof that authentication has already occurred. The session is the runtime manifestation of authenticated identity: a finite-lifetime binding between a user, a client, and a server that carries the security properties (AAL, authentication methods, authorization context) established during the authentication ceremony.
 
-Every subsequent topic in the Session Management group builds on these fundamentals. [§37](#37-session-token-types) examines the specific token types used to materialise sessions (cookies, JWTs, opaque tokens, refresh tokens). [§38](#38-kerberos-deep-dive) deep-dives into Kerberos — the most sophisticated session ticket system in enterprise IT. [§39](#39-device-bound-sessions) covers device-bound sessions (DBSC, DPoP, mTLS certificate binding) that cryptographically prevent session theft. [§40](#40-ciam-and-wiam-session-architectures) compares CIAM and WIAM session architectures. [§41](#41-continuous-access-evaluation) addresses Continuous Access Evaluation — the paradigm shift from point-in-time session validation to real-time, event-driven session revocation — which is the evolutionary path for the session management patterns described in this chapter. This chapter establishes the foundational model on which all of those depend.
+Every subsequent topic in the Session Management group builds on these fundamentals. [§37](#37-session-token-types) examines the specific token types used to materialise sessions (cookies, JWTs, opaque tokens, refresh tokens). [§38](#38-kerberos-deep-dive) deep-dives into Kerberos — the most sophisticated session ticket system in enterprise IT. [§39](#39-device-bound-sessions) covers device-bound sessions (DBSC, DPoP, mTLS certificate binding) that cryptographically prevent session theft. [§40](#40-ciam-and-wiam-session-architectures) compares CIAM and WIAM session architectures. [§41](#41-continuous-access-evaluation) addresses Continuous Access Evaluation — the paradigm shift from point-in-time session validation to real-time, event-driven session revocation — which is the evolutionary path for the session management patterns described in this chapter. Session ownership and lifecycle controls for service accounts, workloads, and AI agents are handled separately in Non-Human Identity Governance ([§25](#25-non-human-identity-governance)). This chapter establishes the foundational model on which all of those depend.
 
 #### 36.1 Session Lifecycle: Creation, Validation, Renewal, Termination
 A session progresses through four distinct phases. Understanding each phase — and the security invariants that must hold during transitions between them — is essential for building a session management system that resists hijacking, fixation, and replay attacks.

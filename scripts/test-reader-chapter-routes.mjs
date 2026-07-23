@@ -18,16 +18,16 @@ const SECOND_CHAPTER_ID = '2-mcp-over-streamable-http-transport-layer-auth-impli
 const THIRD_CHAPTER_ID = '3-mcp-scope-lifecycle-discovery-selection-and-challenge';
 const SECOND_HEADING_ID = '21-transport-evolution';
 const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
-const DR2_SOURCE_CHAPTER_ID = '10-cross-device-remote-presentation';
-const DR2_TARGET_CHAPTER_ID = '9-same-device-remote-presentation';
-const DR2_TARGET_HEADING_ID = '91-flow-description';
-const DR2_MERMAID_CHAPTER_ID = '24-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub';
-const DR2_MERMAID_HEADING_ID = '2482-psp-specific-threat-profile';
+const DR2_SOURCE_CHAPTER_ID = '12-cross-device-remote-presentation';
+const DR2_TARGET_CHAPTER_ID = '11-same-device-remote-presentation';
+const DR2_TARGET_HEADING_ID = '111-flow-description';
+const DR2_MERMAID_CHAPTER_ID = '28-bank-and-psp-integration-blueprint-eudi-wallet-compliance-hub';
+const DR2_MERMAID_HEADING_ID = '2882-psp-specific-threat-profile';
 const EXPANDED_MERMAID_RESET_ZOOM = 60;
 const DR2_PILOT_CHAPTER_ID = '4-rp-registration-data-model-and-registrar-api';
 const DR2_PILOT_HEADING_ID = '431-registration-sequence-diagram-direct-rp-model';
-const DR2_MULTI_MERMAID_CHAPTER_ID = '13-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
-const DR2_MULTI_MERMAID_HEADING_ID = '134-supervised-flow-sequence-diagram-direct-rp-model';
+const DR2_MULTI_MERMAID_CHAPTER_ID = '15-proximity-presentation-flows-iso-18013-5-supervised-and-unsupervised';
+const DR2_MULTI_MERMAID_HEADING_ID = '154-supervised-flow-sequence-diagram-direct-rp-model';
 const DR2_ARF_CHAPTER_ID = '7-identifier-and-trust-model-x509-dids-and-the-wallet-landscape';
 const DR2_ARF_HEADING_ID = '72-the-arf-mandate-x509-for-the-core-dids-optional-for-non-qualified-eaas';
 const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-selection';
@@ -711,7 +711,7 @@ async function assertInitialHashRouteSurvivesMermaidRender(page) {
 }
 
 async function assertViewerSuppressesStandaloneBreakSpacers(page) {
-  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/29-security-threat-catalogue#2921-rp-driven-credential-phishing-and-os-spying`;
+  const url = `${getBaseUrl(page.__readerPort)}/${DR2_SLUG}/appendix-d-rp-security-threat-card-catalogue#d21-rp-driven-credential-phishing-and-os-spying`;
   console.log(`[chapter routes smoke] checking standalone break spacers are suppressed in viewer: ${url}`);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
