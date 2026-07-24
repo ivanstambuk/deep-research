@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-24 · ~24,300 lines
+**DR-0001** · Published · Last updated 2026-07-24 · ~24,000 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -91,7 +91,7 @@ related: []
     - [7.2 NHI Lifecycle for AI Agents](#72-nhi-lifecycle-for-ai-agents)
     - [7.3 NHI Governance Platform Landscape](#73-nhi-governance-platform-landscape)
     - [7.4 Credential Architecture for AI Agents](#74-credential-architecture-for-ai-agents)
-    - [7.5 NHI × EU AI Act Connection](#75-nhi--eu-ai-act-connection)
+    - [7.5 NHI Governance Contributions to an EU AI Act Control System](#75-nhi-governance-contributions-to-an-eu-ai-act-control-system)
     - [7.6 CSA Agentic Trust Framework (ATF)](#76-csa-agentic-trust-framework-atf)
     - [7.7 OWASP NHI Top 10: MCP Agent Risk Mapping](#77-owasp-nhi-top-10-mcp-agent-risk-mapping)
     - [7.8 OWASP Agentic AI Top 10 Mapping](#78-owasp-agentic-ai-top-10-mapping)
@@ -155,16 +155,16 @@ related: []
     - [13.8 Authorization Infrastructure Resilience](#138-authorization-infrastructure-resilience)
   </details>
 - [Consent, Oversight, and Task Governance](#consent-oversight-and-task-governance)
-  - <details><summary><a href="#14-user-consent-models-first-party-vs-third-party">14 User Consent Models: First-Party vs. Third-Party</a></summary>
+  - <details><summary><a href="#14-authorization-approval-and-consent-models">14 Authorization, Approval, and Consent Models</a></summary>
 
     - [14.0 Consent Lifecycle Overview](#140-consent-lifecycle-overview)
-    - [14.1 First-Party Consent (Enterprise/Same-Organization)](#141-first-party-consent-enterprisesame-organization)
+    - [14.1 First-Party Authorization (Enterprise/Same-Organization)](#141-first-party-authorization-enterprisesame-organization)
     - [14.2 Third-Party Consent and Downstream Token Separation](#142-third-party-consent-and-downstream-token-separation)
     - [14.3 Incremental Consent in Agentic Workflows](#143-incremental-consent-in-agentic-workflows)
     - [14.4 Consent Decision Matrix](#144-consent-decision-matrix)
     - [14.5 Is User Consent Always Required?](#145-is-user-consent-always-required)
     - [14.6 Machine-to-Machine (M2M) Flows Without User Involvement](#146-machine-to-machine-m2m-flows-without-user-involvement)
-    - [14.7 Consent Persistence Architecture](#147-consent-persistence-architecture)
+    - [14.7 Approval, Grant, and Consent Persistence Architecture](#147-approval-grant-and-consent-persistence-architecture)
     - [14.8 Multi-Round-Trip Elicitation and External-Browser Handoff](#148-multi-round-trip-elicitation-and-external-browser-handoff)
   </details>
   - <details><summary><a href="#15-human-oversight-architecture">15 Human Oversight Architecture</a></summary>
@@ -183,10 +183,10 @@ related: []
   </details>
   - <details><summary><a href="#16-task-based-access-control-tbac">16 Task-Based Access Control (TBAC)</a></summary>
 
-    - [16.1 Why RBAC/ABAC Fall Short for Agents](#161-why-rbacabac-fall-short-for-agents)
+    - [16.1 Layered Access Control for Agents](#161-layered-access-control-for-agents)
     - [16.2 TBAC Model](#162-tbac-model)
-    - [16.3 TBAC Scope Encoding](#163-tbac-scope-encoding)
-    - [16.4 Ephemeral Task Tokens](#164-ephemeral-task-tokens)
+    - [16.3 Carrying Task Context](#163-carrying-task-context)
+    - [16.4 Ephemeral Task Authority and Token Projections](#164-ephemeral-task-authority-and-token-projections)
     - [16.5 TBAC Implementation Pattern](#165-tbac-implementation-pattern)
     - [16.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization](#166-dynamic-behavioral-trust-risk-adaptive-authorization)
   </details>
@@ -215,7 +215,7 @@ related: []
     - [19.1 Scopes vs. `authorization_details`: Comparison](#191-scopes-vs-authorization_details-comparison)
     - [19.2 RAR for MCP Tool Invocations](#192-rar-for-mcp-tool-invocations)
     - [19.3 Dynamic Authorization Lookup via PIP](#193-dynamic-authorization-lookup-via-pip)
-    - [19.4 RAR Agent Extensions: `policy_context` and `lifecycle_binding` (IETF Draft)](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft)
+    - [19.4 RAR Agent Extensions: Monitor, Not Baseline](#194-rar-agent-extensions-monitor-not-baseline)
     - [19.5 When to Use Scopes vs. RAR](#195-when-to-use-scopes-vs-rar)
   </details>
 - [Emerging Standards and Future Direction](#emerging-standards-and-future-direction)
@@ -383,7 +383,7 @@ related: []
     - [G.1 Architecture: IdP as Native MCP Authorization Server](#g1-architecture-idp-as-native-mcp-authorization-server)
     - [G.2 MCP Server as Protected Resource](#g2-mcp-server-as-protected-resource)
     - [G.3 Agent Identity: First-Class Digital Identities](#g3-agent-identity-first-class-digital-identities)
-    - [G.4 Scope Enforcement and Consent](#g4-scope-enforcement-and-consent)
+    - [G.4 Scope Enforcement and User Authorization](#g4-scope-enforcement-and-user-authorization)
     - [G.5 Multi-Tenant Architecture](#g5-multi-tenant-architecture)
     - [G.6 PII, Guardrails, and A2A Limitations](#g6-pii-guardrails-and-a2a-limitations)
     - [G.7 Rich Authorization and Protocol-Version Boundary](#g7-rich-authorization-and-protocol-version-boundary)
@@ -395,7 +395,7 @@ related: []
     - [H.1 Architecture: Auth0 for AI Agents](#h1-architecture-auth0-for-ai-agents)
     - [H.2 Token Vault (Early Access): Managed Third-Party Credential Store](#h2-token-vault-early-access-managed-third-party-credential-store)
     - [H.3 Fine-Grained Authorization (FGA): OpenFGA for RAG](#h3-fine-grained-authorization-fga-openfga-for-rag)
-    - [H.4 Async Authorization: CIBA Human-in-the-Loop](#h4-async-authorization-ciba-human-in-the-loop)
+    - [H.4 Async Authorization: Documented CIBA and RAR Composition](#h4-async-authorization-documented-ciba-and-rar-composition)
     - [H.5 MCP Integration: Auth for MCP GA, CIMD, and Cross App Access](#h5-mcp-integration-auth-for-mcp-ga-cimd-and-cross-app-access)
     - [H.6 Auth0 MCP Server](#h6-auth0-mcp-server)
     - [H.7 AI Framework Integration](#h7-ai-framework-integration)
@@ -539,7 +539,7 @@ An accepted request satisfies every row. “Unknown” is a deny condition, not 
 6. **Separate tool visibility, invocation authorization, and backend entitlement.** A filtered tool catalog reduces exposure but does not authorize `tools/call`; a permitted call does not prove access to every backend identifier in its arguments ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 7).
 7. **Choose policy and guardrail composition by semantics and failure behavior.** Cedar, OPA/Rego, OpenFGA, CEL, and commercial PDPs solve different policy shapes. Version the PEP–PDP contract, retain decision provenance, and define whether detection runs before or after authorization and how disagreement or outage is handled ([§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, Rec 10, Rec 40, Rec 41).
 8. **Choose credential treatment per trust boundary.** Token exchange, managed custody, injection, stripping, and workload identity have different delegation and exposure properties. Document issuer, subject/actor meaning, audience, storage, rotation, revocation, recovery, and failure for each downstream credential ([§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 13, Rec 20, and Rec 21).
-9. **Select oversight from action consequence, not a universal tier.** Use reversibility, sensitivity, legal or financial effect, autonomy, and time pressure to select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Preserve who decided, what was displayed, and what happened ([§14](#14-user-consent-models-first-party-vs-third-party), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), Rec 14, and Rec 17).
+9. **Select oversight from action consequence, not a universal tier.** Use reversibility, sensitivity, legal or financial effect, autonomy, and time pressure to select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Preserve who decided, what was displayed, and what happened ([§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), Rec 14, and Rec 17).
 
 **Compliance & Identity Governance**
 
@@ -570,7 +570,7 @@ These profiles select control patterns, not winning products. The product append
 4. **Subscription and cache authorization lack shared lifecycle profiles.** Creation policy is insufficient without emitted-object checks, reconnection and termination rules, cache keying, invalidation, and cross-tenant safety ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [OQ 8](#oq-8), [OQ 36](#oq-36)).
 5. **Normative and implementation surfaces can disagree.** Error allocation, official documentation, schemas, extensions, SDKs, and gateway behavior need a conflict-resolution and conformance process rather than optimistic inference ([§1.5](#15-solved-authorization-bootstrap), [OQ 7](#oq-7)).
 6. **Software, tool, and registry trust remain non-transitive.** Publisher identity, package integrity, schema review, registry listing, certification, and runtime authorization are different proofs; correction and takedown behavior remains incomplete ([§13.7](#137-mcp-tool-supply-chain-security), [§22](#22-consolidated-comparison-thirteen-architectural-models), [OQ 12](#oq-12), [OQ 22](#oq-22), [OQ 24](#oq-24)).
-7. **Multi-principal consent and revocation are not portable.** Sub-agent expansion, delegation-chain revocation, and concurrent users need explicit ownership, conflict, propagation, and audit semantics ([§6.6](#66-multi-user-agent-authorization), [§14.7](#147-consent-persistence-architecture), [OQ 11](#oq-11), [OQ 13](#oq-13), [OQ 14](#oq-14)).
+7. **Multi-principal consent and revocation are not portable.** Sub-agent expansion, delegation-chain revocation, and concurrent users need explicit ownership, conflict, propagation, and audit semantics ([§6.6](#66-multi-user-agent-authorization), [§14.7](#147-approval-grant-and-consent-persistence-architecture), [OQ 11](#oq-11), [OQ 13](#oq-13), [OQ 14](#oq-14)).
 8. **Legal responsibility and cross-border evidence remain deployment-specific.** Provider/deployer classification, disclosure/content provenance, and jurisdictional delegation claims require authoritative legal and technical profiles beyond MCP interoperability ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping), [OQ 26](#oq-26), [OQ 27](#oq-27), [OQ 28](#oq-28), and [OQ 31](#oq-31)).
 
 §27 records all 36 active questions and the evidence that would close each one. The [§26.1](#261-finding-to-recommendation-to-open-question-traceability) matrix links those questions back to the 41 findings and 41 recommendations.
@@ -1283,7 +1283,7 @@ Content-Type: application/json
 
 **CIMD intersection** — A CIMD URL can provide a stable client identifier across authorization servers that accept it, reducing per-AS identifier mapping. It remains subject to each authorization server's trust and retrieval policy; it does not create a universal client trust relationship.
 
-> **Cross-references**: [§14.1](#141-first-party-consent-enterprisesame-organization) (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), [§14.7](#147-consent-persistence-architecture) (organization-managed consent pattern), [§8.7.2](#872-openid-federation-11-for-agent-trust) (OpenID Federation — separate trust-establishment layer), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining — the parent runtime propagation specification), §H.5 (Auth0 XAA — a production implementation of this flow), [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) (DPoP sender-constraining of ID-JAGs).
+> **Cross-references**: [§14.1](#141-first-party-authorization-enterprisesame-organization) (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), [§14.7](#147-approval-grant-and-consent-persistence-architecture) (organization-managed consent pattern), [§8.7.2](#872-openid-federation-11-for-agent-trust) (OpenID Federation — separate trust-establishment layer), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining — the parent runtime propagation specification), §H.5 (Auth0 XAA — a production implementation of this flow), [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) (DPoP sender-constraining of ID-JAGs).
 
 #### 1.4 Layered Failure Taxonomy
 
@@ -2463,7 +2463,7 @@ This scope lifecycle connects to several patterns discussed elsewhere in the doc
 
 | Related Section | Connection |
 |:---|:---|
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Incremental Consent** | The 403 `insufficient_scope` challenge is the *mechanism* through which incremental consent is triggered at the protocol level |
+| **[§14](#14-authorization-approval-and-consent-models) Incremental Consent** | The 403 `insufficient_scope` challenge is the *mechanism* through which incremental consent is triggered at the protocol level |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Task-based scopes (`task:travel:book:flight`) can be returned in the 401/403 `scope` parameter, enabling the MCP server to demand task-specific authorization |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | The gateway maps the current request method, named primitive, arguments, resource, and authenticated authority into trusted local policy before constructing a scope challenge |
 | **[§2](#2-stateless-streamable-http-authorization) Transport Headers** | Draft `Mcp-Method` / `Mcp-Name` headers give the gateway a cheap primitive signal before full JSON-RPC parsing, helping it select the right scope-mapping rule for `tools/call`, `resources/read`, and `prompts/get` |
@@ -2489,7 +2489,7 @@ When MCP tool calls involve **high-value operations** — financial transactions
 | **JAR** (JWT-Secured Authorization Request) | [RFC 9101](https://datatracker.ietf.org/doc/html/rfc9101) | Standards Track (Aug 2021) | Wraps authorization request in a signed/encrypted JWT, ensuring integrity and confidentiality | Enables MCP clients to cryptographically bind authorization parameters; prevents man-in-the-middle modification of scope, resource, or audience values |
 | **JARM** (JWT Secured Authorization Response Mode) | [OIDF Final Spec](https://openid.net/specs/oauth-v2-jarm.html) (Nov 2022) | Final Specification | Encodes authorization responses (code, state, iss) as signed JWTs | Protects the authorization code response from injection/replay; validates the authorization server's identity to the MCP client |
 | **FAPI 2.0 Security Profile** | [OIDF Final Spec](https://openid.net/specs/fapi-2_0-security-profile.html) (Feb 2025) | Final Specification | Combines PAR + sender-constrained tokens (DPoP or mTLS) + `iss` validation as a unified high-assurance profile | Provides the complete security posture for high-risk MCP tool invocations; mandates PAR and sender-constraining, eliminating entire classes of token theft |
-| **FAPI 2.0 Message Signing** | [OIDF Final Spec](https://openid.net/specs/fapi-2_0-message-signing.html) (Sep 2025) | Final Specification | HTTP message-level non-repudiation via RFC 9421 signatures on requests and responses | Enables cryptographic proof that a specific MCP tool call was authorized — critical for financial audit trails and regulatory evidence |
+| **FAPI 2.0 Message Signing** | [OIDF Final Spec](https://openid.net/specs/fapi-2_0-message-signing.html) (Sep 2025) | Final Specification | HTTP message integrity, signer authentication, and covered-component binding through [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421.html) signatures | Can prove that the holder of a signing key signed specified HTTP components; authorization still depends on token, policy, resource, operation, and key-to-principal validation |
 
 > **Architecture note**: PAR and JAR are **complementary, not competing**. PAR secures the *transport* of authorization parameters (backchannel POST instead of front-channel redirect). JAR secures the *content* (signed JWT). FAPI 2.0 mandates PAR and recommends JAR for the highest assurance levels. JARM secures the *response* direction — together, they provide end-to-end integrity for the entire authorization code flow.
 
@@ -2518,7 +2518,7 @@ flowchart TB
         Response --> Token["Sender-Constrained Token<br/>(DPoP or mTLS)<br/>Proof-of-possession"]
     end
 
-    Token --> MCP["🤖 MCP Tool Call<br/>with FAPI 2.0 Message Signing<br/>(RFC 9421 non-repudiation)"]
+    Token --> MCP["🤖 MCP Tool Call<br/>with FAPI 2.0 Message Signing<br/>(RFC 9421 integrity + signer authentication)"]
 
 ```
 
@@ -2537,7 +2537,7 @@ Among the gateways surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-pr
 
 > ✅ = Native support · ⚠️ = Partial/in progress · ➡️ = Pass-through (AS-enforced) · ❌ = Not certified
 
-> **Cross-reference**: The FAPI CIBA Profile ([§15.5.6.1](#15561-vendor-comparison-matrix)) extends FAPI 2.0 specifically for backchannel authentication scenarios. For MCP deployments requiring both high-assurance authorization *and* decoupled human-in-the-loop approval, FAPI 2.0 Security Profile + FAPI CIBA Profile provides the complete stack.
+> **Cross-reference**: The FAPI CIBA Profile ([§15.5](#155-tier-5-ciba-protocol)) profiles financial-grade backchannel authentication. Composing it with the FAPI 2.0 Security Profile can strengthen the OAuth/OIDC layer, but it is not a complete MCP or transaction-authorization stack: the deployment still needs exact resource/operation policy, approval-display and execution binding, application lifecycle, downstream cancellation, and domain controls.
 
 > **Emerging standards**: For the emerging IETF drafts that extend the OAuth/OIDC foundation described in [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§3](#3-scope-and-client-identity-lifecycle) — including Agentic Authorization (AAuth, [§20.8](#208-gnap-and-directional-research)), Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)), and Identity Chaining ([§20.4](#204-delegation-and-identity-chains)) — see [§20](#20-emerging-standards-for-ai-agent-authorization).
 
@@ -2744,7 +2744,7 @@ stateDiagram-v2
 <details>
 <summary><strong>4. Authorization Server issues a delegated access token with the act claim</strong></summary>
 
-The AS mints a heavily tailored, audience-bound JWT reflecting the explicit delegation chain. The `sub` claim preserves the human user, ensuring upstream APIs correctly identify the resource owner. The `act` (Actor) nested claim formally injects the agent's identity, satisfying strict non-repudiation and GDPR logging obligations.
+The AS mints a heavily tailored, audience-bound JWT reflecting the explicit delegation chain. The `sub` claim identifies the subject under the issuer's semantics, while the nested `act` (Actor) claim identifies the current actor. Those claims improve attribution only after signature, issuer, audience, client, chain, and policy validation; they do not establish legal non-repudiation, user consent, or GDPR compliance by themselves.
 
 ```http
 HTTP/1.1 200 OK
@@ -3249,7 +3249,7 @@ The decision point is therefore not "Approach C or not." It is **where the agent
 | **Multiple types** | Not addressed | Supported via space-delimited values (`"service ai_agent"`) |
 | **Discovery** | Not addressed | `entity_profiles_supported` in AS metadata |
 | **Delegation interaction** | Separate from `act` claim | Complements `act` — top-level `sub_profile` classifies the primary subject, while `sub_profile` inside `act` nodes classifies acting entities; `client_profile` stays top-level only |
-| **Vendor support** | WSO2 IS 7.2 ([§G.3](#g3-agent-identity-first-class-digital-identities)), Ping Identity for AI ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)) via proprietary schemas | Microsoft authoring; no production implementation yet |
+| **Vendor support** | WSO2 Identity Server 7.3 ([§G.3](#g3-agent-identity-first-class-digital-identities)), Ping Identity for AI ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)) via proprietary schemas | Microsoft authoring; no production implementation yet |
 
 These approaches are not mutually exclusive. A practical deployment can layer them:
 
@@ -3807,7 +3807,7 @@ Once policy evaluation succeeds, the gateway forwards the request to the MCP Ser
 <details>
 <summary><strong>7. MCP Server returns Alice's calendar data to the Shared Agent</strong></summary>
 
-The MCP Server returns the internal calendar data. The enterprise audit trail concretely records: `user=Alice, actor=shared-agent, tool=calendar.read, result=200 OK` — ensuring absolute non-repudiation despite the agent's multi-user nature.
+The MCP Server returns the internal calendar data. The enterprise audit trail records `user=Alice, actor=shared-agent, tool=calendar.read, result=200 OK`, improving attribution and reconstruction in the shared-agent model. Its evidentiary strength still depends on trustworthy identity issuance, clocking, policy-decision records, log integrity, access controls, retention, and independent verification; no ordinary log creates absolute non-repudiation.
 
 ```http
 HTTP/1.1 200 OK
@@ -4048,16 +4048,16 @@ The **defense-in-depth** principle applies: Models B and C are preferred for hig
 
 > **Connection to NIST SP 800-207 (Zero Trust Architecture)**: Apply the same resource-access principles to human, agent, and workload identities: reduce long-lived credentials (Model C), enforce least privilege ([§16](#16-task-based-access-control-tbac)), centralize secrets management where appropriate ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), and continuously evaluate decision evidence ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)). See [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures) for the expanded Zero Trust mapping to MCP agent architectures.
 
-#### 7.5 NHI × EU AI Act Connection
+#### 7.5 NHI Governance Contributions to an EU AI Act Control System
 
-The EU AI Act ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)) creates specific NHI governance obligations:
+The EU AI Act does not define a separate non-human-identity regime. Where an agent or workload participates in an in-scope AI system, disciplined credential and identity governance can contribute evidence to wider provider or deployer controls:
 
-| EU AI Act Requirement | NHI Governance Control | DR-0001 Section |
+| EU AI Act Requirement | NHI Governance Contribution | DR-0001 Section |
 |:-----|:-----|:-----|
 | Art. 12 — record-keeping | Every agent credential issuance, rotation, and revocation must be logged | [§23.4](#234-art-12-and-art-26-audit-trail-requirements) audit trail |
 | Art. 13 — transparency | Agent identity metadata (model, vendor, trust level) must be available to deployers | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C: agent registry |
 | Art. 15 — cybersecurity | Agent credentials must resist unauthorized third-party exploitation | [§7.4](#74-credential-architecture-for-ai-agents) credential models (secretless preferred) |
-| Art. 26(6)(a) — log retention | Agent credential lifecycle events retained ≥ 6 months | [§26](#26-recommendations) Rec 15 |
+| Art. 26(6) — log retention | Retain relevant automatically generated high-risk-system logs under the deployer's control for the applicable period; decide separately which credential-lifecycle events are needed to make those logs intelligible | [§23.4](#234-art-12-and-art-26-audit-trail-requirements); [§26](#26-recommendations) Rec 15 |
 | Art. 50(1) — AI disclosure | NHI governance enables systematic identification of AI-mediated actions | [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) `ai_disclosure` metadata |
 
 #### 7.6 CSA Agentic Trust Framework (ATF)
@@ -4066,12 +4066,14 @@ The [Cloud Security Alliance (CSA)](https://cloudsecurityalliance.org/artifacts/
 
 **ATF Maturity Levels**:
 
-| ATF Level | Agent Role | Autonomy | Cross-Org Trust Requirement | DR-0001 Oversight Tier ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) |
+| ATF Level | Agent Role | Autonomy | Cross-Org Trust Requirement | Example DR-0001 Safeguard |
 |:----------|:----------|:---------|:---------------------------|:-------------------------------|
-| **Level 1: Intern** | Read-only observer | None — cannot modify state | Minimal (discovery only) | Tier 1: Audit-only |
-| **Level 2: Junior** | Supervised executor | Actions require human approval | Medium (delegated with approval) | Tier 2–3: In-session confirmation / Policy-gated |
-| **Level 3: Senior** | Autonomous within guardrails | Can execute actions, notify humans | High (trusted cross-org agent) | Tier 4–5: Webhook approval / CIBA |
-| **Level 4: Principal** | Autonomous within domain | Self-directed; escalates edge cases only | Full (domain-autonomous agent) | Tier 5–6: CIBA / Multi-party approval |
+| **Level 1: Intern** | Read-only observer | None — cannot modify state | Minimal (discovery only) | Audit, read-only policy, and strict resource bounds |
+| **Level 2: Junior** | Supervised executor | Actions require human approval | Medium (delegated with approval) | In-session interaction or policy-gated approval for the proposed action |
+| **Level 3: Senior** | Autonomous within guardrails | Can execute actions, notify humans | High (trusted cross-org agent) | Bounded standing authority plus consequence-based escalation |
+| **Level 4: Principal** | Autonomous within domain | Self-directed; escalates edge cases only | Full (domain-autonomous agent) | Stronger delegation ceilings, continuous evaluation, and independent approval where the action—not the maturity label—requires it |
+
+The last column is a local architectural mapping, not part of the CSA framework. Greater agent maturity does not automatically imply a higher-numbered approval ceremony; the deployment selects oversight from the exact operation's consequences and applicable rules ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)).
 
 ```mermaid
 ---
@@ -4160,7 +4162,7 @@ The [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai/) (Februa
 | **ASI06** | **Memory & Context Poisoning** | Persistent corruption of an agent's memory, RAG stores, embeddings, or contextual knowledge to bias future decisions | Not directly addressed — RAG security and memory integrity are out of DR-0001's scope ([§1](#1-current-mcp-authorization-and-protocol-baseline)) | ❌ Gap — DR-0001 focuses on authentication/authorization, not on agent memory or RAG store integrity |
 | **ASI07** | **Insecure Inter-Agent Communication** | Exchanges between agents lack proper authentication or integrity, enabling spoofing, manipulation, or interception | [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A protocol analysis; [§8.3](#83-a2a-security-model) A2A security model; [§8.3.2](#832-a2a-specific-security-threats) A2A-specific threats (agent shadowing, rug pull); [§8.7](#87-cross-organization-agent-federation) cross-org federation with trust chains | ✅ Strong — dedicated A2A analysis ([§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) with bilateral threat model and cross-org federation architecture |
 | **ASI08** | **Cascading Failures** | A single-point fault propagates through multi-agent workflows, amplifying across autonomous agent networks | [§8.4](#84-the-mcp--a2a-security-gap) cross-protocol delegation gap analysis; [§15](#15-human-oversight-architecture) human oversight tiers (circuit-breaker escalation); [§13.2](#132-gateway-responsibilities) rate limiting | 🟡 Moderate — human oversight tiers provide escalation, but DR-0001 does not model fault propagation or circuit-breaker patterns for multi-agent cascades |
-| **ASI09** | **Human–Agent Trust Exploitation** | Over-reliance on persuasive agents leads to unsafe approvals or data disclosure; attackers exploit anthropomorphism to manipulate users | [§14](#14-user-consent-models-first-party-vs-third-party) consent models; [§15](#15-human-oversight-architecture) human oversight taxonomy (7 tiers); [§23.5](#235-art-14-human-oversight-implementation-patterns) Art. 14 human oversight compliance | 🟡 Moderate — consent and oversight mechanisms exist, but DR-0001 does not address social engineering via agent UX or persuasion safeguards |
+| **ASI09** | **Human–Agent Trust Exploitation** | Over-reliance on persuasive agents leads to unsafe approvals or data disclosure; attackers exploit anthropomorphism to manipulate users | [§14](#14-authorization-approval-and-consent-models) authorization/approval evidence; [§15](#15-human-oversight-architecture) oversight taxonomy and approval-abuse controls; [§23.5](#235-art-14-human-oversight-implementation-patterns) Art. 14 control contributions | 🟡 Moderate — request binding, number matching, rate limits, and deny/report paths constrain approval abuse, but persuasive-agent UX and broader social-engineering safeguards remain outside the report's main authorization scope |
 | **ASI10** | **Rogue Agents** | Compromised or misaligned agents diverge from intended behavior, acting harmfully or pursuing hidden goals | [§7.2](#72-nhi-lifecycle-for-ai-agents) NHI lifecycle (revocation/decommission); [§7.6](#76-csa-agentic-trust-framework-atf) CSA ATF maturity levels; [§10.4](#104-security-guardrails-for-agent-refresh-tokens) guardrails (inactivity timeout, consent binding); [§13.2](#132-gateway-responsibilities) behavioral monitoring; **[§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) behavioral trust scoring** (closed-loop scoring engine, 7 signal categories, trust-to-authorization mapping, CAEP propagation) | ✅ Strong — lifecycle controls and revocation combine with a real-time behavioral anomaly-detection and risk-adaptive authorization architecture |
 
 > **Assessment**: DR-0001 provides **strong coverage** for identity-centric risks (ASI02, ASI03, ASI07) — the areas closest to its authentication and authorization focus. **Moderate coverage** exists for risks that intersect with authorization controls but extend into LLM behavior (ASI01, ASI08, ASI09, ASI10). **Weak or gap coverage** exists for supply chain integrity (ASI04), code execution safety (ASI05), and memory/RAG poisoning (ASI06) — domains that fall outside DR-0001's scope but represent important complementary security concerns. Organizations should pair DR-0001's identity and authorization controls with dedicated LLM security, supply chain integrity, and runtime isolation frameworks to achieve comprehensive agentic AI security.
@@ -4196,7 +4198,7 @@ CoSAI's April 2026 **Agentic Identity and Access Management** resource is adjace
 | 10 | **Resource Limits** | Denial of service via excessive tool calls, durable work, subscriptions, inference, or downstream fan-out | [§13.2](#132-gateway-responsibilities) rate limiting (per-user, per-agent, per-tool); **[§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance) Identity-Aware Rate Limiting & Token Budget Governance** (four-dimensional model, gateway capability matrix, authorization-vs-traffic-management distinction); [§10](#10-authorization-continuity-and-durable-tasks) task expiry and cancellation; [§17](#17-authorization-across-mcp-primitives-and-durable-state) handle, subscription, cache, and server-initiated-action authority; **[§13.8](#138-authorization-infrastructure-resilience) Authorization Infrastructure Resilience** | ✅ Strong — current requests receive identity-aware rate and token-budget controls; durable and server-initiated operations have explicit owners, budgets, expiry, cancellation, and evidence; infrastructure failures use component-specific fail-closed or bounded-degraded policy. |
 | 11 | **Supply Chain** | Malicious MCP server packages, shadow servers, dependency hijacking, unsigned tool registries | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker supply chain (signed, scanned container images); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) Cloudflare access control | ⚠️ Weak — container supply chain is addressed, but MCP-specific supply chain risks (shadow servers, malicious tool registries, dependency confusion) lack dedicated coverage |
 | 12 | **Audit & Logging** | Insufficient forensic capability, missing correlation across MCP requests, handles, and cross-protocol tasks, tamper-evident logging gaps | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) trace and decision schema; [§23.4](#234-art-12-and-art-26-audit-trail-requirements) Art. 12 mapping; [§9](#9-authorization-context-and-delegation-representation) authorization context; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) `act` claim | ✅ Strong — decision evidence joins user/agent attribution, handles, and cross-protocol correlation |
-| 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at [§14](#14-user-consent-models-first-party-vs-third-party)/AWS IAM Roles Anywhere and [§20.5](#205-sender-audience-and-workload-constraints)/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges ([OQ 30](#oq-30)). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
+| 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at [§14](#14-authorization-approval-and-consent-models)/AWS IAM Roles Anywhere and [§20.5](#205-sender-audience-and-workload-constraints)/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges ([OQ 30](#oq-30)). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
 
 > **Assessment**: DR-0001 provides **strong coverage** in 6 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, Resource Limits, and Audit & Logging — reflecting its core focus on identity and access management for MCP. Authorization-infrastructure resilience ([§13.8](#138-authorization-infrastructure-resilience)) supplies systematic fail-open/fail-closed guidance for resource-exhaustion and dependency-failure scenarios. **Moderate coverage** exists for Data Boundaries, Data Protection, Input Validation, Network Isolation, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. The guardrail-to-authorization feedback pattern ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) specifies the authorization response to input-risk detections; full prompt-injection *detection* architecture remains out of scope ([§1](#1-current-mcp-authorization-and-protocol-baseline)). **Weak coverage** in Integrity and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security ([§1](#1-current-mcp-authorization-and-protocol-baseline)) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
 
@@ -4477,7 +4479,7 @@ A2A's **push notification** model — used for long-running tasks where the clie
 | **TLS requirement** | Webhook endpoint MUST be HTTPS in production environments |
 | **Delivery modes** | Streaming (SSE for real-time), push notifications (webhooks for disconnected clients) |
 
-> **Connection to [§10.7](#107-offline-authority-user-not-present-continuation)** (Offline Sessions): A2A push notifications and MCP refresh tokens address the same architectural challenge — agent continuation when the user is absent — but at different protocol layers. A2A operates at the task level (webhook delivery of task state changes), while MCP operates at the token level (silent refresh to maintain authorization).
+> **Connection to [§10.7](#107-offline-authority-user-not-present-continuation)** (credential and authority continuity): A2A push notifications deliver task-state changes, while OAuth refresh tokens can renew credentials under AS policy. Neither decides whether unattended work remains authorized. The application still needs the durable task/authority record, per-operation re-evaluation, expiry/revocation handling, and cancellation rules in [§17](#17-authorization-across-mcp-primitives-and-durable-state).
 
 ##### 8.3.1 A2A Task Lifecycle and Human Oversight
 
@@ -4523,7 +4525,7 @@ stateDiagram-v2
 
 **The `input-required` state is A2A's native human-in-the-loop mechanism.** When Agent B (processing a hotel booking via A2A) determines it needs human approval — for example, the price exceeds a threshold — it sets the task state to `input-required`. This signal propagates back to the client agent, which can escalate to the human user.
 
-**Key architectural distinction**: CIBA ([§15](#15-human-oversight-architecture)) operates at the **OAuth layer** — the Authorization Server sends a push notification to the user's authentication device. A2A's `input-required` operates at the **protocol layer** — the agent signals the need for input within the task lifecycle. Both can trigger human intervention, but **cross-protocol propagation of these signals is unspecified** — if Agent B (A2A) sets `input-required`, there is no standard mechanism for this to trigger a CIBA flow back to the original user who initiated the MCP request through Agent A.
+**Key architectural distinction**: CIBA ([§15](#15-human-oversight-architecture)) operates at the **OAuth/OIDC authorization layer**—the client initiates a backchannel request and the OpenID Provider uses its configured authentication-device interaction and token-delivery mode. A2A's `input-required` operates at the **protocol layer**—the agent signals the need for input within the task lifecycle. Both can participate in human intervention, but **cross-protocol propagation of these signals is unspecified**: if Agent B sets `input-required`, no standard mechanism translates that state into a CIBA request, selects the eligible subject or approver, or binds the resulting authority back to the unchanged task operation.
 
 **Task immutability**: Once a task reaches a terminal state (`completed`, `failed`, `canceled`, `rejected`), it cannot be restarted. Follow-up work creates a new task within the same `contextId`, preserving conversational continuity.
 
@@ -4708,7 +4710,7 @@ Content-Type: application/json
 
 Agent B compiles the sub-task and prepares to invoke the `search_hotels` tool. However, Agent B faces a critical identity void: it possesses Agent A's machine identity, but absolutely zero cryptographic proof of the originating human user (`user-traveler-001`).
 
-When it transmits `POST /mcp`, its authorization context completely lacks the critical `act` delegation chain linking back to the human. The gateway's Policy Decision Point cannot determine whether the human user consented to Agent B executing this tool. Consequently, the gateway rejects the request, generating a high-severity `403 Forbidden` security audit log citing "broken identity provenance" and severing the unauthorized cross-protocol execution chain.
+When it transmits `POST /mcp`, its authorization context lacks the required actor/delegation evidence linking the request to the upstream subject and grant. The gateway's Policy Decision Point cannot determine whether Agent B received authority for this resource, tool, purpose, and operation. It therefore rejects the request and records a `403 Forbidden` decision with a non-sensitive reason such as `delegation_context_missing`.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -4733,13 +4735,13 @@ This reveals five unsolved problems:
 
 1. **Cross-protocol delegation** — MCP uses OBO (`act` claim) for user→agent delegation. A2A has no standard mechanism for propagating the original user's identity through agent-to-agent chains. Agent B sees Agent A, not the user.
 
-2. **Consent propagation** — The user consented to Agent A's tool access. Did that consent extend to Agent B calling tools on the user's behalf? No standard addresses this.
+2. **Authority propagation** — The user or administrator authorized Agent A under a particular purpose, resource, scope, and policy. That decision does not automatically authorize Agent B or its undisclosed downstream tools. No common A2A↔MCP profile carries and enforces the complete authority boundary.
 
 3. **Audit chain continuity** — MCP audit logs track user→tool calls. A2A audit logs track agent→agent calls. There is no standard for correlating these into a unified audit trail across both protocols.
 
 4. **Cross-protocol work correlation** — A2A uses `contextId` and `taskId`; modern MCP uses independent JSON-RPC request IDs, ordinary application-state handles, and—only when negotiated—the Draft Tasks extension. These identifiers have different semantics, and neither protocol defines their cross-framework mapping. End-to-end traceability therefore requires an explicit bridge record and shared trace context ([§8.5.1](#851-a2amcp-bridge-context-mapping-pattern), [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), which directly affects Art. 12 evidence continuity ([§23.4](#234-art-12-and-art-26-audit-trail-requirements)).
 
-5. **Opaque execution limits consent granularity** — A2A's design principle of *opaque execution* means agents collaborate without sharing internal state, tools, or memory. When Agent A delegates "find a hotel" to Agent B via A2A, Agent A **cannot see** which tools Agent B uses internally (e.g., `search_hotels`, `create_reservation`, `charge_credit_card`). This means consent is inherently **coarse-grained** in A2A — "I consent to Agent B handling hotel booking" — compared to MCP's tool-level consent granularity ([§14](#14-user-consent-models-first-party-vs-third-party)). The consent gap from problem 2 is thus structural, not merely a missing standard.
+5. **Opaque execution limits upstream authorization visibility** — A2A's opaque-execution model lets agents collaborate without exposing every internal tool or memory operation. When Agent A delegates "find a hotel" to Agent B, Agent A may not know whether Agent B uses `search_hotels`, `create_reservation`, or `charge_credit_card`. An upstream task authorization therefore does not automatically authorize every undisclosed downstream tool or side effect. The receiving agent and its resource servers need local least-privilege policy, purpose and constraint propagation, side-effect boundaries, and escalation when the downstream operation exceeds the upstream authority.
 
 > **See also**: [§8.9](#89-framework-identity-context-the-intra-organization-gap) extends these five protocol-level problems to the **framework layer** — when the agents on either side of the A2A boundary use different orchestration frameworks (LangGraph, AutoGen, CrewAI, Google ADK, etc.) with incompatible identity models, the identity gap is compounded by vocabulary mismatch, transport mismatch, and authorization model mismatch.
 
@@ -5047,7 +5049,7 @@ The operational rule is simple: **registry discovery is not authorization**. Dis
 - **AAuth (Agentic Authorization)** — The active individual Hardt AAuth protocol draft (`draft-hardt-oauth-aauth-protocol-09`, with no IETF WG standing as of July 23, 2026) defines identity-based, resource-managed, permission-server-asserted, and federated access modes using HTTP Message Signatures and a `Signature-Key` response header. Mission governance is an orthogonal application concern rather than an AAuth protocol primitive. The architectural idea remains important for non-redirect channels (PSTN, SMS, chat), but it remains a monitor item rather than a production dependency. See [§20.8](#208-gnap-and-directional-research).
 - **RFC 9421 (HTTP Message Signatures)** — Cryptographic proof-of-possession at the HTTP layer. While not A2A-specific, AAuth proposes this as a foundational mechanism for agent-to-agent authentication, replacing static bearer tokens with per-request message-level signatures.
 
-> **Assessment**: A2A authentication is architecturally sound for bilateral agent-to-agent communication. Its two-tier discovery model ([§8.2.1](#821-two-tier-discovery-public-and-extended-agent-cards)), OpenAPI-aligned security schemes, push notification security ([§8.3](#83-a2a-security-model)), defined task lifecycle ([§8.3.1](#831-a2a-task-lifecycle-and-human-oversight)), Linux Foundation governance, and multi-vendor ecosystem provide a credible current adoption signal. But the core identity problem remains unsolved in the same place: **chained delegation across protocols**. The five unresolved issues above — cross-protocol identity propagation, consent propagation, audit chain continuity, state/task-handle correlation, and opaque-execution consent granularity — remain critical when MCP tool calls originate from A2A delegation chains. The individual AAuth proposal, IETF WIMSE work, and NIST initiative may inform parts of the solution, but governance maturity should not be mistaken for delegated-authority maturity.
+> **Assessment**: A2A authentication is architecturally sound for bilateral agent-to-agent communication. Its two-tier discovery model ([§8.2.1](#821-two-tier-discovery-public-and-extended-agent-cards)), OpenAPI-aligned security schemes, push notification security ([§8.3](#83-a2a-security-model)), defined task lifecycle ([§8.3.1](#831-a2a-task-lifecycle-and-human-oversight)), Linux Foundation governance, and multi-vendor ecosystem provide a credible current adoption signal. But the core identity problem remains unsolved in the same place: **chained delegation across protocols**. The five unresolved issues above—cross-protocol identity propagation, authority propagation, audit-chain continuity, state/task-handle correlation, and opaque-execution authorization visibility—remain critical when MCP tool calls originate from A2A delegation chains. The individual AAuth proposal, IETF WIMSE work, and NIST initiative may inform parts of the solution, but governance maturity should not be mistaken for delegated-authority maturity.
 
 #### 8.7 Cross-Organization Agent Federation
 
@@ -5494,7 +5496,7 @@ stateDiagram-v2
     EvalMaturity --> Permit: if ATF >= junior
 ```
 
-If the math holds, the Policy Engine returns `{"decision": "Allow"}`, proving that the requested operation satisfies both the global federation baselines and Org Y's highly specific local business rules. If the organizational trust level or agent maturity fails the policy evaluation, the engine returns `{"decision": "Deny"}`, prompting the gateway to immediately terminate the request with a `403 Forbidden` and generate a centralized authorization failure audit log.
+If the local policy evaluates successfully, the engine returns `{"decision": "Allow"}`, recording that the supplied context met the pinned policy version at that time. The PEP still validates the response, enforces the operation boundary, and records the outcome. If organizational trust or agent maturity fails, the engine returns `{"decision": "Deny"}` and the gateway returns `403 Forbidden` with a safe reason code; protected decision evidence retains the detailed rationale.
 
 </details>
 <details>
@@ -5652,15 +5654,16 @@ The [Agent Payments Protocol (AP2)](https://ap2-protocol.org/) (Google, March 20
 
 ##### 8.8.1 Core Innovation: Verifiable Digital Credentials (VDCs)
 
-AP2 introduces **cryptographically signed mandate objects** as trust anchors for agent-initiated payments. These VDCs form a "mandate chain" — linking user intent to cart authorization to payment execution — creating a non-repudiable audit trail for every transaction:
+AP2 introduces **signed mandate objects** for agent-initiated payments. The current protocol distinguishes Checkout and Payment Mandates and, for autonomous flows, open and closed forms. Their hashes and signatures can connect constraints, a merchant-supplied checkout, payment authority, and the result. That produces tamper-evident protocol evidence when every verifier checks the correct object, signature, key binding, hash linkage, expiry, and execution values; it does not make the whole event legally non-repudiable by terminology alone.
 
-| VDC Type | When Used | Signed By | Content | DR-0001 Analogue |
-|:---------|:----------|:----------|:--------|:------------------|
-| **Cart Mandate** | Human-present transactions | User (hardware-backed key + biometric) | Exact items, price, payee, payment method, refund conditions | CIBA `binding_message` ([§15.10.3](#15103-psd2psd3-payment-services)) — but *cryptographically signed*, not informational |
-| **Intent Mandate** | Human-not-present transactions | User (hardware-backed key + biometric) | Natural language intent, price constraints, product criteria, TTL, chargeable payment methods | No direct equivalent — novel delegation primitive for pre-authorized future transactions |
-| **Payment Mandate** | All transactions | Agent/system | AI agent involvement signal, human-present/absent modality | Art. 50 AI disclosure mechanism ([§23.3](#233-art-50-ai-interaction-disclosure-for-mcp)) — at the payment network layer |
+| Mandate | Principal role | Typical authority/content | DR-0001 boundary |
+|:--------|:---------------|:--------------------------|:-----------------|
+| **Open Checkout Mandate** | Defines the user's shopping constraints before a final checkout exists | Merchant/product constraints, amount or budget bounds, timing, and expiry | Durable task/delegation envelope; not authority for an arbitrary future checkout |
+| **Closed Checkout Mandate** | Represents a specific finalized checkout | Merchant-supplied goods, total, payee/merchant context, and fulfillment terms | Exact-operation object that must match the approved and executed checkout |
+| **Open Payment Mandate** | Defines payment constraints for autonomous execution | Budget, permitted instruments or rails, and validity constraints | Payment-authority ceiling; not a completed payment authorization |
+| **Closed Payment Mandate** | Authorizes a specific payment bound to the finalized checkout | Amount, payment context, agentic-transaction signals, and checkout linkage | Execution authority consumed under credential-provider, network, issuer, and merchant controls |
 
-**Key security property**: The Cart Mandate's cryptographic binding of transaction details is *stronger* than PSD2's minimum dynamic linking requirement ([§15.10.3](#15103-psd2psd3-payment-services)) — it provides non-repudiable proof that the user approved the exact cart, not just an informational binding message.
+**Key security property and limit**: Signed mandate contents and hash linkage are stronger evidence than a CIBA `binding_message`, because the latter is only a short visual interlock. Whether an AP2 deployment satisfies PSD2 SCA and dynamic linking still depends on the authenticators, trusted-surface rendering, key-holder binding, issuer/payment profile, validation rules, and exact transaction executed ([§15.10.3](#15103-psd2psd3-payment-services)).
 
 ##### 8.8.2 Role-Based Architecture and PCI Separation
 
@@ -5700,23 +5703,23 @@ flowchart TD
     Mode -->|"Yes"| HP["`**Human-Present Flow**`"]
     HP --> CartReview["`**User reviews final cart**
     on&nbsp;trusted&nbsp;surface`"]
-    CartReview --> CartSign["`**User signs Cart Mandate**
-    (biometric&nbsp;+&nbsp;hardware&nbsp;key)`"]
+    CartReview --> CartSign["`**Trusted surface authorizes**
+    closed&nbsp;Checkout&nbsp;+&nbsp;Payment&nbsp;Mandates`"]
     CartSign --> Pay1["`**Payment execution**
-    with&nbsp;Cart&nbsp;Mandate`"]
+    with&nbsp;closed&nbsp;mandates`"]
 
     Mode -->|"No"| HNP["`**Human-Not-Present Flow**`"]
-    HNP --> IntentSign["`**User pre-signs Intent Mandate**
-    (constraints:&nbsp;price,&nbsp;timing,&nbsp;product)`"]
-    IntentSign --> AgentActs["`**Agent monitors conditions**
-    and&nbsp;auto‑generates&nbsp;Cart&nbsp;Authorization`"]
-    AgentActs --> Challenge{"`**Merchant**
-    **confident?**`"}
+    HNP --> IntentSign["`**Trusted surface authorizes**
+    open&nbsp;Checkout&nbsp;+&nbsp;Payment&nbsp;Mandates`"]
+    IntentSign --> AgentActs["`**Agent constructs closed mandates**
+    within&nbsp;open&nbsp;constraints`"]
+    AgentActs --> Challenge{"`**Verifier accepts**
+    **constraint match?**`"}
 
     Challenge -->|"Yes"| Pay2["`**Payment execution**
-    with&nbsp;Intent&nbsp;Mandate`"]
-    Challenge -->|"No"| ForceReturn["`**Merchant forces**
-    user&nbsp;re‑entry`"]
+    with&nbsp;open&nbsp;+&nbsp;closed&nbsp;mandates`"]
+    Challenge -->|"No"| ForceReturn["`**Flow requires**
+    renewed&nbsp;user&nbsp;authorization`"]
     ForceReturn --> CartReview
 
     Pay1 --> Challenge3DS{"`**Issuer/network**
@@ -5750,23 +5753,23 @@ flowchart TD
 
 ```
 
-| Mode | AP2 Mechanism | DR-0001 Oversight Tier ([§15](#15-human-oversight-architecture)) | User Action | PSD2 Compliance |
-|:-----|:-------------|:------------------------------|:------------|:---------------|
-| **Human-Present** | Cart Mandate (user signs exact cart) | Tier 2–3 (In-Session / Step-Up) | Real-time approval with biometric auth | ✅ SCA satisfied via biometric + device possession |
-| **Human-Not-Present** | Intent Mandate (user pre-signs constraints) | Tier 5 analogue (pre-authorized CIBA) | Upfront delegation; agent acts within constraints | ⚠️ Gap — PSD2 requires SCA per transaction ([§8.8.4](#884-psd2-compliance-gap-analysis)) |
-| **Merchant-Forced Re-Entry** | Merchant rejects Intent Mandate as insufficient → forces user back | Equivalent to A2A `input-required` ([§8.3.1](#831-a2a-task-lifecycle-and-human-oversight)) | User returns to review/confirm specific items | ✅ Escalates to human-present flow |
-| **3DS2 Challenge** | Any party (issuer, CP, merchant) triggers challenge via redirect | Tier 3 (Step-Up with redirect to trusted surface) | User resolves challenge on banking app/website | ✅ Standard 3DS2 liability shift preserved |
+| Mode | AP2 mechanism | DR-0001 authorization pattern | User action | Regulatory boundary |
+|:-----|:--------------|:------------------------------|:------------|:--------------------|
+| **Human-Present** | Closed Checkout and Payment Mandates for a finalized transaction | Exact-operation approval plus one-time execution binding | Reviews the trusted-surface representation and authorizes the closed mandates | AP2 evidence can support the payment profile; SCA/dynamic-linking compliance is determined by the issuer and full implementation |
+| **Human-Not-Present** | Open mandates establish constraints; the agent later constructs linked closed mandates | Bounded standing delegation plus closed-operation validation | Authorizes the constraint envelope before leaving the session | Later SCA, exemption, and transaction-classification treatment remains payment-profile and issuer policy |
+| **Verifier-required re-entry** | A verifier rejects a mismatch or requires renewed authority | `input-required` / reapproval boundary ([§8.3.1](#831-a2a-task-lifecycle-and-human-oversight), [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)) | Returns to review and authorize the revised operation | Creates a new decision point; does not retroactively validate the rejected mandate |
+| **Issuer or network challenge** | Existing payment controls invoke step-up or transaction authentication | External payment-authentication boundary | Resolves the challenge on the issuer-controlled surface | The challenge result must still bind to the payment that executes |
 
 **Mandate lifecycle checkpoints** — The security value of AP2 is not the existence of a signed object; it is the sequence of checkpoints that keep human-present and Human-Not-Present authority bounded:
 
 | Checkpoint | Human-Present Flow | Human-Not-Present Flow | Authorization Evidence | Enforcement Question |
 |:-----------|:-------------------|:-----------------------|:-----------------------|:---------------------|
-| **Intent capture** | User asks the Shopping Agent to find or price an item; intent may be recorded but is not the final authorization | User pre-signs an Intent Mandate that defines product category, price ceiling, timing, merchant constraints, payment-method class, and TTL | Signed or recorded intent plus agent interpretation of the user's natural-language instruction | Did the agent preserve the user's constraints, or did it broaden them during negotiation? |
-| **Cart construction** | Merchant returns a specific cart and signs the exact goods, price, payee, shipping, and expiry | Merchant attempts to satisfy the pre-signed intent; ambiguous or underspecified carts can force user re-entry | Cart Mandate, cart hash, merchant identity, expiry, and risk signals | Does the cart fit the mandate constraints, or must the flow escalate back to a human-present approval? |
-| **Mandate matching** | User signs the Cart Mandate after reviewing exact details | Agent or merchant validates that the cart is within the Intent Mandate envelope before payment proceeds | Constraint evaluation record: price, SKU/category, merchant, geography, TTL, refund terms | Which party is accountable for deciding that the cart is "close enough" to the delegated intent? |
-| **Payment signaling** | Payment Mandate signals AI involvement and human-present modality to PSP/network/issuer | Payment Mandate signals AI involvement and Human-Not-Present modality to PSP/network/issuer | Payment Mandate plus references to Cart/Intent Mandates | Can the issuer distinguish user-clicked commerce from autonomous agent commerce for risk scoring? |
+| **Intent capture** | User asks the Shopping Agent to find or price an item; intent may be recorded but is not the final authorization | Trusted surface creates the open Checkout and Payment Mandates that define product, merchant, budget/payment, timing, and expiry constraints | Signed open mandates plus the agent's interpretation of the user's instruction | Did the machine representation preserve the user's constraints, and which later changes require renewed authorization? |
+| **Checkout construction** | Merchant returns a specific signed checkout with goods, price, payee, shipping, and expiry | Merchant returns a checkout that the agent claims fits the open constraints | Checkout object/mandate, hash, merchant identity, expiry, and risk signals | Is the merchant commitment authentic, and does the exact checkout fit the authority envelope? |
+| **Mandate matching** | Trusted surface renders and authorizes the closed Checkout and Payment Mandates | Agent constructs closed mandates and verifiers validate them against the open pair | Constraint evaluation record: price, SKU/category, merchant, geography, TTL, refund terms, and mandate linkage | Which verifier rejects a mismatch, and which differences require renewed user authorization? |
+| **Payment signaling** | Closed Payment Mandate conveys the human-present authority and checkout linkage | Open and closed Payment Mandates convey the autonomous authority chain | Payment Mandates plus linked Checkout Mandates | Can each payment actor validate the exact mandated objects before releasing credentials or executing? |
 | **Challenge and re-entry** | 3DS2 or CP challenge can occur before authorization completes | Merchant, CP, issuer, or network can force the user back into session when mandate confidence is insufficient | Challenge result, trusted-surface approval, updated mandate if needed | Is challenge policy based on transaction risk, mandate ambiguity, merchant confidence, or regulatory requirement? |
-| **Post-transaction evidence** | Cart Mandate and Payment Mandate support dispute resolution | Intent, Cart, and Payment Mandates together explain delegated authority and final execution | Non-repudiable mandate chain plus payment authorization result | Can auditors reconstruct who authorized what, within which constraints, and which agent acted? |
+| **Post-transaction evidence** | Closed Checkout and Payment Mandates support reconstruction | Open and closed mandate pairs explain the constraint envelope and final execution | Validated signatures, object/hash linkage, receipts, payment result, and verifier decisions | Can auditors reconstruct who or what signed each object, what was approved, what executed, and which checks were actually applied? |
 
 For DR-0001 architecture, this makes AP2 closest to a **domain-specific delegation envelope**. It is more precise than a generic OAuth scope, because it carries transaction constraints and signed evidence, but it is narrower than a general agent authorization framework, because it is payment-specific and still relies on the payment network, issuer, or Credentials Provider to perform SCA and risk challenge decisions.
 
@@ -5776,19 +5779,19 @@ AP2 addresses several payment authorization challenges, but creates new complian
 
 | PSD2 Requirement | AP2 Mechanism | Status | Gap |
 |:-----------------|:-------------|:-------|:----|
-| **SCA (Art. 97)** | Cart/Intent Mandate signed via hardware-backed key + biometric | ⚠️ Partial | AP2 *enables* SCA via device-level signing but delegates the actual two-factor authentication to the Credentials Provider and existing payment infrastructure (3DS2). SCA is not an AP2 responsibility — it is the issuer/CP's responsibility. |
-| **Dynamic linking (RTS Art. 5)** | Cart Mandate cryptographically binds amount + payee + items | ✅ Strong | *Exceeds* PSD2 minimum — signed binding is stronger than CIBA's informational `binding_message`. |
-| **Payer authentication (Art. 97(1))** | User signs mandate via biometric on their device | ✅ Covered | Human-present: direct biometric auth. |
-| **Per-transaction consent (Art. 64)** | Cart Mandate = explicit consent; Intent Mandate = delegated consent | ⚠️ Gap | Human-present: clear. Human-not-present: **Intent Mandate authorizes future transactions as a category, not per-transaction.** This is structurally analogous to recurring payment (MIT) exemptions, but without formal regulatory recognition for agent-initiated payments. |
-| **Credential safeguarding (Art. 69(1)(b))** | Shopping Agent architecturally prevented from accessing PCI data | ✅ Strong | Role separation ([§8.8.2](#882-role-based-architecture-and-pci-separation)) ensures agents never hold payment credentials. |
+| **SCA (Art. 97)** | Trusted-surface mandate authorization can be composed with payment authentication | ⚠️ Deployment-dependent | AP2 does not by itself prove that two independent SCA elements were applied; the issuer/credential-provider/payment profile supplies and validates them. |
+| **Dynamic linking (RTS Art. 5)** | Closed mandate objects can carry and cryptographically link the amount, payee, and checkout | ⚠️ Deployment-dependent | Each responsible verifier must validate the signer/key, rendered transaction, hashes, amount/payee, and final executed payment; a signed object alone is insufficient. |
+| **Payer authentication (Art. 97(1))** | Trusted surface can authenticate the user before authorizing a mandate | ⚠️ Deployment-dependent | The authenticator and key-holder binding depend on the trust model; AP2 signatures must not be equated automatically with regulated payer authentication. |
+| **Payment authorization (Art. 64)** | Closed mandates represent a specific transaction; open mandates establish an autonomous constraint envelope | ⚠️ Legal/profile question | The effect of an open mandate on later transactions, SCA, exemptions, and evidence must be defined by the payment profile and issuer policy. |
+| **Credential safeguarding (Art. 69(1)(b))** | Credential Provider can keep raw payment credentials away from the Shopping Agent | ✅ Architectural contribution | Verify the concrete integration: payment tokens, logs, mandate contents, and downstream systems can still expose sensitive payment data. |
 
-**The fundamental compliance question**: PSD2 requires SCA *per electronic payment* (Art. 97). AP2's Intent Mandate authorizes a *category* of future payments within constraints — the initial signing satisfies SCA, but individual transactions within the mandate may not trigger per-transaction SCA unless the issuer/network challenges them via 3DS2. Agent-initiated payments don't fit cleanly into PSD2's existing categories:
+**The fundamental compliance question**: the payment profile must specify when SCA is required for a later transaction, what exemption or transaction classification applies, and how the issuer validates the open-to-closed authority chain. An initial open-mandate ceremony cannot be declared to satisfy SCA for every later payment. Agent-mediated payments also need explicit treatment within existing payment-industry categories rather than a new category invented by this report:
 
 - **Customer-Initiated Transaction (CIT)**: The customer isn't present at transaction time
 - **Merchant-Initiated Transaction (MIT)**: The agent isn't the merchant
-- **Agent-Initiated Transaction**: This category does not exist in PSD2
+- **Agent-mediated transaction**: This report uses the phrase descriptively; it is not a PSD2 transaction category
 
-> **Open question**: See [§27](#27-open-questions) ([OQ 29](#oq-29)) for the specific question on Intent Mandate vs. PSD2 SCA-per-transaction.
+> **Open question**: See [§27](#27-open-questions) ([OQ 29](#oq-29)) for the specific question on open-mandate authority, later payment authentication, and PSD2 SCA treatment.
 
 ##### 8.8.5 Connection to Unsolved Problems (§8.4)
 
@@ -5796,8 +5799,8 @@ AP2 partially addresses three of the five unsolved MCP × A2A problems identifie
 
 | [§8.4](#84-the-mcp--a2a-security-gap) Problem | AP2 Contribution | Residual Gap |
 |:-------------|:----------------|:-------------|
-| **#2 — Consent propagation** | Cart/Intent Mandates provide cryptographic proof of user consent that travels with the transaction across agent boundaries | Consent is payment-scoped only — does not cover non-payment tool consent (e.g., data access, calendar modification) |
-| **#3 — Audit chain continuity** | The mandate chain (Intent → Cart → Payment) creates a non-repudiable, cryptographic audit trail linking user intent to payment execution | Audit trail covers the payment lifecycle only — it does not correlate A2A `contextId`/`taskId` with modern MCP request IDs or optional application/task handles (the [§8.5.1](#851-a2amcp-bridge-context-mapping-pattern) bridge pattern remains necessary for non-payment audit continuity) |
+| **#2 — Authority propagation** | Open and closed Checkout/Payment Mandates carry signed payment-specific authority and constraints across participants | The authority is payment-scoped, and every recipient still needs signer, key, linkage, expiry, and local-policy validation |
+| **#3 — Audit chain continuity** | The mandate chain can create tamper-evident evidence linking the constraint envelope, finalized checkout, payment authority, and result | Evidence covers the payment lifecycle only and proves only the checks actually performed; it does not correlate A2A `contextId`/`taskId` with modern MCP request IDs or optional application/task handles |
 | **#5 — Opaque execution consent** | The Payment Mandate explicitly signals AI agent involvement and human-present/absent modality to payment networks — making agent-mediated transactions *visible* rather than opaque | Visibility is one-directional (to the payment network); the user still cannot see *which specific tools* the Shopping Agent used internally |
 
 Problems #1 (cross-protocol delegation) and #4 (session/context correlation) remain unaddressed by AP2.
@@ -5808,15 +5811,15 @@ AP2 operates at a distinct layer in the payment authorization stack, complementi
 
 | Layer | Protocol | Payment Function | PSD2 Function |
 |:------|:---------|:----------------|:--------------|
-| **3. Application** | **AP2** | Cryptographic proof of authorization (mandates), AI disclosure to payment network, dispute evidence | Dynamic linking evidence, agent involvement signaling |
-| **2. Authentication** | **CIBA / OAuth** | SCA (biometric + device), out-of-band approval, `binding_message` | SCA enforcement, per-transaction authentication |
+| **3. Application** | **AP2** | Signed checkout/payment authority, constraint linkage, agentic-payment signaling, and dispute evidence | Can contribute dynamic-linking evidence when the payment profile validates it end to end |
+| **2. Authentication / grant** | **CIBA / OAuth** | Decoupled authentication/authorization ceremony and token result | Can carry a payment interaction; does not guarantee SCA or transaction binding by itself |
 | **1. Protocol** | **MCP + A2A** | Agent identity (`act` claim), token exchange, task lifecycle | Identity attribution, delegation chain |
 
-> **See also**: [§15.10.3](#15103-psd2psd3-payment-services) for the expanded PSD2/CIBA analysis including AP2 Cart Mandate as a complementary dynamic linking mechanism.
+> **See also**: [§15.10.3](#15103-psd2psd3-payment-services) for the expanded PSD2/CIBA analysis and the boundary between CIBA's visual interlock, AP2 mandate evidence, and payment-profile dynamic linking.
 
 #### 8.9 Framework Identity Context: The Intra-Organization Gap
 
-The five unsolved problems in [§8.4](#84-the-mcp--a2a-security-gap) (cross-protocol delegation, consent propagation, audit chain continuity, session correlation, opaque execution) address how identity crosses the **MCP↔A2A wire-protocol boundary**. They implicitly assume that agents on *both sides* of the boundary use the same internal identity model. In practice, enterprise multi-agent deployments increasingly use **heterogeneous frameworks** — a LangGraph orchestrator delegating to an AutoGen specialist, a CrewAI crew invoking a Google ADK agent via A2A, or an OpenAI Agents SDK pipeline handing off to a Semantic Kernel agent backed by Entra ID. When this happens, the identity context — user delegation, scope constraints, `act` claims — must survive not just the protocol boundary but also the **framework boundary**, which adds three additional translation layers: vocabulary mismatch (different keys for user identity), transport mismatch (different serialization of identity into A2A payloads), and authorization model mismatch (ranging from cryptographic delegation to prompt-level role definitions).
+The five unsolved problems in [§8.4](#84-the-mcp--a2a-security-gap) (cross-protocol delegation, authority propagation, audit-chain continuity, session correlation, and opaque execution) address how identity and authority cross the **MCP↔A2A wire-protocol boundary**. They implicitly assume that agents on *both sides* of the boundary use the same internal identity model. In practice, enterprise multi-agent deployments increasingly use **heterogeneous frameworks**—a LangGraph orchestrator delegating to an AutoGen specialist, a CrewAI crew invoking a Google ADK agent via A2A, or an OpenAI Agents SDK pipeline handing off to a Semantic Kernel agent backed by Entra ID. When this happens, the identity context—user delegation, scope constraints, `act` claims—must survive not just the protocol boundary but also the **framework boundary**, which adds three additional translation layers: vocabulary mismatch, transport mismatch, and authorization-model mismatch.
 
 The table below summarizes the identity propagation model of six major agent orchestration frameworks, based on source-level analysis of each framework's repository (LangGraph, AutoGen, Google ADK) and documentation review (CrewAI, OpenAI Agents SDK, Amazon Bedrock Agents):
 
@@ -5856,7 +5859,7 @@ The active individual Transaction Tokens for Agents draft (`draft-araut-oauth-tr
 
 The gateway-based approach aligns with Rec 11 (Protocol-Agnostic AI Gateways) — the same gateway that bridges MCP and A2A protocols should also normalize identity context across framework boundaries. This adds a seventh responsibility to the gateway's role: **identity normalization** — translating framework-specific user context into a standard Transaction Token for outbound A2A requests, and extracting Transaction Token claims into framework-specific context for inbound requests.
 
-> **Connection to [§8.4](#84-the-mcp--a2a-security-gap)**: This partially addresses Problem #1 (cross-protocol delegation) by providing a mechanism for user identity to survive both protocol and framework boundaries. Problems #2–#5 (consent propagation, audit chain, session correlation, opaque execution) remain framework-dependent and are not addressed by identity normalization alone.
+> **Connection to [§8.4](#84-the-mcp--a2a-security-gap)**: This partially addresses Problem #1 (cross-protocol delegation) by providing a mechanism for user identity to survive both protocol and framework boundaries. Problems #2–#5 (authority propagation, audit chain, session correlation, and opaque execution) remain framework-dependent and are not addressed by identity normalization alone.
 >
 > **Connection to [§20.3](#203-transaction-scoped-credentials)**: Transaction Tokens for Agents retain the ordinary `sub`/`act` authorization identity and supplement it with `agentic_ctx` operational lineage. Cross-framework agent delegation is a candidate use of that still-individual proposal, not a standardized A2A identity carrier.
 >
@@ -6146,7 +6149,7 @@ gantt
 | **Rotation on use** | Issue new refresh token on each use, invalidate old | Detect token theft |
 | **User revocation** | User can revoke agent's refresh token from dashboard | User control |
 | **Inactivity timeout** | If agent hasn't refreshed in N hours, expire | Detect abandoned tasks |
-| **Consent binding** | If user revokes consent, all associated refresh tokens invalidated | GDPR compliance |
+| **Grant/approval binding** | Index refresh-token families by grant and authority record; on withdrawal or revocation, evaluate and invalidate every affected family and deny further task use | Prevent stale delegated authority; legal withdrawal, erasure, and retention duties remain separate |
 | **Audit on refresh** | Log every refresh with agent identity | Detect anomalous refresh patterns |
 
 > **Execution-count constraints as an alternative to time-based expiry**: Rather than basing token expiry solely on time ("this token expires in 1 hour"), an alternative model constrains tokens by **invocation count** — "this token is valid for N tool calls" (e.g., 5, 10, or 50 invocations). Execution-count constraints reduce the blast radius of compromised tokens in a way that is naturally aligned with MCP's tool-call-oriented architecture: an attacker who steals a token with 3 remaining invocations can cause far less damage than one who steals a token with 45 minutes of validity. This model is particularly effective when combined with Pattern C (Bounded Task, [§10.3](#103-authorization-continuity-patterns)) — the token expires either when the task completes _or_ when the invocation budget is exhausted, whichever comes first. Execution-count constraints also connect to TBAC ([§16](#16-task-based-access-control-tbac)): a task-bound authorization context could specify both the _set of permitted tools_ and the _maximum number of invocations per tool_, with task completion triggering immediate token expiry regardless of remaining count or time.
@@ -6195,7 +6198,7 @@ The agent never handles refresh tokens directly — the gateway transparently re
 
 #### 10.6 MCP Tasks Extension: Authorization for Durable Async Workflows
 
-> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft) (`lifecycle_binding`), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (CAEP/SSF)
+> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-agent-extensions-monitor-not-baseline) (`lifecycle_binding`), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (CAEP/SSF)
 
 MCP Tasks has two deliberately separate status labels. **SEP-2663 is Final**, meaning the extension design was accepted through the MCP enhancement process; the published `io.modelcontextprotocol/tasks` **extension specification is still Draft**, meaning its wire contract may continue to change independently of core MCP.
 
@@ -6442,7 +6445,7 @@ The access token that authorized task creation may expire while work continues. 
 | Pattern | Mechanism | Use |
 |:--------|:----------|:----|
 | **Gateway-mediated refresh** | Gateway refreshes under the original consent and re-authorizes each task operation | Pragmatic default for gateway deployments |
-| **Task-bound `lifecycle_binding`** | An experimental RAR extension ties token validity to external task state ([§19.4](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft)) | Forward-looking high-assurance design; not an MCP Tasks feature |
+| **Experimental `lifecycle_binding`** | An individual RAR extension draft proposes references to external task state ([§19.4](#194-rar-agent-extensions-monitor-not-baseline)) | Monitor-stage design signal; not an MCP Tasks feature or production interoperability baseline |
 | **Approved offline authority** | AS issues a refresh token under explicit `offline_access` policy; gateway binds it to the task and autonomy window | User-absent batch work where independent continuation is intended |
 
 Cancellation is cooperative and eventually consistent. A successful `tasks/cancel` result acknowledges intent only: the task may briefly remain non-terminal, may finish before cancellation takes effect, and is not guaranteed to reach `cancelled`. Authorization systems should therefore distinguish `cancel_requested`, `work_stopped`, `terminal_status`, and `credential_revoked`; revoking task authority may be necessary even when the underlying worker cannot be stopped immediately.
@@ -6669,24 +6672,24 @@ Content-Type: application/json
 
 ##### 10.7.3 Originating Event Traceability
 
-Every refresh token carries metadata linking it to the **event that established the session** — enabling full audit trail from any API call back to its originating human action:
+The authorization server should keep restricted metadata beside each refresh-token family, linking it to the **grant and evidence record that established the authority**. Do not place detailed approval text, authentication methods, or sensitive transaction data inside a refresh token merely for audit convenience:
 
 ```json
 {
-  "refresh_token_claims": {
-    "jti": "rt-a1b2c3d4",
+  "refresh_token_family_record": {
+    "family_id": "rtf-a1b2c3d4",
     "sub": "usr-12345",
     "act": { "sub": "agent-invoice-processor" },
     "scope": "invoices:read invoices:process",
     "origin": {
       "type": "ciba",
-      "auth_req_id": "ciba-req-7890",
-      "approved_at": "2026-03-13T09:15:00Z",
-      "binding_message": "Process all invoices for March 2026",
-      "approver_amr": ["face", "pin"]
+      "grant_id": "grant-4831",
+      "authority_record_id": "authority-9012",
+      "approval_evidence_id": "evidence-7890",
+      "action_digest": "sha256:7eb3..."
     },
-    "iat": 1741853700,
-    "exp": 1741940100,
+    "issued_at": "2026-03-13T09:16:00Z",
+    "absolute_expires_at": "2026-03-14T09:16:00Z",
     "rotation_count": 12
   }
 }
@@ -6694,26 +6697,26 @@ Every refresh token carries metadata linking it to the **event that established 
 
 | Origin Type | What It Records | Audit Value |
 |:------------|:---------------|:------------|
-| `"ciba"` | `auth_req_id`, `approved_at`, `binding_message`, `approver_amr` | Full Art. 14 evidence: who approved, what they approved, when, and how they authenticated |
-| `"token_exchange"` | `original_subject_token_jti`, `exchanged_at`, `delegation_depth` | Full delegation chain traceability |
-| `"authorization_code"` | `authorization_code_jti`, `consent_id`, `consented_at` | Consent record linkage |
+| `"ciba"` | Grant, authority-record, restricted evidence, and canonical-action references | Correlates the token family with the separately protected approval evidence; does not claim Art. 14 compliance |
+| `"token_exchange"` | Source-token family/reference, exchange event, actor chain, target resource, and granted narrowing | Reconstructs the AS's derivation and delegation decision |
+| `"authorization_code"` | Grant, client, resource, authorization event, and evidence reference | Links the token family to the user-delegated grant without copying the full consent/approval payload |
 
-This traceability enables a compliance officer to answer: *"At 3:47 AM, agent-invoice-processor called `POST /invoices/batch-process`. Who authorized this?"* → Follow `origin.auth_req_id` → Alice approved via CIBA at 9:15 AM the previous day, using biometric + PIN authentication. The refresh token has been rotated 12 times since.
+This traceability lets an authorized investigator follow an API decision to the token family, grant, authority record, and restricted evidence record. The evidence service—not the token—contains the exact rendered content, authenticated subject, achieved authentication context, decision time, and retention policy. Rotation count shows credential lifecycle; it does not show that each later operation remained authorized.
 
 ##### 10.7.4 Token Exchange vs. CIBA: Offline Authority Comparison
 
-Both Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) and CIBA ([§15.5](#155-tier-5-ciba-protocol)) can establish offline sessions via refresh tokens. The key differences:
+Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) and CIBA ([§15.5](#155-tier-5-ciba-protocol)) are inputs to different authorization-server decisions. Neither guarantees an offline session or refresh token; CIBA permits an optional refresh token, while token-exchange issuance and renewal depend on the selected profile and AS policy.
 
-| Dimension | Offline via Token Exchange | Offline via CIBA |
-|:----------|:--------------------------|:-----------------|
-| **Establishes authority** | Delegation — "Agent acts as me" | Approval — "Agent may do this specific thing" |
-| **Scope** | Bounded by delegation grant (may be broad) | Bounded by approved action (typically narrow) |
-| **User presence at start** | User present (authenticates, then delegates) | User may be absent (approves on separate device) |
-| **Typical refresh lifetime** | 8–24 hours (general delegation) | 1–8 hours (action-specific) |
-| **Re-approval mechanism** | New Token Exchange (re-delegate) | New CIBA request (re-approve) |
-| **Best for** | General-purpose agent sessions ("do my emails") | Specific high-risk workflows ("process these invoices") |
+| Dimension | Token Exchange | CIBA |
+|:----------|:---------------|:-----|
+| **Primary purpose** | Exchange an accepted subject/actor credential for a token targeted to another resource or context | Authenticate a selected subject out of band and obtain an authorization decision |
+| **Authority source** | The input credential plus AS delegation/exchange policy | The CIBA request, subject authentication, user decision, client/grant policy, and requested resources/scopes |
+| **Action specificity** | Only as specific as the requested and granted exchange profile | Core CIBA is not exact-action authority; a structured approval/grant profile supplies that binding |
+| **User interaction** | None required by the exchange protocol | Interaction occurs on the authentication device |
+| **Durable continuation** | A separately governed refresh/token-family and task-authority policy, if issued | A separately governed refresh/token-family and task-authority policy, if issued |
+| **Renewal boundary** | Re-evaluate source authority, actor chain, resource, scope, policy, and task state | Re-evaluate grant, approval scope, action/task state, expiry, and whether a new CIBA decision is required |
 
-**Combined pattern**: Token Exchange establishes the *general* delegation (Agent can act as Alice for `invoices:*`). CIBA then gates *specific* high-risk actions within that delegation (`invoices:delete` requires approval). Refresh tokens from *either* mechanism ensure the agent can continue without interruption.
+**Combined pattern**: An AS can use Token Exchange to derive a narrow agent token from existing delegated authority, while a separate CIBA workflow gates a consequential operation. The task authority record then controls continuation. A refresh token is only a credential-renewal mechanism; it neither preserves an approval forever nor guarantees uninterrupted execution.
 
 ---
 
@@ -6943,7 +6946,7 @@ The lifecycle table above should be read as an **ownership map**, not just a fea
 
 | Lifecycle Control | Primary Owner | Required Evidence | Product-Backed Implementation Pattern |
 |:------------------|:--------------|:------------------|:--------------------------------------|
-| **Consent capture** | IdP / authorization server | Consent grant, RAR payload, connected-account record, or CIBA approval ID | Auth0 Connected Accounts, APIM user-delegated connection, AP2 mandate, CIBA flow |
+| **Approval and grant capture** | IdP / authorization server plus domain workflow | OAuth grant, requested/granted RAR objects, connected-account record, CIBA approval evidence, or domain mandate | Auth0 Connected Accounts, APIM user-delegated connection, AP2 mandates, CIBA plus a domain approval service |
 | **Credential custody** | Vault, gateway, runtime, or cloud secret manager | Encrypted storage record, key-management policy, access policy, or secret lease | Auth0 Token Vault, Azure Credential Manager/Key Vault, Docker secret store, Vault dynamic secrets |
 | **Per-request credential release** | Gateway or credential broker | Token exchange event, injected header/JWT hash, secret mount event, or SigV4/JWKS verification log | LiteLLM JWT signer, Kuadrant AuthPolicy, Docker gateway injection, APIM `get-authorization-context` |
 | **Refresh / rotation** | Credential platform or AS | Refresh event, token-family ID, rotation status, refresh failure reason | Token Vault provider refresh, APIM Credential Manager auto-refresh, cloud IAM rotation, Vault TTL renewal |
@@ -8258,7 +8261,7 @@ DPoP is preferred for **public clients** (which MCP clients typically are, since
 
 > **Pattern connection**: DPoP is most relevant for **Pattern A** (Direct Token Exchange) and **Pattern B** (Token Vault) from [§11.1](#111-credential-delegation-pattern-taxonomy) — where the agent actually holds a token. For Patterns C and D (injection/secretless), DPoP is unnecessary because the agent never possesses the credential. Pattern E depends on the cloud platform's support.
 
-> **Post-quantum consideration**: DPoP proofs currently use ES256 (64-byte signatures). NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets ECDSA deprecation by 2030, with [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA as the replacement. ML-DSA-65 signatures are 3,309 bytes (~52× larger), which—combined with a PQC-signed JWT—would push the `Authorization` + `DPoP` headers near or above common proxy limits. AWS IAM Roles Anywhere already supports ML-DSA for X.509 signing ([§14](#14-user-consent-models-first-party-vs-third-party)); active JOSE work defines ML-DSA and hybrid identifiers. Gateways therefore need algorithm agility and measured end-to-end size tests before enabling a post-quantum profile. See [OQ 30](#oq-30).
+> **Post-quantum consideration**: DPoP proofs currently use ES256 (64-byte signatures). NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets ECDSA deprecation by 2030, with [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA as the replacement. ML-DSA-65 signatures are 3,309 bytes (~52× larger), which—combined with a PQC-signed JWT—would push the `Authorization` + `DPoP` headers near or above common proxy limits. AWS IAM Roles Anywhere already supports ML-DSA for X.509 signing ([§14](#14-authorization-approval-and-consent-models)); active JOSE work defines ML-DSA and hybrid identifiers. Gateways therefore need algorithm agility and measured end-to-end size tests before enabling a post-quantum profile. See [OQ 30](#oq-30).
 
 
 #### 12.3 Event-Driven Revocation: SSF, CAEP, and MCP Provider Commands
@@ -8476,7 +8479,7 @@ The modern MCP core does not define a security-event command channel. Request-sc
 | **Event richness** | Binary (active/inactive) | Custom payload | ✅ Structured CAEP event types (session-revoked, credential-changed, compliance-changed) |
 | **Cross-vendor** | ✅ Any RFC 7662-compliant AS | ❌ Requires shared event infrastructure | ✅ Any SSF-compliant transmitter/receiver |
 
-> **Connection to [§14.7.3](#1473-consent-revocation-vs-token-revocation) (Consent Revocation)**: SSF/CAEP is particularly powerful for consent revocation cascading in delegation chains. When User A revokes consent for Agent B, the IdP emits a CAEP `session-revoked` event. The MCP gateway receives this event and must cascade the revocation to all sub-delegations that Agent B granted to other agents ([§14.7.3](#1473-consent-revocation-vs-token-revocation)). The structured CAEP event provides the context (which user, which agent, which scopes) needed to identify and invalidate the full delegation tree — addressing the consent revocation vs. token revocation distinction identified in [§14.7.3](#1473-consent-revocation-vs-token-revocation).
+> **Connection to [§14.7.3](#1473-consent-revocation-vs-token-revocation) (authority withdrawal and revocation)**: An authenticated [SSF/CAEP](https://openid.net/specs/openid-caep-1_0.html) event can shorten the stale-authority window by telling a receiver that a subject/session property changed. It is a re-evaluation trigger, not the delegation graph or cancellation protocol. The gateway resolves the event subject under the agreed profile, queries its local grant/task lineage index, invalidates affected tokens and unconsumed authority, and initiates downstream cancellation under [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract). The event must not be assumed to contain every agent, scope, descendant, or already dispatched action.
 
 ##### 12.3.5 Vendor SSF/CAEP Support
 
@@ -8499,7 +8502,7 @@ The following table maps each CAEP event type to MCP-specific trigger scenarios 
 | CAEP Event Type | MCP Trigger Scenario | Gateway Action |
 |:----------------|:---------------------|:---------------|
 | `session-revoked` | User revokes agent delegation via IdP dashboard; admin terminates session | Terminate agent session immediately; cascade through delegation chain ([§14.7.3](#1473-consent-revocation-vs-token-revocation)) |
-| `assurance-level-change` (decrease) | User's risk score increases (Entra ID Protection, Okta ITP); MFA credential expires mid-session | Require step-up authentication via CIBA ([§15.5](#155-tier-5-ciba-protocol)) for subsequent high-risk tool calls; restrict agent to read-only tools until re-authenticated |
+| `assurance-level-change` (decrease) | User's risk score increases (Entra ID Protection, Okta ITP); MFA credential expires mid-session | Return an RFC 9470 step-up challenge or otherwise require fresh authentication for subsequent sensitive calls; CIBA is one possible decoupled ceremony where the AS profile supports it. Restrict the agent until the new assurance is validated and policy is re-evaluated |
 | `assurance-level-change` (increase) | User completes MFA step-up on another service provider | Optionally unlock higher-risk tools that were previously gated behind MFA |
 | `token-claims-change` | User's role changes in HR system (SCIM → IdP → CAEP); user's compliance clearance expires | Re-evaluate policy engine ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) with updated claims; block tools no longer authorized under new role or compliance status |
 | `credential-change` (revoke/delete) | Agent's client credential rotated or revoked by admin; user's password reset | Terminate all sessions using the old credential; require re-authentication |
@@ -8511,7 +8514,7 @@ For MCP gateways, the enforcement model should be a **response ladder**, not a s
 |:---------------|:---------------|:--------|:--------------------------|
 | **0. Observe and annotate** | Attach event context to the session/task record and keep serving low-risk tools | Informational risk increase, assurance increase, non-critical claim addition | SET `jti`, event timestamp, trace ID, no-op policy decision |
 | **1. Restrict** | Remove high-risk tools, reduce scopes, cap budgets, or downgrade to read-only operations | Assurance decrease, role narrowing, suspicious but not terminal behavior | New policy decision ID, previous vs. current scope set, affected tool list |
-| **2. Step up** | Require CIBA/HITL approval or fresh MFA before the next sensitive tool call | MFA expiry, device posture drift, payment or data-export action after risk change | Challenge ID, approver identity, approval/denial artifact |
+| **2. Step up or obtain approval** | Require fresh authentication when assurance is insufficient; independently require a request-bound approval when business policy calls for one | MFA expiry or device-posture drift; a payment or data-export action that separately requires approval after the risk change | Authentication event and resulting assurance; when applicable, a distinct approval request, approver identity, displayed-action digest, and decision |
 | **3. Suspend** | Pause active tasks, stop polling, hold result retrieval, and wait for re-authentication or policy repair | Token-claims change, credential rotation, temporary compliance failure | Task authority record disposition, pause reason, resume criteria |
 | **4. Revoke** | Terminate session, invalidate token family, disconnect vault credential, and deny all further calls | `session-revoked`, credential compromise, user/admin consent revocation | Revocation event, affected token/connection IDs, deny-list update |
 | **5. Kill runtime** | Stop connector container, revoke secret lease, unmount credential, or quarantine MCP server | Runtime secret exposure, compromised MCP server image, direct-bypass attempt against signer policy | Container/lease termination event, image/server ID, incident ticket |
@@ -9794,7 +9797,7 @@ The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI
 | Responsibility | Description | Standards | EU AI Act |
 |:---|:---|:---|:---|
 | **Token Validation** | Validate Bearer token (JWT signature, expiry, audience, issuer) | OAuth 2.1, RFC 9068 (JWT Profile) | Art. 15 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
-| **Consent Verification** | Check that user has consented to agent's requested scopes | OAuth scopes, IAM consent registry | Art. 14 — see [§23.5](#235-art-14-human-oversight-implementation-patterns) |
+| **Grant and approval evidence** | Validate the current grant and, where policy requires it, the relevant approval/consent evidence reference | OAuth grant/scopes, IAM grant or consent registry, authority record | Can support Art. 14 controls where applicable; not compliance proof ([§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§23.5](#235-art-14-human-oversight-implementation-patterns)) |
 | **Scope-to-Tool Mapping** | Map OAuth scopes to MCP tool permissions | Custom ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) | Art. 9 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Token Exchange** | Exchange user token for scope-attenuated tool-specific token (OBO) | RFC 8693 | — |
 | **Downstream Credential Separation** | Obtain a credential whose audience and authority target the downstream service; never pass the incoming MCP token through | RFC 8693 or service-specific workload authorization | Art. 9/15 — see [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§11](#11-credential-delegation-patterns), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
@@ -9829,8 +9832,6 @@ While logically part of the same gateway pipeline, the **Policy Decision Point (
 > **Visual audit trails**: For high-risk deployments, screenshot-based forensics can complement structured log data as a secondary audit mechanism. Capturing UI state or agent action screenshots at sensitive access points (e.g., before and after a high-risk tool invocation) provides evidence that structured logs alone cannot — particularly for post-incident reconstruction of agent behavior after SSRF, tool poisoning, or privilege escalation attacks. This approach aligns with Art. 12's "automatic recording" requirement by providing visual corroboration of logged events, and may be especially relevant for demonstrating compliance where the agent interacts with graphical interfaces (browser-use agents, computer-use agents). Visual captures should be treated as supplementary evidence, stored alongside structured audit logs with matching correlation identifiers (e.g., `trace_id`, `mcp.request.id`, and any explicit `mcp.task.id`).
 
 > **Data flow provenance vs. action provenance**: The audit logging responsibilities above primarily capture **action provenance** — _who_ did _what_ and _when_. Equally important in MCP deployments is **data flow provenance** — _where did the data come from_ that informed the agent's response. An agent may combine outputs from multiple tool calls (e.g., a CRM lookup, a calendar query, and a document retrieval) into a single response to the user. The audit trail should track not just which tools were invoked, but which tool outputs flowed into the final synthesized response. This is especially critical for RAG (Retrieval-Augmented Generation) scenarios where document sources must be traceable — both for regulatory compliance (Art. 12 traceability) and for debugging hallucinated or misattributed content. See [§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform) (Auth0 OpenFGA) for how relationship-based authorization can enforce and audit data source access in RAG pipelines.
-
-> **C2PA for agent action provenance**: The [Coalition for Content Provenance and Authenticity (C2PA)](https://c2pa.org/) is an emerging standard for content provenance, originally designed to track the origin and edit history of media assets (photos, video, audio) via cryptographic manifests. Its core concept — binding content to its origin through tamper-evident, signed provenance records — could theoretically extend to agent action provenance: creating a cryptographic chain linking each tool call, its inputs, and its outputs into a verifiable manifest. Such an approach would provide non-repudiable evidence that a specific agent, acting on behalf of a specific user, produced a specific output from specific tool call results — stronger than log-based provenance alone. This is speculative and no implementations exist for agent scenarios, but C2PA's manifest model is worth monitoring as the agent ecosystem matures and the need for tamper-evident action chains grows. See [§27](#27-open-questions) for the C2PA reference.
 
 ##### 13.2.2 Identity-Aware Rate Limiting and Token Budget Governance
 
@@ -10160,9 +10161,9 @@ The guardrail engine produces a structured result containing a confidence score 
 
 | Guardrail Confidence | Detection Meaning | Authorization Response | HITL Tier ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) | Behavioral Signal ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) | CAEP Event ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)) |
 |:---------------------|:-----------------|:----------------------|:-------------------|:--------------------------|:---------------------|
-| **High** (≥ 0.9) | Near-certain prompt injection or policy violation | **Hard deny** — block request, return `403` with `guardrail_violation` error code | Tier 5–6 (CIBA / Multi-party) | Guardrail trigger signal: weight High, decay 24h | `assurance-level-change` (`decrease`, `current_level: untrusted`) |
-| **Medium** (0.5–0.89) | Suspected injection or ambiguous content | **Escalate** — trigger CIBA approval ([§15.5](#155-tier-5-ciba-protocol)) for human review; attenuate scope to read-only tools pending approval | Tier 3–4 (Step-up / Webhook) | Guardrail trigger signal: weight Medium, decay 4h | `assurance-level-change` (`decrease`, `current_level: reduced`) |
-| **Low** (&lt; 0.5) | Weak signal, possibly benign anomaly | **Pass with annotation** — allow request; inject `X-Guardrail-Confidence` header for downstream observability; log for behavioral scoring | Tier 1–2 (Audit / In-session) | Guardrail trigger signal: weight Low, decay 1h | None (below threshold) |
+| **High** (≥ 0.9) | Near-certain prompt injection or policy violation | **Hard deny** — block this request and return a controlled `guardrail_violation` error; human approval cannot make the detected payload safe | Not applicable to the denied request | Guardrail trigger signal: weight High, decay 24h | `assurance-level-change` (`decrease`, `current_level: untrusted`) |
+| **Medium** (0.5–0.89) | Suspected injection or ambiguous content | **Hold and investigate** — do not execute the suspect request; isolate untrusted content, retain a policy-safe summary, and route it to a security-review workflow. A later sanitized operation receives a new authorization evaluation and, if independently required by policy, a request-bound approval | Local security-review workflow; any later approval tier is selected for the sanitized operation | Guardrail trigger signal: weight Medium, decay 4h | `assurance-level-change` (`decrease`, `current_level: reduced`) |
+| **Low** (&lt; 0.5) | Weak signal, possibly benign anomaly | **Apply bounded policy** — permit only the already-authorized low-risk operation, record the signal in protected telemetry, and avoid forwarding internal guardrail scores as trusted request headers | Tier 0–1 unless another rule requires oversight | Guardrail trigger signal: weight Low, decay 1h | None (below threshold) |
 
 > **Connection to [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) (Behavioral Trust Scoring)**: The per-request pattern (this section) and the cross-request pattern ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) are complementary, not competing. A single high-confidence guardrail detection triggers an *immediate* authorization response (hard deny of the current request). The same detection *also* increments the [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) behavioral trust signal, which adjusts the agent's dynamic trust score for *future* requests. Over time, repeated medium-confidence detections can degrade the trust score enough to trigger a tier change ([§16.6.2](#1662-trust-score-architecture-closed-loop-model)), even if no single detection crossed the high-confidence threshold.
 
@@ -10600,16 +10601,18 @@ The three primary policy engines surveyed in [§18.3](#183-policy-engine-evaluat
 | **Sensitive data masking** | ✅ Policy-driven via `/system/log/mask` (GDPR-compatible) | ❌ N/A | ✅ Best practice: use UUIDs, avoid PII in entity identifiers | ❌ N/A |
 | **Export targets** | HTTP service, console, custom plugins (OTLP log export requested — GitHub #8214) | N/A | CloudTrail → S3/CloudWatch | API audit logs |
 
-**Architectural implication**: OPA is the only policy engine with native, trace-correlated decision logging — making it the strongest choice for deployments requiring Art. 12-compliant authorization decision audit trails. For gateways using Cedar (AgentGateway [§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a), Bedrock AgentCore [§18.3](#183-policy-engine-evaluation)), **decision logging is a gateway implementation responsibility** — the Cedar library evaluates policies and returns a decision, but does not log it. Gateways must explicitly capture the Cedar evaluation result, the policy ID that matched, the entities evaluated, and the authorization context, then emit these as span attributes and/or audit log fields.
+**Architectural implication**: OPA can emit detailed decision logs and correlate them with request context when the deployment configures an appropriate decision-log pipeline. Embedded libraries such as Cedar leave decision logging to the integrating gateway or service. Neither model is inherently “Art. 12 compliant”: the deployment must define the in-scope events, data minimization, policy and attribute versions, integrity, correlation, access controls, retention, and evidence that the PEP enforced the result.
 
 ###### 13.5.4.3 OpenID Authorization API Response as Decision Log
 
-The OpenID Authorization API ([§18.3](#183-policy-engine-evaluation)) standardizes the PEP→PDP interface. While [§18.3](#183-policy-engine-evaluation) documents the evaluation **request** format (the SARC pattern: Subject, Action, Resource, Context), the evaluation **response** also contains structured decision metadata that naturally produces authorization decision audit records:
+The [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) (§18.3.8) standardizes the PEP→PDP evaluation interface. Its portable response requires a boolean `decision` and permits an implementation-defined `context` object. The following richer response is the report's **versioned MCP deployment profile**, not a standard Authorization API response vocabulary:
 
 ```json
 {
   "decision": true,
   "context": {
+    "schema": "https://schemas.example.com/authzen/mcp-decision-v1.json",
+    "decision_id": "dec_01J2...",
     "reason": {
       "policy_id": "policy::sales-read-permit",
       "rule": "allow_team_read"
@@ -10622,9 +10625,11 @@ The OpenID Authorization API ([§18.3](#183-policy-engine-evaluation)) standardi
 }
 ```
 
-The `context.reason` field provides the **policy provenance** (which policy and rule produced the decision), while `context.obligations` carries **enforcement instructions** that the PEP (gateway) must apply — data redaction, step-up authentication triggers, or mandatory audit logging. For MCP gateways implementing the OpenID AuthZ API as their PEP interface, the PDP's evaluation response is the natural source for the `authz.*` span attributes defined above: `authz.decision` ← `decision`, `authz.policy.id` ← `context.reason.policy_id`, `authz.reason` ← `context.reason.rule`, `authz.obligations` ← `context.obligations`.
+Within this local profile, `context.reason` provides policy provenance and `context.obligations` carries enforcement instructions such as redaction or mandatory logging. The PEP validates the declared schema and every mandatory obligation before treating a permit as executable. An unrecognized required obligation converts the outcome to deny; a PDP response does not prove that the PEP actually enforced it.
 
-> **Connection to [§18.3](#183-policy-engine-evaluation) and [§23.4](#234-art-12-and-art-26-audit-trail-requirements)**: The OpenID Authorization API evaluation response closes the observability gap between [§18.3](#183-policy-engine-evaluation) (policy evaluation) and [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (distributed tracing). [§18.3](#183-policy-engine-evaluation) documents how the gateway asks the PDP *"can this agent call this tool?"* — but never mentions that the PDP's answer includes structured decision metadata. Capturing this metadata as OTel span attributes (this section) and including it in audit logs ([§13.5.3](#1353-trace-context-and-audit-log-correlation)) satisfies Art. 12's "sufficient granularity for traceability" requirement ([§23.4](#234-art-12-and-art-26-audit-trail-requirements)) at the authorization decision level, not just the request lifecycle level.
+For gateways using this profile, the response is one source for the `authz.*` span attributes above: `authz.decision` ← `decision`, `authz.policy.id` ← the profile's policy identifier, `authz.reason` ← the profile's reason code, and `authz.obligations` ← the recognized obligation identifiers. Preserve a shared `decision_id` and `trace_id`, but avoid copying sensitive raw attributes or policy internals into general-purpose telemetry.
+
+> **Connection to [§18.3](#183-policy-engine-evaluation) and [§23.4](#234-art-12-and-art-26-audit-trail-requirements)**: Decision and enforcement evidence can support the traceability and risk-management controls applicable to an in-scope system. It does not automatically satisfy AI Act Article 12; the required events, system classification, retention, integrity, and access controls still have to be established for the deployment.
 
 ###### 13.5.4.4 Enhanced Audit Log with Authorization Decision Context
 
@@ -10656,7 +10661,7 @@ Extending the [§13.5.3](#1353-trace-context-and-audit-log-correlation) audit lo
 }
 ```
 
-The `authorization` object provides the decision audit trail that Art. 12 traceability requires: *which engine* evaluated the policy (Cedar, OPA, OpenFGA), *which policy* matched, *how long* the evaluation took (critical for identifying policy performance bottlenecks), *what attributes* influenced the decision (enabling post-hoc analysis of whether the decision was correct given the inputs), and *what obligations* were attached (enabling compliance verification that obligations were fulfilled). For denied requests, the `evaluated_attributes` field is especially valuable — it reveals *why* access was denied, enabling policy debugging without reproducing the exact request context.
+The `authorization` object can contribute to decision traceability by recording *which engine* evaluated the policy, *which policy/version* matched, *how long* evaluation took, which minimized attributes influenced the result, and which local-profile obligations were returned. It does not prove that the PEP enforced those obligations or that the log is complete. For denied requests, store safe reason codes and protected engine-native detail; copying raw evaluated attributes into broad operational logs can leak identity, risk, tenant, or resource data.
 
 > **Connection to [§13.5.3](#1353-trace-context-and-audit-log-correlation) (Audit Evidence)**: The `authorization` object above extends the gateway audit schema with decision provenance. For gateways querying an external PDP via the OpenID Authorization API ([§18.3](#183-policy-engine-evaluation)), the evaluation response supplies decision metadata. Embedded engines require the gateway to capture the result, policy version, evaluated context, and obligations as span attributes and audit fields. A shared `decision_id` and `trace_id` join the PDP and gateway records without duplicating raw sensitive inputs.
 
@@ -10747,7 +10752,7 @@ flowchart TD
 | **Credential treatment** | Managed injection, audience-bound exchange, or workload identity keeps reusable credentials outside model context | Token vault or secretless pattern where downstream systems support it | [§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 13, and Rec 20 |
 | **Authorization model** | RBAC for coarse workforce roles plus ABAC/resource checks for sensitive arguments and backend objects | OPA, Cedar, CEL, PingAuthorize, or another PDP selected by policy semantics and outage behavior | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
 | **State / Tasks** | Bind every application and task handle to the employee, acting agent, client, tenant, consent, and policy version | Draft Tasks only when its extension version and server-directed lifecycle are explicitly supported | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), Rec 24, Rec 38 |
-| **Oversight** | Admin policy for routine access; action-level confirmation or external approval when consequence requires it | CIBA or multi-party approval for suitable high-consequence workflows, not as a universal enterprise default | [§14](#14-user-consent-models-first-party-vs-third-party), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), and Rec 14 |
+| **Oversight** | Admin policy for routine access; action-level confirmation or external approval when consequence requires it | CIBA or multi-party approval for suitable high-consequence workflows, not as a universal enterprise default | [§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), and Rec 14 |
 | **Acceptance evidence** | Configuration test proves exact core/extensions, credential path, handle isolation, revocation, and degraded behavior | Product documentation supplies candidates, not conformance | [§22.1](#221-protocol-admission-extensions-and-conformance), Rec 12, Rec 41 |
 
 **Operational consequence:** A single administrative domain simplifies issuer and policy governance, but it does not make gateway approval transitive. The MCP server still owns business authorization, and state/task stores must reject cross-user or cross-agent handle reuse.
@@ -10779,7 +10784,6 @@ flowchart TD
             Vault["Token Vault<br/>(Pattern B)"]
             Audit["Audit + OTel<br/>(§13.5)"]
 
-            Consent --> FGA --> CIBA --> Vault --> Audit
         end
 
         MCP["🔧 MCP Servers<br/>(Platform APIs)"]
@@ -10788,12 +10792,17 @@ flowchart TD
     User["👤 End User<br/>(Platform Customer)"]
     ExtAPI["🌐 External APIs<br/>(Slack, Google, GitHub)"]
 
-    Agent3P -->|"OAuth client<br/>+ scopes"| Consent
-    User -->|"Explicit consent<br/>per agent"| Consent
+    Agent3P -->|"OAuth request<br/>+ requested authority"| Consent
+    User -->|"User decision<br/>when policy requires"| Consent
+    Consent -->|"Granted authority"| MCP
+    Consent -.->|"Connection / grant reference"| Vault
     Vault -->|"Stored tokens<br/>(agent never receives)"| ExtAPI
-    FGA -.->|"Doc-level<br/>can_read?"| MCP
-    CIBA -.->|"Async approval<br/>(push notification)"| User
-    Audit -->|"W3C Trace Context"| MCP
+    FGA -.->|"Independent object decision<br/>when policy uses ReBAC"| MCP
+    CIBA -.->|"Optional out-of-band<br/>decision ceremony"| User
+    User -.->|"Authenticated decision"| CIBA
+    CIBA -.->|"Approval evidence;<br/>fresh policy evaluation"| MCP
+    Audit -.->|"Decision + execution evidence"| MCP
+    Audit -.->|"Credential event evidence"| Vault
 
 ```
 
@@ -10801,7 +10810,7 @@ flowchart TD
 |:--|:--|:--|:--|
 | **Protocol** | Current core per approved client; core and extension versions pinned independently | Additional current extensions only when the client, server, and policy profile pin the same contract | [§1.1](#11-current-only-protocol-admission), Rec 1, Rec 31 |
 | **Client identity / registration** | Issuer-specific pre-registration where a relationship exists; otherwise CIMD with issuer binding, software provenance, redirect validation, fetch safety, and tenant ownership | Fail visibly when neither approved path is available | [§3](#3-scope-and-client-identity-lifecycle), [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping), and [§13.7](#137-mcp-tool-supply-chain-security) |
-| **Consent / delegation** | Explicit or administrator-governed grant tied to the user, agent client, resource, purpose, scopes, and expiry | Incremental consent, external approval, or platform-managed cross-app access when the authority and evidence model are defined | [§14](#14-user-consent-models-first-party-vs-third-party), Rec 14 |
+| **Consent / delegation** | Explicit or administrator-governed grant tied to the user, agent client, resource, purpose, scopes, and expiry | Incremental consent, external approval, or platform-managed cross-app access when the authority and evidence model are defined | [§14](#14-authorization-approval-and-consent-models), Rec 14 |
 | **Credential custody** | Token vault, audience-bound exchange, or managed injection prevents reusable upstream credentials entering agent context | Direct exchange for trusted partners that can preserve subject/actor and audience semantics | [§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 3, and Rec 13 |
 | **Authorization model** | Tenant ABAC plus backend resource authorization; ReBAC for sharing relationships where that is the actual policy shape | OpenFGA, Cedar, OPA, CEL, or another PDP selected and tested by semantics | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 9 |
 | **State / cache** | Partition handles, task records, subscriptions, and caches by tenant, user, agent/client, authorization context, and representation | Shared cache only after producer assertions and verifier policy prove cross-principal safety | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 24, Rec 29 |
@@ -10851,11 +10860,12 @@ flowchart TD
     Agent -.-> SPIFFE
     Agent -->|"PAR + DPoP proof"| FAPI
     FAPI -->|"Eval Request<br/>(OpenID AuthZ API)"| PDP
-    PDP -->|"Obligation: Tier 5/6"| DPoP
+    PDP -->|"Local workflow instruction:<br/>additional approval required"| DPoP
     DPoP --> MCP
     FAPI -.->|"Authentication"| IdP
     DPoP -->|"Triggers Oversight flow"| CIBAAuth
-    CIBAAuth -->|"binding_message:<br/>Approve Payment /<br/>Grant EHR Access"| User
+    CIBAAuth -->|"binding_message:<br/>Q7M4"| User
+    CIBAAuth -.->|"Separate authenticated UI:<br/>exact amount / payee / action"| User
     AuditR -->|"Compliance logs"| Regulator
 
 ```
@@ -10867,7 +10877,7 @@ flowchart TD
 | **Identity / attestation** | Human, agent/client, workload, organization, and authority claims remain separate policy inputs | SPIFFE or other workload attestation; verified authority claims where an applicable trust framework exists | [§6](#6-agent-identity-vs-user-identity), [§20.5](#205-sender-audience-and-workload-constraints), [§20.6](#206-policy-evidence-and-verified-authority), Rec 26, and Rec 27 |
 | **PEP / PDP** | Gateway performs deterministic request checks; versioned PDP contract evaluates governed business policy and returns obligations/reasons | Cedar, OPA, PingAuthorize, or another engine selected by semantics, verification, operations, and failure mode | [§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
 | **State / Tasks** | Durable authority record links every handle or task to principal, purpose, consent, budget, policy, expiry, revocation, and result access | Draft Tasks only with extension-specific lifecycle and transfer policy | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), Rec 24, Rec 34, Rec 38 |
-| **Oversight** | Consequence-based approval with displayed transaction context and retained decision evidence | CIBA, step-up, or multi-party approval when the selected flow and applicable obligation require it | [§14](#14-user-consent-models-first-party-vs-third-party), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), and Rec 14 |
+| **Oversight** | Consequence-based approval with displayed transaction context and retained decision evidence | CIBA, step-up, or multi-party approval when the selected flow and applicable obligation require it | [§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), and Rec 14 |
 | **Resilience / audit** | Least-surviving authority, bounded staleness, decision provenance, trace correlation, recovery, and tested denial/pause/cancel behavior | Continued operation only when cached evidence and operation risk justify it | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability), [§13.8](#138-authorization-infrastructure-resilience), Rec 35, Rec 41 |
 | **Regulatory evidence** | Map each applicable duty to system boundary, control, artifact, owner, retention, and review | FRIA, DPIA, disclosure, content provenance, or sector evidence according to the actual deployment | [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping), [§24](#24-us-regulatory-framework-nist-ai-risk-management-and-agent-identity), Rec 15, Rec 16, Rec 17, and Rec 30 |
 
@@ -11097,30 +11107,32 @@ Token format creates a natural **resilience asymmetry** across the three token f
 
 ## Consent, Oversight, and Task Governance
 
-This group shifts from *who the agent is* ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) and *how the gateway enforces access* ([§13](#13-gateway-mediated-mcp-architecture)) to a higher-level question: **under what conditions should the agent be allowed to act at all?** It covers consent ([§14](#14-user-consent-models-first-party-vs-third-party)), human oversight ([§15](#15-human-oversight-architecture)), task-bound authorization ([§16](#16-task-based-access-control-tbac)), authority continuity across explicit handles and server-initiated interactions ([§17](#17-authorization-across-mcp-primitives-and-durable-state)), OAuth scope-to-primitive mapping ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), policy engines ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), and structured fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)).
+This group shifts from *who the agent is* ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) and *how the gateway enforces access* ([§13](#13-gateway-mediated-mcp-architecture)) to a higher-level question: **under what conditions should the agent be allowed to act at all?** It covers consent ([§14](#14-authorization-approval-and-consent-models)), human oversight ([§15](#15-human-oversight-architecture)), task-bound authorization ([§16](#16-task-based-access-control-tbac)), authority continuity across explicit handles and server-initiated interactions ([§17](#17-authorization-across-mcp-primitives-and-durable-state)), OAuth scope-to-primitive mapping ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), policy engines ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), and structured fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)).
 
 ---
 
-### 14. User Consent Models: First-Party vs. Third-Party
+### 14. Authorization, Approval, and Consent Models
 
 > **See also**: [§15](#15-human-oversight-architecture) (Human-in-the-Loop), [§23.9](#239-gdpr--ai-act-interaction) (GDPR × AI Act consent), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (SSF/CAEP for consent revocation)
 
-User consent is a critical control in both CIAM and WIAM deployments, though the consent *experience* differs significantly. In CIAM, users interact with explicit consent screens; in WIAM, consent is typically admin-pre-approved (see [§14.1](#141-first-party-consent-enterprisesame-organization), [§14.3](#143-incremental-consent-in-agentic-workflows) for Enterprise-Managed Authorization). The MCP spec defines two distinct authorization flows that map to different consent models.
+Agent deployments need a precise vocabulary before they need another consent screen. **Legal consent** is a data-processing basis with validity and withdrawal requirements; **OAuth resource-owner authorization** lets a client receive delegated authority; **business approval** authorizes a consequential action; **authentication or step-up** establishes who approved and at what assurance; and **enterprise policy authorization** allows an administrator to govern access without a per-server user prompt. These controls may appear in the same flow, but none is a synonym for the others.
 
-> **Caution — Consent must survive delegation and revocation**
+CIAM deployments commonly expose an end-user authorization ceremony. WIAM deployments more often use administrator pre-approval, access packages, or Enterprise-Managed Authorization (see [§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol)). MCP defines authorization and optional interaction mechanisms; it does not make a particular legal basis or consent screen universal.
+
+> **Important — Approval is not runtime authority**
 >
-> In agentic systems, consent is only trustworthy if scope expansion, downstream delegation, and revocation propagation are all modeled explicitly. A consent screen without lifecycle enforcement is not a complete consent architecture.
+> The durable architecture must connect the requested operation, the authenticated approval or policy decision, the authority actually granted, the representation enforced by the resource server, and the later expiry or revocation event. A successful screen, CIBA prompt, or administrator decision is evidence in that chain—not permission for an agent to execute arbitrary later parameters.
 
-> **Consent across DR-0001**: Consent is a cross-cutting concern spanning multiple sections:
-> - **[§14](#14-user-consent-models-first-party-vs-third-party)** (this section) — Consent *models and mechanisms*: first-party/third-party, consent fatigue mitigation ([§14.7](#147-consent-persistence-architecture)), revocation ([§14.7.3](#1473-consent-revocation-vs-token-revocation))
+> **Authorization, approval, and consent across DR-0001**:
+> - **[§14](#14-authorization-approval-and-consent-models)** (this section) — distinct legal-consent, OAuth-grant, business-approval, authentication, enterprise-policy, evidence, and revocation lifecycles
 > - **[§15](#15-human-oversight-architecture)** — Human oversight *operational architecture*: 7-tier taxonomy, CIBA as Tier 5, adaptive oversight
-> - **[§H.4](#h4-async-authorization-ciba-human-in-the-loop)** — Auth0 CIBA *implementation*: production reference for async authorization
-> - **[§23.5](#235-art-14-human-oversight-implementation-patterns)** — Art. 14 *regulatory compliance*: how human oversight satisfies EU AI Act requirements
+> - **[§H.4](#h4-async-authorization-documented-ciba-and-rar-composition)** — Auth0's documented CIBA-plus-RAR implementation and its evidence boundary
+> - **[§23.5](#235-art-14-human-oversight-implementation-patterns)** — Art. 14 control contributions and residual system obligations
 > - **[§23.9](#239-gdpr--ai-act-interaction)** — GDPR × AI Act *interaction*: consent under data protection law
 
 #### 14.0 Consent Lifecycle Overview
 
-Consent in MCP agent deployments is not a single event but a **multi-phase lifecycle** spanning discovery, approval, persistence, runtime enforcement, and revocation. The following statechart shows how a consent decision progresses through these phases — from the moment an agent discovers a tool requiring new scopes, through user approval and persistence, to runtime gate-keeping and eventual revocation.
+When a flow requires end-user approval, that decision participates in a **multi-phase authority lifecycle** spanning discovery, approval, persistence, runtime enforcement, and revocation. The following statechart shows the operational sequence—from discovering a tool that requires additional authority, through approval and persistence, to runtime enforcement and termination. Enterprise-managed and M2M branches can enter at the policy/grant stages without pretending that an end-user consent event occurred.
 
 ```mermaid
 ---
@@ -11131,33 +11143,59 @@ config:
 stateDiagram-v2
 
     [*] --> ModelSelection: Agent discovery
-    ModelSelection --> ConsentPrompt: Tool requires new scope
-    ConsentPrompt --> UserApproval: Consent UI / CIBA
-    ConsentPrompt --> UserDenial: User declines
+    ModelSelection --> ApprovalPrompt: Tool requires new authority
+    ApprovalPrompt --> UserApproval: Authorization / approval UI
+    ApprovalPrompt --> UserDenial: User declines
     UserDenial --> [*]: Access denied
-    UserApproval --> ConsentStored: Persist consent decision
-    ConsentStored --> RuntimeGate: Tool invocation
-    RuntimeGate --> Permitted: Consent valid + scope matched
-    RuntimeGate --> ReConsent: Consent expired / scope escalation
-    ReConsent --> ConsentPrompt: New consent prompt
+    UserApproval --> DecisionStored: Persist typed decision evidence
+    DecisionStored --> RuntimeGate: Tool invocation
+    RuntimeGate --> Permitted: Grant current + operation permitted
+    RuntimeGate --> Reauthorize: Grant expired / authority expansion
+    Reauthorize --> ApprovalPrompt: New authorization request
     Permitted --> ToolExecution: Gateway forwards
     ToolExecution --> AuditLogged: §13.5 decision evidence
     AuditLogged --> RuntimeGate: Next tool call
-    ConsentStored --> Revocation: User revokes consent
+    DecisionStored --> Revocation: Authority or consent withdrawn
     Revocation --> CascadeRevocation: Propagate to delegation chain (§14.7.3)
-    CascadeRevocation --> [*]: All tokens invalidated
+    CascadeRevocation --> [*]: Block new grants and terminate active authority
 
     class UserDenial terminal
     class CascadeRevocation terminal
     class ToolExecution active
     class UserApproval human
-    class ConsentPrompt human
+    class ApprovalPrompt human
     class Permitted success
 ```
 
-**Section mapping**: Each state in the diagram maps to a specific section of this article: **ModelSelection** corresponds to the consent persistence lifecycle ([§14.7.1](#1471-consent-lifecycle-patterns)) where agents discover available tools and their required scopes. **ConsentPrompt** maps to the human oversight mechanisms in [§15.3](#153-tier-2-in-session-confirmation) (in-session confirmation) and [§15.5](#155-tier-5-ciba-protocol) (CIBA for out-of-band approval). **ConsentStored** corresponds to the consent store architecture in [§14.7.4](#1474-scalability-considerations), where consent decisions are persisted as first-class entities or event-sourced records. **RuntimeGate** represents the gateway enforcement point described in [§13.2](#132-gateway-responsibilities) (authorization policy evaluation) and the TBAC constraints in [§16](#16-task-based-access-control-tbac). **Revocation** maps to the credential revocation strategies in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) and [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands), with cascade propagation following the delegation chain model in [§14.7.3](#1473-consent-revocation-vs-token-revocation).
+**Section mapping**: Each state in the diagram maps to a specific section of this article: **ModelSelection** corresponds to the grant lifecycle ([§14.7.1](#1471-lifecycle-record-patterns)) where agents discover available tools and their required scopes. **ApprovalPrompt** maps to the authorization and oversight mechanisms in In-Session Confirmation ([§15.3](#153-tier-2-in-session-confirmation)) and CIBA Protocol ([§15.5](#155-tier-5-ciba-protocol)). **DecisionStored** corresponds to the typed approval, grant, and authority evidence architecture in [§14.7.4](#1474-scalability-considerations). **RuntimeGate** represents the gateway and resource-server enforcement points described in Authorization Policy Evaluation ([§13.2](#132-gateway-responsibilities)), layered access control ([§16](#16-task-based-access-control-tbac)), and Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)). **Revocation** maps to credential revocation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)), Shared Signals/CAEP ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)), and any separately applicable consent-withdrawal process, with cascade propagation following the delegation-chain model in Consent Revocation vs. Token Revocation ([§14.7.3](#1473-consent-revocation-vs-token-revocation)).
 
-#### 14.1 First-Party Consent (Enterprise/Same-Organization)
+The statechart describes flow; the table below separates the artifacts. Implementations should name these records independently even when one vendor stores several of them together.
+
+| Stage | Decision question | Typical mechanisms | Authoritative output |
+|:--|:--|:--|:--|
+| **Requested authority** | What does the client or agent want to do? | OAuth `scope`; RFC 9396 `authorization_details`; a local task proposal | A request, not permission |
+| **Approval ceremony** | Who must approve, through what authenticated interaction, and what was displayed? | Authorization endpoint; CIBA; URL elicitation; enterprise admin policy; approval workflow | Approval or denial plus ceremony evidence |
+| **Granted authority** | What subset did the authorization server or policy authority actually grant? | OAuth grant; granted RAR details; organization policy record | Granted details and a grant/authority identifier |
+| **Runtime representation and enforcement** | What reaches the resource server, and what is permitted for this exact operation? | JWT claim; introspection; opaque lookup; gateway/PDP decision; task authority record | Enforceable authority plus a decision identifier |
+| **Lifecycle and evidence** | When does that authority expire, change, or terminate, and how is the transition proven? | Revocation; CAEP/SSF; task state; approval record; audit event; downstream cancellation | Current authority state and durable evidence |
+
+This separation is the organizing contract for Authorization, Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Layered Access Control ([§16](#16-task-based-access-control-tbac)); Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)); Authorization Models and Policy Engines ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)); and RAR vs. OAuth Scopes ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)). `authorization_details` is not consent; a CIBA callback is not a grant; a grant is not guaranteed to appear as a JWT claim; a PDP permit is not a completed human workflow; and token revocation does not necessarily cancel work already dispatched downstream.
+
+##### 14.0.1 Three Bindings from Request to Execution
+
+A high-consequence approval is trustworthy only if three different integrity boundaries hold. Protocol signing protects the request delivered to the authorization system; it does not, by itself, prove that the approving subject saw the same operation that the resource server later executes.
+
+| Binding | What it protects | Preferred controls |
+|:--|:--|:--|
+| **Protocol-request integrity** | OAuth or CIBA parameters cannot be substituted, duplicated, or split across conflicting representations | [JAR (RFC 9101)](https://www.rfc-editor.org/rfc/rfc9101.html), [PAR (RFC 9126)](https://www.rfc-editor.org/rfc/rfc9126.html), or a [signed CIBA authentication request](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html#signed_authentication_request), with exact issuer, audience, client, redirect, `jti`, and time validation |
+| **Display-to-grant integrity** | The granted authority is traceable to the structured operation and material fields rendered for the approver | Immutable requested/granted objects, schema and renderer version, exact rendered text, approval identifier, and a canonical action digest |
+| **Grant-to-execution integrity** | The agent cannot change the approved tool, object, amount, payee, arguments, batch membership, or task before execution | Runtime comparison with the grant or task-authority record, audience/sender constraints such as [DPoP (RFC 9449)](https://www.rfc-editor.org/rfc/rfc9449.html), and a fresh gateway/resource-server policy decision |
+
+The canonical digest covers a schema-defined action object, not the natural-language display string. Implementations must define normalization for numbers, currencies, Unicode, default values, array ordering, and omitted fields; [JSON Canonicalization Scheme (RFC 8785)](https://www.rfc-editor.org/rfc/rfc8785.html) can make a JSON representation deterministic but cannot decide whether two different schemas have the same business meaning. The evidence record therefore retains both the canonical machine representation and the exact localized text/template version shown to the approver.
+
+Any material change after approval—operation type, target, value, recipient, constraint, batch membership, execution window, or downstream audience—requires narrowing against an already-granted bound or a new approval. Authentication strength alone cannot cure parameter drift.
+
+#### 14.1 First-Party Authorization (Enterprise/Same-Organization)
 
 ```mermaid
 ---
@@ -11184,9 +11222,9 @@ sequenceDiagram
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note right of IdP: Phase 2: Implicit Consent & Token Grant
+    Note right of IdP: Phase 2: Enterprise Policy & Token Grant
     IdP->>IdP: Authenticate user<br/>User authenticates<br/>(same org SSO)
-    Note over Client,IdP: Consent is IMPLICIT<br/>(admin pre-approved or<br/>auto-granted for first-party apps)
+    Note over Client,IdP: Client access is ADMIN-GOVERNED<br/>(pre-approved or evaluated<br/>under enterprise policy)
     IdP-->>Server: Token
     Server-->>Client: Access granted
     Note right of IdP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -11243,7 +11281,7 @@ stateDiagram-v2
     SkipConsent --> IssueCode: generates auth code
 ```
 
-Crucially, because an enterprise administrator has already mapped and pre-approved this first-party application's scopes globally via the IdP's admin console, the visual consent screen is physically bypassed. The user is spared from clicking "Allow" on redundant permission dialogs.
+Because an enterprise administrator has already mapped and pre-approved this first-party application's eligible scopes, the authorization server can omit a client-specific consent screen under its policy. The absence of that screen is evidence of an administrator-governed path, not “implicit” consent attributed to the employee.
 
 </details>
 <details>
@@ -11262,7 +11300,7 @@ The IdP fires the authorization code back to the MCP Server's callback, which th
 }
 ```
 
-**Artifact Produced:** Implicitly Consented Internal Access Token.
+**Artifact Produced:** Enterprise-approved OAuth access token.
 
 The resulting token's `scope` reflects the hardcoded admin-approved permissions, not an ad-hoc decision made by the individual employee.
 
@@ -11270,20 +11308,20 @@ The resulting token's `scope` reflects the hardcoded admin-approved permissions,
 <details>
 <summary><strong>5. MCP Server grants access to the MCP Client</strong></summary>
 
-The MCP Server finalizes its internal session bindings and transparently returns control to the MCP Client. For the employee, the UX was completely frictionless: they clicked to open the agent, experienced a brief browser redirect flash confirming their SSO session, and immediately landed in an active MCP environment, safely operating under strict enterprise-managed implicit consent.
+The MCP Server validates the returned OAuth artifacts and gives control back to the client. The employee may see only the organization's SSO ceremony, while the resource server continues to enforce the resulting token and current application policy on every MCP request.
 
 </details>
 
 <br/>
 
 **Characteristics**:
-- **Consent is typically implicit** — the organization's admin has pre-approved the MCP client application in the IdP
-- User authenticates via SSO but sees **no consent screen** (or a simplified one-time acknowledge)
+- **Authorization is administrator-governed** — the organization has pre-approved the MCP client application or made it eligible under IdP policy
+- The user authenticates via SSO but may see **no client-specific consent screen** (or a policy-specific acknowledgement)
 - Common in enterprise deployments where the MCP client and MCP server are both operated by the same organization
 - The organization's IdP manages the trust relationship between apps
 - **Incremental scope consent** is still possible: new tools may trigger a one-time consent prompt for their specific scopes
 
-> **Enterprise extension**: The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) formalizes this first-party enterprise consent model via the **Identity Assertion JWT Authorization Grant** protocol (see [§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol) for the full three-step flow). It allows enterprise IdP administrators to centrally control which MCP clients can be used within their organization, eliminating per-user manual consent. It remains optional and independently negotiated: employees receive this admin-managed path only when client, server, and enterprise policy explicitly support it.
+> **Enterprise extension**: The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) formalizes this first-party enterprise authorization model via the **Identity Assertion JWT Authorization Grant** protocol (see [§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol) for the full three-step flow). It allows enterprise IdP administrators to centrally control which MCP clients can be used within their organization, avoiding repeated per-server user prompts. It remains optional and independently negotiated: employees receive this administrator-managed path only when client, server, and enterprise policy explicitly support it.
 
 #### 14.2 Third-Party Consent and Downstream Token Separation
 
@@ -11414,15 +11452,15 @@ The MCP client—not the resource server and not a provider-specific merge flag�
 <details>
 <summary><strong>4. Authorization Server presents a targeted consent prompt to the User</strong></summary>
 
-Because the context of the request is incredibly narrow, the Authorization Server can render a highly specific, contextual UI prompt: *"The agent is attempting to send an email. Do you approve the `emails:send` permission?"*
+Because the request is narrow, the Authorization Server can render a specific prompt: *"The agent is attempting to send an email. Do you approve the `emails:send` permission?"*
 
-This targeted precision directly attacks "Consent Fatigue" (OWASP NHI Top 10) by eliminating overwhelming walls of permissions, aligning perfectly with the explicit, proportional oversight mandates set by EU AI Act Art. 14.
+Targeted disclosure reduces approval fatigue by avoiding an upfront wall of permissions. It does not by itself establish compliance or prove that the eventual email parameters match what the user reviewed; that requires the display-to-grant and grant-to-execution bindings in [§14.0.1](#1401-three-bindings-from-request-to-execution).
 
 </details>
 <details>
 <summary><strong>5. User approves or denies the incremental scope request</strong></summary>
 
-The user functionally validates the unexpected boundary crossing. If denied, the AS triggers an `access_denied` response and forces the Agent to permanently abandon its email logic.
+The user reviews the requested boundary expansion. If denied, the AS returns `access_denied`; the client must stop this authorization attempt and may continue only through an independently authorized path.
 
 ```mermaid
 stateDiagram-v2
@@ -11434,13 +11472,13 @@ stateDiagram-v2
     ClickDeny --> CancelTask: Agent aborts email logic
 ```
 
-If approved, the AS physically modifies its backing Consent Store ([§14.7.4](#1474-scalability-considerations)), legally persisting the new boundary grant.
+If approved, the AS records the granted authority and its evidence according to [§14.7.4](#1474-scalability-considerations). Whether that record is also evidence of legal consent depends on the data-processing purpose and applicable legal basis.
 
 </details>
 <details>
 <summary><strong>6. Authorization Server returns an updated token with the new scope added</strong></summary>
 
-The AS issues a freshly signed JSON Web Token algebraically combining the historic baseline and the new incremental grant.
+The AS issues a token response reflecting the authority it actually granted. The granted scope can be narrower than the union requested, and the access token may be a JWT or opaque token depending on the deployment.
 
 ```json
 {
@@ -11451,13 +11489,13 @@ The AS issues a freshly signed JSON Web Token algebraically combining the histor
 }
 ```
 
-**Artifact Produced:** Scope-Expanded JWT (`emails:send`).
+**Artifact Produced:** Updated OAuth token response granting `emails:send` in this example.
 
 </details>
 <details>
 <summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
 
-With its credentials successfully upgraded dynamically mid-execution, the agent resurrects the exact JSON-RPC payload from Step 1, this time attaching the heavier token to the HTTP envelope.
+The client reconstructs the operation from trusted application state, compares its material fields with the approved request, and retries with the new token. It must not replay an LLM-generated payload merely because the scope is now present.
 
 ```http
 POST /mcp HTTP/1.1
@@ -11472,9 +11510,9 @@ Content-Type: application/json
 <details>
 <summary><strong>8. MCP Gateway accepts the retried call and returns the tool response</strong></summary>
 
-The Gateway validates the newly minted signature against the AS's JWKS endpoint, extracts the `emails:send` claim, and seamlessly forwards the event to the email tool backend.
+The gateway validates the token according to its format and issuer profile, then re-evaluates the tool, recipient, arguments, tenant, handles, and current policy before forwarding. The `emails:send` scope is a ceiling, not a complete decision.
 
-The incremental loop (`403` → consent → token → success) resolves. Future requests for the `send_email` tool will execute perfectly without interrupting the user, as the AS's persistent consent store will automatically inject the `emails:send` scope during standard refresh token operations.
+The incremental loop (`403` → authorization ceremony → token → retry) can now complete. A current grant may avoid another prompt, but later requests can still fail because the grant expired or was revoked, the AS narrowed a refresh, stronger authentication is required, or runtime policy denies the specific email operation.
 
 </details>
 
@@ -11484,14 +11522,14 @@ This is supported in the November 2025 MCP spec update which added "incremental 
 
 #### 14.4 Consent Decision Matrix
 
-| Scenario | Consent Type | User Action | Admin Action | EU AI Act Art. 14 |
+| Scenario | Authority / Approval Pattern | User Action | Admin Action | Human-Oversight Role |
 |:---|:---|:---|:---|:---|
-| Enterprise first-party, admin-approved | Implicit | None (SSO) | Pre-approve in IdP | Oversight via admin policy |
-| Enterprise first-party, not pre-approved | One-time explicit | Consent once | Register app | Human verification at first use |
-| Third-party SaaS tool (e.g., Slack) | Explicit per-service | Consent per tool | Configure trust | Per-tool human oversight |
-| New scope on existing tool | Incremental | Consent for new scope | Update policy | Progressive oversight |
-| High-risk operation (e.g., payment) | Step-up | Re-authenticate + consent | Define step-up policy | Art. 14(4)(a): "override or reverse" |
-| Sensitive agent action (high-risk AI) | CIBA ([§15](#15-human-oversight-architecture)) | Approve on separate device | Configure CIBA triggers | Art. 14(4)(d): "intervene in operation" |
+| Enterprise first-party, administrator-approved | Enterprise policy + OAuth grant | Authenticate when required; no client-specific prompt necessarily appears | Pre-approve client/resource access in the IdP | Organization policy governs access; it is not attributed to end-user consent |
+| Enterprise first-party, not pre-approved | Resource-owner authorization | Review and approve or deny the requested authority | Register client and constrain eligible grants | Human verification at grant time |
+| Third-party SaaS tool (e.g., Slack) | Service-specific delegated grant | Approve initially or when policy forces a new ceremony | Configure client and service trust | Per-service review where the deployment requires it |
+| New authority on an existing tool | Incremental authorization | Approve only the additional authority | Permit or deny expansion by policy | Progressive review without silently widening the old grant |
+| High-risk operation (e.g., payment) | Stronger/fresher authentication plus transaction approval | Re-authenticate if challenged and approve the material transaction details | Define assurance, approval, and value thresholds | Supports intervention only when execution remains bound to the approved operation |
+| Sensitive unattended agent action | Decoupled approval using CIBA or an authenticated workflow ([§15](#15-human-oversight-architecture)) | Review and approve on a separate channel/device | Configure eligible clients, users, actions, and channels | Out-of-band intervention before execution |
 
 #### 14.5 Is User Consent Always Required?
 
@@ -11499,15 +11537,15 @@ A fundamental architectural question: **in a first-party enterprise deployment, 
 
 | Flow Type | User Consent Required? | Mechanism | Use Case |
 |:---|:---|:---|:---|
-| **User-delegated (Authorization Code + PKCE)** | ✓ Yes, at least once | User authenticates via IdP; consent is either admin-pre-approved (implicit) or one-time explicit | Most MCP use cases — agent acts **on behalf of** a user |
+| **User-delegated (Authorization Code + PKCE)** | Policy-dependent | User authenticates through the AS; the client may rely on an existing grant, administrator pre-approval, or a new resource-owner authorization ceremony | Agent acts **on behalf of** a user |
 | **Client Credentials (M2M)** | ✗ No | Service authenticates with its own credentials (secret or certificate); no user is involved | Autonomous system agents, batch processing, infrastructure automation |
-| **Token Exchange (RFC 8693 OBO)** | ✗ No (user already consented upstream) | Agent exchanges a user's token for a delegated token; original consent covers downstream access | Sub-agent delegation chains |
+| **Token Exchange (RFC 8693 OBO)** | No new ceremony when current authority and policy suffice | Agent exchanges a subject token for a narrower audience-bound token; the AS must evaluate delegation policy and cannot assume that an upstream screen authorized every downstream action | Sub-agent delegation chains |
 
-**Key insight**: The MCP spec's authorization framework is built on OAuth 2.0 Authorization Code + PKCE — a **user-delegated** flow. This means **user consent is inherent in the protocol design**. The question is not *whether* consent occurs, but *how visible* it is:
+**Key insight**: MCP core authorization uses OAuth Authorization Code + PKCE for a **user-delegated** flow, but delegated authorization does not make an interactive consent screen inherent. The AS decides whether an existing grant, enterprise policy, or new user ceremony is required, and the MCP server still makes a runtime authorization decision:
 
-- **First-party, admin-pre-approved**: User authenticates via SSO but sees **no consent screen** (consent is implicit via admin policy in the organization's IdP)
-- **First-party, not pre-approved**: User sees a **one-time consent screen** on first use; subsequent requests bypass consent via persistent consent cookies
-- **Third-party**: User **always** sees an explicit consent screen from the external provider
+- **First-party, administrator-approved**: The user may authenticate through SSO without a client-specific consent screen; the authority comes from organization policy plus the resulting OAuth grant, not “implicit user consent.”
+- **First-party, not pre-approved**: The AS may require an explicit resource-owner authorization ceremony and persist a grant record. A browser cookie can support the UI session but is not the durable grant.
+- **Third-party**: A new client commonly requires explicit authorization, while later requests may rely on a current grant or force a new prompt when scopes, risk, policy, or `prompt=consent` require it.
 
 > ⚠️ **Consent automation threat — browser-use agents**: The consent model above assumes a **human** reviews and approves OAuth consent screens. Browser-use / computer-use agents instead operate through an **agent loop**: they see screenshots, issue click/type actions, and follow the resulting page state. Anthropic's current computer-use guidance explicitly recommends isolated virtualized environments, minimal privileges, domain allowlists, and **human confirmation** for tasks requiring affirmative consent such as accepting cookies, financial transactions, or agreeing to terms of service. The same guidance warns that prompt injection in page content can cause the agent to follow page instructions that conflict with the user's intent. In MCP terms, this means the consent decision point in the [§14.0](#140-consent-lifecycle-overview) lifecycle diagram ("UserApproval") is no longer trustworthy merely because it renders in a browser. If the browser session is agent-driven, the Authorization Server should treat the consent interaction as **automated** unless a separate human-confirmation step interrupts the loop. Structural defenses include: (1) Web Bot Auth detection ([§20.7](#207-web-bot-authentication)), so the site or AS can apply agent-specific consent policies; (2) locally profiled `client_profile: "ai_agent"` evidence ([§20.6](#206-policy-evidence-and-verified-authority)), so authorization policy can cap grant scope for agent-classified sessions; and (3) out-of-band human approval patterns ([§15](#15-human-oversight-architecture)), especially for high-consequence grants.
 >
@@ -11516,7 +11554,7 @@ A fundamental architectural question: **in a first-party enterprise deployment, 
 **Machine-to-machine** (Client Credentials) is available through the independently negotiated MCP Client Credentials authorization extension, not through core authorization alone. A client must not infer support from core MCP version or ordinary OAuth metadata; both endpoints must explicitly support the extension. This is appropriate for agents that do not act on behalf of a user (for example, scheduled data pipelines and infrastructure bots). See [§14.6](#146-machine-to-machine-m2m-flows-without-user-involvement) for implementation details.
 
 
-> **Implementation boundary**: Consent continuity belongs in the governed approval record described in [§14.7](#147-consent-persistence-architecture). A product-specific browser cookie may protect a UI interaction, but it is not the portable consent artifact or MCP authorization decision.
+> **Implementation boundary**: Consent continuity belongs in the governed approval record described in [§14.7](#147-approval-grant-and-consent-persistence-architecture). A product-specific browser cookie may protect a UI interaction, but it is not the portable consent artifact or MCP authorization decision.
 
 #### 14.6 Machine-to-Machine (M2M) Flows Without User Involvement
 
@@ -11527,9 +11565,9 @@ For scenarios where no user is present — autonomous agents, scheduled jobs, in
 | Aspect | User-Delegated (MCP Spec) | Machine-to-Machine |
 |:---|:---|:---|
 | **OAuth Grant** | Authorization Code + PKCE | Client Credentials |
-| **User Involvement** | User authenticates + consents (at least once) | None — service authenticates with its own identity |
+| **User Involvement** | User authentication and a grant ceremony are policy-dependent | None — service authenticates with its own identity |
 | **Token Represents** | A user's delegated access | The application itself |
-| **Consent Model** | Admin consent or user consent | Admin pre-authorizes application permissions |
+| **Authority Source** | Resource-owner grant and/or enterprise policy | Administrator-configured application permissions |
 | **Token Claims** | Contains a human `sub`, may contain `act` (agent) | Represents the client/workload; exact `sub`, `azp`, `client_id`, and role/scope claims are issuer-profile specific |
 | **Gateway Enforcement** | Token validation, request/tool authorization, consent/grant checks, and explicit-handle policy | Token validation, request/tool authorization, application permissions, and explicit-handle policy; no human-consent or PKCE ceremony |
 | **Suitable For** | Agent acts on behalf of a human | Agent operates autonomously, no human context |
@@ -11580,7 +11618,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Autonomous Agent requests a token from the Authorization Server using Client Credentials</strong></summary>
 
-An autonomous background agent (e.g., a scheduled data pipeline or infrastructure bot) awakens. Since no human is present to grant consent, the agent executes the OAuth 2.0 Client Credentials grant natively (`grant_type=client_credentials`), presenting its hardcoded credentials directly to the AS. An invalid client secret instantly triggers a `401 Unauthorized` block.
+An autonomous background agent (for example, a scheduled data pipeline or infrastructure bot) requests an OAuth Client Credentials token because no human delegation is involved. The client authenticates with the method required by the AS—preferably asymmetric client authentication, mTLS, or workload identity rather than a long-lived embedded secret. Failed client authentication is denied and logged.
 
 ```http
 POST /token HTTP/1.1
@@ -11636,7 +11674,7 @@ Mcp-Name: system/health_check
 <details>
 <summary><strong>4. API Gateway validates the token and authorizes the machine request</strong></summary>
 
-The gateway receives the HTTP request and inspects the JWT. This self-referential validation loop is dramatically cheaper computationally than a user-delegated check. A validation failure (e.g., expired token, bad signature) immediately triggers a `401 Unauthorized` termination trap.
+The gateway receives the HTTP request and validates the token according to the issuer profile. A validation failure such as an expired token, bad signature, inactive introspection response, or wrong audience produces an authentication failure before application authorization begins.
 
 ```mermaid
 stateDiagram-v2
@@ -11653,13 +11691,13 @@ The gateway does not perform a human consent ceremony or PKCE validation because
 <details>
 <summary><strong>5. API Gateway forwards the authenticated request to the MCP Server</strong></summary>
 
-With the JWT mathematically verified, the gateway proxies the raw JSON-RPC payload downstream to the actual MCP Server. Because the MCP Server strictly obeys the API Gateway's assertion, it processes the request under the assumption that the `azp` (Authorized Party) is a trusted backend service.
+After validation and gateway policy, the gateway forwards the canonical JSON-RPC request plus protected internal identity/decision context to the MCP Server. The server trusts that context only over an authenticated internal channel and still enforces the tool, arguments, tenant, handles, and downstream authority appropriate to the operation.
 
 </details>
 <details>
 <summary><strong>6. MCP Server returns the tool response to the Gateway</strong></summary>
 
-The MCP Server reliably executes the `system/health_check` tool and returns the JSON-RPC success object. Note the architectural trade-off: if this tool had internally requested `context.getUser()` to customize the response, the operation would abort with a `500 Internal Server Error`, because M2M tokens explicitly lack a human identity context.
+The MCP Server executes the authorized `system/health_check` tool and returns the JSON-RPC result. If an operation requires a human principal but the token profile represents only the client/workload, the server must deny or route to an appropriate user-delegated flow; it must not fabricate a human identity or treat the condition as an accidental application crash.
 
 ```json
 {
@@ -11677,7 +11715,7 @@ The MCP Server reliably executes the `system/health_check` tool and returns the 
 <details>
 <summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
 
-The Gateway routes the telemetry payload back to the agent and forcefully commits an entry to its immutable audit log to ensure SIEM traceability for the headless transaction.
+The gateway returns the result and records decision evidence appropriate to the deployment's audit system. The evidence identifies the machine principal and policy decision without claiming that every SIEM backend is immutable.
 
 **Artifact Produced:** Immutable SIEM Ledger Event.
 
@@ -11691,74 +11729,125 @@ The Gateway routes the telemetry payload back to the agent and forcefully commit
   "status": "success"
 }
 ```
-As shown, the `user_id` is definitively `null`. The compliance department can securely verify the machine's actions, but cannot attribute them to any distinct human operator, deliberately satisfying the specialized constraints of purely autonomous workflows.
+In this local event schema, `user_id` is `null` because no human subject participated. Other issuer and audit profiles may omit the field or use a different representation. The event supports attribution to the workload and deploying organization, not to a fictitious individual user.
 
 </details>
 
 
-#### 14.7 Consent Persistence Architecture
+#### 14.7 Approval, Grant, and Consent Persistence Architecture
 
-The preceding sections ([§14.1](#141-first-party-consent-enterprisesame-organization)–[§14.6](#146-machine-to-machine-m2m-flows-without-user-involvement)) define *what* consent decisions look like — first-party vs. third-party, incremental vs. standing, user-driven vs. enterprise-managed. This section addresses the complementary architectural question: **how are consent decisions persisted, managed, and revoked at agent scale?**
+The preceding sections ([§14.1](#141-first-party-authorization-enterprisesame-organization)–[§14.6](#146-machine-to-machine-m2m-flows-without-user-involvement)) define several different authority paths—resource-owner authorization, administrator policy, incremental grants, and M2M application permissions. This section addresses the complementary architectural question: **which records persist each decision, how do they relate, and what must happen when authority changes?**
 
-Traditional IAM systems treat consent as a **moment-in-time event** — the user clicks "Allow" on an OAuth consent screen (CIAM) or an admin pre-approves agent access (WIAM), and the system issues tokens. Consent is "remembered" only through the existence of valid tokens. This model breaks down at agent scale for three reasons:
+Treating a token as the only durable record loses the distinction among the request, the approval or administrator decision, the grant, the runtime representation, and the later policy decision. The model breaks down at agent scale for three reasons:
 
-1. **Volume**: With NHI:human ratios of 40:1 to 144:1 ([§7.1](#71-why-nhi-governance-matters-for-ai-agents)), each human user may have hundreds of active consent relationships with different agents, tools, and scopes
-2. **Granularity**: Incremental consent ([§14.3](#143-incremental-consent-in-agentic-workflows)) creates many small consent grants that must be individually trackable and revocable
-3. **Regulatory**: GDPR Art. 7(1) requires controllers to **demonstrate** that consent was obtained — this demands persistent consent records, not just token artifacts
+1. **Multiplicity**: One user, agent, or workload can hold many grants, task authorities, downstream delegations, and application permissions.
+2. **Granularity**: Incremental authorization ([§14.3](#143-incremental-consent-in-agentic-workflows)) and transaction approval create independently expiring and revocable decisions.
+3. **Evidence**: A legal-consent record, OAuth grant, enterprise policy decision, and runtime authorization decision have different issuers, retention rules, and proof requirements.
 
-##### 14.7.1 Consent Lifecycle Patterns
+##### 14.7.1 Lifecycle Record Patterns
 
-Five distinct patterns for consent lifecycle management have emerged across IAM vendors:
+Five persistence patterns appear across IAM products. The first three commonly describe user-scoped OAuth grants; the organization-managed row is an enterprise policy record, and the first-class row can represent several record kinds.
 
 | Pattern | Model | Persistence | Expiry | Revocation | Vendors |
 |:--------|:------|:-----------|:-------|:-----------|:--------|
 | **Moment-in-time** | Consent produces tokens; no independent record | Token artifacts only | Token TTL | Revoke tokens | Traditional OAuth |
 | **Time-bounded** | Consent has explicit expiration independent of token TTL | Consent record with `expires_at` | Automatic expiry + re-consent | Explicit + automatic | Descope, Ping Identity |
 | **Progressive** | Consent accumulates as agent requests new scopes | Growing {scope, timestamp} pairs per agent per user | Per-scope TTL | Per-scope revocation | Descope, Auth0, MCP spec ([§3.3](#33-scope-challenge-handling-403-insufficient-scope)) |
-| **Organization-managed** | Admin pre-approves/restricts agent access | Allowlists/denylists at org level | Policy-driven | Admin-initiated, org-wide | Stytch, Auth0 (XAA) |
-| **First-class entity** | Consent has own ID, attributes, and lifecycle | Dedicated consent records | Configurable per-consent | Per-consent-ID revocation | Descope (Consent ID) |
+| **Organization-managed** | Administrator permits or restricts agent access | Organization policy, allowlist/denylist, access package, or application assignment | Policy-driven | Administrator-initiated and organization-scoped | Stytch organization app policy, enterprise IdPs |
+| **First-class entity** | Decision has its own ID, attributes, evidence, and lifecycle | Dedicated approval, grant, or authority record | Configurable per record | Per-record withdrawal, revocation, supersession, or expiry | Descope Consent ID; local authority records |
 
-> 🔑 **Important** — **Connection to [§14.3](#143-incremental-consent-in-agentic-workflows) (Enterprise-Managed Authorization)**: The organization-managed consent pattern maps directly to the Enterprise-Managed Authorization extension (SEP-990, [§14.3](#143-incremental-consent-in-agentic-workflows)) and Auth0's Cross App Access (XAA, [§H.5](#h5-mcp-integration-auth-for-mcp-ga-cimd-and-cross-app-access)). In both patterns, IT departments — not individual users — control which agents can access which resources, eliminating per-user consent prompts for pre-approved agents.
+> **Important — Organization policy is not user consent**
+>
+> The organization-managed pattern maps to Enterprise-Managed Authorization ([§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol)) and related cross-application access controls. IT departments—not individual users—control which clients can reach which resources. Persist the policy decision and its accountable administrator or governance process; do not relabel it as end-user consent.
 
-**Consent branches for enterprise-managed and autonomous-payment delegation** — Agentic systems now need at least five distinct consent branches, because "user consent" is no longer a single browser prompt:
+**Authority branches for enterprise-managed and autonomous-payment delegation** — Agentic systems need at least five distinct records because authorization is not a single browser prompt:
 
 | Branch | Authority Record | Best Fit | Revocation / Evidence Obligation |
 |:-------|:-----------------|:---------|:---------------------------------|
-| **OAuth user consent** | User-scoped grant, consent record, refresh-token family | User-present CIAM agents that need ordinary API scopes | Revoke consent record and tokens; retain GDPR Art. 7 proof |
+| **OAuth user authorization** | User-scoped grant, any separately applicable consent record, refresh-token family | User-present CIAM agents that need ordinary API scopes | Revoke the grant and tokens; if processing relies on GDPR consent, retain the separate Art. 7 evidence |
 | **Enterprise-managed delegation** | Org policy + Identity Assertion / ID-JAG exchange | Workforce agents connecting pre-approved SaaS applications without repeated end-user prompts | Admin policy rollback must block new exchanges; audit must show requesting app, resource app, user, and enterprise policy decision |
 | **Human-present AP2 payment** | Closed Checkout Mandate + Closed Payment Mandate | Agent helps a present user complete a specific cart/payment | Evidence must bind user approval to exact cart, amount, merchant, instrument, and agent disclosure |
 | **Human-Not-Present AP2 payment** | Open mandate constraints followed by closed transaction mandates | Standing or conditional purchase instructions such as "buy below this price before Friday" | Runtime policy must enforce amount, merchant, instrument, TTL, and challenge rules; issuer/network challenge can still force user re-entry |
-| **URL elicitation / browser handoff** | Browser session artifact plus post-return token or credential | Credential acquisition when the agent cannot complete the flow in-band | Treat as credential intake, not durable authorization; persist only the resulting grant and its revocation path |
+| **URL elicitation / browser handoff** | Continuation record plus post-return token, credential, or verified completion evidence | Credential acquisition when the agent cannot complete the flow in-band | Navigation acceptance is not durable authority; persist the resulting grant/completion record and its revocation or cancellation path |
 
 The design consequence is that AP2 mandates and XAA/Identity Assertion exchanges should not be collapsed into ordinary OAuth consent rows. XAA is a centrally governed enterprise authorization decision, while AP2 is a payment-domain evidence envelope. Both may produce tokens downstream, but the durable record that matters for audit and revocation is the policy decision or signed mandate, not merely the access token.
 
-The most mature pattern — **consent as a first-class entity** — treats each consent grant as an independent record:
+##### 14.7.1.1 Approval and Authority Evidence Record
+
+A first-class record should identify its kind rather than calling every decision “consent.” The following deployment schema links the five artifacts from [§14.0](#140-consent-lifecycle-overview) while separating restricted evidence from the identifiers needed in ordinary policy and audit paths:
 
 ```json
 {
-  "consent_id": "cns_abc123",
-  "user_id": "usr_alice",
-  "agent_id": "agt_travel_bot",
-  "client_id": "client_travelcorp",
-  "granted_scopes": ["calendar:read", "email:send"],
-  "authorization_details": [{"type": "booking", "max_amount": 500}],
-  "delegation_context": {
-    "act_chain": ["agt_travel_bot"],
-    "delegation_depth": 1
+  "authority_record_id": "ar_abc123",
+  "record_kind": "oauth_resource_owner_authorization",
+  "request": {
+    "request_id": "req_789",
+    "requested_scopes": ["calendar:read", "email:send"],
+    "requested_authorization_details": [
+      {"type": "booking", "max_amount": 500, "currency": "EUR"}
+    ],
+    "canonical_action_digest": "sha-256:8c2f..."
   },
-  "created_at": "2026-03-14T10:30:00Z",
-  "expires_at": "2026-03-21T10:30:00Z",
-  "revoked_at": null,
-  "consent_source": "oauth_consent_screen",
-  "ciba_approval_id": null
+  "decision": {
+    "outcome": "approved",
+    "subject_id": "usr_alice",
+    "approving_authority": "usr_alice",
+    "ceremony": {
+      "type": "oauth_authorization_endpoint",
+      "authentication_context": "urn:example:aal2",
+      "authentication_time": "2026-03-14T10:29:40Z"
+    },
+    "display": {
+      "locale": "en-GB",
+      "template_id": "booking-approval",
+      "template_version": "4",
+      "rendered_content_ref": "restricted://approval/ar_abc123",
+      "rendered_content_digest": "sha-256:4f91..."
+    }
+  },
+  "grant": {
+    "grant_id": "gr_456",
+    "granted_scopes": ["calendar:read"],
+    "granted_authorization_details": [
+      {"type": "booking", "max_amount": 300, "currency": "EUR"}
+    ],
+    "token_family_ref": "tf_246"
+  },
+  "execution_binding": {
+    "agent_id": "agt_travel_bot",
+    "client_id": "client_travelcorp",
+    "tenant_id": "tenant_example",
+    "audience": "https://travel.example/mcp",
+    "task_id": null
+  },
+  "policy": {
+    "decision_id": "pdp_135",
+    "policy_version": "travel-authz-2026-07-24"
+  },
+  "lifecycle": {
+    "status": "active",
+    "created_at": "2026-03-14T10:30:00Z",
+    "expires_at": "2026-03-21T10:30:00Z",
+    "revoked_at": null,
+    "superseded_by": null
+  },
+  "evidence": {
+    "classification": "restricted",
+    "retention_policy": "approval-evidence-v3",
+    "operational_log_ref": "audit_975"
+  }
 }
 ```
 
-This model enables:
-- **Per-consent audit trails** (GDPR Art. 7(1) demonstrability)
-- **Granular revocation** without invalidating the entire OAuth session
-- **Delegation-aware consent** linking to the `act` claim chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern))
-- **Time-bounded re-consent** enforcing periodic review
+`record_kind` can instead identify `pii_processing_consent`, `business_approval`, `enterprise_policy_decision`, or `task_authority`. A PII-processing consent record can follow [ISO/IEC TS 27560:2023](https://www.iso.org/standard/80392.html), which defines interoperable consent records and receipts for a PII principal. That standard does not turn an OAuth grant, payment approval, or administrator assignment into legal consent.
+
+The record enables granular expiry/revocation, delegation and task linkage, and reconstruction of what was requested, displayed, granted, and enforced. The `rendered_content_ref` points to a more restricted store because approval evidence can contain payment recipients, patient identifiers, legal matters, employee activity, or authentication information.
+
+> **Warning — An authorization-server signature proves a record, not a mind**
+>
+> Signing the evidence can prove that the authorization server recorded particular content and an interaction at a given time. It does not independently prove that the user understood the content, intended every downstream interpretation, or personally produced a non-repudiable signature. Stronger claims require a user-controlled signing ceremony or independent evidence appropriate to the domain.
+
+Evidence stores must minimize fields, encrypt restricted content, enforce purpose-specific access, separate operational log references from full payloads, and apply retention/legal-hold rules independently of token lifetime. Withdrawal, deletion, correction, and subject-access handling depend on the record kind and legal basis; an append-only implementation does not exempt the controller from those obligations.
 
 ##### 14.7.2 Vendor Consent Persistence Comparison
 
@@ -11778,17 +11867,19 @@ This model enables:
 
 Consent revocation and token revocation are **related but distinct** operations:
 
-| Dimension | Token Revocation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)) | Consent Revocation |
+| Dimension | Token Revocation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)) | Consent Withdrawal |
 |:----------|:------------------------|:-------------------|
-| **What is invalidated** | Specific access/refresh tokens | The user's authorization for an agent to act |
-| **Effect** | Agent cannot use revoked token; may obtain new token if consent persists | Agent cannot obtain *any* new tokens for the revoked scopes |
-| **GDPR obligation** | Token revocation satisfies access control | Consent revocation triggers Art. 17 erasure obligations |
-| **Propagation** | Token revocation propagated via [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) strategies (Push/Pull/Hybrid) | Consent revocation must propagate to: (1) token stores, (2) downstream agents in delegation chain, (3) data processors |
+| **What changes** | Specific access/refresh credentials become unusable | Processing can no longer rely on the withdrawn consent; any linked OAuth grant, task authority, or application permission must be changed separately |
+| **Effect** | Agent cannot use the revoked credential; it may obtain a replacement if the underlying grant still permits issuance | New processing on that legal basis is blocked, and the deployment follows its declared termination workflow for linked grants, credentials, tasks, and downstream processing |
+| **Data-lifecycle effect** | Ends use of the affected credential | If processing relied on GDPR consent, withdrawal ends future reliance on that basis; erasure is a separate Art. 17 analysis with other legal grounds and exceptions |
+| **Propagation** | Token status propagates via [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) strategies (Push/Pull/Hybrid) | Withdrawal/revocation must block new grants and terminate dependent authority; processors and downstream systems receive the events required by the applicable record and legal relationship |
 | **Audit** | Token event logged | Consent lifecycle event logged with GDPR Art. 7(1) proof |
 
-> ⚠️ **Warning** — **Consent revocation ≠ token revocation**: Revoking all tokens for an agent does not revoke consent — the agent could obtain new tokens by re-initiating the OAuth flow (the consent record still exists). Conversely, revoking consent without revoking tokens leaves the agent with valid tokens until they expire. **Both** must be performed for complete access termination.
+> **Warning — Withdrawal, token revocation, and work cancellation are separate**
+>
+> Revoking tokens does not withdraw the underlying grant or legal consent, so a client might obtain replacement authority. Withdrawing the record does not make every self-contained access token disappear, and neither action necessarily cancels work already dispatched to a downstream system. Complete termination blocks new issuance, rejects or revokes active credentials, invalidates dependent task/delegation authority, and cancels or compensates in-flight work where the operation permits it.
 
-This distinction is particularly important for multi-agent delegation chains ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§15.5.4](#1554-ciba-in-delegation-chains)): when a user revokes consent for Agent A, the consent store must also invalidate any sub-delegations that Agent A granted to Agent B, Agent C, etc. The delegation chain in the `act` claim provides the linkage, but the consent store must enforce the cascade.
+This distinction is particularly important for multi-agent delegation chains ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§15.5.4](#1554-ciba-in-delegation-chains)): when a user withdraws a consent on which Agent A's processing depends, the termination orchestrator must find and invalidate linked grants and sub-delegations to Agent B, Agent C, and other descendants. An `act` claim can carry current actor context, but the authority store needs explicit historical lineage to enforce the cascade.
 
 ```mermaid
 ---
@@ -11815,7 +11906,7 @@ sequenceDiagram
     Note right of User: Phase 1: Primary Revocation
     User->>CS: Revoke consent for Agent A<br/>(scopes: calendar:read, email:send)
     CS->>CS: Mark consent_id=cns_A as revoked
-    CS->>TS: Invalidate all tokens for Agent A
+    CS->>TS: Revoke dependent grants / token families for Agent A
     TS-->>A: Token revoked (401 on next call)
     Note right of Audit: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -11842,7 +11933,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User requests consent revocation for Agent A from the Consent Store</strong></summary>
 
-The user interacts with a GDPR Art. 7(3) "Right to Withdraw" dashboard (e.g., Auth0 API or Ping Identity profile page) and clicks "Revoke Access" for Agent A. The frontend sends a strict API request to the central Consent Store, identifying the exact entity. An invalid session token aborts the deletion via `401 Unauthorized`.
+The user interacts with a GDPR Art. 7(3) withdrawal surface and selects the exact processing consent associated with Agent A. The frontend sends an authenticated request to the central Consent Store. An invalid session token aborts the transition via `401 Unauthorized`.
 
 ```http
 DELETE /api/v1/users/usr_alice/consents/cns_A HTTP/1.1
@@ -11854,7 +11945,7 @@ Authorization: Bearer &lt;user_session_token>
 <details>
 <summary><strong>2. Consent Store marks the consent record as revoked</strong></summary>
 
-Inside the Consent Store's Event Sourced architecture, it appends a definitive `consent_revoked` event to the immutable ledger.
+Inside this event-sourced design, the Consent Store appends a `consent_revoked` transition to the protected event log.
 
 ```json
 {
@@ -11868,13 +11959,13 @@ Inside the Consent Store's Event Sourced architecture, it appends a definitive `
 ```
 The read-projection immediately flips the grant's status to `inactive`, severing the logical authorization tie independently of any tokens that may still exist.
 
-**Artifact Produced:** Immutable `consent_revoked` Event.
+**Artifact Produced:** Recorded `consent_revoked` transition.
 
 </details>
 <details>
-<summary><strong>3. Consent Store instructs the Token Store to invalidate all of Agent A's tokens</strong></summary>
+<summary><strong>3. Consent Store instructs the Token Store to revoke Agent A's dependent authority</strong></summary>
 
-Because consent revocation must trigger physical token revocation to be immediately effective, the Consent Store synchronously fires an internal webhook to the Token Store, demanding the destruction of all cryptographic material tied to `cns_A`.
+The consent service emits an authenticated, idempotent revocation command for credentials and grant families derived from `cns_A`. The command can be delivered synchronously or through a durable event channel, but the deployment must define its propagation deadline, retry policy, and fail-closed behavior while downstream state is uncertain.
 
 ```http
 POST /internal/tokens/revoke HTTP/1.1
@@ -11882,7 +11973,7 @@ Content-Type: application/json
 
 {
   "target_consent_id": "cns_A",
-  "action": "force_delete"
+  "action": "revoke_dependent_authority"
 }
 ```
 
@@ -11890,7 +11981,7 @@ Content-Type: application/json
 <details>
 <summary><strong>4. Token Store revokes Agent A's token, causing 401 on next call</strong></summary>
 
-The Token Store wipes Agent A's access and refresh tokens from its Redis backend. When Agent A next attempts to hit the MCP Gateway, the Gateway's token introspection (RFC 7662) fails, forcibly terminating the agent's operation and logging the `invalid_token` drop sequence.
+The authorization infrastructure revokes refresh/grant state and makes affected access tokens inactive through the mechanism supported by their format: introspection state for opaque tokens, a denylist or short lifetime for self-contained tokens, and CAEP/SSF or equivalent cache invalidation for distributed enforcement points. The next rejected request returns the appropriate `invalid_token` response and decision evidence.
 
 ```http
 HTTP/1.1 401 Unauthorized
@@ -11898,13 +11989,13 @@ WWW-Authenticate: Bearer error="invalid_token",
                   error_description="The token has been revoked due to consent withdrawal"
 ```
 
-**Artifact Destroyed:** Primary tokens for Agent A.
+**Artifact Transitioned:** Primary grant/token state for Agent A becomes revoked.
 
 </details>
 <details>
 <summary><strong>5. Consent Store queries the delegation chain to identify sub-delegates</strong></summary>
 
-The Consent Store performs a graph database traversal against the parsed `act` (Actor) claims emitted during historic RFC 8693 Token Exchanges.
+The Consent Store traverses an explicit delegation-lineage index populated when grants and [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) token exchanges occur. An `act` claim can carry actor context in a token, but historical token parsing alone is not a complete dependency database.
 
 ```mermaid
 stateDiagram-v2
@@ -11913,13 +12004,13 @@ stateDiagram-v2
     FindB --> FindC: subject_token == B
     FindC --> EndGraph: no further delegates
 ```
-It discovers that Agent A spawned Agent B, which subsequently spawned Agent C. If the cascade stops here, a massive security vulnerability opens: B and C are still operating based on the authority originally granted to A, which the human just legally withdrew.
+It discovers that Agent A delegated authority to Agent B, which delegated dependent authority to Agent C. Stopping at Agent A would leave B and C able to exercise authority whose parent record is no longer valid.
 
 </details>
 <details>
 <summary><strong>6. Consent Store cascades token invalidation to Agent B via the Token Store</strong></summary>
 
-The Consent Store loops through its discovery results. It issues the first cascade command to the Token Store, specifying that Agent B's token—specifically the one where the `act` chain contains Agent A—must be destroyed.
+The Consent Store loops through its discovery results. It issues the first cascade command to the token/grant service, specifying that only Agent B authority derived from `cns_A` must be revoked.
 
 ```json
 {
@@ -11933,23 +12024,23 @@ The Consent Store loops through its discovery results. It issues the first casca
 <details>
 <summary><strong>7. Token Store revokes Agent B's delegated tokens</strong></summary>
 
-The Token Store deletes Agent B's cascaded tokens. Crucially, if Agent B holds an entirely separate identity token granted directly by a different human user, that token remains completely untouched. The physical deletion is strictly surgically bound to `cns_A`.
+The token/grant service invalidates only Agent B authority derived from `cns_A`. An independently granted credential remains unaffected, which is why every derived grant needs an explicit parent and lineage rather than a broad “revoke agent” flag.
 
-**Artifact Destroyed:** Sub-delegated tokens for Agent B.
+**Artifact Transitioned:** Agent B's dependent grant/token status becomes revoked.
 
 </details>
 <details>
 <summary><strong>8. Consent Store cascades token invalidation to Agent C via the Token Store</strong></summary>
 
-Moving deeper into the traversal tree, the Consent Store fires the second cascade webhook to destroy Agent C's derived access. Managing this recursive traversal latency is why enterprise security teams strictly cap max agent delegation depth (usually ≤ 3 hops).
+Moving deeper into the lineage, the Consent Store emits the next idempotent revocation command for Agent C's derived authority. Deployments should cap delegation depth according to their threat model and propagation budget; no universal three-hop limit is defined by OAuth or MCP.
 
 </details>
 <details>
 <summary><strong>9. Token Store revokes Agent C's delegated tokens</strong></summary>
 
-Agent C's access is wiped. The consent withdrawal has now been atomically applied across the entire agent sub-swarm. The user's intent to stop Agent A has securely propagated to A's entire autonomous supply chain.
+Agent C's dependent authority is marked revoked. The cascade is complete only after every enforcement point acknowledges the new state or the system enters its declared fail-closed/degraded mode. Distributed propagation should not be described as atomic.
 
-**Artifact Destroyed:** Sub-delegated tokens for Agent C.
+**Artifact Transitioned:** Agent C's dependent grant/token status becomes revoked.
 
 </details>
 <details>
@@ -11966,25 +12057,26 @@ The system flushes the primary explicit user action to the SIEM/immutable storag
   "scopes_terminated": ["calendar:read", "email:send"]
 }
 ```
-This physical ledger entry guarantees that the enterprise maintains absolute mathematical proof of compliance should data protection regulators investigate an AI privacy complaint.
+This record helps reconstruct the withdrawal decision and affected authority. Its evidentiary value still depends on clock integrity, actor authentication, storage controls, completeness, retention, and the legal question being assessed; it is not mathematical proof of compliance.
 
 </details>
 <details>
 <summary><strong>11. Consent Store logs the cascade events identifying all affected sub-delegates</strong></summary>
 
-Instantly following the primary log, the system writes the blast radius analysis to the audit ledger.
+After resolving the cascade, the system records the observed blast radius and delivery status.
 
 ```json
 {
   "audit_type": "SECURITY_CASCADE",
   "trigger": "cns_A",
   "affected_downstream_agents": ["agt_B", "agt_C"],
-  "tokens_destroyed": 3
+  "credentials_marked_revoked": 3,
+  "acknowledgements_pending": 0
 }
 ```
-This enables SecOps teams cross-referencing EU AI Act Art. 12 traceability requirements to instantly visualize exactly how many downstream autonomous workloads were executed and terminated based on the human user's singular top-level decision.
+This enables SecOps teams to identify which dependent grants and enforcement points were reached, which acknowledgements remain outstanding, and whether in-flight work needs cancellation or compensation.
 
-**Artifact Produced:** Cascade Analysis Audit Ledger.
+**Artifact Produced:** Cascade decision-and-delivery evidence.
 
 </details>
 
@@ -11995,41 +12087,48 @@ At agent scale, consent stores face different scaling challenges than traditiona
 
 | Dimension | Traditional IAM | Agent-Scale IAM |
 |:----------|:----------------|:----------------|
-| **Consent records** | ~1 per user per app | ~50–500 per user per agent session (incremental consent) |
-| **Write pattern** | Low frequency (initial consent) | High frequency (per-tool, per-action consent events) |
-| **Read pattern** | At token issuance | At every tool call (gateway checks consent) |
-| **Retention** | Until user revokes | Event log for audit (GDPR Art. 7 + AI Act Art. 12) + current state for authorization |
+| **Authority records** | Usually a small set of grants per user/application | Potentially many grants, task authorities, approvals, delegation edges, and downstream credentials; measure from the deployment rather than assuming a universal ratio |
+| **Write pattern** | Usually grant/withdrawal oriented | Varies by design: grant/approval transitions plus task, delegation, and revocation events; do not persist a new consent event for every permitted tool call |
+| **Read pattern** | Commonly at authorization and token issuance | At authorization time and, where the policy requires it, at tool-call enforcement through a current grant/authority projection |
+| **Retention** | Product and legal-basis dependent | Separate schedules for current authority, restricted approval evidence, operational decisions, and regulated documentation |
 
-**Event-sourced consent stores** provide the strongest foundation for agent-scale consent:
+**Event-sourced authority stores** are one viable foundation when complete history and derived current state are both required:
 
 | Architecture | Writes | Reads | Audit | Trade-off |
 |:------------|:------|:------|:------|:----------|
-| **Relational (RDBMS)** | Moderate (row locks) | High (indexed) | Requires triggers/CDC | Poor history; adequate for current state |
-| **Event Sourcing (pure)** | High (append-only) | Low (event replay) | Native — log *is* audit | Excellent audit; poor real-time queries |
-| **ES/CQRS hybrid** | High (append + materialize) | High (read projections) | Native + queryable | **Recommended** — best balance |
-| **NoSQL (DynamoDB/Cassandra)** | Very high | High (eventually consistent) | Requires TTL management | Good for ephemeral; consistency risks |
+| **Relational (RDBMS)** | Transactional row updates plus optional history | Indexed current-state queries | Requires explicit history, CDC, or audit tables | Strong current-state model; history and high-write contention need deliberate design |
+| **Event Sourcing (pure)** | Append-only transitions | Replay or derived views | Complete transition history when capture is correct | Reconstruction is natural; low-latency current-state queries usually need projections |
+| **ES/CQRS hybrid** | Append plus materialization | Read projections | Historical stream plus queryable state | Useful when history and fast current-state checks justify projection and consistency complexity |
+| **Key-value / wide-column** | Partitioned conditional writes | Key-oriented lookups | Requires explicit event/evidence design | Scales predictable access paths; secondary queries and consistency semantics need careful modeling |
 
-ZITADEL, an open-source IAM platform, provides the most relevant proof point: its core architecture uses Event Sourcing + CQRS for all identity state including consent. Every consent grant/revocation is an immutable event in a chronological log, with materialized read projections for fast queries. However, ZITADEL is evolving to a **hybrid model** (2026) — storing current state in normalized PostgreSQL tables while appending events to a log within the same transaction — addressing the query performance challenges of pure event sourcing at scale.
+[ZITADEL's current architecture documentation](https://zitadel.com/docs/concepts/architecture/software) describes Event Sourcing plus CQRS, with append-only events and materialized projections. Its January 30, 2026 engineering account, [Relational Core, Event-Driven Soul](https://zitadel.com/blog/relational-core-event-driven-soul-evolving-zitadel-for-scale), describes an evolution toward normalized PostgreSQL current-state rows plus an event log. This is evidence of the audit/query trade-off, not proof that event sourcing is required or that ZITADEL's internal event model is a portable consent schema.
 
-> ℹ️ **Note** — **Connection to [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Revocation Propagation)**: The three revocation strategies defined in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Push, Pull, Hybrid) apply to consent revocation as well as token revocation. The Push strategy is recommended for consent revocation in multi-agent chains: when User A revokes consent for Agent B, the consent store pushes revocation events to all downstream agents that received delegated consent from Agent B.
+> ℹ️ **Note** — **Connection to [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Revocation Propagation)**: The Push, Pull, and Hybrid strategies in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) apply to grant and consent revocation as well as token status. Multi-agent chains usually need push or hybrid delivery for bounded propagation plus pull/introspection or short lifetimes as a recovery control; the deployment must measure acknowledgement lag and define behavior during partitions.
 
 ##### 14.7.4.1 Event-Sourced Consent Store Reference Schema
 
-The following JSON schema illustrates a single consent event in an event-sourced consent store. Each event is an immutable, append-only record capturing a consent lifecycle transition:
+The following JSON illustrates a consent-specific event for the `pii_processing_consent` record kind. Enterprise policy, business approval, and task authority use different event types even when they share the same storage infrastructure. An append-only event preserves the recorded transition; retention, redaction, access, and deletion policy still apply to the payload and any linked evidence.
 
 ```json
 {
   "event_id": "evt_abc123",
   "event_type": "consent_granted",
+  "authority_record_id": "ar_abc123",
+  "record_kind": "pii_processing_consent",
   "timestamp": "2026-03-14T10:30:00Z",
   "user_id": "user:alice",
   "agent_id": "agent:travel-v2",
   "client_id": "travel-v2-prod",
   "scopes_granted": ["tools:execute:flights:search", "tools:execute:email:send"],
-  "consent_mechanism": "ciba_tier5",
+  "legal_basis": "consent",
+  "purpose_ids": ["travel_search", "send_itinerary"],
+  "interaction_mechanism": "oidc_ciba",
   "ttl_seconds": 86400,
   "delegation_depth": 1,
   "parent_consent_id": null,
+  "request_id": "req_789",
+  "grant_id": "gr_456",
+  "evidence_ref": "restricted://approval/ar_abc123",
   "trace_id": "trace_xyz789"
 }
 ```
@@ -12038,30 +12137,32 @@ The following JSON schema illustrates a single consent event in an event-sourced
 
 | Event Type | Trigger | Fields Added | Downstream Effect |
 |:-----------|:--------|:-------------|:------------------|
-| `consent_granted` | User approves scope request (OAuth consent screen, CIBA approval, admin pre-approval) | `scopes_granted`, `consent_mechanism`, `ttl_seconds`, `delegation_depth` | Tokens can be issued for the granted scopes; read model updated with active consent state |
-| `consent_revoked` | User explicitly revokes consent via UI, API, or admin action (GDPR Art. 7(3)) | `revoked_by` (user/admin), `revocation_reason` | Active tokens invalidated ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)); read model marks consent as inactive; triggers `consent_cascaded` for delegation chains |
-| `consent_expired` | TTL reached (`ttl_seconds` elapsed since grant) | `expired_at` | Read model marks consent as expired; next tool call triggers re-consent (→ `ConsentPrompt` in [§14.0](#140-consent-lifecycle-overview) diagram) |
-| `consent_escalated` | Agent requests additional scopes beyond current consent (incremental consent, [§14.3](#143-incremental-consent-in-agentic-workflows)) | `previous_scopes`, `escalated_scopes`, `escalation_reason` | New consent prompt triggered; if approved, produces a new `consent_granted` event with the combined scope set |
-| `consent_cascaded` | Parent consent revoked in a delegation chain ([§14.7.3](#1473-consent-revocation-vs-token-revocation)) | `parent_consent_id`, `cascade_source`, `affected_agents[]` | All delegated tokens in the chain invalidated; each affected agent receives a revocation event |
+| `consent_granted` | The PII principal grants consent through the recorded ceremony | `scopes_granted`, `legal_basis`, `purpose_ids`, `interaction_mechanism`, `ttl_seconds`, `delegation_depth`, `evidence_ref` | The consent projection becomes active; token issuance still requires the applicable OAuth grant and policy |
+| `consent_revoked` | The data subject withdraws consent through the supported UI or API (GDPR Art. 7(3)) | `revoked_by`, `revocation_reason` | New reliance on the consent is blocked; credential/task termination and dependent-state propagation are initiated |
+| `consent_expired` | TTL reached (`ttl_seconds` elapsed since grant) | `expired_at` | Projection marks the record expired; the next operation is denied or routed through a new authorization/consent evaluation |
+| `consent_escalated` | Agent requests processing or scopes beyond the recorded consent | `previous_scopes`, `escalated_scopes`, `escalation_reason` | New consent and authorization evaluation; approval produces a new or superseding record rather than silently mutating history |
+| `consent_cascaded` | A dependent grant or delegation derives from a withdrawn parent record ([§14.7.3](#1473-consent-revocation-vs-token-revocation)) | `parent_consent_id`, `cascade_source`, `affected_agents[]` | Dependent authority is marked for termination and delivery/acknowledgement is tracked at each enforcement point |
 
-**CQRS read model**: The command side of the consent store writes consent events as an append-only log — every grant, revocation, expiration, escalation, and cascade is an immutable event that can never be modified or deleted (satisfying both GDPR Art. 7(1) demonstrability and AI Act Art. 12 record-keeping). The read side materializes a **"current consent state" projection** — a denormalized view per user-agent pair that the gateway queries on every tool invocation to answer the question: *"Does user X currently have an active, non-expired consent for agent Y to invoke tool Z?"* This separation enables both real-time consent checks at gateway latency (read model, optimized for point queries) and complete audit history for compliance and incident reconstruction (event store, optimized for chronological replay). ZITADEL's hybrid ES/CQRS architecture ([§14.7.4](#1474-scalability-considerations)) demonstrates this pattern at production scale.
+**CQRS read model**: The command side appends grant, withdrawal, expiration, supersession, and cascade events. The read side materializes a current projection that can answer whether the relevant consent and grant records are active before policy evaluates the exact tool operation. The event log supports reconstruction, but legal demonstrability also depends on the linked notice/display, authenticated actor, integrity controls, record completeness, and retention. An “immutable” label alone satisfies neither GDPR Art. 7 nor AI Act record-keeping.
 
 ##### 14.7.5 Regulatory Constraints on Consent Persistence
 
-Consent persistence architecture must satisfy requirements from multiple regulatory frameworks simultaneously:
+Regulatory duties attach only when their scope conditions are met. The table identifies the engineering consequence without treating every OAuth approval record as legal consent or every agent deployment as a high-risk AI system.
 
 | Regulation | Requirement | Architectural Implication |
 |:-----------|:-----------|:------------------------|
-| **GDPR Art. 7(1)** | Demonstrate that consent was obtained | Consent records must persist with proof: timestamp, presented information, user action |
-| **GDPR Art. 7(3)** | Withdrawal as easy as granting | Consent revocation API must have equal accessibility to consent grant flow |
-| **GDPR Art. 17(1)(b)** | Erase data when consent withdrawn | Consent withdrawal triggers data erasure across dependent systems |
-| **GDPR Art. 17(2)** | Inform other controllers of erasure | Multi-agent delegation chains: consent revocation propagates to downstream agents |
-| **AI Act Art. 12(1)** | Automatic event recording | Consent grant/revoke events automatically logged — see [§23.4](#234-art-12-and-art-26-audit-trail-requirements) |
-| **AI Act Art. 14(4)(a)** | Human ability to override/reverse | Consent revocation = override; must be reflected in consent store — see [§23.5](#235-art-14-human-oversight-implementation-patterns) |
-| **AI Act Art. 26(6)(a)** | 6-month log retention (deployer) | Consent logs retained ≥ 6 months — see [§23.4](#234-art-12-and-art-26-audit-trail-requirements) |
-| **AI Act Art. 72** | 10-year documentation retention (provider, high-risk) | Consent-related documentation retained 10 years for high-risk systems |
+| **[GDPR Art. 7(1)](https://eur-lex.europa.eu/eli/reg/2016/679/oj)** | Where processing relies on consent, the controller must be able to demonstrate it | Preserve the notice/purpose, data categories, affirmative action, subject, time, withdrawal path, and integrity evidence—not merely a token |
+| **GDPR Art. 7(3)** | The data subject may withdraw at any time, and withdrawal must be as easy as giving consent | Provide an accessible withdrawal path and stop future processing that relies on that consent |
+| **GDPR Art. 17(1)(b)** | Withdrawal supports erasure where processing relied on consent and no other legal ground remains | Run a purpose-by-purpose erasure/legal-ground assessment; do not automatically delete evidence needed under another valid obligation |
+| **GDPR Art. 17(2)** | If a controller made the personal data public and must erase them, it takes reasonable steps to inform other controllers processing links/copies | Do not treat this paragraph as a generic delegation-revocation protocol; model processor/controller notifications under the actual data flow and legal relationship |
+| **[AI Act Art. 12](https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng)** | In-scope high-risk systems must technically allow automatic logging over their lifetime | Log the system events needed for risk identification and traceability; the Article does not turn every consent event into a mandated log |
+| **AI Act Art. 14** | In-scope high-risk systems require effective human-oversight capability | Record intervention, stop, override, and escalation controls where applicable; consent withdrawal is not automatically the Art. 14 control |
+| **AI Act Art. 26(6)** | Deployers keep automatically generated logs under their control for an appropriate period of at least six months, unless other law provides otherwise | Classify the actual system logs and apply the applicable retention period; do not assign six months to every approval record by default |
+| **AI Act Art. 18** | Providers keep specified high-risk-system documentation for 10 years after placement on the market or putting into service | Retain the specified conformity/technical documentation; a transaction-level approval payload belongs only if it is actually part of that required evidence |
 
-> ⚠️ **Warning** — **The dual-retention paradox**: AI Act Art. 12/72 requires consent-related logs to be retained for up to 10 years, while GDPR Art. 17 requires personal data to be erasable on request. **Resolution**: Separate consent metadata (anonymized: action type, scope, timestamp, pseudonymized user reference) from identifiable consent data (real user identity, agent identity). Retain anonymized audit logs per Art. 12; erase identifiable records per Art. 17. This separation should be designed into the consent store schema from the outset — retrofitting is architecturally expensive.
+> **Caution — Retention and erasure require classification, not one immutable bucket**
+>
+> Separate current authority state, restricted approval content, operational decision logs, and compliance documentation. Pseudonymized data can remain personal data under GDPR, while genuinely anonymized aggregates may not; hashing a user identifier does not automatically anonymize it. Apply data minimization, role-separated access, retention schedules, legal holds, and verifiable deletion or cryptographic erasure to each class.
 
 #### 14.8 Multi-Round-Trip Elicitation and External-Browser Handoff
 
@@ -12254,14 +12355,14 @@ The URL itself must not contain end-user secrets, personal data, or a pre-authen
 
 | Dimension | CIBA (Tier 5, §15.5) | URL Mode Elicitation |
 |:----------|:---------------------|:---------------------|
-| **Question answered** | Should this specific action proceed? | What external interaction or credential does the server still need? |
+| **Question answered** | Will the OP authenticate the selected subject out of band and authorize this client/grant request? | What external interaction or credential does the server still need? |
 | **Mediator** | Authorization Server | MCP server plus external browser/third party |
 | **Binding** | `auth_req_id`, authenticated user, requested scopes, and AS transaction record | Originating MCP request, authenticated browser identity, `requestState`, and external-flow OAuth state |
 | **Output** | OAuth authorization result/token under AS policy | Server-held completion evidence or third-party credential; nothing sensitive returns through the client |
 | **Continuation** | Poll/push according to the CIBA flow | Retry the original MCP request; use `tasks/update` only after a task exists |
-| **Best fit** | High-risk transaction approval and unattended human oversight | Third-party OAuth, payment provider UI, identity proofing, or secret entry |
+| **Best fit** | Decoupled OP authentication and authorization decision, optionally composed with a structured business-approval profile | Third-party OAuth, payment provider UI, identity proofing, or secret entry |
 
-Use CIBA when the architectural question is authorization of the agent action. Use URL elicitation when the server needs a browser-isolated interaction that the MCP Authorization Server cannot supply. A deployment may use both: CIBA to approve connecting an external account, then URL elicitation to conduct that third-party OAuth flow.
+Use CIBA when the OP should authenticate a selected subject out of band and obtain an authorization decision under the CIBA client/grant policy. Use URL elicitation when the server needs a browser-isolated interaction that the MCP Authorization Server cannot supply. A deployment may use both, but it must define which event authorizes navigation, which completes the third-party flow, which grants authority, and which later resource operation is permitted.
 
 ##### 14.8.4 Current Server-Initiated Interaction Boundaries
 
@@ -12281,46 +12382,34 @@ No mechanism creates a generic reverse-authorization channel. Consent to navigat
 
 ### 15. Human Oversight Architecture
 
-Human oversight is not a UX feature — it is a **first-class architectural concern** that cuts across
-authentication, authorization, and identity. For AI agent deployments in the EU, it is a **legal mandate**
-under Art. 14 of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)
-(EU AI Act). In the US, NIST AI 800-1 explicitly flags the severe risk of the *"autonomous setting, in which a model-agent system completes a particular action with little human oversight."*
+Human oversight is not merely a UX feature—it is a **first-class architectural concern** that cuts across authentication, authorization, application control, and evidence. In the EU, Art. 14 of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) imposes human-oversight design requirements on high-risk AI systems within its scope; it does not make every AI-agent action subject to the same ceremony. In the US, NIST AI 800-1 highlights the risk of autonomous model-agent systems completing actions with little human oversight.
 
-This section defines the **pattern-neutral architecture** for keeping humans in control of
-automated and delegated operations — from lightweight in-session confirmation to full out-of-band
-CIBA approval — directly mitigating the risks identified by NIST and satisfying EU mandates. It provides clear decision criteria for selecting the appropriate oversight level.
+This section defines a **pattern-neutral architecture** for prospective decisions, intervention, and evidence—from in-session confirmation to workflows, CIBA, and multi-party approval. These mechanisms can contribute to an oversight control system; the complete deployment determines risk reduction and legal compliance.
 
-> **Important — User presence is the primary branching condition**
+> **Important — Select controls from required properties**
 >
-> If the user is already present and can evaluate the action in context, lightweight confirmation may be sufficient. Once the user is absent, the design must shift to explicit out-of-band oversight rather than silently treating unattended execution as equivalent.
+> User presence is one branch, not the primary assurance rule. Also evaluate the consequence, eligible decision maker, authentication strength and age, exact-operation binding, independence, latency, cancellation/reversal, and evidence. Unattended execution needs explicit durable authority; out-of-band interaction alone does not create it.
 
 **Quick-scan: Seven-tier Human Oversight Taxonomy**
 
 | Tier | Name | When to Use | Latency | User Present? |
 |:-----|:-----|:------------|:--------|:--------------|
-| **0** | No oversight | Read-only, pre-approved | 0 | N/A |
-| **1** | Audit-only | Post-hoc review | Async | No |
-| **2** | In-session confirmation | User watching, standard actions | Sub-second | Yes |
-| **3** | Step-up auth | High-value, context-bound (PSD2) | 5–30 s | Yes |
-| **4** | Webhook/async | User absent, medium risk | Min–hours | No |
-| **5** | CIBA (out-of-band) | User absent, critical operations | 10 s–5 min | No |
-| **6** | Multi-party (N-of-M) | Four-eyes, large transactions | Min–days | No |
+| **0** | Policy-authorized automation | Current authority and policy permit unattended execution | Immediate | Not required |
+| **1** | Audit-only | Post-hoc detection/review is adequate; no prospective human gate is required | Async | No |
+| **2** | In-session confirmation | An eligible decision maker is present and the existing authenticated session is sufficient | Interactive | Yes |
+| **3** | Step-up authentication | Policy requires stronger or fresher subject authentication before a fresh authorization decision | Interactive | Usually |
+| **4** | Workflow/webhook approval | An asynchronous business decision is needed outside the initiating session | Sec–days | No |
+| **5** | CIBA | The OP should authenticate the selected subject and obtain a decoupled authorization decision | Sec–min | No on consumption device |
+| **6** | Multi-party workflow | Policy requires independent or threshold decisions | Min–days | Not all at once |
 
-> **Relationship to other sections**: This section builds on the consent models ([§14](#14-user-consent-models-first-party-vs-third-party)), refresh tokens ([§10](#10-authorization-continuity-and-durable-tasks)),
+> **Relationship to other sections**: This section builds on the consent models ([§14](#14-authorization-approval-and-consent-models)), refresh tokens ([§10](#10-authorization-continuity-and-durable-tasks)),
 and the regulatory framework ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)) already covered in this investigation. Human oversight answers a
 different question: *"Should this specific action proceed, and what happens when the human is no
 > longer present?"*
 >
-> **Key insight**: CIBA ([§15.5](#155-tier-5-ciba-protocol)) is the *strongest* out-of-band oversight mechanism, but it is
-> **not the only one** — and for the majority of AI agent interactions where the user is already
-authenticated and present, a simple in-session confirmation ([§15.3](#153-tier-2-in-session-confirmation)) satisfies Art. 14 without any
-additional authentication, token issuance, or out-of-band communication.
+> **Key insight**: The tiers classify interaction patterns; they do not rank universal security or legal effect. CIBA is the standardized decoupled OpenID ceremony in the set, while workflow systems handle business decisions and multi-party state that CIBA Core does not define. An in-session confirmation may be the correct control when an eligible decision maker is present, but its legal and security adequacy depends on the operation, session assurance, information displayed, decision-to-execution binding, and intervention/recovery design.
 >
-> **Regulatory nuance**: For certain action classes — payment initiation (PSD2), qualified electronic
-> signatures (eIDAS 2.0), critical infrastructure changes (NIS2) — **context-bound authentication** is
-a hard regulatory requirement. In these cases, even if the user is present, a simple "Approve" button
-is insufficient: the authentication must be cryptographically bound to the specific transaction context
-([§15.2.4](#1524-regulatory-override-context-bound-authentication)). This elevates the minimum tier to step-up (Tier 3) or CIBA (Tier 5).
+> **Domain-profile rule**: Payment SCA/dynamic linking, qualified electronic signatures, critical-infrastructure change control, and AI-system human oversight have different requirements. First determine the applicable control profile, then select and compose a tier. No tier number, “Approve” button, CIBA response, or `binding_message` establishes compliance by itself ([§15.2.4](#1524-domain-control-profiles-do-not-infer-them-from-tier-number), [§15.10](#1510-regulatory-drivers)).
 
 #### 15.1 Three Orthogonal Patterns
 
@@ -12350,12 +12439,12 @@ flowchart LR
         in&nbsp;real‑time`"]
     end
 
-    subgraph C["`**③ Session Continuity**`"]
+    subgraph C["`**③ Authority Continuity**`"]
         direction TB
-        C1["`**Refresh Tokens**
-        (OAuth&nbsp;2.1)`"]
-        C2["`**HOW** agents continue
-        when&nbsp;user&nbsp;is&nbsp;absent`"]
+        C1["`**Task authority + credential lifecycle**
+        (§10,&nbsp;§17)`"]
+        C2["`**WHETHER** authority remains valid
+        for&nbsp;later&nbsp;work`"]
     end
 
     D ~~~ O ~~~ C
@@ -12373,19 +12462,19 @@ flowchart LR
 |:--------|:---------|:--------|:------------------|
 | **① Delegation** | RFC 8693 (Token Exchange) | Transfer authority from one identity to another | *"Who can act on behalf of whom?"* |
 | **② Human Oversight** | Multiple ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) | Human approves/denies specific agent actions | *"Should this action proceed?"* |
-| **③ Session Continuity** | OAuth 2.1 (Refresh Tokens) | Agent continues operating after user departs | *"What happens when the user is no longer present?"* |
+| **③ Authority Continuity** | Durable task/authority record plus credential lifecycle ([§10](#10-authorization-continuity-and-durable-tasks), [§17](#17-authorization-across-mcp-primitives-and-durable-state)) | Re-evaluate whether later work remains within the grant, task, policy, budget, time, and revocation boundaries | *"May this later operation still proceed, and with which current credential?"* |
 
 These patterns are **orthogonal** — they combine freely:
 
 | Combination | Example | Flow |
 |:------------|:--------|:-----|
 | ① alone | Agent gets delegated token, acts immediately | Token Exchange → Delegated Token → API call |
-| ② alone | Agent requests CIBA approval for dangerous action | CIBA → Approval → Access Token → API call |
-| ③ alone | User logs in, leaves; refresh token extends session | Login → Refresh Token → Agent refreshes → API calls |
-| **① + ③** | Agent gets delegated token with refresh; continues overnight | Token Exchange → Delegated Token + **Refresh** → Agent refreshes for hours |
-| **② + ③** | CIBA approval includes refresh token for long-running task | CIBA → Approval → Access Token + **Refresh Token** → Agent refreshes for recurring access |
+| ② alone | Agent requests a CIBA decision for a consequential action | CIBA interaction → token result/approval evidence → fresh exact-operation policy decision → API call |
+| ③ alone | Existing grant supports a bounded unattended task | Authority record → per-operation decision → current access token or approved renewal path |
+| **① + ③** | Agent receives delegated authority for a bounded overnight task | Token Exchange → narrow token → authority record → re-evaluate each later operation |
+| **② + ③** | Human approves a closed batch or next long-running tranche | Approval evidence → bounded authority record → later fresh token → per-item enforcement |
 | **① + ②** | Agent delegates to sub-agent; sub-agent needs CIBA approval | Token Exchange → Delegated Token → Sub-agent triggers CIBA |
-| **① + ② + ③** | Full chain: delegation + approval + offline continuation | Token Exchange → CIBA → Approval → Tokens + **Refresh** → Long-running task |
+| **① + ② + ③** | Delegated agent needs approval and later continuation | Token Exchange → separate approval ceremony → narrowed grant/authority record → fresh credential → reauthorize later work |
 
 #### 15.2 Human Oversight Taxonomy: The Seven-Tier Spectrum
 
@@ -12395,42 +12484,30 @@ regulatory requirements.
 
 ##### 15.2.1 Tier Definitions
 
-| Tier | Pattern | User Present? | New Auth? | Context-Bound? | Latency | Art. 14 | PSD2 SCA? | When to Use |
-|:-----|:--------|:-------------|:----------|:--------------|:--------|:--------|:----------|:------------|
-| **0** | No oversight | N/A | No | ❌ | 0 | ❌ | ❌ | Read-only, low-risk, pre-approved |
-| **1** | Audit-only (post-hoc) | No | No | ❌ | 0 + async | Partial | ❌ | Monitoring; compliance review |
-| **2** | In-session confirmation | **Yes** | **No** | ❌ | Sub-second | ✅ (a)(d)(e) | ❌ | User watching; standard agent actions |
-| **3** | Step-up auth | **Yes** | **Yes** | **✅ Yes** | 5–30 sec | ✅ (a) | **✅ Yes** | High-value; re-prove identity with context |
-| **4** | Webhook/async approval | **No** | **No** | ❌ | Min–hours | ✅ (d) | ❌ | User absent; medium risk |
-| **5** | CIBA (out-of-band auth) | **No** | **Yes** | **✅ Yes** | 10s–5min | ✅✅ (a)–(e) | **✅ Yes** | User absent; critical operations |
-| **6** | Multi-party (N-of-M) | **No** | **Yes** | **✅ Yes** | Min–days | ✅✅✅ (5) | **✅ Yes** | Regulatory four-eyes; large transactions |
+| Tier | Pattern | Interaction location | Authentication result | Operation binding supplied by tier? | When it is a candidate |
+|:-----|:--------|:---------------------|:----------------------|:-----------------------------------|:-----------------------|
+| **0** | Policy-authorized automation | None | Existing workload/user/client context | No; runtime policy must compare the operation with current authority | Low-consequence or pre-authorized work that needs no prospective human decision |
+| **1** | Audit-only (post-hoc) | None | Existing context | No | Detection, review, and accountability where post-hoc control is sufficient |
+| **2** | In-session confirmation | Initiating application | Reuses the application's authenticated session unless it explicitly reauthenticates | Only if the application renders and binds the canonical operation | Present eligible decision maker; consequence does not require a separate ceremony |
+| **3** | Step-up authentication | AS or authenticator flow | Stronger/fresher authentication, commonly requested through [RFC 9470](https://www.rfc-editor.org/rfc/rfc9470.html) | No; authorization must be evaluated again for the exact operation | Current subject authentication is too weak or stale |
+| **4** | Workflow/webhook approval | External workflow channel | Channel-specific; may or may not reauthenticate | Only through the workflow's signed state, display snapshot, decision, and execution contract | Asynchronous business approval, queues, escalation, or long latency |
+| **5** | CIBA | OP-controlled authentication device | CIBA ID/access token result and reported authentication context, as applicable | No in Core; a verified UI plus RAR/local schema and runtime comparison supply it | Decoupled OP authentication and authorization decision |
+| **6** | Multi-party workflow | One or more authenticated channels | Per-participant evidence defined by the workflow | Only through an exact-operation, independence, threshold, and state-machine profile | Separation of duties, N-of-M, or legally/contractually required independent decisions |
 
-> **The dominant factor is user presence.** If the user is watching their agent work in real-time,
-> Tier 2 (in-session confirmation) provides full Art. 14(4)(a)(d)(e) compliance with sub-second
-> latency and **zero additional authentication**. CIBA (Tier 5) is only needed when the user is
-> **not present** — the agent operates autonomously and must reach the user on a separate device.
->
-> ⚠️ **However, context-bound authentication is a regulatory hard floor.** When the action
-> triggers PSD2 dynamic linking (payment initiation), eIDAS remote QES signing, or NIS2 critical
-> infrastructure controls, the **minimum tier is forcibly elevated** regardless of user presence:
-> - **User present → Tier 3** (step-up with context-bound MFA: WYSIWYS)
-> - **User absent → Tier 5** (CIBA with `binding_message` encoding the transaction context)
->
-> Clicking "Approve" in a chat window (Tier 2) or clicking a Slack button (Tier 4) **do not generate
-> a context-bound authentication code** tied to the transaction amount and payee, as required by
-PSD2 RTS Article 5 ("What You See Is What You Sign"). See [§15.2.4](#1524-regulatory-override-context-bound-authentication) for the regulatory override rules.
+User presence affects usability and channel choice, but it is not the sole control selector. The architecture also considers consequence, reversibility, decision-maker eligibility, authentication assurance and age, independence, exact-operation binding, latency, cancellation, and evidence. A higher tier number does not automatically dominate a lower tier: a well-bound in-session transaction-signing ceremony can provide properties that a generic out-of-band webhook or CIBA deployment lacks.
 
-##### 15.2.2 Art. 14 Compliance per Tier
+##### 15.2.2 Art. 14 Contributions and Residual Controls
 
-| Art. 14(4) Requirement | Tier 0 | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 | Tier 6 |
-|:----------------------|:-------|:-------|:-------|:-------|:-------|:-------|:-------|
-| **(a)** understand / decide not to use / override | ❌ | Partial | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **(d)** intervene / stop button | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **(e)** prevent output from being used | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Out-of-band** (user not present) | N/A | Partial | ❌ | ❌ | ✅ | ✅ | ✅ |
-| **Re-authentication / identity proof** | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| **Context-bound auth (PSD2/eIDAS)** | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
-| **Four-eyes principle** (Art. 14(5)) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Control need | Candidate tiers | What the interaction can contribute | What the system must still establish |
+|:-------------|:----------------|:------------------------------------|:-------------------------------------|
+| Understand capabilities, limitations, and operation | 2, 4, 5, 6; monitoring in 1 | A surface on which to present information and collect a decision | Accurate, comprehensible, role-appropriate information plus training and operational monitoring |
+| Decide not to use, disregard, or override | 0 through 6 depending on design | Policy disablement, deny action, review queue, or authenticated decision | Actual product controls to disregard/override and authority to use them |
+| Intervene or stop | 2, 4, 5, 6 can gate dispatch | A prospective denial or timeout | Cancellation and observed downstream termination/compensation for already dispatched work |
+| Prevent output from being used | 0 through 6 through policy/enforcement | A decision signal before release or use | Resource/application enforcement, result gating, cache/stream invalidation, and post-decision state checks |
+| Reauthentication | 3 or 5; participant-specific in 6 | Stronger/fresher authentication evidence | Eligible approver, business authority, and fresh exact-operation authorization |
+| Independent decisions | 6 | Multiple authenticated decision events | Eligibility, independence, threshold, ordering, conflict, substitution, and terminal-state rules |
+
+The table maps technical contributions, not legal conclusions. Whether [AI Act Art. 14](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) applies and whether a deployment meets it depend on the complete high-risk system, instructions, human competence and authority, operational controls, and evidence—not the presence of a named tier.
 
 ##### 15.2.3 Decision Flowchart: Selecting the Right HitL Tier
 
@@ -12442,15 +12519,17 @@ config:
       bottom: 25
 ---
 flowchart TD
-    A["`**Agent Action Request**`"] --> B{"`**Regulatory context-binding**
-    required?`"}
-    B -->|YES: PSD2 / eIDAS / NIS2| C{"`**User present?**`"}
-    C -->|YES| D["`**Tier 3**: Step‑up auth
-    (context‑bound&nbsp;MFA)`"]
-    C -->|NO| E{"`**Four-eyes required?**`"}
+    A["`**Agent Action Request**`"] --> B{"`**Domain profile requires**
+    a&nbsp;specific&nbsp;ceremony?`"}
+    B -->|YES| C{"`**Which property is required?**`"}
+    C -->|Stronger / fresher auth| D["`**Tier 3 or 5**
+    Step‑up&nbsp;or&nbsp;decoupled&nbsp;OP&nbsp;auth,
+    then&nbsp;fresh&nbsp;authorization`"]
+    C -->|Independent decisions| E{"`**Threshold policy?**`"}
     E -->|YES| F["`**Tier 6**: Multi‑party`"]
-    E -->|NO| G["`**Tier 5**: CIBA
-    (binding_message)`"]
+    E -->|NO| G["`**Domain workflow**
+    Exact transaction / signature /
+    intervention&nbsp;profile`"]
     B -->|NO| H{"`**User present**
     in&nbsp;session?`"}
     H -->|YES| I{"`**Risk level?**`"}
@@ -12460,8 +12539,8 @@ flowchart TD
     I -->|High| L["`**Tier 3**: Step‑up auth`"]
     H -->|NO| M{"`**Risk level?**`"}
     M -->|Low| N["`**Tier 1**: Audit‑only`"]
-    M -->|Medium| O["`**Tier 4**: Webhook/async`"]
-    M -->|High/Critical| P["`**Tier 5**: CIBA`"]
+    M -->|Business approval| O["`**Tier 4**: Workflow / webhook`"]
+    M -->|OP-mediated decision| P["`**Tier 5**: CIBA`"]
     M -->|Four-eyes| Q["`**Tier 6**: Multi‑party`"]
 
     style A text-align:left
@@ -12483,26 +12562,18 @@ flowchart TD
     style Q text-align:left
 ```
 
-##### 15.2.4 Regulatory Override: Context-Bound Authentication
+##### 15.2.4 Domain Control Profiles: Do Not Infer Them from Tier Number
 
-Some regulations impose a **hard floor** on the minimum HitL tier, regardless of the
-Art. 14 proportionality analysis:
+Some domains require properties that the local oversight tier does not define. Treat the legal or sector profile as an input to architecture:
 
-| Regulation | Trigger | Requirement | Minimum Tier |
-|:-----------|:--------|:-----------|:-------------|
-| **PSD2 RTS Art. 5** | AI agent initiates electronic payment | SCA with dynamic linking: auth code bound to amount + payee (WYSIWYS) | Tier 3 (present) / Tier 5 (absent) |
-| **eIDAS 2.0** | AI agent triggers qualified electronic signature | Remote QES activation via sole control of signing key | Tier 5 (CIBA to EUDI Wallet) |
-| **NIS2** | AI agent modifies critical infrastructure | Proportionate technical/organizational measures | Tier 3 or Tier 5 (risk-based) |
-| **Art. 14(5)** | Remote biometric identification system | "Four-eyes" principle: 2 qualified persons must verify | Tier 6 (multi-party) |
+| Source / operation | Required property to establish | Safe tier interpretation |
+|:-------------------|:-------------------------------|:-------------------------|
+| **[PSD2](https://eur-lex.europa.eu/eli/dir/2015/2366/oj) and Delegated Regulation (EU) 2018/389** — electronic payment where SCA/dynamic linking applies | Required authentication elements plus an authentication code/result specific to the amount and payee; changes invalidate the authorization | Tier 2–5 labels are insufficient. Use the payment/issuer profile. CIBA can be a decoupled channel, but `binding_message` is only a visual cue |
+| **[eIDAS 2.0](https://eur-lex.europa.eu/eli/reg/2024/1183/oj)** — qualified signature or seal | Qualified trust-service, certificate, signature-creation, sole-control/authorized-representative, exact-document, and verification requirements | A Tier 3/5 interaction may initiate the service; it is not the qualified signature or seal |
+| **[NIS2](https://eur-lex.europa.eu/eli/dir/2022/2555/oj)** — security-relevant operation | Appropriate and proportionate technical, operational, and organizational measures under the entity's risk program | NIS2 does not prescribe a tier or CIBA; select change approval, separation of duties, authentication, logging, rollback, and incident controls from the risk treatment |
+| **[AI Act Art. 14(5)](https://eur-lex.europa.eu/eli/reg/2024/1689/oj)** — specified post-remote-biometric-identification decisions | Separate verification/confirmation by at least two competent persons, subject to the Article's conditions and exceptions | A Tier 6 workflow can implement the decision state, but must enforce competence, independence, threshold, object binding, and exception handling |
 
-> **Why Tier 2 and Tier 4 cannot satisfy PSD2 dynamic linking**: PSD2 RTS Article 5
-> requires that the authentication code be **specific to the amount and the payee**,
-> and that modifying either invalidates the code. An in-session "Approve" button (Tier 2)
-> does not generate a new authentication code — it reuses the existing session.
-> A Slack/Teams button (Tier 4) does not involve SCA at all. Only Tier 3 (step-up with
-> context-bound MFA challenge displaying amount + payee) and Tier 5 (CIBA with
-> `binding_message` encoding the transaction context) generate context-bound
-> authentication codes that satisfy the regulation.
+The reliable test is property-by-property: who authenticated, who was eligible to decide, what exact representation they saw, which machine object they authorized, how the result bound to execution, what changes invalidated it, and how denial, cancellation, reversal, and evidence operate. “Context-bound” should never be inferred merely from a new login, a webhook click, or a CIBA result.
 
 #### 15.3 Tier 2: In-Session Confirmation
 
@@ -12541,30 +12612,29 @@ permission rules all implement.
 | **OpsGenie / PagerDuty** | Slack interactive buttons for incident workflows | 4 |
 | **Power Automate + Teams** | Adaptive Cards with Approve/Reject; async | 4 |
 
-##### 15.3.3 When In-Session Confirmation Is Sufficient
+##### 15.3.3 When In-Session Confirmation Is a Suitable Control
 
-In-session confirmation satisfies EU AI Act Art. 14(4)(a), (d), and (e) when:
+In-session confirmation can contribute to effective human oversight when:
 
-1. **The user is present** — actively using the agent's interface
-2. **The user is the delegating principal** — the `sub` in the JWT
-3. **The action is visible** — prompt describes action, parameters, consequences
-4. **Denial blocks the action** — fail-closed behavior
-5. **An audit trail exists** — confirmation, decision, timestamp logged
+1. **An eligible decision maker is present** — not merely any authenticated session user
+2. **The session assurance is adequate** — or the application performs a separate step-up
+3. **The canonical action is rendered accurately** — including material parameters, affected objects, consequences, and uncertainty
+4. **The decision is bound to execution** — target or parameter drift invalidates the approval
+5. **Denial and timeout block dispatch** — already dispatched work follows the cancellation contract in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)
+6. **Typed evidence exists** — request, display snapshot, decision actor, time, grant, execution, and lifecycle references are protected under [§14.7](#147-approval-grant-and-consent-persistence-architecture)
 
 **What in-session confirmation does NOT provide:**
-- Out-of-band verification (user must be in-session)
-- Re-authentication (existing session is trusted)
-- Context-bound authentication (PSD2 dynamic linking — see [§15.2.4](#1524-regulatory-override-context-bound-authentication))
-- Device-bound approval (no separate device)
-- Multi-party approval (single user only)
+- Out-of-band verification unless the application launches a separate channel
+- Reauthentication unless the flow explicitly invokes it
+- Regulated transaction authentication or qualified signing merely because details were displayed
+- Device/key binding unless the flow proves it
+- Multi-party independence or threshold enforcement
 
-For operations requiring these properties, escalate to Tier 3–6.
+For operations requiring those properties, compose the appropriate authenticator, transaction/signing profile, asynchronous workflow, CIBA deployment, or multi-party state machine. Do not assume that moving to a higher tier supplies every missing property.
 
 #### 15.4 Tier 4: Webhook and Async Approval Patterns
 
-Webhook-based approval occupies the middle ground between in-session confirmation
-(Tier 2, user present) and CIBA (Tier 5, full out-of-band auth). The user is **not present**
-in the agent's session, but the approval does **not require new authentication**.
+Workflow/webhook approval moves the decision outside the initiating session. It can use an already authenticated enterprise channel, require fresh authentication, or route to a specialized approval system. Unlike CIBA, there is no common OpenID token-result contract; the application owns approver eligibility, request and display integrity, callback authentication, state transitions, idempotency, expiry, cancellation, and evidence.
 
 ##### 15.4.1 Notification Channel Patterns
 
@@ -12581,24 +12651,24 @@ in the agent's session, but the approval does **not require new authentication**
 | Dimension | Webhook (Tier 4) | CIBA (Tier 5) |
 |:----------|:----------------|:-------------|
 | **Standard** | None (vendor-specific) | OIDC CIBA Core 1.0 |
-| **Authentication** | Channel-native (Slack auth, email) | IdP-mediated (biometric/PIN) |
+| **Authentication** | Channel/workflow-specific; may reuse a session or require step-up | OP-mediated; Core CIBA does not mandate biometric/PIN |
 | **Token issuance** | ❌ No OAuth token | ✅ Access + optional refresh |
 | **IdP involvement** | ❌ None | ✅ Manages entire flow |
-| **Context-bound?** | ❌ No | ✅ `binding_message` |
-| **PSD2 SCA?** | ❌ No | ✅ Yes |
-| **Best for** | Medium-risk; user absent, identity established | Critical risk; full identity proof |
+| **Context binding** | Deployment-specific; must bind the callback to the pending action | `auth_req_id` binds the protocol transaction; `binding_message` is only a short cross-device visual cue, so exact-action binding needs a profile or deployment record |
+| **SCA suitability** | Depends on channel authentication and the regulated profile | Can support an SCA design when the authenticator, transaction context, and applicable financial profile meet the requirement; CIBA alone is not a compliance certificate |
+| **Best for** | Governed business approval where OAuth token issuance is unnecessary | Decoupled OP-mediated user authentication and authorization with OAuth/OIDC token delivery |
 
 #### 15.5 Tier 5: CIBA Protocol
 
 ##### 15.5.1 CIBA Protocol: Vendor-Agnostic Reference
 
-**Client-Initiated Backchannel Authentication ([OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html))** is an OpenID Foundation standard that enables a **decoupled authorization flow** where the user approves a request on a **separate device** (e.g., mobile push notification), without being present in the requesting application's session.
+**Client-Initiated Backchannel Authentication ([OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html))** is an OpenID Connect authentication flow in which a confidential client starts the request directly at the OpenID Provider (OP), without redirecting the user's browser through the consumption device. The OP identifies and authenticates the user through an out-of-band authentication device, obtains the user's authorization decision, and returns an ID Token, access token, and optionally a refresh token through the client's registered delivery mode.
 
-CIBA is **implementation-agnostic** — it can be implemented by any compliant IdP (e.g., PingOne, Auth0, Keycloak, WSO2, Entra ID, ForgeRock). The architecture does not prescribe a specific vendor.
+CIBA is **implementation-agnostic**: any OP that implements the Core profile and advertises the required discovery metadata can participate. Product names in [§15.5.6](#1556-vendor-ciba-implementations-for-ai-agents) are evidence-bound deployment examples, not part of the standard.
 
-> **Specification status (March 2026)**: OIDC CIBA Core 1.0 was **finalized and approved** by the OpenID Foundation membership on **September 1, 2021**. It is an OpenID Foundation specification, not an IETF RFC. The **FAPI CIBA profile** ([Financial-grade API Client Initiated Backchannel Authentication Profile 1.0](https://openid.net/specs/openid-financial-api-ciba-id1.html)) extends CIBA with additional security requirements for financial services, including mandatory `binding_message` validation and signed authentication requests. No CIBA extensions specifically targeting AI agent workflows exist at the specification level — all AI agent CIBA implementations are vendor-level innovations building on the core specification.
+> **Specification status (verified July 2026)**: OIDC CIBA Core 1.0 was approved as an OpenID Final Specification on **September 1, 2021**; it is not an IETF RFC. The separate [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) remains an OpenID Implementer's Draft. That profile requires signed authentication requests, supports Poll and optionally Ping rather than Push, and requires either sufficient authorization context or a `binding_message`; it does not make a short binding message a complete transaction-authorization object. No final CIBA profile standardizes AI-agent-specific action semantics.
 >
-> **Entra ID evidence boundary**: The March 2026 evidence reviewed for this comparison did **not** establish OIDC CIBA support in Microsoft Entra ID. Its documented "native authentication" API used direct backchannel communication patterns but was not conformant with OIDC CIBA Core 1.0. See [§15.5.6.3](#15563-the-entra-id-gap); revalidate current product documentation before treating that dated absence as a present capability statement.
+> **Agent boundary**: CIBA authenticates a selected user and obtains an OP-mediated authorization decision. It does not decide which human is accountable for an agent action, encode the complete tool payload, or prove that the eventual runtime parameters match what the user saw. The deployment supplies those policy and binding layers ([§14.0.1](#1401-three-bindings-from-request-to-execution)).
 
 ##### 15.5.2 Delivery Modes
 
@@ -12607,8 +12677,8 @@ The CIBA specification defines three delivery modes for token retrieval after us
 | Mode | How Agent Gets the Token | Latency | Best For |
 |:-----|:------------------------|:--------|:---------|
 | **Poll** | Agent polls the token endpoint with `auth_req_id` at intervals | Higher (polling interval) | Simple integrations; no inbound connectivity required |
-| **Ping** | IdP sends a lightweight notification to a client callback; agent then calls token endpoint | Medium (notification + token call) | Agents behind firewalls with callback capability |
-| **Push** | IdP pushes the token directly to the client callback | Lowest | Real-time agentic workflows; requires inbound HTTPS |
+| **Ping** | OP sends an authenticated callback containing the `auth_req_id`; client then calls the token endpoint | Medium (notification + token call) | Clients with a registered HTTPS notification endpoint that still retrieve tokens through authenticated backchannel calls |
+| **Push** | OP sends the authentication result, including tokens or an error, to the registered client callback | Lowest | Deployments that can secure an inbound HTTPS endpoint and validate the callback token plus the ID-Token bindings; excluded by the FAPI CIBA profile |
 
 ##### 15.5.3 Standard CIBA Flow
 
@@ -12635,15 +12705,15 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: Backchannel Request
     Note over Agent,API: User is NOT present in the agent's session
-    Agent->>IdP: CIBA Backchannel Auth Request<br/>login_hint=user@example.com<br/>scope=payment:initiate<br/>binding_message="Pay €500 to Acme Corp"<br/>acr_values=urn:level:high
+    Agent->>IdP: CIBA Backchannel Auth Request<br/>login_hint_token=signed-subject-hint JWT<br/>scope=openid payment:initiate<br/>binding_message="7K3P"<br/>acr_values=urn:level:high
     IdP-->>Agent: { auth_req_id, expires_in, interval }
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
     Note right of IdP: Phase 2: Out-of-Band Notification
-    IdP->>User: 📱 Push notification:<br/>"Agent wants to pay €500 to Acme Corp.<br/>Approve or deny?"
-    User->>User: Review action details<br/>(binding_message)
+    IdP->>User: 📱 Authentication interaction:<br/>review protected payment context<br/>and matching code "7K3P"
+    User->>User: Authenticate and verify request<br/>and cross-device visual cue
     Note right of API: ⠀
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -12656,7 +12726,7 @@ sequenceDiagram
             Agent->>IdP: Token request (auth_req_id)
         Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
         end
-        IdP-->>Agent: { access_token, refresh_token,<br/>id_token, token_type, expires_in }
+        IdP-->>Agent: { id_token, access_token,<br/>optional refresh_token, token_type, expires_in }
 
         Agent->>GW: API call + access_token
         GW->>PDP: Eval Request (OpenID AuthZ API / SARC)
@@ -12691,27 +12761,41 @@ sequenceDiagram
 <details>
 <summary><strong>1. AI Agent sends a CIBA Backchannel Authentication Request to the IdP</strong></summary>
 
-The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent leverages the OpenID Connect CIBA (Client-Initiated Backchannel Authentication) protocol (OpenID CIBA Core, §7.1). It transmits a robust asynchronous server-to-server HTTP request to the IdP. A malformed `login_hint` triggers a `400 Bad Request`.
+The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent uses OpenID Connect CIBA (Core §7.1) through its confidential OAuth client. The client sends an authenticated server-to-server request to the OP; a malformed subject hint produces the applicable authentication error.
 
 ```http
 POST /bc-authorize HTTP/1.1
 Host: idp.internal.corp
 Content-Type: application/x-www-form-urlencoded
-Authorization: Basic YWdlbnQtY2xpZW50LW...
 
-client_id=agent_client_001
-&login_hint=user@example.com
-&scope=payment:initiate
-&binding_message=Pay%20%E2%82%AC500%20to%20Acme%20Corp
-&acr_values=urn:level:high
+request=eyJhbGciOiJFUzI1NiIs...
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJhbGciOiJFUzI1NiIs...
 ```
-The `binding_message` is critical for PSD2 Strong Customer Authentication (SCA) compliance: it dynamically links the cryptographic approval strictly to this exact €500 transaction.
+
+The decoded, asymmetrically signed CIBA request contains every authentication-request parameter; those parameters are not duplicated outside the JWT:
+
+```json
+{
+  "iss": "agent_client_001",
+  "aud": "https://idp.internal.corp",
+  "iat": 1784890800,
+  "nbf": 1784890800,
+  "exp": 1784890860,
+  "jti": "ciba_req_01J2...",
+  "scope": "openid payment:initiate",
+  "login_hint_token": "eyJhbGciOiJFUzI1NiIs...",
+  "binding_message": "7K3P",
+  "acr_values": "urn:level:high"
+}
+```
+Core CIBA requires exactly one of `login_hint_token`, `id_token_hint`, or `login_hint`. The optional `binding_message` is deliberately short and human-readable; the user compares it across the consumption and authentication contexts. It does **not** itself encode or cryptographically bind the complete €500 payment. This deployment stores the canonical payment request separately and makes the OP render that protected context.
 
 </details>
 <details>
 <summary><strong>2. Identity Provider returns the auth_req_id for tracking the authentication request</strong></summary>
 
-The IdP evaluates the inbound backchannel payload. If the agent identity check fails, it immediately throws `401 Unauthorized`. If successful, the IdP instantly returns an HTTP 200 payload containing the `auth_req_id` (the tracking ticket) and an `interval` denoting how frequently the agent may legally poll for status updates.
+The OP validates the client, request, and subject hint. Client-authentication failure produces an `invalid_client` error; a valid accepted request returns an opaque, high-entropy `auth_req_id`, its `expires_in` lifetime, and optionally the minimum polling `interval`.
 
 ```json
 {
@@ -12725,44 +12809,44 @@ The IdP evaluates the inbound backchannel payload. If the agent identity check f
 
 </details>
 <details>
-<summary><strong>3. Identity Provider sends a push notification to the User's separate device</strong></summary>
+<summary><strong>3. Identity Provider starts out-of-band authentication on the User's authentication device</strong></summary>
 
-Operating entirely out-of-band on a secure secondary network, the IdP triggers an APNs/FCM push notification down to the human user's registered physical smartphone (e.g., via PingID or Auth0 Guardian). This physical architectural separation between the agent's execution environment and the authenticating device is the defining structural defense of CIBA.
+The OP chooses an appropriate registered out-of-band channel and starts the authentication interaction. A mobile push is common but not required by Core CIBA; the authentication device and mechanism are deployment choices. The security boundary is OP-mediated authentication outside the consumption-device redirect path, not an assumption that every secondary network or device is intrinsically secure.
 
 </details>
 <details>
 <summary><strong>4. User reviews the action details on their authentication device</strong></summary>
 
-The user reads the exact `binding_message` rendered on their phone screen. This represents the absolute pinnacle of EU AI Act Art. 14(4)(a) human oversight: explicit, contextual, and fully informed physical confirmation before any high-risk autonomous action executes.
+The user authenticates and reviews the OP's authorization presentation, including the short `binding_message` visual cue when used. The deployment must separately show the material action details and record what was displayed. This interaction can support a human-oversight control, but neither CIBA nor a successful prompt by itself establishes AI Act applicability or proves that the user was fully informed.
 
 </details>
 <details>
 <summary><strong>5. User approves the action with biometric or PIN authentication (approve path)</strong></summary>
 
-The user formally commits the approval via their front-facing camera (FaceID) or fingerprint scanner. The mobile authenticator signs a payload over its secure enclave and returns a cryptographic "Approve" signal back to the IdP, satisfying the rigorous `urn:level:high` Assurance Level requirement.
+The user completes the authentication method selected by the OP and makes an authorization decision. A biometric may unlock a device-bound credential, but Core CIBA does not require a biometric, a secure enclave, or a user signature over the business payload. The resulting ID Token reports the authentication context actually achieved when the OP supports and returns `acr`; the client must not infer that the requested `acr_values` was satisfied without validating the response.
 
 </details>
 <details>
 <summary><strong>6. Agent polls the Identity Provider token endpoint with the auth_req_id</strong></summary>
 
-Concurrently, the agent executes an asynchronous polling loop against the IdP's `/token` endpoint every `interval` seconds. If it polls too rapidly, the IdP forcibly responds with a `400 slow_down` error.
+In Poll mode, the client calls the OP's token endpoint no more frequently than the returned `interval`, never overlaps requests for the same `auth_req_id`, and handles `authorization_pending`, `slow_down`, `expired_token`, load-shedding, and terminal errors. Ping mode triggers the same token call after an authenticated callback.
 
 ```http
 POST /token HTTP/1.1
 Host: idp.internal.corp
 Content-Type: application/x-www-form-urlencoded
 
-client_id=agent_client_001
-&client_secret=super_secret...
-&grant_type=urn:openid:params:grant-type:ciba
+grant_type=urn:openid:params:grant-type:ciba
 &auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJhbGciOiJFUzI1NiIs...
 ```
 
 </details>
 <details>
-<summary><strong>7. Identity Provider returns the access token, refresh token, and id_token to the Agent</strong></summary>
+<summary><strong>7. Identity Provider returns the ID Token, access token, and optional refresh token</strong></summary>
 
-Upon the next poll following the user's biometric approval, the IdP stops returning standard `authorization_pending` states and instead dumps the full high-assurance token payload (access token, ID token, and optional refresh token) securely down the agent's TLS tunnel.
+After the user has authenticated and authorized the request, the OP stops returning `authorization_pending` and returns the standard successful CIBA token response. The ID Token and access token are part of the OpenID CIBA result; a refresh token is optional and subject to the requested scope and OP policy.
 
 ```json
 {
@@ -12774,13 +12858,13 @@ Upon the next poll following the user's biometric approval, the IdP stops return
 }
 ```
 
-**Artifact Produced:** CIBA High-Assurance Access Token.
+**Artifacts Produced:** CIBA ID Token and access token, plus an optional refresh token.
 
 </details>
 <details>
 <summary><strong>8. Agent sends the API call to the Gateway with the CIBA-obtained access token</strong></summary>
 
-Armed with the CIBA-minted token, the agent reconstructs its original €500 wire transfer payload and strictly injects the token into the HTTP Bearer channel before firing it transversally at the MCP Gateway Policy Decision Point.
+The client retrieves the canonical pending payment request identified by its own transaction record; it does not reconstruct parameters from model output after approval. Before presenting the access token, it compares the stored request digest, granted authority, resource, subject, client, and expiry with the operation that will be executed.
 
 ```http
 POST /payments/initiate HTTP/1.1
@@ -12798,51 +12882,52 @@ Content-Type: application/json
 <details>
 <summary><strong>9. Gateway sends the authorization evaluation request to the Policy Decision Point</strong></summary>
 
-The Gateway parses the token and realizes this is a highly sensitive endpoint. It packages the execution context and queries the backend Policy Decision Point (e.g., OpenFGA or Cedar) to mathematically verify that the token possesses both the `payment:initiate` scope and the vital `acr: urn:level:high` claim, actively proving CIBA was used.
+The Gateway validates the access token according to its format and issuer contract, then sends the normalized execution context to the PDP. The `payment:initiate` scope is only a ceiling. If the deployment requires a particular authentication context or CIBA transaction, it must define where that evidence is carried and validate it; an `acr` claim normally belongs to the ID Token and does not, by itself, prove approval of these payment parameters.
 
 </details>
 <details>
 <summary><strong>10. Policy Decision Point returns the permit decision to the Gateway</strong></summary>
 
-The PDP executes its evaluation logic and strictly returns `Permit`.
+The PDP returns `Permit` only if the identity, grant, current policy, and exact request binding all pass. The resource server remains responsible for enforcing the decision and rejecting changed parameters.
 
 ```mermaid
 stateDiagram-v2
     direction TB
-    DecodeToken --> CheckCIBA: acr == urn-level-high
-    CheckCIBA --> CheckScope: scopes include payment-initiate
-    CheckScope --> Permit: ✅ True
+    DecodeToken --> CheckAuthnEvidence: issuer profile and required context valid
+    CheckAuthnEvidence --> CheckScope: scopes include payment-initiate
+    CheckScope --> CheckRequestBinding: digest, resource, subject, client, expiry match
+    CheckRequestBinding --> Permit: ✅ True
 ```
 
 </details>
 <details>
 <summary><strong>11. Gateway forwards the authorized request to the API/Tool</strong></summary>
 
-With authorization granted, the Gateway physically proxies the JSON API payload deeper into the internal network to the core banking microservice.
+With authorization granted, the Gateway forwards the validated JSON request and only the evidence required by the protected API's trust contract. It does not forward the CIBA approval screen, refresh token, or unrestricted evidence record. Preserving the canonical operation and idempotency key at this boundary prevents a post-decision mutation or retry from becoming a different payment.
 
 </details>
 <details>
 <summary><strong>12. API/Tool executes the payment and returns the result to the Agent</strong></summary>
 
-The API executes the €500 wire transfer and returns a `200 OK` success object. The AI agent seamlessly digests the result and continues its autonomous orchestrations.
+The API revalidates its required claims and constraints, executes the €500 transfer once under an idempotency key, and returns the result. The client records the terminal execution state against the approved request.
 
 </details>
 <details>
 <summary><strong>13. User denies the action on their authentication device (deny path)</strong></summary>
 
-In an alternate scenario, the human reads the push notification, realizes the AI is hallucinating a payout to a fraudulent entity, and physically taps "Deny." This actively fulfills the Article 14(4)(a) mandate granting humans the absolute right to "override or reverse" AI actions.
+In an alternate scenario, the human determines that the payment should not proceed and selects “Deny.” The denial is an explicit authorization outcome. Where AI Act human-oversight duties apply, it may form part of the deployed intervention control, but the legal classification and required measures depend on the system and use case.
 
 </details>
 <details>
 <summary><strong>14. Agent polls the Identity Provider after user denial</strong></summary>
 
-Oblivious to the human's rejection, the agent executes its standard scheduled `POST /token` polling loop against the CIBA endpoint using the `auth_req_id`.
+The client continues its scheduled `POST /token` polling loop using the `auth_req_id` until it receives the terminal result or reaches local expiry.
 
 </details>
 <details>
 <summary><strong>15. Identity Provider returns access_denied error to the Agent after user denial</strong></summary>
 
-The IdP responds immediately with a hard rejection.
+The OP returns the standard CIBA denial error when the client next retrieves the result.
 
 ```json
 {
@@ -12850,13 +12935,13 @@ The IdP responds immediately with a hard rejection.
   "error_description": "The resource owner denied the request"
 }
 ```
-The agent fails-closed, collapsing its local execution state and returning an error context to its reasoning engine.
+The client marks the pending operation denied, prevents execution, and returns a stable denial outcome to the workflow without exposing unnecessary user details.
 
 </details>
 <details>
 <summary><strong>16. Agent polls the Identity Provider after timeout expiry (timeout path)</strong></summary>
 
-In a third scenario, the human is asleep or misses the notification. After 120 seconds (`expires_in`), the CIBA ticket silently expires in the IdP's cache. The agent hits the `/token` endpoint one final time.
+In a third scenario, no decision arrives before the `auth_req_id` lifetime ends. The client may make a final token request according to the polling contract, or it may terminate locally at the recorded expiry.
 
 </details>
 <details>
@@ -12870,7 +12955,7 @@ The IdP returns a standard timeout failure.
   "error_description": "The CIBA request has expired"
 }
 ```
-Because CIBA mandates a highly secure "fail-closed" posture, the agent's €500 wire transfer is safely blocked system-wide.
+The CIBA transaction did not produce usable authority. The client and Gateway therefore keep the payment blocked and mark the pending action expired; CIBA defines the error, while the deployment supplies the fail-closed execution rule.
 
 </details>
 
@@ -12879,13 +12964,13 @@ Because CIBA mandates a highly secure "fail-closed" posture, the agent's €500 
 **Key properties**:
 
 - **Decoupled**: The user approves on a separate device — mobile phone, smartwatch, or any registered authentication device. The agent does not need a browser or redirect URI.
-- **Binding message**: The `binding_message` parameter shows the user *exactly* what they are approving — the specific action, parameters, and consequences. This is critical for informed oversight (EU AI Act Art. 14(4)(a)).
-- **Fail-closed**: Both denial and timeout result in `access_denied` / `expired_token`. No action is taken without explicit human approval.
-- **Audience-bound**: The resulting token is audience-bound (RFC 8707) to the specific API/resource, preventing replay.
+- **Visual interlock**: `binding_message` is a short cue shown across the consumption and authentication contexts. Exact-action display and binding require protected authorization context plus the request/grant/execution checks in [§14.0.1](#1401-three-bindings-from-request-to-execution).
+- **Terminal errors**: Denial and expiry produce `access_denied` and `expired_token`; the workflow must map those outcomes to durable terminal states and must not execute without valid granted authority.
+- **Resource and sender constraints**: Audience/resource restriction and DPoP or mTLS are OAuth deployment controls, not automatic properties of CIBA. Use them where the protected API and threat model require replay resistance.
 
 ##### 15.5.4 CIBA in Delegation Chains
 
-When an agent operating under delegated authority ([§5.4](#54-chained-delegation-multi-agent), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) encounters a high-risk action, CIBA escalates to the **original delegating user** — not to the agent's own identity:
+When an agent operating under delegated authority ([§5.4](#54-chained-delegation-multi-agent), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) encounters a high-risk action, policy must select an eligible approval principal from authoritative task, delegation, resource-ownership, and organizational records. The correct principal may be the original requester, a resource owner, a manager, a duty officer, or multiple approvers; it is not derived mechanically from “the first human in the token chain.” The example targets Alice because the deployment's approval policy and delegation record identify her as the accountable approver for this invoice task:
 
 ```mermaid
 ---
@@ -12919,8 +13004,8 @@ sequenceDiagram
 
     rect rgba(241, 196, 15, 0.14)
     Note right of GW: Phase 2: Targeted Human Oversight
-    GW->>IdP: CIBA Auth Request<br/>login_hint=alice@example.com<br/>binding_message="Agent B wants to<br/>delete invoice INV-9001 (€12,400)"
-    IdP->>User: 📱 Push notification
+    GW->>IdP: CIBA Auth Request<br/>signed subject hint for Alice<br/>binding_message="Q7M4"
+    IdP->>User: 📱 Authentication interaction<br/>with protected invoice context
     Note right of GW: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -12948,7 +13033,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. User Alice requests Agent A to process her invoices</strong></summary>
 
-Alice initiates a high-level natural-language prompt via the UI: *"Process my invoices."* The frontend application generates a standard user-delegated auth flow (OAuth 2.0 Auth Code + PKCE), passing Alice's active browser session context to the tier-1 Orchestrator, Agent A. Agent A operates directly under Alice's `sub` claim.
+Alice initiates a high-level natural-language prompt via the UI: *"Process my invoices."* The frontend application obtains user-delegated authority through Authorization Code + PKCE. Agent A receives a token that preserves Alice as the subject while identifying the client and, where the profile supports it, the acting agent; the user subject must not erase the non-human actor.
 
 </details>
 <details>
@@ -12967,7 +13052,7 @@ Agent A's LLM planning loop realizes it lacks the necessary financial routing lo
   }
 }
 ```
-This payload structure is critical: the root `sub` is Alice. The terminal `sub` in the chain is Agent B, proving the exact path of cryptographic delegation.
+In this deployment profile, `sub` remains Alice and the outer `act.sub` identifies the current actor, Agent B; the nested actor identifies Agent A. The claim conveys actor context but does not by itself prove that every exchange was policy-compliant or provide a complete historical dependency graph.
 
 **Artifact Produced:** RFC 8693 Token Exchange OBO Token (with actor chain).
 
@@ -12982,7 +13067,7 @@ DELETE /invoices/inv-9001 HTTP/1.1
 Host: api.internal.corp
 Authorization: Bearer &lt;delegated_token>
 ```
-Agent B blindly trusts its logic and assumes its delegated token possesses sufficient authority to alter the database. A malformed token at this stage triggers an immediate `401 Unauthorized` block from the Gateway before any policy is evaluated.
+Agent B presents its delegated token, but the Gateway does not treat possession as sufficient authority to delete the invoice. An invalid token produces `401 Unauthorized`; a valid token still proceeds through authorization and approval policy.
 
 </details>
 <details>
@@ -12993,24 +13078,24 @@ The API Gateway intercepts the `DELETE` request and inspects the token. The inte
 2. `actor_chain_length > 1` (Delegated execution detected)
 3. Rule: *If High Risk AND Delegated, require active human out-of-band confirmation.*
 
-The Gateway immediately parks the HTTP request and blocks the deletion, logging a `Pending Human Oversight` event to the central SIEM.
+The Gateway creates a bounded pending-operation record containing a canonical request digest, idempotency key, expiry, task and delegation identifiers, and the selected approval-policy version. It blocks execution while the authorization result is pending and emits a minimal operational event.
 
 </details>
 <details>
 <summary><strong>5. Gateway sends a CIBA authentication request to the IdP targeting Alice</strong></summary>
 
-The Gateway algorithmically extracts the root `sub` claim ("alice") from Agent B's token. It formats a CIBA `POST /bc-authorize` request specifically targeting Alice's physical device constraint. A missing `sub` claim results in a strict `400 Bad Request` termination.
+The Gateway resolves the accountable approver through the verified delegation record and policy, confirms that Alice is eligible for this invoice, and creates a signed or otherwise integrity-protected subject hint for the OP. It does not accept an arbitrary email address supplied by Agent B as the approval target.
 
 ```http
 POST /bc-authorize HTTP/1.1
 Host: idp.internal.corp
 Content-Type: application/x-www-form-urlencoded
 
-login_hint=alice@example.com
-&scope=invoice:delete
-&binding_message=Agent%20B%20wants%20to%20delete%20invoice%20INV-9001%20%28%E2%82%AC12%2C400%29
+login_hint_token=eyJhbGciOiJFUzI1NiIs...
+&scope=openid%20invoice%3Adelete
+&binding_message=Q7M4
 ```
-The central security invariant is successfully maintained: the human who initiated the overarching task is the exact human targeted to resolve the high-risk escalation, bypassing all intermediate agents.
+The security invariant is that the approval target comes from trusted policy and lineage, the OP renders the protected invoice context, and the later execution must match the pending-operation digest. This example's policy selects Alice; another deployment may require a different or additional approver.
 
 **Artifact Produced:** OIDC CIBA Authentication Request ID.
 
@@ -13018,28 +13103,28 @@ The central security invariant is successfully maintained: the human who initiat
 <details>
 <summary><strong>6. IdP sends a push notification to Alice's authentication device</strong></summary>
 
-Alice receives the pushed `binding_message` on her smartphone. From her perspective, she asked Agent A to "process invoices" hours ago. The notification interrupts her, securely bridging the autonomous execution back to human reality (EU AI Act Art. 14).
+Alice receives an OP-mediated authentication interaction containing the invoice identifier, operation, material consequence, acting-agent chain, expiry, and the short visual cue. The display distinguishes this approval from the earlier general “process invoices” request.
 
 </details>
 <details>
 <summary><strong>7. Alice approves the deletion on her authentication device (approve path)</strong></summary>
 
-Alice reviews the context—realizing `INV-9001` is indeed a duplicate—and applies her biometric signature to the IdP prompt.
+Alice reviews the context, authenticates with the OP-selected method, and approves. A biometric may unlock the authenticator, but the system does not call it a signature over the invoice unless the deployed ceremony actually provides that property.
 
 ```mermaid
 stateDiagram-v2
     direction LR
-    HumanReview --> BiometricAuth: Validates context
-    BiometricAuth --> IdP: Cryptographic 'True'
+    HumanReview --> UserAuthn: Authenticate as required
+    UserAuthn --> IdP: Authorization decision
     IdP --> EmitToken: CIBA grant success
 ```
-The immutable audit ledger logs this distinct physical touchpoint, resolving the high-assurance requirement and fully shielding the enterprise from non-repudiation disputes.
+The OP and approval service record the authenticated decision, displayed-content reference, request digest, achieved authentication context, and timestamps under the evidence controls in [§14.7.1.1](#14711-approval-and-authority-evidence-record). This supports reconstruction; it does not make the event non-repudiable by label alone.
 
 </details>
 <details>
 <summary><strong>8. IdP returns the access token to the Gateway</strong></summary>
 
-The IdP issues the elevated CIBA access token natively scoped for the exact `invoice:delete` operation back to the Gateway's polling instance.
+The OP returns the CIBA token result. The access token includes only the granted scope and audience defined by the deployment profile. Exact invoice binding requires an authorization-details profile, a transaction identifier/digest understood by the resource server, or a reference to the pending authority record; Core CIBA does not add that constraint automatically.
 
 ```json
 {
@@ -13049,25 +13134,25 @@ The IdP issues the elevated CIBA access token natively scoped for the exact `inv
 }
 ```
 
-**Artifact Produced:** High-Assurance Scope-Bound CIBA Token.
+**Artifacts Produced:** CIBA token result plus the deployment's separate exact-operation binding.
 
 </details>
 <details>
 <summary><strong>9. Gateway proceeds with the authorized action</strong></summary>
 
-The Gateway retrieves the securely parked `DELETE /invoices/inv-9001` HTTP request, splices in the newly acquired CIBA elevated token, and forwards it to the database backend. The invoice is successfully destroyed.
+The Gateway retrieves the pending operation, re-canonicalizes the current request, and compares its digest, subject, actor, client, audience, resource, scope, expiry, and one-time execution state with the approved record. Only an exact match is forwarded under the new token and idempotency key.
 
 </details>
 <details>
 <summary><strong>10. Alice denies the deletion on her authentication device (deny path)</strong></summary>
 
-In an alternate timeline, Alice identifies the invoice as a critical tax document. She physically taps "Deny" on her mobile authenticator. She actively executes her right to "override or reverse" the AI's autonomous destruction.
+In an alternate timeline, Alice identifies the invoice as a critical tax document and selects “Deny.” The pending operation transitions to a terminal denied state and cannot be reused for a later request.
 
 </details>
 <details>
 <summary><strong>11. IdP returns access_denied to the Gateway</strong></summary>
 
-The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit ledger, and returns a hard rejection state to the Gateway.
+The OP completes the CIBA transaction with `access_denied`; the approval service records the denial without exposing more user information than the workflow requires.
 
 ```json
 {
@@ -13082,7 +13167,7 @@ The IdP terminates the CIBA loop, logs an active `Rejection` event to the audit 
 <details>
 <summary><strong>12. Gateway returns 403 Forbidden to Agent B</strong></summary>
 
-The Gateway unpacks the IdP's denial, matches it against Agent B's parked HTTP request, and forcibly ejects the API call. This explicit mechanism is what prevents autonomous agents from bypassing human guardrails.
+The Gateway correlates the denial with the pending-operation record, prevents execution, and consumes the operation's one-time state so a later callback or retry cannot revive it.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -13090,7 +13175,7 @@ Content-Type: application/json
 
 {
   "error": "human_override",
-  "message": "The root delegator actively rejected this destructive operation."
+  "message": "The selected approver rejected this destructive operation."
 }
 ```
 
@@ -13102,61 +13187,101 @@ Content-Type: application/json
 
 Agent B receives the `403` with the `human_override` context. It halts its deletion routine and bubbles the failure upstream to the Orchestrator, Agent A.
 
-Agent A ingests the failure: *"Escalation: human denied deletion of INV-9001."* Since the AI is state-aware, Agent A dynamically reroutes its logic, keeping the invoice intact and continuing to process the remainder of the finance queue without catastrophic failure.
+Agent A receives the failure: *"Escalation: human denied deletion of INV-9001."* It keeps the invoice intact and may continue only with independent operations whose authority remains valid; it must not reinterpret the denial or silently resubmit the same action.
 
 </details>
 
 <br/>
 
-**Invariant**: In a delegation chain User → Agent A → Agent B, the CIBA request always targets the **original user** (Alice), never the intermediate agent. This ensures Art. 14 oversight is exercised by a *natural person*, not by another automated system.
+**Invariant**: In a delegation chain User → Agent A → Agent B, a required human approval targets a natural person selected by authoritative policy and delegation data—not an agent and not an untrusted hint supplied by the requesting model. The original requester is one possible approver, not a universal rule.
 
 ##### 15.5.5 Token Types from CIBA
 
-Upon user approval, a CIBA-capable IdP can issue **multiple token types** in a single response. The architecture leverages all four:
+Upon successful CIBA authentication and authorization, the OP returns the OpenID Connect token result defined by Core 1.0:
 
 | Token Type | Issued by CIBA | Purpose | Lifetime | Use Case |
 |:-----------|:--------------|:--------|:---------|:---------|
-| **Access Token** | ✅ Always | Immediate authorization for the approved action | 5–15 min | Agent executes the approved action immediately |
-| **Refresh Token** | ✅ Optional | Long-lived credential for session continuity ([§10.7](#107-offline-authority-user-not-present-continuation)) | Hours to days | Agent continues operating after user steps away |
-| **ID Token** | ✅ Optional | Identity assertion proving *who* approved the action | One-time use | Audit trail — proves which natural person exercised Art. 14 oversight |
-| **Authorization Code** | ✅ Optional (CIBA profile) | Deferred token exchange | 60s (single use) | Agent isn't ready to act immediately; exchanges code later |
+| **ID Token** | ✅ Core result | Identifies the authenticated end user and reports authentication claims under the OP/client contract | Short-lived assertion; deployment-defined | Client authentication-result validation and correlation; supporting evidence, not standalone proof of the business payload |
+| **Access Token** | ✅ Core result | Carries or references the authority granted to the client for a protected resource | Deployment-defined; keep high-consequence authority short | Immediate protected-resource access after runtime policy and exact-request checks |
+| **Refresh Token** | ⚠️ Optional | Allows later access-token issuance within the continuing grant and OP policy | Deployment-defined and revocable | Only when offline continuation is explicitly authorized; not a default consequence of approving one action |
 
 **Architecture-critical token combinations:**
 
 | Scenario | Tokens Requested | Why |
 |:---------|:----------------|:----|
-| **Immediate single action** | Access Token only | Agent executes one action and is done |
-| **Immediate action + audit** | Access Token + ID Token | Action + proof of who approved (Art. 14 evidence) |
-| **Long-running workflow** | Access Token + **Refresh Token** | Agent needs to continue for hours ([§10.7](#107-offline-authority-user-not-present-continuation)) |
-| **Standing delegation** | Access Token + **Refresh Token** + ID Token | Recurring approval (e.g., "process invoices every Monday") with full audit trail |
-| **Deferred execution** | Authorization Code | Agent queues the action for later execution; exchanges code when ready |
+| **Immediate single action** | ID Token + short-lived access token | Validate the CIBA result, execute one exactly bound operation, and consume the pending authority |
+| **Immediate action + evidence** | ID Token + access token + approval-record reference | Correlate the authenticated user with the separate display, grant, policy, and execution records |
+| **Long-running workflow** | ID Token + access token + optional refresh token | Continue only within an explicitly authorized offline grant, with rotation, expiry, revocation, and per-operation policy ([§10.7](#107-offline-authority-user-not-present-continuation)) |
+| **Standing delegation** | Separate durable delegation/grant plus normal CIBA token result | Do not infer recurring approval merely because the OP issued a refresh token |
+| **Deferred execution** | Pending authority record + later fresh access token | Core CIBA does not issue an authorization code; defer through the application workflow and revalidate grant, policy, and request at execution time |
 
-> **Refresh tokens from CIBA vs. Token Exchange**: Both mechanisms can issue refresh tokens. A refresh token from Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) carries the *delegator's* authority — the agent can refresh because Alice delegated. A refresh token from CIBA carries *approval-specific* authority — the agent can refresh because Alice *approved a specific action*. The scopes of each are typically different: Token Exchange refresh tokens are bounded by the delegation's scope; CIBA refresh tokens are bounded by the approved action's scope.
+> **Refresh-token boundary**: Token Exchange and CIBA can both lead to refresh-token issuance when the authorization server permits it, but neither protocol makes the refresh token task-specific or approval-specific automatically. The continuing authority is whatever the grant, scope, audience, authorization details, resource-server contract, and policy actually encode. A one-time action approval should normally avoid a reusable refresh token.
+
+##### 15.5.5.1 Request, Callback, and Approval-Abuse Controls
+
+For agent-initiated, high-consequence use, prefer the [signed authentication request defined by CIBA Core §7.1.1](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html#signed_authentication_request). It places every CIBA request parameter inside one asymmetrically signed JWT with `iss`, `aud`, `iat`, `nbf`, `exp`, and unique `jti`; parameters must not also appear outside the JWT. The [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) requires this form. The OP validates the exact registered client and algorithm, prevents `jti` replay for the request lifetime, accepts only one subject hint, and rejects duplicate or conflicting parameter representations.
+
+Ping and Push add a separate callback trust boundary:
+
+| Boundary | Required control |
+|:---------|:-----------------|
+| **Notification endpoint** | Pre-register an HTTPS endpoint under the client's administrative control; do not accept per-request callback URLs |
+| **Callback authentication** | Generate a per-request `client_notification_token` with at least 128 bits of entropy, bind it to the `auth_req_id`, compare it safely, and reject missing, reused, or mismatched tokens |
+| **Ping** | Treat the callback only as notice that a result is ready; validate the callback token and `auth_req_id`, then authenticate the client at the token endpoint |
+| **Push** | Validate the callback token and ID Token; verify the ID Token's `auth_req_id`, `at_hash`, and optional `rt_hash` bindings before accepting delivered tokens; never follow callback redirects |
+| **Token replay** | Use the resource/audience restrictions and sender-constrained access tokens required by the protected-resource profile; make the pending operation one-time even if a token remains valid |
+| **Terminal state** | Make approve, deny, expire, cancel, and execute mutually exclusive; duplicate or late callbacks return the stored terminal result without reviving work |
+
+CIBA also permits a client to start authentication requests without a browser interaction at the consumption device. That creates unsolicited-prompt and approval-fatigue risk. A secure approval service therefore:
+
+1. authorizes each client for specific user populations, resources, and action classes before accepting a backchannel request;
+2. resolves the subject through a signed/OP-issued hint or an ephemeral identifier rather than a broadly guessable email or phone number where feasible;
+3. caps outstanding requests per client, user, task, and action; rate-limits bursts; deduplicates the same canonical request; and applies backoff after denial;
+4. uses short expiry and cancels stale requests when the originating task is cancelled or materially changes;
+5. shows the authenticated client, acting-agent chain, exact protected action context, expiry, and a recognizable channel or transaction cue;
+6. supports the optional CIBA `user_code` where the deployment needs evidence that the user is aware of the initiation before a notification is sent;
+7. gives the user a durable deny/report/block path and suppresses repeated prompts from a blocked client; and
+8. never converts silence, notification delivery, device unlock, or an earlier approval into approval of a new request.
+
+For deferred execution, retries, cancellation, or multi-item approval, apply the asynchronous and batch reliability contract in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract). CIBA supplies the OP interaction and token result; the application still owns idempotent request creation, exact-operation comparison, single consumption, downstream cancellation, and partial-failure semantics.
+
+##### 15.5.5.2 Authentication Step-Up Is Not Business Approval
+
+[RFC 9470](https://www.rfc-editor.org/rfc/rfc9470.html) standardizes how a protected resource can return `insufficient_user_authentication` with required `acr_values` and/or `max_age`. The client can then obtain a token associated with sufficiently strong or recent user authentication:
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="insufficient_user_authentication",
+                  acr_values="urn:example:aal2",
+                  max_age="300"
+```
+
+A deployment can carry the indicated `acr_values` or recency requirement into a suitable authorization flow, including CIBA where the OP and client profile support that composition. The client validates the authentication information conveyed through the defined token or introspection contract before retrying the protected-resource request.
+
+The boundary remains strict: RFC 9470 asks **how strongly and how recently the user authenticated**. It does not identify the correct business approver, describe the action, capture consent, or authorize changed transaction parameters. When both controls are needed, satisfy the step-up challenge and the business-approval/request-binding workflow independently, then require both at the PDP.
 
 ##### 15.5.6 Vendor CIBA Implementations for AI Agents
 
-While [§15.5.1](#1551-ciba-protocol-vendor-agnostic-reference) describes CIBA as vendor-agnostic, vendor implementations vary significantly in delivery modes, AI agent features, and support for Rich Authorization Requests (RAR, [RFC 9396](https://datatracker.ietf.org/doc/rfc9396/)). The market shifted rapidly in 2025 as vendors introduced agent-specific identity platforms built on top of their existing CIBA infrastructure.
+While [§15.5.1](#1551-ciba-protocol-vendor-agnostic-reference) describes CIBA as vendor-neutral, product documentation establishes different and often non-composable capability sets. A product may document CIBA, Rich Authorization Requests (RAR, [RFC 9396](https://www.rfc-editor.org/rfc/rfc9396.html)), agent identity, or consent lifecycle management without documenting that those features operate together. The comparison below therefore records the evidence separately and dates documentation-bound findings.
 
 ##### 15.5.6.1 Vendor Comparison Matrix
 
-| Vendor | CIBA Status | AI Agent Features | Delivery Modes | RAR Support | Key Date |
-|:-------|:------------|:------------------|:---------------|:------------|:---------|
-| **Auth0 / Okta** | ✅ GA | Auth0 for AI Agents: CIBA + RAR for structured agent approvals; framework SDKs (LangChain, LlamaIndex); Token Vault for agent credentials | Push (mobile authenticator app) | ✅ Yes — `authorization_details` in CIBA requests | CIBA GA: May 2025; Auth0 for AI Agents GA: Nov 19, 2025 |
-| **Ping Identity** | ✅ GA | "Identity for AI" (GA announced Mar 24, 2026): single control plane for AI agent lifecycle; PingOne MFA CIBA Authenticator; Back-Channel Journeys | Push (PingOne MFA app), configurable | Planned | Identity for AI GA announced: Mar 24, 2026 |
-| **WSO2 IS** | ✅ GA | IS 7.2: first-class agent identities; On-Behalf-Of (OBO) flows; CIBA Web Link Authenticator; React Native CIBA SDK | Web link, push (configurable) | Partial | IS 7.2: 2025 |
-| **Keycloak** | ✅ GA | No agent-specific features; standard CIBA implementation | Poll (primary), configurable per-realm/per-client | ❌ No | Available since ~v15; pursuing FAPI CIBA certification |
-| **Microsoft Entra ID** | ❌ **No** | Native authentication API (backchannel pattern, **not** OIDC CIBA) | N/A | N/A | No CIBA on published 2025-2026 roadmap |
-| **Descope** | ✅ GA | "Agentic Identity Hub": policy-based governance for MCP ecosystems; CIBA for human-in-the-loop | Push, configurable | ✅ Yes | 2025 |
-| **Stytch** (Twilio, Nov 2025) | ✅ GA | OAuth for agents: OBO token exchange + RAR for fine-grained permissions; CIBA for decoupled auth | Push, configurable | ✅ Yes | 2025 |
-| **Curity** | ✅ GA | CIBA reference implementation with comprehensive documentation; FAPI CIBA profile support | All three (poll/ping/push) | ✅ Yes | Longstanding |
+| Product evidence reviewed | Documented CIBA | Documented RAR | Documented agent or lifecycle signal | Evidence boundary |
+|:--------------------------|:----------------|:---------------|:-------------------------------------|:------------------|
+| **Auth0** (verified 2026-07-24) | ✅ `/bc-authorize`, poll mode, Guardian mobile push or email ([Auth0 CIBA + RAR](https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-initiated-backchannel-authentication-flow/user-authorization-with-ciba)) | ✅ `authorization_details` accepted in CIBA requests and returned beside the tokens in the token response | AI-agent use case is explicit in the CIBA documentation | The resource server—not Auth0—must validate RAR object content beyond the registered `type`; the documentation does not say the array is embedded in every access-token format |
+| **PingFederate / Identity for AI** (verified 2026-07-24) | ✅ CIBA is documented by [PingFederate](https://docs.pingidentity.com/pingfederate/12.2/administrators_reference_guide/pf_ciba.html) | ◻️ No CIBA-plus-RAR composition established in the reviewed PingFederate material | ✅ [Agent token exchange with optional CIBA step-up](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingfed.html) | Ping documentation calls the CIBA use a step-up authorization pattern; that product description does not turn CIBA authentication evidence into a transaction-bound approval by itself |
+| **WSO2 Identity Server 7.3** (verified 2026-07-24) | ✅ Per-application CIBA; email, SMS, or external `auth_url`; polling returns access and ID tokens ([7.3 release](https://is.docs.wso2.com/en/next/get-started/about-this-release/)) | ✅ RAR is [documented separately](https://is.docs.wso2.com/en/next/guides/authorization/rich-authorization-requests/) | ✅ CIBA request can include an `actor_token` for WSO2's OBO profile | The reviewed documentation establishes both capabilities separately, not their composition in one CIBA request |
+| **Descope Inbound Apps** (verified 2026-07-24) | ✅ Email-link CIBA with poll mode and configurable approve/deny flow ([Inbound Apps](https://docs.descope.com/identity-federation/inbound-apps/creating-inbound-apps)) | ◻️ Not established in the reviewed official documentation | ✅ Consent records expose scopes, user, tenant, granting user, creation, and expiration; apps can be revoked or disabled | The documented “usual OAuth token set” does not establish transaction-specific RAR or execution binding |
+| **Stytch Connected Apps** (verified 2026-07-24) | ◻️ Not established in the reviewed official documentation | ◻️ Not established in the reviewed official documentation | ✅ [Consent management](https://stytch.com/docs/connected-apps/resources/consent-management) supports grant lookup and revocation, organization app policy, and token invalidation | This row records verified lifecycle controls; it does not infer CIBA or RAR from agent-oriented marketing |
+| **Microsoft Entra** (verified 2026-07-24) | ◻️ Not established in the reviewed official documentation | ◻️ Not established in the reviewed official documentation | ✅ [Entra Agent ID authorization](https://learn.microsoft.com/en-us/entra/agent-id/authorization-agent-id) documents role, delegated-permission, application-permission, and access-package controls | The [native authentication API](https://learn.microsoft.com/en-us/entra/identity-platform/reference-native-authentication-api) is a different protocol surface and is not evidence of OIDC CIBA |
 
-> **Evidence boundary**: CIBA status, RAR support, and agent-specific product features are separate claims. The matrix credits only the documented combination for each product; it does not infer a common MCP authorization profile from market positioning.
+> **Evidence boundary**: A hollow marker means “not established in the official pages reviewed on the stated date,” not “the vendor can never support this.” Revalidate product documentation, edition, licensing, and endpoint behavior before selecting an implementation. The matrix does not infer a common MCP authorization profile from product positioning.
 
-##### 15.5.6.2 Auth0 CIBA and RAR: The Reference Implementation
+##### 15.5.6.2 Auth0 CIBA and RAR: A Documented Composition
 
-Auth0's production implementation combines CIBA with Rich Authorization Requests (RAR, §19) to pass structured `authorization_details` in CIBA requests. In the March 2026 evidence set used for this comparison, it was the most developed documented CIBA-for-agents composition; that dated comparison is not a permanent market ranking.
+Auth0 documents a concrete composition of CIBA and RAR: the client sends both a required short `binding_message` and optional structured `authorization_details`; the authentication device retrieves them through the Consent API; and, after approval, the token response includes the resulting `authorization_details` beside the token fields. The product documentation also states that each CIBA request requires a fresh user response rather than reusing an existing grant.
 
-**Why CIBA + RAR matters**: Standard CIBA uses `binding_message` — a free-text string shown to the user. RAR's `authorization_details` replaces this with a **structured JSON payload** describing the exact action, enabling rich consent UIs and machine-parseable audit trails.
+**Why CIBA + RAR matters**: `binding_message` remains the short cross-device visual cue; RAR adds a structured description that can drive a richer authorization screen and later resource-server checks. Neither field is sufficient alone: the deployment still has to bind the approved object to the eventual request and validate its full schema and semantics.
 
 ```mermaid
 ---
@@ -13179,7 +13304,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Agent: Phase 1: High-Risk Action Initiation
     Note over Agent,User: Agent identifies a high-risk action<br/>requiring human approval
-    Agent->>Auth0: POST /bc-authorize<br/>login_hint=alice@example.com<br/>authorization_details=[{<br/>  "type": "payment_initiation",<br/>  "amount": {"value": "50000", "currency": "EUR"},<br/>  "recipient": "Acme Corp",<br/>  "reference": "INV-2026-0042"<br/>}]
+    Agent->>Auth0: POST /bc-authorize<br/>login_hint={iss, sub}<br/>scope=openid<br/>binding_message="7M4K"<br/>authorization_details=[{<br/>  "type": "payment_initiation",<br/>  "amount": {"value": "50000", "currency": "EUR"},<br/>  "recipient": "Acme Corp",<br/>  "reference": "INV-2026-0042"<br/>}]
     Auth0-->>Agent: 200 OK<br/>{ "auth_req_id": "abc-123", "expires_in": 300 }
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -13187,9 +13312,9 @@ sequenceDiagram
     rect rgba(241, 196, 15, 0.14)
     Note right of Auth0: Phase 2: Rich Push Notification & Consent
     Auth0->>App: Push notification<br/>"Payment approval requested"
-    App->>User: Rich consent screen:<br/>💰 Pay €50,000.00 to Acme Corp<br/>📄 Reference: INV-2026-0042<br/>[Approve] [Deny]
-    User->>App: Approve (biometric)
-    App->>Auth0: Approval confirmed
+    App->>User: Compare cue 7M4K, then review:<br/>💰 Pay €50,000.00 to Acme Corp<br/>📄 Reference: INV-2026-0042<br/>[Approve] [Deny]
+    User->>App: Authenticate and approve
+    App->>Auth0: User response for pending request
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
@@ -13200,16 +13325,16 @@ sequenceDiagram
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
     Auth0-->>Agent: 200 OK<br/>{ "access_token": "...",<br/>  "authorization_details": [{...}] }
-    Note right of Agent: Token contains approved<br/>authorization_details —<br/>machine-parseable audit trail
+    Note right of Agent: Token response includes granted details<br/>Resource validates their semantics
     Note right of User: ⠀
     Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
 <details>
-<summary><strong>1. AI Agent sends a CIBA request with structured authorization_details to Auth0</strong></summary>
+<summary><strong>1. AI Agent sends a CIBA request with binding_message and structured authorization_details</strong></summary>
 
-The agent hits Auth0's explicit `/bc-authorize` endpoint. Instead of passing a free-text `binding_message`, the agent injects an RFC 9396 Rich Authorization Request (RAR) payload. An improperly formatted JSON payload triggers a `400 Bad Request` rejection.
+The agent calls Auth0's `/bc-authorize` endpoint with the required short `binding_message` and an RFC 9396 Rich Authorization Request payload. The registered RAR `type` determines whether Auth0 accepts the object; the resource server remains responsible for validating the remaining fields.
 
 ```http
 POST /bc-authorize HTTP/1.1
@@ -13218,6 +13343,8 @@ Content-Type: application/x-www-form-urlencoded
 Authorization: Basic YWdlbnQtY2xpZW50LW...
 
 login_hint=alice@example.com
+&scope=openid
+&binding_message=7M4K
 &authorization_details=[{
   "type": "payment_initiation",
   "amount": {"value": "50000", "currency": "EUR"},
@@ -13225,13 +13352,13 @@ login_hint=alice@example.com
   "reference": "INV-2026-0042"
 }]
 ```
-This structured schema dynamically informs Auth0 *exactly* what the human is approving, moving beyond plain text into machine-parseable data constraints.
+The structured object supplies the authorization UI with machine-readable transaction context. It does not become an enforceable constraint until the resource server validates it and compares it with the actual operation.
 
 </details>
 <details>
 <summary><strong>2. Auth0 returns the auth_req_id confirming the CIBA request was accepted</strong></summary>
 
-Auth0 parses the RAR schema, validates the client credentials, and returns the CIBA tracking ticket.
+Auth0 authenticates the client, checks the registered RAR `type`, accepts the pending request, and returns the CIBA tracking handle.
 
 ```json
 {
@@ -13248,13 +13375,13 @@ The agent now possesses the correlation ID and pauses its logic, beginning its a
 <details>
 <summary><strong>3. Auth0 sends a push notification to the Auth0 Guardian mobile app</strong></summary>
 
-Auth0 triggers a secure Apple Push Notification service (APNs) or Firebase Cloud Messaging (FCM) payload targeted exclusively at Alice's registered Auth0 Guardian instance. The OS-level notification is kept intentionally vague (e.g., "Payment approval requested") to prevent shoulder-surfing and force the user to unlock the secure enclave to view the details.
+For the mobile channel, Auth0 sends a notification to Auth0 Guardian or a custom app using the Guardian SDK. Auth0 also documents an email channel for longer-lived requests. Notification-channel privacy and lock-screen content remain deployment responsibilities.
 
 </details>
 <details>
 <summary><strong>4. Auth0 Guardian renders a rich consent screen to the User</strong></summary>
 
-Once Alice unlocks Guardian, the app parses the `authorization_details` JSON array and maps it to a bespoke, high-fidelity native UI.
+The authentication device retrieves the requested details from Auth0's Consent API, including `binding_message`, `scope`, `audience`, and `authorization_details`, and presents the relevant information to the user.
 
 ```mermaid
 stateDiagram-v2
@@ -13264,21 +13391,21 @@ stateDiagram-v2
     RenderUI --> PresentButtons: [Approve] / [Deny]
 ```
 
-This prevents the severe prompt-injection vulnerabilities inherent to standard CIBA tracking. The structured fields are strictly rendered as immutable key-value UI elements, making it physically impossible for an attacker to spoof the payment amount using whitespace or HTML injection.
+Structured data makes safe, typed rendering possible, but the application must still escape untrusted values, display every material field, prevent truncation or ambiguity, and bind the recorded response to the exact object shown. RAR does not by itself eliminate presentation attacks.
 
 </details>
 <details>
-<summary><strong>5. User approves the payment with biometric authentication</strong></summary>
+<summary><strong>5. User authenticates and approves or denies the request</strong></summary>
 
-Alice reviews the structured UI and triggers her local biometric authenticator (e.g., FaceID). The hardware enclave signs a cryptographic challenge payload using a private key bound exclusively to her Auth0 identity and physical hardware, yielding an unforgeable Proof of Possession.
+Alice reviews the material transaction fields, authenticates using the configured method, and approves or denies the pending request. The resulting authentication strength and authenticator properties must be obtained from the product's actual configuration and token contract; the CIBA and RAR standards do not imply biometrics, hardware-backed keys, or proof of possession.
 
 </details>
 <details>
 <summary><strong>6. Auth0 Guardian confirms the approval to Auth0</strong></summary>
 
-Guardian transmits the signed biomedical assertion back to Auth0's backend over TLS. Auth0 verifies the signature, matches the session to the pending `auth_req_id`, and officially transitions the Auth Request State from `pending` to `approved`. The immutable log explicitly locks the `authorization_details` array to Alice's verified signature, satisfying strict non-repudiation mandates.
+The authentication device sends the user's response to Auth0, which correlates it with the pending request and transitions that request to an approved or denied terminal outcome. A deployment that needs durable approval evidence must separately verify what Auth0 logs, how the shown `authorization_details` are identified, and how those records are retained and protected.
 
-**Artifact Produced:** Immutable Human Biometric Approval Map.
+**Artifact Produced:** Provider-correlated CIBA outcome; deployment-specific evidence record if configured.
 
 </details>
 <details>
@@ -13297,9 +13424,9 @@ grant_type=urn:openid:params:grant-type:ciba
 
 </details>
 <details>
-<summary><strong>8. Auth0 returns the access token with embedded authorization_details</strong></summary>
+<summary><strong>8. Auth0 returns tokens and authorization_details in the token response</strong></summary>
 
-Because the state is now `approved`, Auth0 mints the final JWT. Vitally, Auth0 natively embeds the approved RAR payload directly into the JWT's claims structure.
+After approval, Auth0 returns the token fields and a top-level `authorization_details` array in the token response. This documentation does not establish that the array is embedded inside every access-token representation.
 
 ```json
 {
@@ -13314,9 +13441,9 @@ Because the state is now `approved`, Auth0 mints the final JWT. Vitally, Auth0 n
   }]
 }
 ```
-When the agent presents this token to the API Gateway, the Gateway's Policy Engine (e.g., Cedar) parses the JWT and mathematically restricts the agent to executing a payment of *exactly* €50,000.00 to *exactly* Acme Corp. If the agent attempts to modify the JSON-RPC payload to €50,001, the Gateway instantly rejects it, dropping the payload with a `403 Forbidden` response and logging an anomaly to the SIEM.
+The client and resource server must preserve the `authorization_details` through a defined token, introspection, or authorization-state contract. The resource server then validates the entire registered RAR schema and compares the approved amount, recipient, audience, and other constraints with the actual request. Auth0 explicitly leaves validation beyond the registered `type` to the resource server.
 
-**Artifact Produced:** Structurally Restricted RAR Execution Token.
+**Artifact Produced:** Token response plus structured authorization details; enforceable execution authority only after resource-server validation and request binding.
 
 </details>
 
@@ -13324,232 +13451,48 @@ When the agent presents this token to the API Gateway, the Gateway's Policy Engi
 
 | Aspect | Basic CIBA | CIBA + RAR (Auth0) |
 |:-------|:-----------|:-------------------|
-| **Action description** | `binding_message` (free text string) | `authorization_details` (structured JSON) |
-| **Consent UI** | Simple text prompt | Rich UI with transaction details (amount, recipient, reference) |
+| **Action description** | `binding_message` (short visual cue) | `binding_message` plus `authorization_details` (structured JSON) |
+| **Authorization UI** | Short cross-device message plus configured context | Consent API can provide transaction fields for a richer screen |
 | **Machine parseable** | ❌ No — `binding_message` is display-only | ✅ Yes — `authorization_details` returned in token response |
-| **Audit trail** | `binding_message` in IdP logs | Full structured action in token claims |
-| **Scope limitation** | Standard `scope` parameter | Fine-grained per-action authorization |
+| **Evidence** | Product-specific request and outcome logs | Structured response helps correlation; retention and shown-content evidence remain deployment-specific |
+| **Enforcement** | Standard `scope` plus local policy | Resource server validates the RAR object and binds it to the operation |
 
-**Current product status**: Auth0 for AI Agents is generally available, and CIBA-capable identity services can combine decoupled human approval with RAR-constrained tokens. Product availability does not by itself establish that consent semantics, transaction binding, or audit evidence satisfy this report's deployment profile; those controls still require product-specific verification.
+**Current documentation boundary (verified 2026-07-24)**: Auth0 documents this CIBA-plus-RAR flow as an Enterprise-plan or add-on capability, with mobile-push and email notification channels. Product availability does not by itself establish that consent semantics, transaction binding, or audit evidence satisfy this report's deployment profile; those controls still require product-specific verification.
 
-> 🔑 **Important** — **Connection to [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR)**: This pattern applies RAR to CIBA. The `authorization_details` parameter serves dual duty: it enriches the consent prompt *and* constrains the resulting token to the approved action. This mechanism bridges human oversight ([§15](#15-human-oversight-architecture)) and fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)).
+> 🔑 **Important** — **Connection to [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR)**: This pattern applies RAR to CIBA. The `authorization_details` parameter can enrich the authorization prompt and carry machine-readable constraints to the client. It constrains execution only when the authorization server and resource server preserve the object, validate its registered schema, and compare it with the exact operation.
 
-##### 15.5.6.3 The Entra ID Gap
+##### 15.5.6.3 Microsoft Entra: Evidence Boundary and Integration Choice
 
-The March 2026 Microsoft Entra ID evidence reviewed for this section did **not** establish OIDC CIBA support. The documented "native authentication" API used direct backchannel communication patterns but was **not conformant with OIDC CIBA Core 1.0**: it lacked the `/bc-authorize` endpoint, `auth_req_id` lifecycle, and delivery-mode negotiation that CIBA requires. Treat this as a dated gap and revalidate current Entra documentation before deployment.
+The Microsoft documentation reviewed on 2026-07-24 establishes current [Entra Agent ID authorization](https://learn.microsoft.com/en-us/entra/agent-id/authorization-agent-id) controls for roles, delegated permissions, application permissions, and access packages. It did not establish OIDC CIBA or RFC 9396 RAR support. Microsoft's [native authentication API](https://learn.microsoft.com/en-us/entra/identity-platform/reference-native-authentication-api) is a direct authentication surface for external tenants; protocol resemblance to a backchannel does not make it CIBA.
 
-Entra ID's 2025-2026 roadmap focuses on passkeys, conditional access policies, and QR code sign-in — CIBA is not on the published roadmap.
+For an Entra-centered deployment, choose the interaction mechanism from documented capabilities: use Conditional Access or authentication-context step-up for stronger or fresher authentication, and use a separately governed approval workflow when a business approver must review a particular action. If a CIBA-capable authorization server is introduced, treat it as a cross-domain integration rather than a drop-in workaround. The design must define authoritative subject mapping, approver selection, request-digest binding, audience and issuer rules, token/evidence correlation, denial semantics, and revocation propagation. Matching email-like claims across two tokens is not a sufficient identity or authority proof.
 
-**Impact for Azure-native MCP deployments** (relevant to [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive) Azure APIM):
-
-| Concern | Implication |
-|:--------|:-----------|
-| Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) handles MCP gateway duties | ✅ Gateway layer works — routing, rate limiting, policy |
-| Entra ID provides identity for users and agents | ✅ Authentication works — OIDC, client credentials, managed identities |
-| Art. 14 human oversight via CIBA | ❌ **Not available** — Entra ID cannot provide CIBA |
-
-**Mitigation options**:
-1. **Secondary IdP**: Deploy Auth0 or PingOne alongside Entra ID specifically for CIBA flows. Users authenticate with Entra ID for session establishment but are routed to Auth0/PingOne for CIBA approval of critical actions. This is architecturally common in enterprises with multiple IdPs.
-2. **Non-CIBA HitL**: Use in-session confirmation or step-up authentication (which Entra ID *does* support via conditional access) for human oversight when the user is present.
-3. **Custom webhook-based approval**: Implement approval workflows via Microsoft Teams connectors or Power Automate, outside the OAuth layer entirely.
-
-**Secondary IdP Workaround — Sequence Flow**: The following diagram illustrates Mitigation Option 1 (secondary IdP) in detail. The MCP gateway validates the agent's bearer token against Entra ID for primary authentication, then routes CIBA approval requests to a CIBA-capable secondary IdP (Auth0 or PingOne):
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Agent as 🤖 Agent
-    participant GW as 🛡️ MCP Gateway
-    participant Entra as 🔑 Entra ID (Primary IdP)
-    participant Auth0 as 🔑 Auth0 (CIBA IdP)
-    participant User as 👤 User
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Primary Authentication
-    Agent->>GW: Tool call requiring human approval
-    GW->>Entra: Validate agent's bearer token
-    Entra-->>GW: Token valid (user: alice@contoso.com)
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of GW: Phase 2: Secondary CIBA Authentication
-    Note right of GW: Tool requires CIBA approval<br/>but Entra doesn't support CIBA
-    GW->>Auth0: CIBA /bc-authorize<br/>login_hint: alice@contoso.com<br/>binding_message: "Approve transfer ＄500?"
-    Auth0->>User: Push notification
-    User->>Auth0: Approve
-    Auth0-->>GW: CIBA token (approved)
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW: Phase 3: Dual Validation & Clearance
-    GW->>GW: Validate both tokens<br/>(Entra SSO + Auth0 CIBA)
-    GW-->>Agent: Tool call permitted
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of User: ⠀
-```
-
-<details>
-<summary><strong>1. Agent sends a tool call requiring human approval to the MCP Gateway</strong></summary>
-
-An agent deployed within an Azure-native enterprise ecosystem intends to execute a Tier 5 sensitive operation (e.g., initiating a wire transfer). It securely formats an HTTP request bound for the MCP Gateway, passing its standard Entra ID session token. A missing or structurally invalid Bearer token actively forces a `401 Unauthorized` termination at the Gateway edge.
-
-```http
-POST /mcp HTTP/1.1
-Host: apim.contoso.internal
-Authorization: Bearer eyJ0eX... (Entra ID Token)
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: finance/wire_transfer
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "finance/wire_transfer",
-    "arguments": { "amount": 500, "currency": "USD" }
-  }
-}
-```
-
-</details>
-<details>
-<summary><strong>2. MCP Gateway validates the agent's bearer token against Entra ID</strong></summary>
-
-The Azure APIM Gateway securely proxies the token to the primary Identity Provider (Entra ID) using standard OpenID Connect discovery endpoints to verify the token's cryptographic signature against Microsoft's public JWKS.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    FetchJWKS --> VerifySignature: validate RSA-256
-    VerifySignature --> CheckClaims: iss == login.microsoftonline.com
-    CheckClaims --> ExtractUPN: read preferred_username
-```
-
-</details>
-<details>
-<summary><strong>3. Entra ID confirms the token is valid and returns the user identity</strong></summary>
-
-Entra ID successfully confirms the token's mathematical validity and the session state. It exposes the user's primary corporate identity mapping (e.g., `upn: "alice@contoso.com"`). At this precise juncture, the primary authentication is strictly established, but the required Tier 5 human authorization is missing. Because Entra ID structurally lacks OIDC CIBA support, the Gateway cannot ask Microsoft to execute the out-of-band approval loop.
-
-</details>
-<details>
-<summary><strong>4. MCP Gateway sends a CIBA request to Auth0 as the secondary IdP</strong></summary>
-
-To close the authorization gap, the Gateway physically routes a lateral CIBA `POST /bc-authorize` request over to a secondary, CIBA-capable Identity Provider (e.g., Auth0 or PingOne).
-
-```http
-POST /bc-authorize HTTP/1.1
-Host: contoso-security.auth0.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Basic &lt;Gateway_Client_Credentials>
-
-login_hint=alice@contoso.com
-&binding_message=Approve%20transfer%20%24500%3F
-&scope=finance:wire_transfer
-```
-The Gateway dynamically passes the `alice@contoso.com` Entra ID identity into Auth0's `login_hint`. This mandates that human identity synchronization/federation must definitively exist between the Microsoft and Auth0 directories. A mismatch or unrecognized `login_hint` triggers a `400 Bad Request` failure from Auth0.
-
-**Artifact Produced:** Secondary Auth0 CIBA Request State.
-
-</details>
-<details>
-<summary><strong>5. Auth0 sends a push notification to the User's registered device</strong></summary>
-
-Auth0 successfully resolves `alice@contoso.com` to a registered mobile authenticator device. It triggers an out-of-band Apple Push Notification (APNs) or Firebase Cloud Message (FCM) down to Alice's physical device, entirely bypassing the agent's execution environment within Azure.
-
-</details>
-<details>
-<summary><strong>6. User approves the action via Auth0 Guardian</strong></summary>
-
-Alice receives the push notification cleanly out-of-band on her smartphone. She physically reads the context ("Approve transfer $500?") and actively taps "Approve," applying her fingerprint or facial geometry (biometric proof) to cryptographically sign the response via the Auth0 Guardian application.
-
-</details>
-<details>
-<summary><strong>7. Auth0 returns the CIBA approval token to the MCP Gateway</strong></summary>
-
-The Gateway's polling loop successfully retrieves the signed CIBA approval token from Auth0, signaling the completion of the human-in-the-loop requirement.
-
-```json
-{
-  "access_token": "eyJhbGciOi...",
-  "token_type": "Bearer",
-  "expires_in": 300,
-  "scope": "finance:wire_transfer"
-}
-```
-The Gateway now possesses *two* distinct JSON Web Tokens: The structural Entra ID token (proving the primary corporate session) and the specific Auth0 CIBA token (proving out-of-band human consent).
-
-**Artifact Produced:** Secondary IdP High-Assurance Validation Token.
-
-</details>
-<details>
-<summary><strong>8. MCP Gateway validates both tokens and confirms dual authorization</strong></summary>
-
-Crucially, the Gateway must execute a strict identity correlation check across the two tokens.
-
-```json
-// Token 1 (Entra ID)
-{ "upn": "alice@contoso.com", "roles": ["Finance"] }
-
-// Token 2 (Auth0 CIBA)
-{ "sub": "auth0|alice@contoso.com", "scope": "finance:wire_transfer" }
-```
-The Gateway verifies that `upn` matches `sub` (or an equivalent federated claim). If the identities misalign, the Gateway explicitly rejects the operation via `403 Forbidden` and flushes an identity-spoofing alert to the associated Azure Monitor ledger, eliminating the risk of Agent A using User X's session to trigger User Y's CIBA approval.
-
-**Artifact Produced:** Anomaly Event: IdP Spoofing Attempt.
-
-</details>
-<details>
-<summary><strong>9. MCP Gateway permits the tool call to proceed</strong></summary>
-
-With both the corporate session (Entra ID) and the high-assurance human checkpoint (Auth0) strictly validated, the Gateway proxies the JSON-RPC wire transfer payload downstream to the finance microservice. The dual-IdP workaround safely implements EU AI Act human oversight requirements over an otherwise incapable Microsoft infrastructure baseline.
-
-</details>
-
-<br/>
-
-This pattern requires the user to have accounts in both Entra ID (primary SSO) and the CIBA-capable IdP (Auth0 or PingOne), with identity correlation via a shared attribute such as email address or federated identity link. The gateway must validate **two tokens** per CIBA-gated request: the primary SSO token from Entra ID (proving the user's session is authentic) and the CIBA approval token from the secondary IdP (proving the user explicitly approved the specific action). This is a pragmatic workaround; Microsoft's adoption of CIBA directly in Entra ID would eliminate the need for dual-IdP orchestration, reducing operational complexity and removing the identity correlation requirement.
+> **Current-state policy**: Do not describe absence from reviewed documentation as permanent product incapability, and do not claim that a dual-IdP flow satisfies human-oversight or regulatory duties merely because two valid tokens are present.
 
 ##### 15.5.6.4 Ping Identity: "Identity for AI"
 
-Ping Identity launched "Identity for AI" in November 2025, with general availability announced on March 24, 2026. It is the most comprehensive agent identity management platform announced to date:
+Ping's current documentation connects existing standards-based controls to agent use cases. In particular, its [PingFederate agent guide](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingfed.html) combines RFC 8693 token exchange with an actor token and optional CIBA step-up for elevated scopes. That is useful implementation evidence, but it is not evidence of RAR composition or automatic transaction binding.
 
 | Capability | Description |
 |:-----------|:-----------|
-| **Agent lifecycle management** | Single control plane for registration, credential issuance, rotation, and decommissioning of AI agent identities |
-| **CIBA for human oversight** | PingOne MFA CIBA Authenticator for out-of-band approval; customizable request prompts with client context and localization |
-| **Back-Channel Journeys** | PingOne Advanced Identity Cloud feature: out-of-band delegated authentication flows with custom nodes, annotations, and response enrichment |
-| **Agentic threat detection** | Differentiate between legitimate agent actions and malicious activity; continuous identity assurance across human and non-human identities |
-| **Universal orchestration** | Unified orchestration layer supporting agentic AI identities (planned 2026 enhancements) |
-
-**Post-merger context (ForgeRock + Ping)**: Following the Thoma Bravo acquisition (2023), ForgeRock products are being rebranded under Ping Identity. PingOne is the go-forward cloud platform. A unified End of Life (EoL) policy based on a Long Term Support (LTS) model takes effect February 2026.
+| **Agent identity at exchange** | Subject and actor tokens can be validated separately; the resulting access token can carry `sub`, `act`, scope, audience, and a short lifetime |
+| **CIBA interaction** | PingFederate documents CIBA as an optional step-up path for elevated agent scopes, using a user hint and `binding_message` |
+| **Delivery** | The guide describes webhook, push notification, or custom-authenticator delivery; exact availability depends on the configured Ping components |
+| **Enforcement boundary** | A resource server still has to compare the elevated token and any approval evidence with the requested operation |
+| **RAR boundary** | No CIBA-plus-RAR composition was established in the PingFederate pages reviewed for this section |
 
 ##### 15.5.6.5 Pattern Traceability
 
 | Reference | Connection |
 |:----------|:-----------|
-| **[§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform) Auth0 deep dive** | [§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation) fills the CIBA-specific gap in the Auth0 coverage — Token Vault + FGA ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) are complementary to CIBA + RAR ([§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation)) |
-| **[§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive) PingGateway deep dive** | [§15.5.6.4](#15564-ping-identity-identity-for-ai) adds the "Identity for AI" layer above PingGateway — the PingGateway two-tier model ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)) enforces the CIBA-gated access tokens |
-| **[§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization) WSO2 IS deep dive** | WSO2 IS 7.2 adds CIBA + first-class agent identities to the OBO flows described in [§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization) |
-| **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) Rich Authorization Requests** | [§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation) demonstrates RAR applied to CIBA — the `authorization_details` parameter bridges human oversight ([§15](#15-human-oversight-architecture)) and fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)) |
+| **[§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform) Auth0 deep dive** | Token Vault and fine-grained authorization ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) are separate controls that can complement Auth0's documented CIBA-plus-RAR flow |
+| **[§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive) PingGateway deep dive** | A gateway can enforce tokens produced by PingFederate, but the resource contract must define how an interaction result is bound to the operation |
+| **[§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization) WSO2 IS deep dive** | WSO2 IS 7.3 documents CIBA, CIBA with an `actor_token` in its OBO profile, and RAR as separately supported capabilities |
+| **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) Rich Authorization Requests** | [§15.5.6.2](#15562-auth0-ciba-and-rar-a-documented-composition) demonstrates a documented CIBA-plus-RAR composition while retaining the separate request-binding and resource-validation requirements from [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) |
 
 ##### 15.5.7 CIBA Operational Constraints
 
-CIBA's strength — out-of-band, decoupled human approval on a separate device — is also its operational limitation: it introduces **human response latency** into every gated action. This section provides the operational data needed to make informed deployment decisions.
+CIBA's decoupled OP interaction introduces **human response latency** into every gated action. That tradeoff is useful when the subject must authenticate away from the consumption device, but it is not a universal strength ranking. This section describes the operational consequences.
 
 ##### 15.5.7.1 Latency Analysis
 
@@ -13579,57 +13522,53 @@ This is why the **trigger architecture ([§15.9](#159-hitl-trigger-architecture)
 
 ##### 15.5.7.3 Scalability Considerations
 
-| Mode | Server Load Pattern | Scalability Profile |
-|:-----|:-------------------|:-------------------|
-| **Poll** | *N* × (1/*interval*) polling requests per second | Moderate — constant polling load even when no approvals pending |
-| **Ping** | *N* notifications + *N* token requests (event-driven) | Good — load is proportional to actual approvals |
-| **Push** | *N* direct token deliveries | Best — minimal round-trips; IdP pushes tokens directly |
+| Mode | Server load pattern | Operational tradeoff |
+|:-----|:--------------------|:---------------------|
+| **Poll** | Up to *N* × (1/*interval*) polling requests while decisions remain pending; long polling can reduce churn | No inbound client notification endpoint, but clients must honor `interval`, `slow_down`, expiry, non-overlap, and backoff |
+| **Ping** | One or more authenticated notifications plus a token request after completion; a Ping client may also poll | Event-driven wakeup while retaining token-endpoint delivery; requires a protected notification endpoint and deduplication |
+| **Push** | Direct authenticated result delivery to the callback | Fewer round trips, but tokens cross the callback boundary; requires the strongest callback secrecy, authentication, replay, logging, and failure controls and is excluded by the FAPI CIBA Profile |
 
-**Recommendation for agent workloads**: Prefer **Push or Ping mode**. Poll mode's 30-second minimum interval creates unacceptable latency for real-time agent workflows and generates unnecessary server load. Cloud-native IdPs (Auth0, PingOne) handle concurrent CIBA requests through horizontal scaling. Self-hosted deployments (Keycloak) require explicit configuration of connection pools and thread pools — PingFederate documents specific [tuning parameters](https://docs.pingidentity.com/) for CIBA throughput optimization.
+**Deployment choice**: The delivery mode is fixed in client registration and must match the selected security profile. Poll mode uses the OP-provided minimum interval, with a five-second default when `interval` is omitted; the separate 30-second text in CIBA Core concerns recommended long-poll response timing, not a minimum polling interval. Ping reduces idle polling but still retrieves tokens from the token endpoint after an authenticated notification. Push delivers tokens to the registered callback and therefore raises callback protection and token-delivery risk; the FAPI CIBA Profile excludes it. Select the mode from profile requirements, inbound connectivity, callback authentication, token exposure, retry behavior, load testing, and operational recovery—not from a universal ranking.
 
 ##### 15.5.7.4 Offline and Edge Cases
 
 | Scenario | CIBA Behavior | Mitigation |
 |:---------|:-------------|:-----------|
-| **User's phone is offline** | Push notification queued by FCM/APNs; may fail or arrive late | SMS fallback; email fallback; auto-deny after `expires_in` timeout (fail-closed) |
+| **User's authentication device is offline** | The OP-specific interaction may fail or arrive late | Use only pre-enrolled, policy-approved alternate channels; expire the request and deny if no valid decision arrives |
 | **User ignores notification** | Request times out after `expires_in` seconds | Action blocked — this is correct fail-closed behavior for critical operations |
 | **User is in a meeting** | Response delayed; may exceed `expires_in` | Configure longer `expires_in` for non-urgent approvals; use async webhook patterns instead |
-| **Rapid successive approvals** | Multiple push notifications in quick succession → notification fatigue | Batch approval pattern: aggregate related actions into single approval request (U10 in [§15.11](#1511-use-cases)) |
-| **IdP is temporarily unavailable** | CIBA request fails at initiation | Circuit breaker → fall back to cached authorization or fail-closed + alert (see [§13.8](#138-authorization-infrastructure-resilience) for systematic AS failure handling and the fail-open/fail-closed decision matrix) |
-| **Bad network conditions** | Push delivery delayed or lost | Ping mode (agent polls after notification) as fallback; retry with exponential backoff |
+| **Rapid successive approvals** | Multiple interactions create fatigue and approval-bombing risk | Rate-limit and coalesce only a closed, reviewable batch under [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract); changed membership, ceilings, or operation values require reapproval |
+| **IdP is temporarily unavailable** | CIBA request fails at initiation | Open the circuit and fail closed for the gated action; do not convert cached authentication or an old approval into fresh authority ([§13.8](#138-authorization-infrastructure-resilience)) |
+| **Bad network conditions** | Notification or polling is delayed or lost | Follow the registered mode's authenticated retry, interval, expiry, idempotency, and terminal-state rules; changing delivery mode requires registration/profile support |
 
 
 #### 15.6 Tier 6: Multi-Party Approval
 
-Multi-party (N-of-M) approval is the highest tier of human oversight, implementing the
-**four-eyes principle** required by Art. 14(5) for remote biometric identification systems
-and recommended generally for **High-Sensitivity / Business-Critical Actions** across any domain (not just financial transactions).
+Multi-party (N-of-M) approval is the highest tier in this report's local oversight taxonomy. Article 14(5) establishes a two-natural-person verification rule for decisions based on identification produced by a high-risk remote biometric identification system, subject to the Regulation's stated exceptions. Other domains may adopt a four-eyes rule for high-sensitivity or business-critical actions, but that is a policy or sector requirement—not a universal consequence of Article 14.
 
 | Aspect | Single-Party (Tier 2–5) | Multi-Party (Tier 6) |
 |:-------|:-----------------------|:---------------------|
 | **Approvers** | 1 natural person | N-of-M qualified persons |
 | **Art. 14 coverage** | (a)(d)(e) | (5): *"at least two natural persons"* |
 | **Use cases** | Standard agent actions | Remote biometric ID; DevOps infrastructure tear-down; healthcare break-glass; legal agreements |
-| **Implementation** | CIBA to single user | Sequential or parallel CIBA to M users; quorum policy |
+| **Implementation** | One authenticated interaction or approval workflow | Application-level quorum workflow; each approver ceremony may use CIBA or another suitable channel |
 | **Latency** | Seconds to minutes | Minutes to days |
 
-**Consent and Oversight Hierarchy**:
-Multi-party approval represents the pinnacle of an escalating **Consent and Oversight Hierarchy** that maps directly to the sensitivity of an agent's request:
-1. **Implicit / Login Click**: Standard session operations (Tier 0–1).
-2. **In-Session Confirmation**: Step-up authentication or simple confirmation clicks during an active session for moderately sensitive actions (Tier 2–3).
-3. **Out-of-Band Approval**: Strong authorization (e.g., CIBA) decoupled from the current session for highly sensitive actions (Tier 5).
-4. **Multi-Party Approval**: Dynamic, policy-driven consensus required from multiple distinct parties (Tier 6).
+**Oversight hierarchy**:
+Multi-party approval represents the most restrictive point in an escalating **oversight hierarchy** selected from the operation's consequences and applicable rules:
+1. **Autonomous / logged execution**: A current grant and policy permit are sufficient for the bounded operation (Tier 0–1).
+2. **In-session interaction**: A separate confirmation, parameter correction, or fresh-authentication ceremony occurs in the active session (Tier 2–3).
+3. **Out-of-band approval**: An authenticated approver handles a request-bound transaction through CIBA or another decoupled workflow (Tier 5).
+4. **Multi-party approval**: A versioned quorum policy requires decisions from multiple distinct, qualified people (Tier 6).
 
-**Implementation pattern**: The external Policy Decision Point (PDP) evaluates the action against a
-quorum rule (e.g., `require_approvals >= 2 AND approver_role IN ["engineering_lead", "security_auditor"]`).
-The gateway (PEP), upon receiving the obligation from the PDP, enforces oversight by triggering the appropriate authorization flow (such as CIBA) for each required approver. The action proceeds only when the quorum is met within the `expires_in` window.
+**Implementation pattern**: A workflow policy evaluates a quorum rule such as `require_approvals >= 2 AND approver_role IN ["engineering_lead", "security_auditor"]`. The workflow coordinator records the immutable action digest, eligible approver set, separation-of-duty constraints, individual decision evidence, collective deadline, and terminal outcome. Each approver interaction may use CIBA, an in-session ceremony, or another authenticated channel; CIBA itself does not define N-of-M orchestration. The PEP releases the action only after a fresh policy evaluation confirms that the exact proposal version reached quorum and remains otherwise authorized.
 
 #### 15.7 Adaptive Oversight Architecture
 
 ##### 15.7.1 Risk-Based Tier Routing
 
 The HitL Trigger Architecture ([§15.9](#159-hitl-trigger-architecture)) determines the oversight tier for each action. The
-routing logic follows the decision flowchart ([§15.2.3](#1523-decision-flowchart-selecting-the-right-hitl-tier)), with regulatory overrides ([§15.2.4](#1524-regulatory-override-context-bound-authentication))
+routing logic follows the decision flowchart ([§15.2.3](#1523-decision-flowchart-selecting-the-right-hitl-tier)), with regulatory overrides ([§15.2.4](#1524-domain-control-profiles-do-not-infer-them-from-tier-number))
 taking precedence over risk-based proportionality.
 
 ##### 15.7.2 Consent Fatigue Mitigation Strategies
@@ -13638,7 +13577,7 @@ taking precedence over risk-based proportionality.
 |:---------|:-----------|:--------------|
 | **Batched approval** | Aggregate low-risk actions into single prompt | CrewAI webhook batching |
 | **Standing approval** | "Allow action X from agent Y until date Z" | Policy: `allow if action ∈ pre_approved_set` |
-| **Time-windowed approval** | Valid for limited window | Refresh token model ([§10.7](#107-offline-authority-user-not-present-continuation)) |
+| **Time-bounded standing authority** | Permit only a defined action class, object set, ceilings, and autonomy window | Durable grant/task authority record with expiry and per-operation checks ([§10.7](#107-offline-authority-user-not-present-continuation), [§17](#17-authorization-across-mcp-primitives-and-durable-state)); a refresh token only renews credentials |
 | **Approval delegation** | "Alice approves on Bob's behalf for category X" | RBAC with delegated approval roles |
 | **Auto-escalation timeout** | Default if no response: auto-deny (fail-closed) | CIBA `expires_in`; webhook timeout |
 | **Confidence-based routing** | Auto-approve when model confidence > threshold | Emerging; no standard |
@@ -13654,7 +13593,7 @@ taking precedence over risk-based proportionality.
 | **Framework** | LangGraph/CrewAI/AutoGen/ADK | `interrupt()`, `human_input`, `HandoffTermination`, `require_confirmation` | ✅ Production |
 | **Agent-to-Agent** | A2A | `input-required` task state | ✅ Specified |
 | **Gateway** | MCP | `riskLevel` metadata → policy → HitL trigger | ✅ Implemented ([§15.9](#159-hitl-trigger-architecture), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) |
-| **Identity** | OIDC CIBA | `/bc-authorize` → push → approve → token | ✅ Specified+implemented |
+| **Identity** | OIDC CIBA | `/bc-authorize` → Guardian/email interaction → poll-mode token result | ✅ Documented by Auth0 |
 | **Bridge: A2A → In-session** | A2A + Framework | `input-required` → framework interrupt | ⚠️ Unspecified |
 | **Bridge: A2A → CIBA** | A2A + OIDC | `input-required` → CIBA request | 🔴 Gap |
 | **Bridge: Gateway → Framework** | MCP + Framework | Policy `require_hitl` → framework interrupt | ⚠️ Emerging (ADK) |
@@ -13689,7 +13628,7 @@ flowchart TD
         T2["`**Adaptive Risk Engine**
         (score&nbsp;>&nbsp;threshold)`"]
         T3["`**Policy Engine (PDP)**
-        (OpenID&nbsp;AuthZ&nbsp;API&nbsp;Obligation)`"]
+        (local&nbsp;interaction&nbsp;profile)`"]
         T4["`**Delegation depth**
         (depth&nbsp;>&nbsp;max&nbsp;→&nbsp;escalate)`"]
         T5["`**Transaction parameters**
@@ -13718,68 +13657,77 @@ flowchart TD
 |:---------------|:------|:----------------|:--------|
 | **Tool/API metadata** | `riskLevel` field in tool definition ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) | `riskLevel == "critical"` → Tier 5 (CIBA) | Tool `delete_all_contacts` declares `riskLevel: critical` |
 | **Adaptive Risk Engine** | Real-time risk score ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) | `risk_score > 0.8` → Tier 5 (CIBA) | Unusual time of day + new IP + high-value action = risk score 0.92. See [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) for the behavioral signal taxonomy, trust score architecture, and scoring engine placement models |
-| **Policy Engine (PDP)** | SARC evaluation request via OpenID AuthZ API | PDP returns Obligation (e.g., `require_ciba: true`) | PDP dynamic rule: if amount > €10,000, return Tier 5 Obligation to gateway (PEP) |
+| **Policy Engine (PDP)** | Authorization API evaluation request using the Subject/Action/Resource/Context model | PDP denies and returns a local-profile interaction requirement (e.g., `require_ciba`) | PDP rule: if amount > €10,000, deny pending a separately completed Tier 5 workflow |
 | **Delegation depth** | Token `delegation_depth` claim | `delegation_depth >= max_delegation_depth` → Tier 5 (CIBA) | Agent A → Agent B → Agent C (depth 3) → CIBA before Agent D |
 | **Transaction parameters** | Action-specific values (amount, quantity) | `amount > threshold` → Tier 5 (CIBA) | Payment of €50,000 exceeds the €10,000 CIBA threshold |
 | **Data classification** | Resource classification label | `classification ∈ {PII, financial, health}` → Tier 5 (CIBA) | Agent requests access to health records |
 
-##### 15.9.2 OpenID AuthZ API Evaluation for HitL Escalation
+##### 15.9.2 Authorization API Evaluation and the Local Approval Profile
 
-Instead of the gateway (PEP) inspecting payloads to apply hardcoded threshold rules, it delegates the escalation decision to the PDP using the OpenID Authorization API. Based on organizational policies (which may be written in Cedar, OPA, etc.), the PDP evaluates the request and returns an explicit instruction defining the required human oversight tier.
+The Gateway must normalize and validate the operation before policy evaluation; it may then delegate the escalation decision to a PDP using [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html). Organizational policy evaluates the exact Subject, Action, Resource, and Context. The standard defines those containers and the boolean decision, while this report's approval instructions are a versioned deployment profile inside response `context`.
 
-**PEP Request (SARC Pattern)**:
+**PEP request**:
 ```json
 {
-  "subject": { "id": "agent-123", "type": "agent" },
-  "action": { "name": "infrastructure:teardown" },
+  "subject": {
+    "id": "user-456",
+    "type": "user",
+    "properties": { "actor_id": "agent-123" }
+  },
+  "action": {
+    "name": "infrastructure:teardown",
+    "properties": { "arguments_digest": "sha-256:8c2f..." }
+  },
   "resource": { "id": "prod-db-cluster", "type": "database" },
   "context": {
+    "schema": "https://schemas.example.com/authzen/mcp-evaluation-v1.json",
     "confidence_score": 0.85,
-    "delegation_depth": 2
+    "delegation_depth": 2,
+    "task_id": "task-789"
   }
 }
 ```
 
-**PDP Response (Obligation)**:
-The PDP processes the SARC request against its policies. It determines that while the agent is generally permitted, this specific operation meets the criteria for a Business-Critical Action, returning a Tier 5 obligation to the gateway.
+**PDP response using the local interaction profile**:
+The PDP determines that the operation must not proceed until a separate approval ceremony succeeds. It therefore returns `false`, as required for a currently denied operation, plus a local-profile instruction. Authorization API 1.0 does not standardize the `required_interaction` vocabulary.
 
 ```json
 {
-  "decision": "Permit",
-  "obligations": [
-    {
-      "id": "require_human_oversight",
+  "decision": false,
+  "context": {
+    "schema": "https://schemas.example.com/authzen/mcp-decision-v1.json",
+    "decision_id": "dec-135",
+    "reason": "human_approval_required",
+    "required_interaction": {
       "tier": 5,
-      "mechanism": "OIDC_CIBA",
-      "binding_message_template": "Agent {subject.id} wants to {action.name} on {resource.id}"
+      "mechanism": "oidc_ciba",
+      "approval_policy": "prod-teardown-v4"
     }
-  ]
+  }
 }
 ```
 
-The gateway functions strictly as the Policy Enforcement Point (PEP) and queries the external Policy Decision Point (PDP) via an **OpenID Authorization API** evaluation request (a standard defined by the OpenID Foundation, formerly known under the working group name AuthZEN). The structured request utilizes the **SARC** pattern, supplying the **S**ubject, **A**ction, **R**esource, and **C**ontext (e.g., transaction amount supplied by the agent or enriched locally).
+The PEP validates the local schema and recognizes the instruction, then creates a pending-operation record and invokes the separate approval orchestrator. The orchestrator selects the approver, starts CIBA or another approved mechanism, handles timeouts/callbacks/replay, and records the resulting authority. The PEP then sends a **new** evaluation containing the grant/approval reference and the unchanged request digest. Only a new `decision: true` permits execution.
 
-If the PDP determines human oversight is required, the OpenID Authorization API response contains an **Obligation / Advice** defining the exact oversight tier (as seen in the `obligations` array above). The PEP's role is one of **Enforcing Oversight**: when an obligation mandates `tier: 5` and mechanism `OIDC_CIBA`, the PEP executes this instruction by initiating a CIBA flow ([§15.5.3](#1553-standard-ciba-flow)) before proceeding. If a different oversight tier (like Tier 3 Step-Up) were specified, the PEP would enforce that dynamically instead of assuming a hardcoded CIBA flow.
+If the PEP does not understand the required interaction, cannot authenticate the approval service, or cannot join the returned evidence to the same subject, actor, task, resource, and request digest, it keeps the operation denied. A policy decision is not the approval ceremony, and a completed ceremony is not a runtime permit.
 
-##### 15.9.3 Relationship to the Consent Spectrum
+##### 15.9.3 Relationship to Authority and Interaction Patterns
 
-CIBA occupies the **most secure end** of the consent spectrum defined in [§14](#14-user-consent-models-first-party-vs-third-party):
+CIBA is one interaction mechanism within the authority pipeline defined in [§14](#14-authorization-approval-and-consent-models):
 
-| Consent Model | Human Effort | When Used | Art. 14 Coverage |
-|:-------------|:-------------|:----------|:----------------|
-| **Implicit** (admin pre-approved) | None | First-party enterprise | Art. 14 via deployer policy |
-| **One-time** (first use) | Acknowledge once | New integrations | Art. 14(4)(a): *"decide not to use"* |
-| **Incremental** (per scope) | Consent per new capability | Third-party / new scopes | Art. 14(4)(a): progressive oversight |
-| **Step-up** (re-authentication) | MFA challenge | High-value operations | Art. 14(4)(a): *"override or reverse"* |
-| **CIBA** (per action, out-of-band) | Approve on separate device | **Critical** operations | Art. 14(4)(a)–(e): **full compliance** |
+| Pattern | Human interaction | What it establishes | What it does not establish |
+|:--------|:------------------|:--------------------|:---------------------------|
+| **Enterprise policy / pre-approval** | None for each user | Administrator-governed eligibility within a defined policy | End-user consent or approval of every runtime action |
+| **OAuth resource-owner authorization** | Policy-dependent authorization ceremony | A grant to the client, possibly incremental and time-bounded | Permission for parameters outside the grant or current resource-server policy |
+| **Step-up authentication** | Fresh/stronger authentication, often after an RFC 9470 challenge | Required authentication strength or recency | Business approval of the action |
+| **CIBA** | OP-mediated out-of-band authentication and authorization | A CIBA token result for the selected user and client | Universal exact-action binding, correct approver selection, or legal compliance |
+| **Business / multi-party workflow** | One or more authenticated approval decisions | Domain approval under the workflow's policy | OAuth tokens unless the authorization infrastructure separately issues them |
 
-The key distinction: step-up authentication requires the user to be **in the same session**. CIBA works when the user is **completely absent** from the agent's session — they approve on a different device, at a different time, possibly in a different location. This makes CIBA the only viable human oversight mechanism for **asynchronous agentic workflows**.
+The key distinction is functional, not a universal strength ranking. Step-up answers an authentication requirement; CIBA supplies a decoupled OP interaction; webhook, task inbox, transaction-signing, and multi-party systems can supply other asynchronous approval ceremonies. Select the mechanism from the consequence, eligible approver, evidence, latency, recovery, and token requirements, then preserve the bindings in [§14.0.1](#1401-three-bindings-from-request-to-execution).
 
 #### 15.10 Regulatory Drivers
 
-> **Scope note**: This section focuses on **CIBA as the technical mechanism** satisfying specific regulatory mandates. For the comprehensive EU regulatory framework analysis — including AI Act risk classification, audit trail requirements, transparency obligations, GDPR interaction, and eIDAS 2.0 cross-border implications — see **[§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) EU Regulatory Framework**.
-
-Human oversight is not optional in the EU. Multiple regulations mandate human control over automated systems, and CIBA is the strongest technical implementation for each:
+> **Scope note**: This section identifies where a decoupled CIBA interaction can support a wider control design. CIBA does not itself establish compliance with the [EU AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj), [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj), [PSD2](https://eur-lex.europa.eu/eli/dir/2015/2366/oj), [eIDAS 2.0](https://eur-lex.europa.eu/eli/reg/2024/1183/oj), or [NIS2](https://eur-lex.europa.eu/eli/dir/2022/2555/oj). Applicability, authenticators, eligible approvers, transaction integrity, intervention rights, records, and operational controls determine the result. See [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) for the wider EU framework.
 
 ##### 15.10.1 EU AI Act: Art. 14 Human Oversight
 
@@ -13787,18 +13735,16 @@ Art. 14(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-conten
 
 > *"High-risk AI systems shall be designed and developed in such a way as to allow for effective human oversight by natural persons [...] proportionate to the risks, level of autonomy and context of use of the high-risk AI system."*
 
-CIBA is the **most direct implementation** of the four specific oversight requirements in Art. 14(4):
+CIBA can provide an authenticated, out-of-band decision point inside an Art. 14 control system, but the surrounding application must do the substantive work:
 
-| Art. 14(4) | Requirement (verbatim, abbreviated) | CIBA Implementation |
+| Art. 14 control need | CIBA contribution | Required outside CIBA |
 |:---|:---|:---|
-| **(a)** | *"fully understand the capacities and limitations of the high-risk AI system and be able to duly monitor its operation"* | CIBA `binding_message` shows the specific action, parameters, and consequences — enabling informed oversight |
-| **(a)** | *"decide [...] not to use the high-risk AI system or otherwise disregard, override or reverse the output"* | CIBA deny button; revocation of agent session |
-| **(d)** | *"be able to intervene in the operation of the high-risk AI system or interrupt the system through a 'stop' button"* | CIBA denial = immediate stop; CIBA timeout = automatic stop (fail-closed) |
-| **(e)** | *"be able to prevent the output from being used"* | CIBA gate occurs **before** the action — denied operations never execute |
+| Understand and monitor the operation | Opens an authenticated interaction on a separate device | A verified approval UI that renders the actual operation, material parameters, limitations, and consequences; the short `binding_message` is only a cross-device cue |
+| Disregard, override, or reverse output | Can collect an allow or deny decision before a gated action | Product controls for override, reversal, correction, and safe fallback after an output already exists |
+| Intervene or stop | Can deny or time out a pending authorization request | A cancellation path that prevents dispatch and terminates or compensates work already dispatched, as specified in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract) |
+| Prevent use of output | Can gate token issuance | Resource-server and application enforcement that rejects ungranted, changed, stale, or consumed operations |
 
-**Proportionality** (Art. 14(1)): The trigger architecture ([§15.9](#159-hitl-trigger-architecture)) ensures CIBA is invoked *only* for high-risk and critical actions. Low-risk actions proceed without human intervention, satisfying the proportionality requirement.
-
-For deployments classified as **high-risk under Annex III** (e.g., credit scoring, employment decisions, essential services), CIBA should be considered **mandatory** for agent actions that produce legal effects or similarly significant impacts on natural persons.
+The deployment's risk management process decides where an out-of-band ceremony is appropriate. Neither Art. 14 nor CIBA makes CIBA mandatory for a named risk class, and a successful CIBA flow is not evidence that every oversight obligation was met.
 
 ##### 15.10.2 GDPR Art. 22: Automated Decision-Making
 
@@ -13808,98 +13754,84 @@ Art. 22(1) of [Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content
 
 Art. 22(3) requires *"suitable measures to safeguard the data subject's rights and freedoms and legitimate interests, at least the right to [...] obtain human intervention."*
 
-**Dual obligation**: For AI agent actions producing legal effects on natural persons, **both** Art. 14 of the AI Act and Art. 22 of the GDPR apply simultaneously. CIBA satisfies both:
+The two regimes have different scopes and actors, so applicability must be assessed rather than presumed from the use of an AI agent. Where both apply, CIBA can support a prospective authenticated decision; it does not by itself provide meaningful information about the logic, a post-decision contest channel, human review by a competent person, correction, or reversal.
 
-| Obligation | Source | CIBA Coverage |
-|:-----------|:-------|:-------------|
-| Human oversight mechanism | EU AI Act Art. 14 | CIBA provides per-action human approval |
-| Human intervention on request | GDPR Art. 22(3) | CIBA provides opt-in/opt-out per action |
-| Right to explanation | GDPR Art. 22(3) | CIBA `binding_message` explains the action |
-| Right to contest | GDPR Art. 22(3) | CIBA denial = contest and block |
+| Control | Possible CIBA role | Residual implementation obligation |
+|:--------|:-------------------|:-----------------------------------|
+| Prospective human checkpoint | Obtain an authenticated allow/deny decision | Present the actual decision context and preserve the decision-to-execution binding |
+| Human intervention on request | Route a case to an authenticated reviewer | Provide a review process with authority to change the result |
+| Contest and correction | Notify the user that a decision is pending | Provide case intake, explanation, correction, outcome notification, and records |
+| Withdrawal or revocation | Deny a pending request | Terminate the relevant grant/task and handle downstream work under [§14.7.3](#1473-consent-revocation-vs-token-revocation) and [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract) |
 
 ##### 15.10.3 PSD2/PSD3: Payment Services
 
 [Directive (EU) 2015/2366](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015L2366) (PSD2) requires **Strong Customer Authentication (SCA)** for electronic payments, including **dynamic linking** — binding the authentication to the specific amount and payee.
 
-CIBA naturally implements dynamic linking:
+The [CIBA Core 1.0 `binding_message`](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html#rfc.section.7.1) is a short visual interlock between the consumption and authentication devices. It is not a signed amount-and-payee object, does not require two independent SCA elements, and does not define the issuer's dynamic-linking validation. A payment profile may use CIBA as the decoupled interaction channel, but the payment system must separately establish:
 
-| PSD2 Requirement | CIBA Implementation |
-|:-----------------|:-------------------|
-| SCA (two factors) | CIBA approval via biometric + device possession |
-| Dynamic linking (amount + payee) | `binding_message="Pay €500 to Acme Corp"` — amount and payee in the approval screen |
-| Payer authentication | User authenticates on their registered device |
-| Initiated by payee or payer | CIBA initiated by agent (on behalf of payer) |
+| PSD2 control | Required deployment evidence |
+|:-------------|:-----------------------------|
+| SCA | The issuer or other responsible payment actor applied the required independent elements and recorded the achieved authentication context |
+| Dynamic linking | The payer saw the amount and payee in a trusted transaction UI; the authentication code or result was bound to those values; any change invalidated the authorization |
+| Payer and payment binding | The authenticated payer, payment instrument, amount, payee, transaction identifier, and executed payment were checked as one authorization context |
+| Execution control | The payment endpoint rejected changed, replayed, expired, already consumed, or differently addressed transactions |
 
-This is directly relevant to payment-initiating AI agents: when an agent acts on behalf of a user to initiate a payment, CIBA provides the SCA + dynamic linking required by PSD2.
+The [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) strengthens the OAuth/OIDC exchange, including signed authentication requests, but the complete payment profile and issuer implementation still determine compliance.
 
-**AP2 Cart Mandate as Complementary Dynamic Linking Mechanism**
+**AP2 as adjacent application-layer evidence**
 
-The [Agent Payments Protocol (AP2)](https://ap2-protocol.org/) ([§8.8](#88-ap2-agent-payments-protocol)) introduces a **cryptographic dynamic linking mechanism** that complements CIBA's `binding_message`. While CIBA's `binding_message` is *informational* — it displays the amount and payee on the user's approval screen — AP2's **Cart Mandate** is *cryptographically signed* by the user using a hardware-backed key with biometric authentication:
+The current [Agent Payments Protocol (AP2)](https://ap2-protocol.org/) uses signed Checkout and Payment Mandates and links mandate objects through hashes. This can supply structured payment-authority evidence that CIBA Core intentionally does not define. The two mechanisms remain independent:
 
-| Dynamic Linking Mechanism | Security Model | Evidence Type | PSD2 RTS Art. 5 Coverage |
-|:--------------------------|:---------------|:-------------|:------------------------|
-| **CIBA `binding_message`** | Informational — displayed to user; not cryptographically bound to the transaction | AS-side audit log of what was displayed | ✅ Satisfies dynamic linking (amount + payee shown at approval time) |
-| **AP2 Cart Mandate** | Cryptographic — user signs exact cart (items + price + payee) with hardware-backed key + biometric | Non-repudiable, signed VDC usable as dispute evidence | ✅ *Exceeds* minimum — provides cryptographic proof of user approval of exact transaction details |
+| Mechanism | Establishes | Does not establish by itself |
+|:----------|:------------|:-----------------------------|
+| CIBA | Decoupled OP interaction and token result for an authenticated subject | SCA element independence, signed amount/payee binding, AP2 mandate validity, or payment execution |
+| AP2 mandates | Profile-specific signed checkout/payment objects, constraints, and linkage | A CIBA result, legal identity of every key holder, issuer SCA, or PSD2 compliance |
+| Payment/issuer controls | Instrument authorization, SCA/challenge policy, transaction validation, and execution | The agent's complete upstream task and delegation history |
 
-When used together, CIBA provides the **SCA enforcement** (two-factor authentication at the OAuth layer) while AP2 Cart Mandate provides the **authorization evidence** (cryptographic proof of what the user approved at the application layer). This layered approach is especially relevant for agent-initiated payments where the risk of agent hallucination or deviation from user intent must be provably excluded.
-
-**Intent Mandate Gap: Human-Not-Present Scenarios**
-
-For scenarios where the user is absent at transaction time — e.g., "buy these shoes when the price drops below €100" — AP2 introduces the **Intent Mandate**: a user-signed delegation with constraints (price limits, timing, product criteria, TTL). The agent acts within these constraints without per-transaction user approval. This creates a PSD2 compliance gap:
-
-- PSD2 Art. 97 requires SCA *per electronic payment*
-- The Intent Mandate authorizes a *category* of future payments — the initial signing satisfies SCA, but individual transactions within the mandate may not trigger per-transaction SCA
-- Agent-initiated payments currently have no formal PSD2 classification (neither CIT nor MIT — see [§8.8.4](#884-psd2-compliance-gap-analysis) for the full gap analysis)
-- The issuer or payment network can trigger a **3DS2 challenge** for any individual transaction, forcing the user back into session — AP2 preserves this existing safeguard
-
-> **Three-layer PSD2 compliance stack for agent payments**: MCP/A2A (Layer 1) handles agent identity and delegation chain. CIBA/OAuth (Layer 2) handles SCA enforcement and per-transaction authentication. AP2 (Layer 3) handles cryptographic authorization proof and AI disclosure to the payment network. For full PSD2 compliance, all three layers are needed — see [§8.8.6](#886-ap2-in-the-dr-0001-compliance-stack) for the complete layered architecture.
+For Human-Not-Present AP2 flows, open mandates define constraints under which an agent may later construct closed mandates. Whether a later payment needs renewed SCA, qualifies for an exemption, or fits a payment-industry transaction category is a payment-law and issuer-policy question; DR-0001 must not resolve it by analogy. See [§8.8](#88-ap2-agent-payments-protocol) for the protocol flow and its remaining enforcement questions.
 
 ##### 15.10.4 eIDAS 2.0: Qualified Electronic Signatures
 
-[Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (eIDAS 2.0) introduces the EUDI Wallet for cross-border electronic identification. CIBA can serve as the **remote signing activation** mechanism:
+[Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183) (eIDAS 2.0) extends the European Digital Identity framework. A deployment can use CIBA to initiate or correlate an out-of-band interaction, but a CIBA decision is not a qualified electronic signature, qualified seal, qualified signature-creation device, or proof that the signatory had sole control of the signing data.
 
-| eIDAS 2.0 Use Case | CIBA Role |
-|:-------------------|:----------|
-| Remote Qualified Electronic Signature (QES) | CIBA approval triggers signing via EUDI Wallet on user's mobile device |
-| Remote Qualified Electronic Seal (QESeal) | CIBA approval by authorized representative triggers organizational seal |
-| Cross-border document signing | CIBA `binding_message` shows document hash and signatory context |
+| eIDAS-related operation | Safe CIBA role | Required separate control |
+|:------------------------|:---------------|:--------------------------|
+| Remote signing request | Authenticate and route the expected subject to a signing service | Qualified trust-service and signature-creation requirements, exact document/hash display, signing-key control, certificate validation, and signed result |
+| Organizational seal workflow | Collect an approval from an eligible representative | Organizational authority policy and the qualified seal service |
+| Cross-border verification | Correlate the initiation and result | Verifier trust, certificate/status validation, signature format, document integrity, and evidence retention |
 
 ##### 15.10.5 NIS2: Critical Infrastructure
 
-[Directive (EU) 2022/2555](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) (NIS2) mandates that operators of essential services implement *"appropriate and proportionate technical, operational and organisational measures to manage the risks"*. For AI agents operating within critical infrastructure:
-
-| NIS2 Requirement | CIBA Implementation |
-|:-----------------|:-------------------|
-| Access control and authentication | CIBA provides per-action authentication for critical operations |
-| Human oversight of automated systems | CIBA ensures human approval before infrastructure-affecting actions |
-| Incident detection and response | CIBA denial/timeout events generate security alerts |
+[Directive (EU) 2022/2555](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32022L2555) (NIS2) requires appropriate and proportionate cybersecurity risk-management measures. It does not prescribe CIBA or a universal human-approval gate. A deployment may use CIBA for selected critical changes, while identity governance, least privilege, separation of duties, secure development, incident handling, continuity, logging, recovery, and supply-chain controls remain separate obligations.
 
 #### 15.11 Use Cases
 
-| # | Use Case | Trigger | CIBA Request | Token Types | Session Model |
-|:--|:---------|:--------|:-------------|:------------|:-------------|
-| U1 | **High-value payment** | Amount > threshold | `binding_message="Pay €50,000 to Acme"` | Access Token | Immediate (no refresh) |
-| U2 | **AI agent escalation** | Tool `riskLevel: critical` | `binding_message="Agent wants to delete all contacts"` | Access Token | Immediate |
-| U3 | **Account modification** | Delete account, change email | `binding_message="Delete account usr-12345"` | Access Token + ID Token | Immediate + audit |
-| U4 | **Cross-device login** | New/untrusted device | `binding_message="Login from new device in Amsterdam"` | Access Token + Refresh | Session establishment |
-| U5 | **Overnight batch processing** | User initiates long-running task | `binding_message="Process March invoices (est. 8 hours)"` | Access Token + **Refresh Token** | Offline session ([§10.7](#107-offline-authority-user-not-present-continuation)) |
-| U6 | **Standing delegation** | Recurring scheduled task | `binding_message="Auto-pay rent €1,200 monthly"` | Access Token + **Refresh Token** + ID Token | Recurring offline + audit |
-| U7 | **Legal person dual auth (four-eyes)** | High-value org transaction | First rep initiates; second rep approves via CIBA | Access Token | Four-eyes principle |
-| U8 | **Delegation depth escalation** | `delegation_depth >= max` | `binding_message="Agent C (depth 3) wants to book flight"` | Access Token | Inline approval |
-| U9 | **Emergency break-glass** | Critical system access | `binding_message="EMERGENCY: Admin requests access to locked account"` | Access Token + ID Token | Immediate + full audit |
-| U10 | **Periodic re-approval** | Long-running workflow checkpoint | `binding_message="Agent processed 450/1000 invoices. Continue?"` | Access Token + **Refresh Token** | Refresh extension |
+The use cases below show where a decoupled OP ceremony can be useful. In every row, the verified approval surface renders the structured operation, while `binding_message` carries only a short correlation cue such as `7M4K`; [§14.0.1](#1401-three-bindings-from-request-to-execution) binds that display to the grant and execution.
+
+| # | Use case | Structured authority and decision | Post-decision rule |
+|:--|:---------|:----------------------------------|:-------------------|
+| U1 | **High-value payment** | Exact payer, instrument class, amount, currency, payee, reference, expiry, and eligible approver | Issue single-purpose authority; payment endpoint rechecks every bound field and consumes it once |
+| U2 | **Destructive agent action** | Exact tool, target object set, consequence, task, agent, user, tenant, and deadline | Reject target-set or argument drift; denial/timeout prevents dispatch |
+| U3 | **Account modification** | Exact account, requested change, recovery effect, and reauthentication requirement | Use short-lived authority; record and notify the completed change separately |
+| U4 | **Cross-device sign-in or step-up** | Client, resource, requested `acr`, authentication age, device/risk context | Re-evaluate authorization after the stronger/fresher authentication under [RFC 9470](https://www.rfc-editor.org/rfc/rfc9470.html) |
+| U5 | **Bounded overnight batch** | Closed batch manifest, count/value ceilings, allowed variance, expiry, partial-failure policy | Do not equate a refresh token with batch authority; enforce [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract) per item |
+| U6 | **Standing delegation** | Recurrence, per-period ceiling, allowed recipients/objects, start/end, renewal and revocation policy | Use a separately governed durable grant; require reapproval when membership or ceilings change |
+| U7 | **Four-eyes control** | Initiator, independent eligible approver, separation-of-duty rule, and exact operation | One CIBA result is only one decision; workflow state proves all required decisions before execution |
+| U8 | **Delegation-depth escalation** | Full current delegation chain, operation, and depth policy | Approval cannot enlarge the upstream authority ceiling |
+| U9 | **Break-glass access** | Named emergency condition, operator, resource, duration, and incident/case identifier | Apply independent authentication, notification, review, and automatic expiry controls |
+| U10 | **Long-running checkpoint** | Progress snapshot, remaining work set, changed risk, revised deadline, and next authorization boundary | Grant only the next bounded tranche; do not silently extend the original approval |
 
 ##### 15.11.1 Industry-Specific CIBA Applications
 
-| Industry | Regulation | CIBA Application | Concrete Example |
-|:---------|:-----------|:-----------------|:-----------------|
-| **Financial Services** | PSD2 SCA (dynamic linking) | CIBA `binding_message` encodes amount + payee per PSD2 Art. 97; CIBA + RAR ([§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation)) for structured consent | AI agent initiating €50K wire transfer; `binding_message="Pay €50,000 to Acme Corp"` |
-| **Healthcare** | HIPAA (PHI access) | CIBA gates access to Protected Health Information; binding message identifies patient and purpose | AI agent requesting patient records; `binding_message="Access PHI for patient #12345 (diagnosis review)"` |
-| **Legal** | Attorney-client privilege | CIBA gates access to privileged documents; binding message identifies case and privilege classification | AI agent accessing case files; `binding_message="Access case file Martinez v. State (privileged)"` |
-| **Government** | NIS2 (critical infrastructure) | CIBA gates infrastructure-affecting actions; binding message identifies system and action | AI agent modifying firewall rules; `binding_message="Modify ingress rule on prod-firewall-eu-west"` |
-| **Insurance** | Solvency II (high-value claims) | CIBA gates claim processing above threshold; binding message includes claim value | AI agent auto-processing claim; `binding_message="Approve claim #7890 (€125,000)"` |
+| Domain | Potential decoupled checkpoint | Required controls beyond CIBA |
+|:-------|:-------------------------------|:------------------------------|
+| **Financial services** | Payer or authorized employee reviews a high-value payment on a trusted surface | Payment profile, SCA and dynamic linking where applicable, transaction signing/binding, fraud controls, instrument authorization, and one-time execution |
+| **Healthcare** | Eligible clinician or privacy officer reviews exceptional PHI access | HIPAA or other applicable access policy, minimum-necessary enforcement, patient/record/purpose binding, emergency-access rules, and restricted audit evidence |
+| **Legal** | Matter owner reviews access to privileged material | Matter membership, ethical wall, purpose, object-level access, downstream disclosure controls, and retention policy |
+| **Government / critical infrastructure** | Authorized operator reviews a high-impact configuration change | Separation of duties, change management, least privilege, secure operations, incident controls, cancellation/rollback, and NIS2 measures where applicable |
+| **Insurance** | Authorized reviewer approves a high-value or exceptional claim action | Claims authority, fraud controls, amount/payee/object binding, multi-party policy, execution evidence, and contest/correction process |
 
-> **Production deployment status (March 2026)**: No publicly documented CIBA-for-AI-agent deployments exist in regulated industries. The PSD2/SCA + CIBA dynamic linking pattern is well-established for payment initiation APIs (independent of AI agents), but connecting these flows to AI agent orchestration is an emerging practice. Auth0's CIBA + RAR implementation ([§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation)) is the closest to production-ready for financial services use cases.
+> **Evidence boundary (verified July 2026)**: The reviewed public product documentation establishes CIBA and agent-oriented approval components, but not a regulated-industry deployment in which CIBA alone proves compliance. Treat every mapping above as an architecture pattern requiring domain-specific legal and control validation.
 
 ---
 
@@ -13907,21 +13839,34 @@ For scenarios where the user is absent at transaction time — e.g., "buy these 
 
 > **See also**: [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Scope-to-Tool Mapping), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines), [§10.4](#104-security-guardrails-for-agent-refresh-tokens) (Execution-count constraints), [§24.3](#243-nist-ai-800-1-the-model-agent-system-and-tool-misuse) (NIST AI 800-1)
 >
-> **NIST AI 800-1 Mitigation**: The US AI Safety Institute explicitly warns that *"the increasing use of models as agents may also help automate larger offensive cyber workflows."* TBAC acts as the primary architectural mitigation against this runaway automation risk by strictly bounding an agent's tool access to a single, narrowly defined task context, preventing arbitrary tool chaining.
+> **NIST AI 800-1 connection**: The US AI Safety Institute warns that increasing use of models as agents may automate larger offensive cyber workflows. Task constraints can reduce arbitrary tool chaining, but they are one layer alongside least-privilege grants, schema and argument validation, guardrails, isolation, and per-request policy.
 
-Traditional access control models (RBAC, ABAC) grant permissions based on **who** the user is or **what attributes** they have. **Task-Based Access Control (TBAC)** grants permissions based on **what task** is being performed, making it a natural fit for agentic AI.
+RBAC, ABAC, ReBAC, and task-aware policy answer different authorization questions. Roles define organizational ceilings; attributes express current conditions; relationships establish ownership or delegated reach; task context narrows those permissions to a bounded purpose, operation, budget, and lifecycle. In this report, **Task-Based Access Control (TBAC)** means that local policy composition. It is not a core MCP primitive, an IETF grant, or a replacement for the other models.
 
-> **Important — TBAC is the containment boundary for agent autonomy**
+> **Important — Effective authority is the intersection of layers**
 >
-> Without a task boundary, a delegated agent can reuse legitimate credentials across unrelated operations and turn broad workflow access into standing privilege. TBAC matters because it constrains intent, not just identity.
+> A task label cannot elevate a principal beyond the authority granted by role, relationship, attributes, token audience/scope, and resource policy. It may only preserve or reduce that ceiling. The PEP must also compare the actual MCP primitive, named object, arguments, handle, and current lifecycle state with the authorized task context.
 
-#### 16.1 Why RBAC/ABAC Fall Short for Agents
+#### 16.1 Layered Access Control for Agents
 
-| Model | Limitation in Agentic Context |
-|:---|:---|
-| **RBAC** | A user's role doesn't change, but the agent's task does. An agent with "Editor" role could escalate to destructive operations. |
-| **ABAC** | Attribute conditions are evaluated at request time, but the *intent* of the multi-step task is invisible to point-in-time attribute checks. |
-| **ReBAC** | Relationship-based access works for data ownership but doesn't capture task semantics. |
+| Layer | What it contributes | Boundary |
+|:------|:--------------------|:---------|
+| **RBAC** | Organizational role and administrative entitlement ceiling | A role such as `Editor` is usually too broad to identify the current operation, but task policy cannot exceed it |
+| **ABAC** | Current subject, client, device, network, time, risk, tenant, and resource attributes | Attributes need a trusted source and may not express a multi-step purpose without an explicit task record |
+| **ReBAC** | Ownership, membership, delegation, and resource relationships | A relationship establishes reach, not the permitted action parameters or autonomy window |
+| **Task-aware policy (conceptual TBAC)** | Purpose, allowed primitives/tools, parameter limits, budget, invocation count, expiry, and terminal state | This is a deployment model; task names and carriers are not interoperable unless a profile defines them |
+| **Runtime resource policy** | Final comparison of the actual request and current state with all upstream ceilings | The gateway and resource server must still enforce business entitlement, object ownership, and downstream constraints |
+
+The authorization decision is therefore an intersection, not a choice among models:
+
+```text
+effective authority =
+  grant ceiling
+  ∩ role and relationship ceiling
+  ∩ current attribute conditions
+  ∩ task constraints
+  ∩ actual request and resource state
+```
 
 #### 16.2 TBAC Model
 
@@ -13965,9 +13910,9 @@ flowchart TD
 
 ```
 
-#### 16.3 TBAC Scope Encoding
+#### 16.3 Carrying Task Context
 
-TBAC can be encoded in OAuth scopes using a hierarchical pattern:
+A deployment may encode a coarse task category in an OAuth scope, but the vocabulary below is a **local example**, not a standard registry. High-cardinality identifiers, transaction parameters, budgets, and lifecycle state normally belong in a structured authorization detail, private claim, task-authority handle, or PDP context rather than proliferating scope strings.
 
 ```mermaid
 ---
@@ -14018,7 +13963,7 @@ flowchart LR
 ```
 
 ```
-# TBAC scope examples:
+# Local task-scope examples (not an MCP or OAuth standard vocabulary):
 task:travel:book:flight          # Book flights in travel context
 task:travel:read:itinerary       # Read itinerary in travel context
 task:expense:submit:report       # Submit expense report
@@ -14029,16 +13974,16 @@ flights:write                    # Too broad — write anything to flights
 expenses:write                   # Doesn't distinguish submit vs. approve
 ```
 
-#### 16.4 Ephemeral Task Tokens
+#### 16.4 Ephemeral Task Authority and Token Projections
 
-TBAC implies **ephemeral, task-scoped credentials**:
+Task-aware policy benefits from short-lived, task-bounded authority, but a dedicated token is only one projection. A deployment can instead retain a server-side authority record and issue an opaque handle, or combine a coarse token ceiling with gateway-side task state. In every case, the PEP must reject use after completion, cancellation, expiry, budget exhaustion, or material request drift.
 
-| Property | Traditional Token | Task Token |
+| Property | Broad session/API token | Task-bound token or authority projection |
 |:---|:---|:---|
 | **Lifetime** | Minutes to hours | Seconds to minutes |
 | **Scope** | API-level (e.g., `email.send`) | Task-level (e.g., `task:travel:book:flight`) |
-| **Revocation** | Session-level | Per-task auto-expiry |
-| **Binding** | User + client | User + agent + task context |
+| **Termination** | Usually token/session revocation or expiry | Deny at the authority record immediately; revoke or expire token projections where supported |
+| **Binding** | Subject, client, audience, scopes | Subject, actor, client, audience, task record, constraints, and lifecycle state |
 
 #### 16.5 TBAC Implementation Pattern
 
@@ -14070,9 +14015,9 @@ The following walkthrough illustrates how a TBAC context is created, enforced, a
 
 On each successful tool call, `invocation_count` is atomically incremented. This prevents both over-consumption and tool drift beyond the task boundary. See [§10.4](#104-security-guardrails-for-agent-refresh-tokens) for a deeper discussion of execution-count constraints.
 
-**Step 3 — Context expiry**: Task completion or timeout triggers TBAC context expiry. All tokens associated with the context are invalidated, and the context transitions to a terminal state. No further tool calls are possible under this `task_id` — the agent must request a new task context for any subsequent work.
+**Step 3 — Context termination**: Completion, cancellation, timeout, or budget exhaustion moves the authoritative task record to a terminal state. The PEP denies further calls immediately; associated token projections are revoked when the authorization server and token format support reliable revocation, otherwise their short lifetime bounds residual exposure. A later task requires a new authority record and fresh evaluation.
 
-**TBAC + Cedar policy example**: The TBAC context constraints can be expressed as a Cedar policy ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), enabling formal verification and composition with other authorization rules:
+**TBAC + Cedar policy example**: The task constraints can be expressed as deployment-defined Cedar context and resource attributes ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), allowing composition with identity, relationship, and runtime rules:
 
 ```
 permit(principal, action, resource)
@@ -14084,7 +14029,7 @@ when {
 };
 ```
 
-This policy is evaluated by the PDP ([§16.2](#162-tbac-model)) on every tool invocation, composing with identity-based policies ([§18.1](#181-authorization-model-comparison)) and consent checks ([§14](#14-user-consent-models-first-party-vs-third-party)). See [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) for additional Cedar and OPA policy examples across authorization models.
+This policy is evaluated by the PDP ([§16.2](#162-tbac-model)) on every tool invocation, composing with identity-based policies ([§18.1](#181-authorization-model-comparison)) and consent checks ([§14](#14-authorization-approval-and-consent-models)). See [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) for additional Cedar and OPA policy examples across authorization models.
 
 ##### 16.5.1 Implementation Reality: Traefik TBAC vs. Conceptual TBAC/RAR
 
@@ -14093,18 +14038,18 @@ TBAC should be treated as an authorization **model**, not as a single standard. 
 | Layer | What It Carries | Current Reality | Design Consequence |
 |:------|:----------------|:----------------|:-------------------|
 | **Conceptual TBAC** | Task, tool, transaction parameters, runtime context, budgets, and lifecycle state | Architecture pattern defined by this section; not standardized as an OAuth or MCP profile | Use it as the internal PDP model even when external tokens expose only scopes or claims |
-| **Traefik Hub TBAC** | Task/tool/transaction checks over MCP request fields and JWT claims | Concrete gateway middleware that operationalizes TBAC for MCP traffic | Strongest current product proof that TBAC is deployable, but policy syntax and lifecycle remain product-specific |
+| **Traefik Hub TBAC** | Product-defined Tasks, Tools, and Transactions checks over MCP request fields and JWT claims | Concrete gateway middleware that operationalizes a task-aware model for MCP traffic | Useful implementation evidence; its terminology, policy syntax, and lifecycle semantics remain product-specific |
 | **OAuth scopes** | Coarse grant ceiling such as `mcp:tools` or `payments:create` | Widely deployable, discoverable, and challengeable through OAuth / RFC 6750 | Good for grant negotiation; insufficient as the final runtime decision for high-risk tools |
 | **RAR / `authorization_details`** | Structured action constraints such as amount, recipient, instrument, TTL, and purpose | Mature OAuth extension for structured authorization requests; not yet a common MCP gateway control plane | Best standards-shaped carrier for transaction constraints when the AS must approve them before token issuance |
 | **Policy engine context** | Runtime attributes: task ID, method/name, arguments, risk, consent ID, session binding | Cedar, OPA, OpenFGA, and vendor PDPs can evaluate these attributes today | Keep final permit/deny at the gateway/PDP so late-arriving context can still reduce authority |
 
-The practical pattern is therefore two-stage. The authorization server grants a ceiling using scopes, RAR, Identity Assertion, or AP2 mandate evidence. The gateway then lowers that ceiling at execution time using the TBAC context: the current MCP method, named tool/resource/prompt, parameters, task budget, risk score, and consent or mandate identifier. This keeps [§16](#16-task-based-access-control-tbac) vendor-agnostic while recognizing Traefik Hub as the first surveyed product to make the model concrete.
+The practical pattern is layered. The authorization server grants a ceiling using scopes, RAR, Identity Assertion, or other profiled evidence. A task-authority service or application binds that ceiling to purpose, budget, expiry, and lifecycle. The gateway and resource server then lower—but never raise—that authority using the current MCP method, named tool/resource/prompt, arguments, object ownership, risk state, and explicit handles. Traefik Hub provides one product-specific realization of the gateway layer; it does not define universal TBAC semantics.
 
 #### 16.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization
 
 > **See also**: [§7.6](#76-csa-agentic-trust-framework-atf) (CSA ATF maturity levels), [§7.8](#78-owasp-agentic-ai-top-10-mapping) ASI10 (rogue agent detection gap), [§8.7.4](#874-multi-layer-trust-architecture) Layer 4 (behavioral trust), [§15.9.1](#1591-trigger-sources) (Adaptive Risk Engine trigger), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines), [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) (CAEP graduated responses)
 
-TBAC tiers ([§16.1](#161-why-rbacabac-fall-short-for-agents)–[§16.5](#165-tbac-implementation-pattern)) are assigned at task creation and remain **static** — the agent's effective permissions do not change regardless of its runtime behavior. This is architecturally incomplete: an agent assigned a "High trust" TBAC context at task start can behave anomalously mid-task (tool drift, error rate spikes, guardrail violations) without any authorization consequence. Behavioral trust scoring extends TBAC by making trust **dynamic** — continuously adjusting an agent's effective permissions based on observed behavior. This closes the architectural gap explicitly acknowledged in [§7.8](#78-owasp-agentic-ai-top-10-mapping) (ASI10: "real-time behavioral anomaly detection for rogue agent identification is **not architecturally specified**") and operationalizes Layer 4 of the cross-org trust architecture ([§8.7.4](#874-multi-layer-trust-architecture)).
+Layered Access Control for Agents ([§16.1](#161-layered-access-control-for-agents)) and Ephemeral Task Authority and Token Projections ([§16.4](#164-ephemeral-task-authority-and-token-projections)) establish a bounded authority context; current risk is a separate ABAC input. A behavioral scoring service can update that risk input as it observes tool drift, error patterns, guardrail results, and delegation anomalies. Policy can then preserve, reduce, suspend, or terminate the task authority. A favorable score must never expand authority beyond the existing grant, role/relationship ceiling, task constraints, or resource policy.
 
 In March 2026, a rogue AI agent at Meta exposed sensitive company and user data by operating with valid credentials in unintended ways (TechCrunch, March 18, 2026). The agent possessed legitimate access tokens but pursued goals diverging from its intended purpose — validating that credential validity alone is an insufficient security boundary for non-deterministic actors. This incident is cited by Ping Identity as a motivating example for its Runtime Identity framework ([§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity)), which shifts the enforcement boundary from authentication-time to action-time.
 
@@ -14181,14 +14126,14 @@ flowchart TD
     style GW text-align:left
 ```
 
-**Trust score → authorization response mapping** — the scoring engine produces a normalized 0.0–1.0 trust score. The PDP ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) maps the score to a graduated authorization response, aligned with the human oversight tier architecture ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)):
+**Illustrative trust score → authorization response mapping** — if a deployment normalizes its vendor- or locally defined signals to a 0.0–1.0 score, the PDP ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) can map that score to graduated responses aligned with the human-oversight architecture ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)). The thresholds are local policy examples, not standardized assurance levels:
 
 | Score Range | Trust Level | Authorization Response | HITL Tier ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) | TBAC Effect |
 |:------------|:-----------|:-----------------------|:-------------------|:------------|
 | 0.9–1.0 | **High trust** | Full autonomy — standard authorization per TBAC context | Tier 0–1 (Autonomous / Audit-only) | No change to TBAC context |
 | 0.7–0.89 | **Medium trust** | Standard + enhanced monitoring (increased log verbosity, shorter audit review cycle) | Tier 1–2 (Audit / In-session) | TBAC context unchanged; monitoring overlay applied |
 | 0.5–0.69 | **Reduced trust** | Permission attenuation — restrict to read-only tools; require step-up for writes | Tier 2–3 (In-session / Step-up) | `allowed_tools` filtered to read-only subset; write tools gated behind step-up |
-| 0.3–0.49 | **Low trust** | CIBA approval required for each sensitive action; scope ceiling applied | Tier 4–5 (Webhook / CIBA) | TBAC `max_invocations` reduced; tool calls require per-action CIBA approval ([§15.5](#155-tier-5-ciba-protocol)) |
+| 0.3–0.49 | **Low trust** | Fresh policy evaluation and separately orchestrated approval for sensitive actions | Tier 4–5 (Webhook / CIBA where supported) | `max_invocations` reduced; specified tool calls require a request-bound approval ([§15.5](#155-tier-5-ciba-protocol)) |
 | 0.0–0.29 | **Untrusted** | Request denial; human review required; possible identity de-provisioning ([§7.11](#711-agent-de-provisioning-vs-token-revocation)) | Tier 5–6 (CIBA / Multi-party) | TBAC context terminated; all tools blocked pending review |
 
 > **Connection to CSA ATF ([§7.6](#76-csa-agentic-trust-framework-atf))**: An agent's ATF maturity level (Intern → Principal) sets the **ceiling** for its dynamic trust score — a Level 2 (Junior) agent cannot be scored above the "Medium trust" range regardless of behavioral signals, because its organizational attestation caps its autonomy. Behavioral trust scoring operates **within** the ATF maturity envelope, not above it.
@@ -14566,7 +14511,7 @@ The current RC's required Streamable HTTP headers should feed this scope-resolut
 | **Canonical object identity** | JSON-RPC body fields such as `params.name`, `params.uri`, and tool arguments | Resolve header/body mismatches and enforce argument-sensitive constraints such as amount, repository, channel, table, path, or instrument |
 | **Grant ceiling** | Access-token scopes, `authorization_details`, Identity Assertion exchange result, or AP2 mandate constraints | Establish the maximum authority the request may use |
 | **Lifecycle context** | Explicit application-state handle, task ID, subscription ID, consent ID, mandate ID, risk score, CAEP/SSF state, and policy/version epoch | Lower or terminate authority when handle ownership, task/subscription state, consent, mandate, assurance, or policy changes |
-| **Obligation** | PDP output | Allow, filter, require step-up/CIBA, challenge for additional scope, deny, or emit a structured audit event |
+| **Local response context / workflow instruction** | Validated PDP output under a pinned deployment profile | Allow, filter, request RFC 9470 step-up, request a separately orchestrated approval, challenge for additional scope, deny, or emit a structured audit event; the base AuthZEN API does not standardize this vocabulary |
 
 This gives gateways a deterministic method/name-to-policy map without duplicating the transport rules in every authorization module. The headers are useful because they move primitive classification into a standard location; the policy decision remains grounded in the validated request body and the grant/lifecycle context.
 
@@ -14712,11 +14657,11 @@ Resources carry `annotations` including `audience: ["user" | "assistant"]` and `
 
 ###### 17.2.3.3 Prompt Authorization Architecture
 
-**User-Initiated Consent Model**
+**User-Initiated Authorization Signal**
 
-Prompts have a fundamentally different initiation model than tools. The MCP spec states prompts are "designed to be user-controlled" — the user explicitly selects which prompt to invoke. This shifts the consent model:
+Prompts have a fundamentally different initiation model than tools. The MCP spec states prompts are "designed to be user-controlled" — the user explicitly selects which prompt to invoke. This changes the authorization context without eliminating server-side checks:
 
-- **Implicit consent for prompt selection**: The user's explicit selection constitutes consent for the prompt itself — unlike tools, where the LLM selects the tool and the user must separately approve.
+- **Selection is an initiation signal, not blanket consent**: The user's explicit selection establishes that the user initiated this prompt retrieval. It does not establish legal consent, authorize undisclosed data transfer, permit embedded resources, or approve later tool side effects.
 - **Hidden risk in arguments and responses**: The user may not understand what data their prompt arguments expose to the MCP server, what resources the prompt template embeds, or what system instructions the expanded prompt generates. The gateway's role shifts from "enforce authorization for LLM-selected actions" to "validate arguments and embedded resources for user-selected actions."
 
 **Cross-Primitive Escalation: Prompts → Resources**
@@ -14915,6 +14860,55 @@ Current follow-on interactions use distinct contracts:
 | Server-owned inference | Server workload, provider credential, purpose, data, model, budget | Keep provider credentials server-side; authorize data/tool access and result release normally |
 
 These mechanisms do not form a generic reverse channel. A request for input, an app-originated message, browser state, or model output is untrusted data until the component that owns the consequence makes an ordinary authorization decision.
+
+##### 17.5.1 Asynchronous Approval and Batch Reliability Contract
+
+An asynchronous approval is a state transition over a protected request record, not permission to execute whatever work later arrives with the same label. The application should persist the pending record before notifying an approver and move it through mutually exclusive states:
+
+```text
+requested → pending → approved → consumed
+                    ↘ denied
+                    ↘ expired
+                    ↘ cancelled
+approved → expired | cancelled
+```
+
+`approved` means that an eligible decision-maker accepted one recorded request under one policy and evidence context. `consumed` means that the PEP re-authorized and atomically admitted the matching operation. Approval does not imply dispatch, successful execution, or completion.
+
+The protected record needs enough information to enforce every boundary without logging raw secrets or sensitive payloads:
+
+| Field | Reliability purpose |
+|:------|:--------------------|
+| Request ID, high-entropy nonce, idempotency key, version | Correlate one logical request, reject replay, deduplicate retries, and provide compare-and-swap state transitions |
+| Canonical request digest and schema/profile version | Detect changed tool, arguments, resource, audience, tenant, subject/actor/client, or authorization-detail semantics |
+| Display-manifest digest and rendering version | Identify what material fields were prepared for presentation without assuming display text is the protocol request |
+| Eligible-approver policy and decision identity | Re-evaluate who may decide at decision time and record who actually did |
+| Grant/decision reference, policy version, obligations | Connect the approval to the authority that was granted and the policy that admitted it |
+| Creation, expiry, autonomy window, single-use count | Fail closed on delay and prevent an approval from becoming standing authority |
+| Callback channel and expected issuer/audience/key | Authenticate delivery and reject endpoint substitution or cross-request callbacks |
+| Batch manifest, ceilings, and execution ledger | Keep a closed set of approved items and account for each consumption or failure |
+
+The lifecycle contract is:
+
+1. **Create and deduplicate** — authenticate the initiator; authorize the action class; canonicalize the protected request under a versioned profile; generate a unique nonce; and atomically create-or-return by idempotency key. The same key with a different digest is a conflict, not a new request.
+2. **Present and decide** — render every material field from the protected record, identify the client and acting-agent chain, show expiry and batch boundaries, and re-check approver eligibility. The signed or provider-correlated decision binds the request ID, canonical digest, display-manifest digest, decision, time, and approver.
+3. **Authenticate completion** — use a pre-registered HTTPS callback, authenticated webhook, or polling endpoint. Validate issuer, audience, signature or mTLS identity, nonce/`jti`, request ID, expiry, and replay state. A callback may signal that state changed; it is not trusted execution input.
+4. **Re-authorize and consume** — load the latest record, validate the current token/grant and policy, compare the complete operation with the approved constraints, and atomically transition `approved → consumed` before dispatch. Parameter drift, object-version drift, changed actor/client, or lost authority requires a new decision.
+5. **Handle retries** — a duplicate completion or execution request returns the stored terminal outcome or the prior idempotent result. It must not repeat a side effect. Retrying downstream work requires a downstream idempotency contract as well.
+6. **Cancel and terminate** — cancellation first invalidates pending or unconsumed authority, then requests worker or downstream cancellation. Record requested, acknowledged, and observed termination separately. Token revocation or callback suppression cannot undo work that has already been dispatched; compensation or incident handling may still be required.
+
+Batch or standing approvals add a closed-set invariant:
+
+| Invariant | Required behavior |
+|:----------|:------------------|
+| **Manifest membership** | Bind an ordered or uniquely keyed manifest of item digests. Adding, replacing, or reinterpreting an item invalidates the approval. |
+| **Aggregate ceilings** | Bind maximum item count, total value/cost, per-item value, resource set, time window, risk class, and permitted operation types. |
+| **Subset semantics** | Permit partial execution only when the approval explicitly allows independently consumable items; otherwise treat the batch atomically. |
+| **Per-item consumption** | Compare each operation with its item digest and ceilings, then atomically record success, failure, cancellation, or compensation. |
+| **Partial failure** | Do not silently substitute a new item or expand remaining authority. Retry only the same idempotent item; changed values require reapproval. |
+| **Revocation and expiry** | Stop admitting unconsumed items immediately and propagate cancellation to queued work. Already completed items remain evidence, not reusable authority. |
+
+This contract applies whether the human interaction uses CIBA, a webhook, an approval inbox, an MCP App, or another workflow. The interaction mechanism supplies a decision ceremony; the authority store and PEP supply exact request binding, lifecycle, and execution safety.
 
 #### 17.6 Subscriptions and Revocation
 
@@ -15346,52 +15340,63 @@ type tool
 
 > **Key takeaway**: Cedar and OPA express the same policy differently. Cedar provides **structural safety** (deny-by-default + forbid-overrides-permit are language guarantees). OPA provides **expressiveness** (the policy can do anything Rego can express, including complex cross-cutting logic). OpenFGA models the same scenario as **relationships** rather than rules — natural for document-level access but more verbose for simple RBAC. The `not deny` pattern in OPA is a common source of security bugs when developers forget to include it.
 
-##### 18.3.8 OpenID Authorization API: The PDP/PEP Interoperability Standard
+##### 18.3.8 OpenID Authorization API 1.0: PEP/PDP Interoperability
 
-The OpenID Foundation's **OpenID Authorization API** specification (formerly under the working group name AuthZEN), ratified in January 2026, standardizes the interface between Policy Enforcement Points (PEPs) and Policy Decision Points (PDPs). The OpenID Authorization API aims to do for authorization what OpenID Connect did for authentication — enable interoperability across vendors and policy engines.
+The OpenID Foundation approved [Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html), produced by the AuthZEN Working Group, as a Final Specification in January 2026. It defines an HTTPS/JSON contract through which a Policy Enforcement Point (PEP) asks a Policy Decision Point (PDP) for boolean access decisions without depending on the PDP's internal policy language.
 
-**Core APIs** (OpenID AuthZ 1.0):
+**Final 1.0 surfaces**:
 
-| API | Purpose | Example |
+| API | Normative purpose | MCP use |
 |:---|:---|:---|
-| **Evaluation API** | PEP sends `{subject, action, resource, context}` (SARC) → PDP returns `{decision}` | Gateway asks "can alice call read_leads?" |
-| **Search API** | Reverse query: "Which resources can subject X access?" | Agent discovers available tools |
-| **Partial Evaluation API** | Pre-evaluate policies for delegated/cached enforcement | Gateway caches tool access decisions |
-| **Discovery Endpoint** | PDP advertises capabilities (batch checks, supported models) | Gateway discovers PDP features at startup |
+| **Access Evaluation** (`/access/v1/evaluation`) | Evaluate one required `subject`, `action`, and `resource`, plus optional environmental `context`; return a boolean Decision | Decide whether the identified principal may invoke one exact MCP operation |
+| **Access Evaluations** (`/access/v1/evaluations`) | Evaluate multiple independent requests in one message, with optional shared defaults and declared evaluation semantics | Reduce PEP/PDP round trips for discovery or batch prechecks; each returned element remains an independent decision |
+| **Subject, Resource, and Action Search** | Discover permitted entities of one omitted type for the supplied authorization context | Filter visible tools/resources, while still re-evaluating at use time because search results are not an atomic or permanent grant |
+| **PDP Metadata** (`/.well-known/authzen-configuration`) | Publish the PDP identifier, supported endpoint URLs, registered capabilities, and optional signed metadata | Bind the PEP to the intended PDP and discover only the features that instance advertises |
 
-**OpenID AuthZ request for MCP tool authorization**:
+The standard information model is Subject, Action, Resource, optional Context, and Decision. `properties` and `context` are extensibility containers, so the following MCP mapping is a **deployment profile**, not vocabulary standardized by Authorization API 1.0:
 
 ```json
 {
   "subject": {
     "type": "user",
-    "id": "alice@example.com",
-    "properties": { "team": "sales", "roles": ["sales_rep"] }
+    "id": "usr_alice",
+    "properties": {
+      "tenant": "sales-eu",
+      "actor_id": "agt_sales_assistant"
+    }
   },
-  "action": { "name": "call_tool" },
+  "action": {
+    "name": "call_tool",
+    "properties": {
+      "arguments_digest": "sha-256:8c2f..."
+    }
+  },
   "resource": {
     "type": "mcp_tool",
     "id": "crm/read_leads",
-    "properties": { "server": "crm", "tool_name": "read_leads", "risk_level": "low" }
+    "properties": {
+      "server": "crm",
+      "risk_level": "low"
+    }
   },
   "context": {
-    "delegation_chain": [
-      {"sub": "alice@example.com"},
-      {"act": "agent-travel-assistant"}
-    ]
+    "schema": "https://schemas.example.com/authzen/mcp-evaluation-v1.json",
+    "task_id": "task_246",
+    "delegation_id": "dlg_135",
+    "grant_id": "gr_456"
   }
 }
 ```
 
-> **Impact on engine selection**: The OpenID Authorization API makes the "which engine" question **tactical rather than architectural**. If the MCP gateway implements the OpenID AuthZ Evaluation API as its PEP interface, the PDP behind it (Cedar, OPA, XACML, Cerbos) can be swapped without changing the gateway integration. This suggests the [§18.6](#186-decision-guide) Decision Guide should include advice to **implement OpenID AuthZ API at the PEP** for long-term flexibility.
+The portable response floor is `{"decision": true|false}`. The optional response `context` may carry reasons, advice, obligations, UI hints, or step-up instructions, but 1.0 deliberately leaves that object's semantics and format to implementations. If a PEP does not understand required response context, it may reject a permit. A deployment that uses obligations therefore defines a versioned schema, advertises the relevant capability where applicable, validates every required obligation, and fails closed on unknown mandatory instructions.
 
-**OpenID AuthZ participants** (as of January 2026): Axiomatics, Cerbos, OpenFGA, Google, Ping Identity, Aserto, Auth0.
+Authorization API interoperability does not make policy engines semantically interchangeable. Cedar, OPA, relationship-based systems, and commercial PDPs can differ in policy model, data freshness, conflict resolution, explanation, consistency, and outage behavior even behind the same wire format. The interface reduces integration coupling; conformance tests and policy-equivalence tests determine whether a PDP substitution preserves decisions.
 
-**Gateway adoption** (Gartner IAM 2025): Kong, AWS (Amazon API Gateway), Broadcom, Tyk, and Zuplo demonstrated OpenID AuthZ PEP integrations at Gartner IAM 2025. Kong's demonstration is the most significant for this investigation — it positions Kong as the only surveyed MCP gateway with both a native policy engine (OPA) *and* an OpenID AuthZ-compliant PEP interface, enabling future PDP portability.
+> **Important — Decision evaluation is not approval orchestration**
+>
+> Authorization API evaluates the supplied authorization facts and returns a decision. It does not start CIBA, choose an approver, render an approval screen, wait for a callback, mint an OAuth grant, or bind later execution parameters. A PDP can deny with local step-up/approval instructions in response `context`, but a separate workflow must perform that ceremony and call the PDP again with the resulting authority and evidence.
 
-**Roadmap** (2026): API Gateway Profile, Event Delivery (via Shared Signals), IDP Profile — extending the standard from application-level to infrastructure-level authorization.
-
-> **Connection to [§13.5.4](#1354-authorization-decision-tracing) (Authorization Decision Tracing)**: The OpenID AuthZ evaluation response contains structured decision metadata — `decision`, `context.reason` (policy provenance), and `context.obligations` (PEP enforcement instructions) — that should be captured as OTel span attributes on the gateway's authorization span. See [§13.5.4](#1354-authorization-decision-tracing) for the recommended `authz.*` attribute schema and the mapping from OpenID AuthZ response fields to trace data.
+> **Connection to [§13.5.4](#1354-authorization-decision-tracing) (Authorization Decision Tracing)**: Capture the boolean decision and the local profile's validated response context, policy version, decision identifier, and enforcement outcome as correlated evidence. Do not present a locally defined `reason` or `obligations` object as a portable 1.0 field.
 
 ##### 18.3.9 Broader Policy Engine Landscape
 
@@ -15569,11 +15574,11 @@ flowchart TD
 
 ### 19. Rich Authorization Requests (RAR) vs. OAuth Scopes
 
-Traditional OAuth scopes are flat strings (`emails:write`, `calendar:read`). They work as coarse-grained permission labels but break down when authorization decisions require **structured context** — "transfer 45 EUR to Merchant X" is fundamentally different from "write to payments". **Rich Authorization Requests (RFC 9396)** address this limitation.
+Traditional OAuth scopes are flat strings (`emails:write`, `calendar:read`). They work as coarse-grained permission labels but break down when authorization decisions require **structured context** — "transfer 45 EUR to Merchant X" is fundamentally different from "write to payments". [Rich Authorization Requests (RFC 9396)](https://www.rfc-editor.org/rfc/rfc9396.html) define the `authorization_details` parameter for carrying such fine-grained authorization requirements in OAuth messages.
 
-> **Important — Use RAR when the approval decision depends on transaction context**
+> **Important — RAR structures a request; it does not complete the authorization pipeline**
 >
-> If the real policy question includes resource identifiers, amounts, recipients, task IDs, or other structured constraints, flat scopes are too coarse. That is the point where `authorization_details` stops being optional design polish and becomes the correct authorization primitive.
+> Use a profiled `authorization_details` type when the authorization decision depends on resource identifiers, amounts, recipients, actions, or other structured constraints. The request is not the grant, token, consent ceremony, task lifecycle, or runtime decision. The AS can reject, narrow, or enrich it, and the RS must enforce the granted form against the actual operation.
 
 #### 19.1 Scopes vs. `authorization_details`: Comparison
 
@@ -15584,12 +15589,13 @@ Traditional OAuth scopes are flat strings (`emails:write`, `calendar:read`). The
 | **Context** | None — scope is static | Rich — can include amounts, resource IDs, actions |
 | **Extensibility** | New scope = new string | New `type` = new JSON schema |
 | **Standard** | OAuth 2.0 core | RFC 9396 (May 2023) |
-| **Consent UX** | "App wants to access your payments" | "App wants to transfer 45 EUR to Merchant X" |
-| **Token representation** | `scope` claim (space-separated string) | `authorization_details` claim (JSON array) |
+| **Authorization UX input** | "App wants to access your payments" | Can supply "transfer 45 EUR to Merchant X" when the registered type and UI profile define those fields |
+| **Grant behavior** | AS can grant a subset of requested scopes | AS can grant a subset and may enrich authorization details according to the type definition |
+| **RS delivery** | Scope can be carried in a token or introspection response | Granted details can be conveyed in the token response and to the RS through a profiled JWT access token, introspection, or another AS–RS contract |
 
 #### 19.2 RAR for MCP Tool Invocations
 
-RAR is a natural fit for MCP because tool invocations carry **structured parameters** that map directly to `authorization_details`:
+RAR can fit MCP tool authorization because tool invocations carry structured parameters. MCP does not currently define an `authorization_details` type for tools, so `mcp_tool_invocation` below is a **local profile** whose schema, comparison rules, display fields, grant semantics, and RS enforcement contract must be versioned by the deployment.
 
 ```json
 // Traditional scope approach
@@ -15624,7 +15630,20 @@ RAR is a natural fit for MCP because tool invocations carry **structured paramet
 }
 ```
 
-With RAR, the consent screen can say: _"Travel Assistant wants to: send emails to @example.com addresses (max 10/hour) and read your calendar for the next 7 days"_ — far more precise than _"App wants email and calendar access"_.
+This is the client's **requested** `authorization_details`, not the granted form. A suitable authorization UI can say: _"Travel Assistant requests: send emails to @example.com addresses (max 10/hour) and read your calendar for the next 7 days."_ The AS must render the complete merged requirements, but RAR itself does not define the UI or prove that the user saw every material field.
+
+##### 19.2.1 Request, Grant, Token, and Execution Boundaries
+
+| Artifact | Owner and transition | Required invariant |
+|:---------|:---------------------|:-------------------|
+| **Requested details** | Client sends `authorization_details` under a registered `type` | Validate the complete schema; unknown types, fields, values, or missing required fields fail with `invalid_authorization_details` |
+| **Approved grant details** | AS evaluates policy and any user or administrator decision | Record the granted subset or enrichment separately; never assume byte equality with the request |
+| **Token-request details** | Client may request details within the underlying grant | Compare according to the registered type's semantics; generic JSON equality cannot determine “less than” for arbitrary types |
+| **Token-response details** | AS returns the authorization associated with the issued access token | Client uses the returned granted form, not its original request, as the token's authority description |
+| **RS authorization context** | AS conveys granted details by JWT access-token claim, introspection, or another profiled contract | Authenticate the AS output, audience-bind it, and preserve the registered type/version |
+| **Executed operation** | Gateway and RS compare the actual MCP primitive, object, arguments, actor/client, and state with the granted details | Reject parameter drift, scope/grant excess, stale lifecycle state, and replay; consume one-time authority atomically |
+
+RFC 9396 structures authorization data and supports input to an authorization ceremony, but it does not select the legal basis, identify the correct business approver, create a durable task, authenticate a lifecycle webhook, or define cancellation. Those responsibilities are divided among Authorization, Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Layered Access Control ([§16](#16-task-based-access-control-tbac)); and the Asynchronous Approval and Batch Reliability Contract ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)). A batch-shaped authorization detail must also satisfy [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)'s closed-manifest and partial-failure invariants.
 
 #### 19.3 Dynamic Authorization Lookup via PIP
 
@@ -15701,7 +15720,7 @@ Instead of requesting a flat array of opaque `scope` strings, the AI Agent trans
 <details>
 <summary><strong>2. Authorization Server delegates the decision to the Policy Decision Point (PDP)</strong></summary>
 
-Following the XACML/ABAC architecture, the AS operates merely as the Policy Enforcement Point (PEP). It packages the incoming context — mapping the authenticated user, the specific agent identity, and the RAR JSON payload — and forwards this bundle to the backend PDP (e.g., OpenFGA, Cedar) over a secure service boundary for formal policy evaluation.
+The AS remains responsible for authenticating the client, validating the registered authorization-detail type, applying grant policy, and issuing tokens. It may call an external PDP, or an embedded policy engine, with the authenticated subject, actor/client, resource, requested details, and current context. That division is deployment-specific; the AS is not “merely” a PEP.
 
 </details>
 <details>
@@ -15723,7 +15742,7 @@ The PIP rapidly synthesizes the queried data and returns a consolidated assertio
   "network_threat_score": 12
 }
 ```
-Because this lookup happens synchronously at decision-time, it cleanly avoids the "stale permissions" problem inherent to long-lived scopes. If the user's role was downgraded 30 seconds ago in LDAP, the PIP instantly reflects it, resulting in the PDP subsequently generating a unified `DENY` obligation.
+Decision-time lookup can reduce staleness only to the freshness, availability, and consistency of each source. A role change appears promptly if the source and caches expose it; otherwise the PDP needs explicit freshness limits, degraded-mode policy, and change-event handling. A denial is a decision, not an “obligation.”
 
 **Artifact Produced:** Normalized PIP Attribute Matrix.
 
@@ -15747,9 +15766,9 @@ stateDiagram-v2
 <details>
 <summary><strong>6. Authorization Server mints the targeted token enforcing the obligations</strong></summary>
 
-Receiving the final verdict, the AS fulfills its role as the PEP. It mints the access token, crystallizing the approved `authorization_details` into the JWT payload, and either executes the "audit all access" obligation directly within the AS boundary or encodes it as a mandatory policy hook that the downstream Gateway must explicitly satisfy.
+The AS applies the policy result and records the granted authorization details associated with the issued access token. It returns the granted form in the token response and conveys it to the RS only through the deployment's JWT access-token, introspection, or other profiled contract. Obligations must be assigned to components that can actually enforce them; an “audit every access” duty normally belongs at the gateway or RS, not at token issuance alone.
 
-**Artifact Produced:** Scope-Targeted ABAC Enforcement Token.
+**Artifact Produced:** Access token plus an AS-defined granted-authorization context for the RS.
 
 </details>
 <br/>
@@ -15761,377 +15780,42 @@ Receiving the final verdict, the AS fulfills its role as the PEP. It mints the a
 3. The **PIP dynamically fetches** user entitlements, agent trust levels, tool risk classifications, and org policies from external systems at decision time
 4. The **decision** is made based on the intersection of request + user attributes + agent attributes + policy — not a static scope list
 
-This is a fundamentally different model from "pre-register scopes in the IdP". It enables:
-- **Arbitrary authorization granularity** without scope explosion
-- **Real-time policy changes** without re-deploying scope definitions
-- **Cross-system attribute aggregation** — the PIP can consult HR systems, risk engines, and tool registries in a single decision
+This model reduces scope explosion and allows current attributes from multiple systems to influence the grant. It still requires registered authorization-detail types, trusted attribute provenance, bounded cache freshness, deterministic degraded-mode behavior, and an AS–RS enforcement contract.
 
-#### 19.4 RAR Agent Extensions: `policy_context` and `lifecycle_binding` (IETF Draft)
+#### 19.4 RAR Agent Extensions: Monitor, Not Baseline
 
-The active individual Internet-Draft [`draft-chen-oauth-rar-agent-extensions-01`](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) (updated April 2026) extends `authorization_details` with members designed for AI agent ecosystems. It has no IETF working-group adoption or other formal standing, so this chapter treats it as a forward-looking design signal rather than a standards-track requirement. The two members most relevant to MCP solve problems that traditional scopes and even base RAR cannot address:
+The individual Internet-Draft [`draft-chen-oauth-rar-agent-extensions-01`](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) proposes `policy_context` and `lifecycle_binding` members for agent-oriented authorization details. As of 2026-07-24 it has no IETF working-group adoption or other formal standing. Treat the vocabulary as a design signal to monitor, not a production requirement, interoperability target, or extension that an AS/RS can safely accept without a private profile.
 
-1. **`policy_context`** — Tells the AS *which policy rules* to apply when evaluating the request (assurance level, compliance frameworks). Without this, the AS must guess which policies apply.
-2. **`lifecycle_binding`** — Ties the token's validity to the lifecycle of an external entity (e.g., a task). When the task completes/fails/cancels, the token is automatically revoked.
+| Proposal signal | Potential use | Missing contract that a deployment must define |
+|:----------------|:--------------|:-----------------------------------------------|
+| `policy_context` | Carry a requested assurance or policy hint | Who may assert the hint, the registered vocabulary and version, whether it can only strengthen policy, how the AS maps it to real rules, and how the granted result reaches the RS |
+| `lifecycle_binding` | Refer to an external task or other lifecycle | Authoritative task identity, ownership, authenticated change events, ordering and replay, stale-event handling, token/authority termination latency, cancellation completion, and failure recovery |
 
-##### 19.4.1 End-to-End Flow: Token Exchange with RAR Agent Extensions
+An untrusted client cannot select its own compliance outcome by naming a framework or assurance label. The AS must derive policy from trusted client, subject, actor, resource, risk, and registry data and may treat a client-supplied value only as a request for equal or stronger controls. Likewise, a lifecycle reference does not automatically revoke a self-contained token or cancel already dispatched work.
 
-The following diagram shows a gateway-mediated MCP flow where the gateway performs RFC 8693 token exchange with `authorization_details` containing both `policy_context` and `lifecycle_binding`:
+Any local experiment must use a collision-resistant private `type`, version the schema and comparison rules, register the supported type through RFC 9396 metadata, and apply the complete asynchronous reliability contract in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract). The minimal composition is:
 
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Agent as 🤖 MCP Client<br/>(AI Agent)
-    participant GW as 🛡️ Gateway
-    participant AS as 🔑 Authorization Server
-    participant PDP as 🧠 Policy Decision Point
-    participant PIP as 🗄️ Policy Information Point<br/>(Dynamic Lookup)
-    participant User as 👤 End User
-    participant MCP as 🔧 MCP Server
-    participant Task as 📋 Task Service
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Tool Call & Token Exchange Request
-    Agent->>GW: POST /mcp tools/call: process_patient_data<br/>Authorization: Bearer {user-token}
-    GW->>AS: Token Exchange Request
-    Note right of GW: POST /token<br/><br/>grant_type=urn:ietf:params:oauth:grant-type:token-exchange<br/>subject_token={user-token}<br/>authorization_details=[{<br/>⠀⠀"type": "mcp_tool_invocation",<br/>⠀⠀"tool": "process_patient_data",<br/>⠀⠀"policy_context": {<br/>⠀⠀⠀⠀"assurance_level": "hipaa_phi_access",<br/>⠀⠀⠀⠀"compliance_frameworks": ["hipaa", "gdpr"]<br/>⠀⠀},<br/>⠀⠀"lifecycle_binding": {<br/>⠀⠀⠀⠀"type": "task_status_webhook",<br/>⠀⠀⠀⠀"task_id": "analysis-job-1138"<br/>⠀⠀}<br/>}]
-    Note right of Task: ⠀
-    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of AS: Phase 2: Dynamic Policy Evaluation
-    AS->>PDP: Evaluate policy_context
-    PDP->>PIP: Query attributes
-    Note right of PDP: Query: user HIPAA clearance?<br/>Agent trust level?<br/>Tool risk classification?
-    PIP-->>PDP: user: HIPAA-cleared ✅<br/>agent: verified ✅<br/>tool: PHI-access (critical)
-    PDP->>PDP: Cross-validate policy context<br/>PHI tool requires hipaa_phi_access ✅
-    PDP-->>AS: PERMIT + obligation:<br/>audit all access
-    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of AS: Phase 3: Human Oversight & Lifecycle Binding
-    AS->>User: "Agent wants to process patient data<br/>under HIPAA + GDPR compliance<br/>for job analysis-job-1138"
-    User->>AS: Approve
-    AS->>Task: Register webhook for task analysis-job-1138
-    AS->>AS: Store token mapping<br/>Link jti → task_id in revocation store
-    Note right of Task: ⠀
-    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of AS: Phase 4: Token Issuance & Authorized Execution
-    AS-->>GW: Enriched access token
-    Note right of AS: Token contains authorization_details claim<br/>(includes validated policy_context<br/>+ lifecycle_binding)
-    GW->>MCP: Forward tool call with enriched token
-    MCP-->>Agent: Result
-    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(231, 76, 60, 0.14)
-    Note right of Task: Phase 5: Automated Lifecycle Revocation
-    Task->>AS: Webhook: analysis-job-1138 → COMPLETED
-    AS->>AS: Execute revocation<br/>Revoke token (jti)<br/>Any further use of<br/>this token is rejected
-    Note right of Task: ⠀
-    Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. AI Agent sends a tool call request to the Gateway</strong></summary>
-
-The agent invokes `POST /mcp tools/call: process_patient_data`, passing a standard user-delegated Bearer token. Because dealing with PHI involves stringent HIPAA constraints, simple authentication is insufficient. The Gateway must initiate an authorization elevation cycle. A missing or fundamentally invalid bearer token structurally triggers a `401 Unauthorized` drop at the ingress.
-
-```http
-POST /mcp/tools/call/process_patient_data HTTP/1.1
-Host: gateway.internal.corp
-Authorization: Bearer eyJhbGci...
-Content-Type: application/json
-
-{ "patient_id": "PT-94829" }
-```
-
-</details>
-<details>
-<summary><strong>2. Gateway constructs a Token Exchange Request with RAR Agent Extensions</strong></summary>
-
-The Gateway intercepts the call and crafts an RFC 8693 Token Exchange request, substituting the standard scope field with advanced `authorization_details` based on the individual Internet-Draft `draft-chen-oauth-rar-agent-extensions-01`. **Artifact Produced:** Token Exchange Request (RAR Extension Payload).
-
-```http
-POST /token HTTP/1.1
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=eyJhbGci...
-&authorization_details=[{
-  "type": "mcp_tool_invocation",
-  "tool": "process_patient_data",
-  "policy_context": {
-    "assurance_level": "hipaa_phi_access",
-    "compliance_frameworks": ["hipaa", "gdpr"]
-  },
-  "lifecycle_binding": {
-    "type": "task_status_webhook",
-    "task_id": "analysis-job-1138"
-  }
-}]
-```
-
-</details>
-<details>
-<summary><strong>3. Authorization Server routes the policy_context to the PDP</strong></summary>
-
-The Authorization Server extracts the `policy_context` payload. Rather than making a static scope-matching decision, it delegates the complex regulatory alignment (HIPAA + GDPR constraints for a high-assurance tool) to the specialized Policy Decision Point.
-
-</details>
-<details>
-<summary><strong>4. Policy Decision Point queries the Policy Information Point for user, agent, and tool attributes</strong></summary>
-
-The PDP dispatches a query vector to the Policy Information Point (PIP), requesting the real-time operational status for the three critical entities in this transaction: the User's HR clearance, the AI Agent's trust score, and the Target Tool's data classification.
-
-</details>
-<details>
-<summary><strong>5. Policy Information Point returns the queried attributes confirming eligibility</strong></summary>
-
-The PIP queries external databases and returns the unified state: the human user retains active HIPAA clearance, the AI Agent's cryptographic signature maps to a verified internal identity, and the tool is indeed flagged as a critical PHI vector. All prerequisite tests pass.
-
-</details>
-<details>
-<summary><strong>6. Policy Decision Point cross-validates the policy_context against the tool's requirements</strong></summary>
-
-The PDP executes a bidirectional security check. It confirms that the `policy_context` supplied by the Gateway (`hipaa_phi_access`) meets or exceeds the minimum baseline demanded by the tool registry. This mechanism fundamentally prevents downgrade attacks where compromised agents attempt to request lower-assurance oversight for high-risk operations.
-
-</details>
-<details>
-<summary><strong>7. Policy Decision Point returns PERMIT with an audit obligation to the Authorization Server</strong></summary>
-
-The PDP finalizes the assessment and issues a strictly conditional permit. The AS is instructed that it may only proceed if it strictly satisfies the attached XACML obligation: every access utilizing this token must be permanently flushed to the immutable HIPPA audit ledger.
-
-</details>
-<details>
-<summary><strong>8. Authorization Server presents the consent prompt to the End User</strong></summary>
-
-Detecting the `hipaa_phi_access` assurance requirement, the AS initiates an out-of-band communication directly with the human end user, displaying a dynamically generated, contextually-rich prompt.
-
-> ⚠️ **Authorization Required**
-> AI Agent is requesting to execute `process_patient_data`
-> **Task**: analysis-job-1138
-> **Compliance**: HIPAA, GDPR constraints apply.
-
-</details>
-<details>
-<summary><strong>9. End User approves the compliance-governed operation</strong></summary>
-
-The human user acknowledges the constraints and digitally signs establishing consent. Because this approval structure is inextricably bound to the explicit `policy_context`, it natively satisfies the strenuous non-repudiability requirements of GDPR Article 7(1) demonstrability. The Gateway logs this explicit Article 14(4)(a) compliance interaction directly into the immutable SIEM audit ledger. **Artifact Produced:** Immutable SIEM Consent Audit Log.
-
-</details>
-<details>
-<summary><strong>10. Authorization Server registers a lifecycle webhook with the Task Service</strong></summary>
-
-Addressing the `lifecycle_binding` parameter, the AS reaches out to the external orchestrator (Task Service) and registers an HTTPS webhook callback, subscribing directly to the `analysis-job-1138` execution state.
-
-</details>
-<details>
-<summary><strong>11. Authorization Server stores the token-to-task mapping in the revocation store</strong></summary>
-
-Internally, the AS updates its distributed memory ledger, creating a strict relational mapping between the newly generated JWT token ID (`jti`) and the task identifier (`analysis-job-1138`).
-
-</details>
-<details>
-<summary><strong>12. Authorization Server issues the enriched access token to the Gateway</strong></summary>
-
-The AS completes the Token Exchange, provisioning a highly specialized, context-aware Access Token back to the Gateway. This token serves as a portable proof not just of identity, but of the entire successful regulatory validation cascade. **Artifact Produced:** Enriched Access Token with RAR and bounds.
-
-```json
-{
-  "access_token": "eyJ...",
-  "authorization_details": [
-    {
-      "type": "mcp_tool_invocation",
-      "tool": "process_patient_data",
-      "policy_context": { "assurance_level": "hipaa_phi_access" }
-    }
-  ]
-}
-```
-
-</details>
-<details>
-<summary><strong>13. Gateway forwards the tool call with the enriched token to the MCP Server</strong></summary>
-
-The Gateway logs the audit record (fulfilling the PDP's obligation) and proxies the HTTP payload onward. The terminating MCP Server natively reads the `authorization_details` from the token and verifies the `hipaa_phi_access` claim without needing to recursively query the AS. If the token lacks this precise claim, the MCP server enforces a terminal `403 Forbidden` drop.
-
-</details>
-<details>
-<summary><strong>14. MCP Server returns the processing result to the AI Agent</strong></summary>
-
-The action is executed against the PHI database and the results stream backward through the Gateway to the AI Agent. The operational pipeline has successfully threaded a fully verified, human-in-the-loop compliance audit through an autonomous execution vector.
-
-</details>
-<details>
-<summary><strong>15. Task Service notifies the AS via webhook that the task completed</strong></summary>
-
-Hours later, the orchestrator notes that `analysis-job-1138` has successfully finished. It fires the registered webhook to the AS endpoint.
-
-```http
-POST /webhooks/lifecycle HTTP/1.1
-Content-Type: application/json
-
-{
-  "task_id": "analysis-job-1138",
-  "status": "COMPLETED"
-}
-```
-
-</details>
-<details>
-<summary><strong>16. Authorization Server automatically revokes the task-bound token</strong></summary>
-
-The AS receives the external closure event, looks up the corresponding `jti` in its internal cache, and instantly revokes the credentials. The AI Agent's access is cryptographically severed precisely when its logical task ends, eliminating the dangerous drift inherent to hard-coded chronological token TTLs. **Artifact Destroyed:** Task-Bound Enriched Access Token.
-
-</details>
-
-##### 19.4.2 The Authorization Request
-
-The gateway constructs the `authorization_details` array with the two new members:
-
-```json
-[
-  {
-    "type": "mcp_tool_invocation",
-    "tool": "process_patient_data",
-    "mcp_server": "https://mcp.healthcare.example.com",
-    "actions": ["execute", "monitor_progress"],
-
-    "policy_context": {
-      "assurance_level": "hipaa_phi_access",
-      "compliance_frameworks": ["hipaa", "gdpr"]
-    },
-
-    "lifecycle_binding": {
-      "type": "task_status_webhook",
-      "task_id": "analysis-job-1138",
-      "termination_states": ["COMPLETED", "FAILED_VALIDATION", "CANCELLED"]
-    }
-  }
-]
-```
-
-| Member | Purpose | AS Processing |
-|:---|:---|:---|
-| `policy_context.assurance_level` | Selects which policy ruleset the AS applies | AS MUST validate against `policy_assurance_levels_supported` metadata. Drives step-up auth requirements (e.g., HIPAA → MFA required). |
-| `policy_context.compliance_frameworks` | Declares which regulatory frameworks apply | AS cross-validates: a `payment_transaction` type MUST request `financial_grade_v1` or higher. Displayed in consent screen. |
-| `lifecycle_binding.type` | How the AS monitors the external entity | `task_status_webhook` = task service notifies AS via webhook when task enters terminal state |
-| `lifecycle_binding.task_id` | External entity identifier | AS links `jti` (token ID) → `task_id` in its revocation store |
-| `lifecycle_binding.termination_states` | Which states trigger revocation | `["COMPLETED", "FAILED_VALIDATION", "CANCELLED"]` — any of these → immediate token revocation |
-
-##### 19.4.3 The Resulting Access Token
-
-If approved, the AS issues a JWT access token with the validated `authorization_details` embedded. The resource server (MCP server or gateway) can then enforce policy locally:
-
-```json
-{
-  "iss": "https://auth.healthcare.example.com",
-  "sub": "user-dr-smith-456",
-  "aud": "https://mcp.healthcare.example.com",
-  "exp": 1741510800,
-  "iat": 1741507200,
-  "jti": "tok-a1b2c3d4-e5f6",
-
-  "act": {
-    "sub": "agent-medical-analyst",
-    "client_id": "mcp-client-health-app"
-  },
-
-  "authorization_details": [
-    {
-      "type": "mcp_tool_invocation",
-      "tool": "process_patient_data",
-      "actions": ["execute", "monitor_progress"],
-
-      "policy_context": {
-        "assurance_level": "hipaa_phi_access",
-        "compliance_frameworks": ["hipaa", "gdpr"]
-      },
-
-      "lifecycle_binding": {
-        "type": "task_status_webhook",
-        "task_id": "analysis-job-1138",
-        "termination_states": ["COMPLETED", "FAILED_VALIDATION", "CANCELLED"]
-      }
-    }
-  ]
-}
-```
-
-The MCP server (or gateway) receiving this token can:
-1. **Verify `policy_context.assurance_level`** matches its own requirements — reject if the MCP server requires a higher assurance than what the token was issued under
-2. **Verify `lifecycle_binding`** — the RS MUST NOT rely solely on `exp` for validation; it MUST use token introspection (RFC 7662) or subscribe to AS revocation feeds to check real-time revocation status
-3. **Log the full `authorization_details`** for audit — providing detailed evidence of *exactly what was authorized, under which policy, for which task*
-
-##### 19.4.4 AS Metadata Extensions
-
-The draft adds two new metadata parameters to RFC 8414 AS metadata, enabling client discovery:
-
-```json
-{
-  "issuer": "https://auth.healthcare.example.com",
-  "authorization_endpoint": "https://auth.healthcare.example.com/authorize",
-  "token_endpoint": "https://auth.healthcare.example.com/token",
-
-  "policy_assurance_levels_supported": [
-    {
-      "level": "standard_v1",
-      "description": "Standard assurance — email verification + password"
-    },
-    {
-      "level": "financial_grade_v1",
-      "description": "Financial-grade — MFA + device binding required",
-      "uri": "https://docs.example.com/policies/financial-grade"
-    },
-    {
-      "level": "hipaa_phi_access",
-      "description": "HIPAA PHI access — MFA + HIPAA training verification + audit logging",
-      "uri": "https://docs.example.com/policies/hipaa-phi"
-    }
-  ],
-
-  "policy_compliance_frameworks_supported": [
-    "hipaa", "gdpr", "pci-dss", "iso27001", "soc2"
-  ]
-}
-```
-
-> **Connection to [§19.3](#193-dynamic-authorization-lookup-via-pip) (PIP):** The `policy_context` member is the *request-side* complement to the PIP pattern. The client declares *which policy* should apply; the PDP uses the PIP to *dynamically evaluate* that policy against real-time attributes. Together, they enable: _"Evaluate this tool call under HIPAA rules, checking the user's current HIPAA clearance, the agent's trust level, and the tool's risk classification — all at decision time."_
-
-> **Connection to [§10.3](#103-authorization-continuity-patterns) (Authorization Continuity):** The `lifecycle_binding` member formalizes Pattern C ("Bounded Task Token") from [§10.3](#103-authorization-continuity-patterns) as a protocol-level mechanism. Instead of relying on arbitrary token expiry to approximate task duration, the token is *structurally bound* to the task and revoked when the task ends—regardless of `exp`.
+1. authenticate and authorize the client before accepting the experimental detail;
+2. resolve the referenced task under an authoritative issuer/tenant and bind the canonical request digest;
+3. evaluate policy and record the **granted** detail separately from the request;
+4. convey the granted detail to the RS through a defined JWT/introspection contract;
+5. authenticate, order, deduplicate, and persist lifecycle events before changing authority; and
+6. deny unconsumed work immediately on terminal state while separately cancelling or compensating already dispatched work.
 
 #### 19.5 When to Use Scopes vs. RAR
 
 | Scenario | Recommended | Rationale |
 |:---|:---|:---|
 | Simple tool access (read/write) | **Scopes** | Low complexity, well-understood |
-| Parameterized operations (amounts, recipients) | **RAR** | Need structured constraints |
-| Dynamic entitlements (user's plan, geo-restrictions) | **RAR + PIP** | Entitlements aren't static scope strings |
-| Regulatory audit ("what exactly was consented?") | **RAR** | Consent is recorded as structured data |
+| Parameterized operations (amounts, recipients) | **Registered RAR type** | The AS and RS need a versioned schema and comparison semantics for structured constraints |
+| Dynamic entitlements (user's plan, geo-restrictions) | **Scopes or RAR + PDP/PIP** | Request shape and live entitlement lookup are independent choices |
+| Evidence of what was requested, granted, and executed | **RAR + typed decision/evidence records** | RAR supplies structured data; the evidence system must preserve the distinct request, grant, display, and execution artifacts |
 | Existing scope-based API integration | **Scopes** | Existing APIs already use scope-based authorization |
-| Mixed (broad access + specific constraints) | **Both** | `scope` for broad category, `authorization_details` for specifics |
-| HIPAA/PCI-DSS/GDPR-regulated operations | **RAR + `policy_context`** | Compliance framework declared in request, validated by AS, recorded in token |
-| Task-scoped authorization (auto-revoke) | **RAR + `lifecycle_binding`** | Token lifecycle tied to external task, not arbitrary `exp` |
+| Mixed independent requirements | **Both, when the API profile defines their combination** | RFC 9396 permits both and requires the AS to process and present the merged requirements; prefer one form per API where practical |
+| Regulated operation | **Published OAuth controls + registered RAR profile + governed approval/evidence policy** | A client-supplied compliance label does not establish legal or control compliance |
+| Task-scoped authorization | **Durable authority record + short-lived token/handle projection ([§17](#17-authorization-across-mcp-primitives-and-durable-state))** | Terminate authority at the PEP and separately revoke projections; monitor `lifecycle_binding` but do not depend on the individual draft |
 
-> **Implementation boundary (July 2026):** The MCP specification uses OAuth 2.1 scopes, RFC 9728, and RFC 8707; it does not reference RFC 9396 or define an `authorization_details` profile for tool calls. The individual `draft-chen-oauth-rar-agent-extensions-01` proposal adds `policy_context` and `lifecycle_binding`, while RFC 9728 provides a metadata location for advertising supported authorization-detail types. Because the proposal has no formal IETF standing, [§19.2](#192-rar-for-mcp-tool-invocations)–[§19.4](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft) describes a **plausible local composition**, not current MCP practice or an emerging requirement. Gateway-product support is revalidated separately in Appendices A–M.
-
-The urgency of this gap is underscored by industry data: a 2026 Cloud Security Alliance and Oasis Security survey found that **78% of organizations lack formal policies for creating or removing AI identities**, and **92% are not confident their existing IAM platforms can handle AI agents**. This readiness gap — between what agents require (per-action authorization, delegated entitlements, lifecycle governance) and what most IAM platforms deliver (static credentials, human-centric sessions, manual provisioning) — is the primary driver behind the vendor convergence documented in [§21](#21-product-implementation-landscape).
+> **Implementation boundary (verified 2026-07-24):** The current MCP authorization contract uses OAuth scopes, RFC 9728, and RFC 8707; it does not define an RFC 9396 `authorization_details` type for tool calls. §19.2 is therefore a local design example, while [§19.4](#194-rar-agent-extensions-monitor-not-baseline) is monitor-stage material with no formal IETF standing. Neither is current MCP practice or an interoperability requirement.
 
 ---
 
@@ -16159,7 +15843,7 @@ The decision labels in this chapter have precise meanings:
 | **Profile** | A working-group draft, or a stable standard without an MCP-specific composition, is usable only under a documented deployment profile. | Pin the revision and claim/method set; define trust, downgrade, change-control, and interoperability boundaries. |
 | **Monitor** | An individual draft, research proposal, or early community design is evidence of direction, not a production trust root. | Keep it out of required wire behavior; use it for vocabulary, threat analysis, and future extension points. |
 
-| Problem | Artifact | Institutional state on July 23, 2026 | Decision | Architectural use |
+| Problem | Artifact | Institutional state on July 24, 2026 | Decision | Architectural use |
 |:--|:--|:--|:--:|:--|
 | Fine-grained authorization | RFC 9396 Rich Authorization Requests | Published RFC | **Use** | Express typed, parameterized authorization requests where scopes are too coarse ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)). |
 | Delegation and attenuation | RFC 8693 OAuth Token Exchange | Published RFC | **Use** | Exchange an existing token for a narrower audience/scope; define the local `sub`/`act` policy explicitly. |
@@ -16169,8 +15853,9 @@ The decision labels in this chapter have precise meanings:
 | Organizational trust | OpenID Federation 1.1 | OpenID Final Specification, approved May 6, 2026 | **Use** | Establish issuer/client trust chains; combine with a separate runtime delegation and access-token profile. |
 | Attestation evidence | RFC 9711 Entity Attestation Token | Published RFC | **Use** | Carry signed entity and posture evidence; policy decides which attesters and claims are authoritative. |
 | Continuous access | CAEP / Shared Signals Framework | OpenID Final Specifications | **Use** | Communicate risk, credential, and session/subject events to shorten stale-authority windows. |
-| Cross-domain delegation | OAuth Identity and Authorization Chaining Across Domains | OAuth WG document, submitted for publication and in the RFC Editor queue | **Profile** | Carry identity and authorization context into a foreign-domain token issuance step ([§20.4](#204-delegation-and-identity-chains)). |
-| Trust-domain propagation | OAuth Transaction Tokens | OAuth WG document in Working Group Last Call | **Profile** | Replace external credentials with short-lived transaction credentials inside a service graph ([§20.3](#203-transaction-scoped-credentials)). |
+| CAEP implementation interoperability | [CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) | OpenID Shared Signals WG Standards Track draft, published July 21, 2026 | **Profile** | Pin the profile when interoperating SSF Transmitters and Receivers; apply its endpoint and OAuth requirements, then retain §17's object/task/stream authorization rules. |
+| Cross-domain delegation | [OAuth Identity and Authorization Chaining Across Domains draft 17](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) | OAuth WG document; submitted for publication and in the RFC Editor queue | **Profile** | Carry identity and authorization context into a foreign-domain token issuance step ([§20.4](#204-delegation-and-identity-chains)); do not call it an RFC until publication. |
+| Trust-domain propagation | [OAuth Transaction Tokens draft 09](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) | OAuth WG document in Working Group Last Call | **Profile** | Replace external credentials with short-lived transaction credentials inside a service graph ([§20.3](#203-transaction-scoped-credentials)). |
 | Workload client authentication | OAuth SPIFFE Client Authentication | Active OAuth WG document | **Profile** | Authenticate an OAuth client with a verified SVID; it does not itself create delegation or application authority ([§20.5](#205-sender-audience-and-workload-constraints)). |
 | Workload identity | WIMSE architecture, identifiers, credentials, proof, HTTP-signature, mTLS, and practices documents | Active WIMSE WG document set; documents mature independently | **Profile** | Establish workload identity and proof across heterogeneous runtimes; application authorization remains separate. |
 | Verified human authority | OpenID Authority Claims | OIDF eKYC & IDA WG Draft, May 25, 2026 snapshot | **Profile** | Carry verified authority for a natural person; software-agent use is a local mapping ([§20.6](#206-policy-evidence-and-verified-authority)). |
@@ -16226,7 +15911,7 @@ For every fine-grained profile, record:
 
 #### 20.3 Transaction-Scoped Credentials
 
-OAuth Transaction Tokens address a different problem from user consent or initial token issuance: an external endpoint has already authenticated an external credential and now needs a short-lived, internally verifiable credential for a bounded service-graph transaction. The base OAuth WG draft is in Working Group Last Call. The agent extension remains an individual proposal and must not be confused with the base document’s maturity.
+OAuth Transaction Tokens address a different problem from user consent or initial token issuance: an external endpoint has already authenticated an external credential and now needs a short-lived, internally verifiable credential for a bounded service-graph transaction. Revision 09 of the base OAuth WG draft is in Working Group Last Call as of 2026-07-24. The agent extension remains an individual proposal and must not be confused with the base document’s maturity.
 
 | Layer | Artifact | Stable conclusion | Status-dependent material |
 |:--|:--|:--|:--|
@@ -16353,6 +16038,8 @@ Delegation requires three different relationships that are often collapsed:
 
 No single current standard supplies all three.
 
+The base identity-chaining document reached revision 17 and the RFC Editor queue on 2026-07-22. That is advanced working-group maturity, not publication: production experiments still pin the draft revision, and the report will switch to an RFC citation only after the RFC Editor assigns one.
+
 | Need | Current or near-term mechanism | What it proves | What it does not prove |
 |:--|:--|:--|:--|
 | Organizational issuer/client trust | OpenID Federation 1.1 Final | A trust chain and policy for federation entities and metadata. | Runtime delegated authority for a tool call. |
@@ -16415,6 +16102,8 @@ Authorization evidence is useful only when its issuer, semantics, freshness, and
 | Federation metadata | OpenID Federation 1.1 Final | Resolve signed metadata and trust chains under local trust-anchor policy. | A valid chain does not grant an MCP operation. |
 | Verified human authority | OpenID Authority Claims WG Draft | Represent a verified natural person’s authority and grantor relationship. | Agent mapping is non-normative; pin the WG draft if used. |
 | Continuous risk and access events | CAEP / Shared Signals Framework | Revoke, narrow, or re-evaluate authority after credential, risk, or subject changes. | Define event trust, delivery, replay, ordering, and fail-closed windows. |
+| SSF/CAEP interoperability profile | [CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) | Profile transmitter/receiver endpoints, OAuth authorization, and core CAEP session use cases. | Working-group draft; pin the revision, and do not infer MCP task, subscription, or handle semantics from session events. |
+| Authorization evidence proposal | [`draft-liu-oauth-authorization-evidence-01`](https://datatracker.ietf.org/doc/draft-liu-oauth-authorization-evidence/) | Monitor a proposed AS-signed `evidence` record and `audit_trail` reference vocabulary. | Individual draft with no formal IETF standing; the RS trusts the AS's account of what was displayed, sensitive display content can enlarge tokens/logs, and the proposal does not prove execution binding. |
 | Entity classification | `draft-mora-oauth-entity-profiles-01` | Experimentally classify client, subject, or actor as an `ai_agent` under issuer policy. | Individual draft; classification neither proves delegation nor grants access. |
 | Execution lineage | Transaction Tokens for Agents and WIMSE Execution Context Token proposals | Explore immutable origin plus changing actor/hop evidence for distributed audit. | Individual proposals; private chain fields are not cross-vendor standards. |
 | Local authorization decision | Policy engine and [§17](#17-authorization-across-mcp-primitives-and-durable-state) authority record | Record subject/client, tenant, resource, primitive, handle, policy version, obligations, outcome, and decision ID. | Avoid sensitive argument/result logging; decision evidence must remain correlatable and privacy-bounded. |
@@ -16431,6 +16120,8 @@ A verifier should process evidence in this order:
 The OpenID Authority Claims draft illustrates the normative boundary. Its current scope is verified authority held by a natural person. A deployment may study its `authority` structure when designing agent provenance, but must label that mapping as local and must not claim OIDF interoperability for software-agent delegation.
 
 The same restraint applies to Entity Profiles. `client_profile` and `sub_profile` can be useful classification inputs if an issuer assigns them from trusted registration or attestation evidence. They do not create delegation, and a resource server must inspect actor context separately rather than treating the top-level profile as a complete description of the active actor.
+
+The authorization-evidence proposal is similarly informative but not authoritative. Its most useful signal is the need to correlate a displayed-content record with later authorization and audit state. Its trust model remains AS-centric: an AS signature proves what the AS asserts, not independently what the person perceived or what the RS executed. The typed, privacy-bounded evidence record in [§14.7](#147-approval-grant-and-consent-persistence-architecture) and the request/display/grant/execution bindings in [§14.0.1](#1401-three-bindings-from-request-to-execution) remain the production architecture.
 
 #### 20.7 Web Bot Authentication
 
@@ -16519,19 +16210,26 @@ The architecture decision is therefore compositional: select the required contro
 
 | Offering | Primary Role in This Study | Adjacent Role | Current Lifecycle Evidence (23 July 2026) | Highest Explicit Core Evidence |
 |:--|:--|:--|:--|:--|
-| **Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive))** | Gateway/runtime | Azure API Center discovery | Portal-managed MCP capability available; programmatic resource management uses `2025-09-01-preview` | Exact dated revision not published |
+| **Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive))** | Gateway/runtime | Azure API Center discovery; Entra Agent ID identity/lifecycle | Portal-managed MCP capability available; programmatic resource management uses `2025-09-01-preview`; adjacent Entra Agent ID platform GA | Exact dated revision not published |
 | **PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive))** | Gateway/runtime | Ping IdP/AS and risk services | Identity for AI GA; MCP interface stability **Evolving** | `2025-06-18` and `2025-11-25` |
 | **Kong ([§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway))** | Gateway/runtime | Konnect registry/discovery | Licensed MCP plugins production; Registry Technology Preview; AI Gateway 2.0 private beta | Client `2025-06-18`; upstream `2025-06-18` / `2025-11-25` |
 | **TrueFoundry ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane))** | Gateway/runtime and control plane | Registry/discovery | Current enterprise product documentation; v0.130 transport-transparency change | Exact dated revision not published |
 | **AgentGateway ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a))** | Gateway/runtime | Developer portal/discovery | v1.1.0 stable; later 1.2/1.3 artifacts excluded as prerelease | `2025-06-18` metadata examples |
 | **ContextForge ([§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails))** | Gateway/runtime | Registry and virtualization | v1.0.6 current post-GA release | Exact dated revision not published |
-| **WSO2 Identity Platform ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization))** | IdP/AS | Organization-level MCP resource registry | Current Identity Server 7.2 / Identity Platform capability | Exact dated revision not published |
-| **Auth0 / Okta ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform))** | IdP/AS | Okta administrative MCP server | Auth for MCP GA; Token Vault Early Access; XAA Beta; Okta MCP server GA | Exact dated revision not published |
+| **WSO2 Identity Platform ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization))** | IdP/AS | Organization-level MCP resource registry | Current Identity Server 7.3 / Identity Platform capability | Exact dated revision not published |
+| **Auth0 / Okta ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform))** | IdP/AS | Okta administrative MCP server; Agent Gateway research release/beta | Auth for MCP GA; Token Vault Early Access; XAA Beta; Okta MCP server GA; Agent Gateway limited beta | Exact dated revision not published |
 | **Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation))** | Gateway/runtime | — | MCP capability GA from v3.19+ | Exact dated revision not published |
 | **Docker MCP ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary))** | Host/runtime boundary | Catalog and curation | Catalog/Toolkit Beta; AI Governance invite-only; Dynamic MCP experimental | Exact dated revision not published |
 | **Cloudflare ([§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust))** | Host/server runtime and edge gateway | OAuth facade / remote client | Current Workers and Agents paths; stateful `McpAgent` supports Elicitation | Exact dated revision not published |
 | **Red Hat MCP Gateway ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))** | Gateway/runtime | CRD-based registration | Connectivity Link 1.4.1 / MCP Gateway 0.6.0 **Technology Preview** | `2025-11-25` response |
 | **LiteLLM ([§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway))** | Egress gateway/runtime | Configured server registry | v1.93.0 stable; v1.94 RC and v1.95 development excluded | Gateway `2025-11-25`; documented per-server default `2025-06-18` |
+
+Two newly verified signals affect specific pipeline stages rather than the whole product comparison:
+
+| Signal and evidence date | Pipeline stage it strengthens | What it does not establish |
+|:-------------------------|:------------------------------|:---------------------------|
+| **[Okta Agent Gateway](https://www.okta.com/en-sg/blog/product-innovation/agent-gateway-runtime-governance/)** — select-customer beta/research release, 23 July 2026 | Runtime credential brokerage and execution enforcement: short-lived isolated credentials, human/agent attribution, XAA for Okta-enabled resources, and “brokered consent” through Okta STS for external systems | A standardized approval record, CIBA/RAR composition, exact operation binding, or production maturity; Okta positions the service as complementary to existing MCP/API gateways |
+| **[Microsoft Entra Agent ID](https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id)** — platform GA, verified 24 July 2026 | Identity and lifecycle: blueprints, distinct agent identities, owners/sponsors, access packages, lifecycle workflows, disable/delete controls, Conditional Access, and risk policy | OIDC CIBA, RFC 9396 RAR, or proof that lifecycle governance authorizes a particular tool invocation |
 
 #### 21.2 Control-Plane Boundaries
 
@@ -16781,15 +16479,15 @@ For bank workflows, the AI client is also part of the governance surface when it
 
 #### 23.2 Article-by-Section Traceability Matrix
 
-This matrix maps each relevant EU AI Act article to the DR-0001 sections that implement or support its requirements.
+This matrix maps each relevant EU AI Act article to DR-0001 material that can support an implementation or evidence program. It assesses **report coverage**, not legal compliance by a product or deployment.
 
-| EU AI Act Article | Requirement Summary | DR-0001 Sections | Compliance Status | Notes |
+| EU AI Act Article | Requirement Summary | DR-0001 Sections | Report Coverage | Notes |
 |:---|:---|:---|:---|:---|
 | **Art. 9** — Risk Management | *\"establish, implement, document, and maintain a risk management system\"* | [§13](#13-gateway-mediated-mcp-architecture) (gateway architecture), [§16](#16-task-based-access-control-tbac) (TBAC and behavioral trust), [§17.8](#178-current-attack-surface-and-decision-evidence) (attack surface), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (authorization models) | ✅ Strong | Gateway and policy responsibilities implement runtime controls; the deployment still owns the full lifecycle risk-management system |
 | **Art. 10** — Data Governance | *\"data governance and management practices\"* for training/validation data | [§3.4](#34-scope-minimization-best-practices) (scope minimization), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (guardrails PII/DLP) | 🟡 Moderate | Focus is on access control, not data quality/bias |
 | **Art. 12** — Record-Keeping | *\"automatic recording of events (logs) over the lifetime\"* | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (`act` claim), [§5.4](#54-chained-delegation-multi-agent) (chained delegation) | ✅ Strong | Delegation and decision evidence support traceability when retention and completeness are enforced |
 | **Art. 13** — Transparency | *\"operation is sufficiently transparent to enable deployers to interpret the system's output\"* | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§9](#9-authorization-context-and-delegation-representation) (authorization context), [§8.2](#82-a2a-authentication-architecture) (Agent Card) | 🟡 Moderate | Agent identity metadata supports transparency; deployer documentation remains a separate obligation |
-| **Art. 14** — Human Oversight | *\"allow for effective human oversight by natural persons\"* | [§14](#14-user-consent-models-first-party-vs-third-party) (consent), [§15](#15-human-oversight-architecture) (7-tier HitL taxonomy), [§15.5](#155-tier-5-ciba-protocol) (CIBA), §15.7 (adaptive oversight) | ✅ Strong | The action consequence and governed policy select the oversight control |
+| **Art. 14** — Human Oversight | *\"allow for effective human oversight by natural persons\"* | [§14](#14-authorization-approval-and-consent-models) (authorization/approval evidence), [§15](#15-human-oversight-architecture) (7-tier interaction taxonomy), [§15.5](#155-tier-5-ciba-protocol) (CIBA), §15.7 (adaptive oversight) | ✅ Strong | The report covers selection and evidence patterns; the high-risk system still needs competent/authorized humans, appropriate information, intervention/reversal controls, and verified operation binding |
 | **Art. 15** — Cybersecurity | *\"resilient against unauthorized third-party attempts to alter their use, outputs, or performance\"* | [§1](#1-current-mcp-authorization-and-protocol-baseline) (RFC 8707/9728), §2 (Streamable HTTP), [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker), [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (guardrails) | ✅ Strong | Token binding, container isolation, edge security, prompt injection detection |
 | **Art. 26** — Deployer Obligations | *\"retain automatically generated logs for at least six months\"* | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (retention) | ✅ Strong | Six-month minimum retention is specified in [§23.4](#234-art-12-and-art-26-audit-trail-requirements); deployment still needs storage policy evidence |
 | **Art. 50** — Transparency (Certain AI) | Direct interaction disclosure, content marking, biometric/emotion notice, and deepfake/public-interest text disclosure | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§4.2](#42-why-delegation-is-the-default) (delegation), [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) (`ai_disclosure`) | 🟡 Pattern proposed | Gateway `ai_disclosure` addresses interaction disclosure; content-provenance standardization remains open |
@@ -16803,7 +16501,7 @@ The traceability matrix above answers "which architecture pattern helps satisfy 
 | **Art. 9** Risk management | Tool `riskLevel`, TBAC tier, policy decision, guardrail result | Tool registration record; risk classification approval; Cedar/OPA policy bundle version; guardrail decision trace | Deployer risk owner + gateway owner | Review at tool onboarding, material tool change, and incident postmortem | Can the deployer show why this tool was classified at this risk tier and which control reduced the risk? |
 | **Art. 12** Record-keeping | Gateway audit log and authorization decision trace | `trace_id`, `tool_call_id`, `sub`, `act` chain, scopes, policy match, outcome, timestamp, MCP server ID | Gateway operator / PEP owner | Retain for the system lifetime needed for traceability; coordinate with Art. 26 minimum | Can an auditor reconstruct who caused the action, which agent acted, and why the gateway permitted or denied it? |
 | **Art. 13** Transparency to deployers | Agent identity and tool metadata surfaced to operators | Agent profile, Agent Card / registry metadata, tool description, intended purpose, known limitation record | AI system provider + deployer documentation owner | Review on agent/model/tool version change | Can the deployer interpret the tool outcome and understand the agent/tool limitations before relying on it? |
-| **Art. 14** Human oversight | Oversight tier, CIBA/step-up workflow, approval/denial event | `auth_req_id`, approval actor, binding message, step-up result, timeout/denial reason, override/stop event | Deployer operations owner + IdP owner | Preserve with the action log; review high-risk approval policies at least per release or control change | Can a natural person intervene, approve, reverse, or stop the specific action class? |
+| **Art. 14** Human oversight | Oversight policy, interaction/approval workflow, intervention and reversal controls | Authority/evidence ID, eligible decision actor, exact rendered-content reference, canonical-action digest, achieved authentication context, decision/timeout, execution result, stop/override/reversal event | Deployer operations owner + system/IdP owners | Preserve under the applicable action/evidence retention policy; review on material system or control change | Can a competent and authorized person understand, intervene, override/reverse, and prevent use for the relevant action class? |
 | **Art. 15** Cybersecurity | Token validation, sender constraint, explicit-handle binding, isolation, guardrail enforcement | Token validation result, `aud`/issuer check, DPoP or mTLS proof, handle-ownership decision, container/edge policy log, prompt-injection decision | Gateway/security platform owner | Retain with security logs; review after CVE, policy change, or new gateway release | Can the operator prove the system resisted unauthorized alteration, replay, confused-deputy use, and prompt/tool abuse for this call? |
 | **Art. 26** Deployer logs | Deployer-controlled log retention | Retention policy, storage bucket/index configuration, legal hold setting, deletion/pseudonymization job evidence | Deployer compliance owner | At least **six months** for high-risk AI logs under deployer control | Can the deployer prove the automatically generated logs were retained and available for the required period? |
 | **Art. 50** AI disclosure and content provenance | Gateway-injected disclosure metadata, application rendering, and output-provenance pipeline where generated content is in scope | `ai_disclosure` object, response `_meta`, UI render event, outbound-message disclosure marker, content provenance ID where applicable | Gateway owner + application owner | Retain with the user/outbound interaction record; update when Art. 50 guidance or content-provenance standards change | Can the recipient or user see that the interaction/content was AI-mediated, and can the deployer prove the notice was generated? |
@@ -17134,7 +16832,7 @@ Art. 14(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-conten
 
 > *\"High-risk AI systems shall be designed and developed in such a way as to allow for effective human oversight by natural persons [...] proportionate to the risks, level of autonomy and context of use of the high-risk AI system.\"*
 
-The MCP architecture provides a **spectrum** of human oversight mechanisms, each satisfying Art. 14 at different risk levels:
+MCP deployments can compose a **spectrum** of human-oversight controls. The risk labels below are illustrative deployment policy, not classifications supplied by the AI Act, and no single mechanism proves Art. 14 compliance.
 
 ```mermaid
 ---
@@ -17147,30 +16845,30 @@ flowchart LR
     subgraph Oversight["`**Human Oversight Spectrum (Art. 14)**`"]
         direction LR
         A["`**Admin Policy**
-        (§14:&nbsp;implicit&nbsp;consent)
+        (§14:&nbsp;enterprise&nbsp;policy)
         ──────────
         Risk:&nbsp;Low
-        Art.&nbsp;14&nbsp;via&nbsp;admin`"] --> B
-        B["`**One-Time Consent**
-        (§14:&nbsp;explicit&nbsp;consent)
+        Pre-authorized&nbsp;use`"] --> B
+        B["`**One-Time User Authorization**
+        (§14:&nbsp;delegated&nbsp;grant)
         ──────────
         Risk:&nbsp;Medium
-        Art.&nbsp;14&nbsp;at&nbsp;first&nbsp;use`"] --> C
-        C["`**Incremental Consent**
-        (§14:&nbsp;incremental)
+        First-use&nbsp;decision`"] --> C
+        C["`**Incremental Authorization**
+        (§14:&nbsp;incremental&nbsp;grant)
         ──────────
         Risk:&nbsp;Medium‑High
-        Art.&nbsp;14&nbsp;per&nbsp;scope`"] --> D
+        New-authority&nbsp;decision`"] --> D
         D["`**Step-Up Auth**
         (§15.7:&nbsp;adaptive&nbsp;step-up)
         ──────────
         Risk:&nbsp;High
-        Art.&nbsp;14(4)(a):&nbsp;override`"] --> E
+        Stronger/fresher&nbsp;authentication`"] --> E
         E["`**CIBA Approval**
         (§15:&nbsp;human‑in‑loop)
         ──────────
         Risk:&nbsp;Critical
-        Art.&nbsp;14(4)(d):&nbsp;intervene`"]
+        Out-of-band&nbsp;decision`"]
     end
 
     style A text-align:center
@@ -17181,15 +16879,15 @@ flowchart LR
 
 ```
 
-| Risk Level | Oversight Pattern | Art. 14 Requirement Met | DR-0001 Section |
+| Illustrative risk | Oversight pattern | What it contributes | Residual control |
 |:---|:---|:---|:---|
-| **Minimal** | Admin pre-approval; no user interaction | Art. 14 via deployer policy | [§14.4](#144-consent-decision-matrix) (implicit consent) |
-| **Low** | One-time consent at first use | Art. 14(4)(a): *\"decide not to use\"* | [§14.4](#144-consent-decision-matrix) (one-time explicit) |
-| **Medium** | Incremental consent per scope | Art. 14(4)(a): progressive oversight | [§14.3](#143-incremental-consent-in-agentic-workflows) |
-| **High** | Step-up re-authentication (MFA) | Art. 14(4)(a): *\"override or reverse the output\"* | [§15.7](#157-adaptive-oversight-architecture) (adaptive oversight) |
-| **Critical** | CIBA out-of-band approval (Tier 5) | Art. 14(4)(d): *\"intervene in the operation [...] through a 'stop' button\"* | [§15.5](#155-tier-5-ciba-protocol) + [§15.10](#1510-regulatory-drivers) |
+| **Minimal** | Administrator policy; no per-use interaction | Establishes deployment conditions and an authority ceiling | Monitoring, instructions, competence, and intervention design remain necessary where Art. 14 applies |
+| **Low** | One-time user authorization at first use | Establishes a user-delegated grant | Later operations still require resource-server authorization and lifecycle enforcement |
+| **Medium** | Incremental authorization for new authority | Gives the user a decision when the requested grant expands | The UI must show the material delta, not only a scope label |
+| **High** | Step-up reauthentication | Establishes stronger or fresher subject authentication | Authentication is not approval; retry only after a fresh operation decision |
+| **Critical** | CIBA or another out-of-band approval workflow | Supplies an authenticated decision before a gated action | The application must bind the displayed operation to execution and stop or compensate downstream work |
 
-**Art. 14 + GDPR Art. 22 dual obligation**: For AI agent actions producing *\"legal effects concerning [a natural person] or similarly significantly affects him or her\"* (GDPR Art. 22(1)), both Art. 14 of the AI Act and Art. 22 of the GDPR apply. The combined obligation requires: (1) a human oversight mechanism (Art. 14 AI Act) and (2) human intervention on request (GDPR Art. 22(3)). CIBA satisfies both simultaneously.
+Where both [AI Act Art. 14](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) and [GDPR Art. 22](https://eur-lex.europa.eu/eli/reg/2016/679/oj) apply, the deployment needs both effective oversight and the applicable data-subject safeguards. A CIBA ceremony may be one prospective checkpoint; it does not replace meaningful information, competent human review, contest/correction channels, reversal, or the system-level intervention controls described above.
 
 
 #### 23.6 Art. 9 and Art. 15: Risk Management and Cybersecurity
@@ -17310,7 +17008,7 @@ This creates **accountability gaps** that the Act does not fully resolve:
 |:---|:---|:---|:---|
 | **Provider identification** | One provider per AI system | Agent A chains to Agent B from different providers | [OQ 12](#oq-12) (agent identity provenance) |
 | **Deployer logging** | One deployer retains logs | Logs span multiple gateways and protocols | [OQ 9](#oq-9) (chained delegation limits) |
-| **Consent propagation** | Provider ensures transparency | User consented for Agent A — does this cover Agent B? | [OQ 11](#oq-11) (multi-agent consent) |
+| **Authority propagation** | Provider ensures transparency | Authority for Agent A does not automatically cover Agent B or its downstream tools | [OQ 11](#oq-11) (sub-agent authority expansion) |
 | **Incident attribution** | Provider reports malfunctions | Cascading failure: Agent A's output triggers Agent B's error | [OQ 16](#oq-16) (cross-framework delegation context) |
 
 ##### 23.8.1 Multi-Agent Accountability Evidence Chain
@@ -17319,7 +17017,7 @@ For MCP, A2A, AP2, and Transaction Token deployments, the practical compliance q
 
 | Chain Stage | Protocol / Artifact | Legal Role Signal | Audit Join Key | Failure Mode | Required Log Field |
 |:---|:---|:---|:---|:---|:---|
-| **User authorization** | OAuth consent, CIBA approval, or AP2 mandate | Natural person grants authority; enterprise may be deployer | `consent_id`, `auth_req_id`, `mandate_id` | Later agent action exceeds the user's approved purpose | Approved scope, consent text/hash, approval actor, expiry, revocation state |
+| **User or enterprise authorization** | OAuth grant/consent event, CIBA approval evidence, administrator policy, or AP2 mandate | Identifies who supplied which authority under the deployment's policy; does not decide the legal role alone | `grant_id`, `consent_id`, `auth_req_id`, `mandate_id`, `policy_decision_id` | Later agent action exceeds the approved purpose, constraints, or authority ceiling | Requested/granted authority, rendered-content reference, decision actor, expiry, withdrawal/revocation state |
 | **Agent A invocation** | MCP `tools/call` plus access token `act` chain | Agent provider and enterprise deployer become identifiable | `trace_id`, `tool_call_id`, `agent_instance_id` | Agent identity is collapsed into the user identity | `sub`, `act.sub`, `client_id`, agent profile, model/vendor metadata |
 | **Agent-to-agent delegation** | A2A task, signed Agent Card, registry record | Second provider/deployer enters the chain | `a2a_task_id`, `agent_card_digest`, `registry_entry_id` | Downstream agent/provider cannot be attributed after failure | Upstream agent, downstream agent, card signature status, task intent, delegated scope |
 | **Payment or mandate execution** | AP2 Human Present / Human Not Present mandate | Merchant, PSP, agent, and user authority are separable | `mandate_id`, `payment_intent_id`, `transaction_id` | Payment executes outside mandate boundaries | Mandate constraints, user-present flag, merchant ID, amount/currency ceiling, mandate revocation |
@@ -17342,10 +17040,10 @@ The AI Act explicitly states (Recital 63) that it *\"does not provide a legal ba
 
 | Requirement | GDPR Basis | AI Act Reinforcement | MCP Pattern |
 |:---|:---|:---|:---|
-| **Lawful basis** | Art. 6 GDPR | Art. 10 AI Act (data governance) | OAuth consent ([§14](#14-user-consent-models-first-party-vs-third-party)) as evidence of user's consent or legitimate interest |
+| **Lawful basis** | Art. 6 GDPR | Art. 10 AI Act (data governance) | Controller records the actual Art. 6 basis and purpose. An OAuth authorization screen is not automatically GDPR consent and cannot evidence “legitimate interests” without the controller's separate legal assessment |
 | **Data minimization** | Art. 5(1)(c) GDPR | Art. 10(3) AI Act (*\"relevant and sufficiently representative\"*) | Scope minimization ([§3.4](#34-scope-minimization-best-practices)) + TBAC ([§16](#16-task-based-access-control-tbac)) enforce least-privilege data access |
 | **Purpose limitation** | Art. 5(1)(b) GDPR | Art. 9 AI Act (risk management proportionality) | Task-scoped tokens (`task:type:op:resource` in [§16](#16-task-based-access-control-tbac)) bind access to specific purposes |
-| **Automated decisions** | Art. 22 GDPR | Art. 14 AI Act (human oversight) | CIBA ([§15](#15-human-oversight-architecture)): human intervention mechanism for legally consequential agent actions |
+| **Automated decisions** | Art. 22 GDPR | Art. 14 AI Act (human oversight) | Controller-owned review, intervention, explanation, and contest process where applicable; CIBA may authenticate a prospective or reviewing person but does not supply those safeguards by itself ([§15](#15-human-oversight-architecture), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory)) |
 | **Data subject rights** | Arts. 15–22 GDPR | Art. 13 AI Act (transparency) | Audit logs ([§13.2](#132-gateway-responsibilities)) + `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) enable data access requests attributable to specific agent actions |
 | **DPIA / FRIA** | Art. 35 GDPR | Art. 27 AI Act (FRIA) | Tool `riskLevel`, `business_process`, `annex_iii_category`, and `material_influence` metadata as combined DPIA/FRIA trigger |
 | **Accountability** | Art. 5(2) GDPR | Art. 12 AI Act (logging) + Art. 26 (deployer) | Delegation chain logging provides accountability trail for both regulations |
@@ -17359,7 +17057,7 @@ The AI Act explicitly states (Recital 63) that it *\"does not provide a legal ba
 
 | eIDAS 2.0 Feature | Relevance to MCP Agent Identity | DR-0001 Connection |
 |:---|:---|:---|
-| **EUDI Wallet** | Potential future mechanism for human identity verification in CIBA flows | [§15](#15-human-oversight-architecture) (human identity for approval) |
+| **EUDI Wallet / qualified trust services** | Potential identity, attribute, or signing mechanisms under the applicable EUDI/eIDAS profile | [§15.2.4](#1524-domain-control-profiles-do-not-infer-them-from-tier-number) and [§15.10.4](#15104-eidas-20-qualified-electronic-signatures); not assumed to use CIBA |
 | **Qualified Electronic Signatures (QES)** | Agent actions producing legal effects may require human QES via EUDI Wallet | [§15.10](#1510-regulatory-drivers) (regulatory drivers) |
 | **Qualified Web Authentication Certificates (QWAC)** | MCP server identity verification for cross-border trust | [OQ 31](#oq-31) (cross-border evidence), [§8.7](#87-cross-organization-agent-federation) |
 | **Qualified Electronic Seals (QSeal)** | Organizational identity for agents operating on behalf of legal persons | [§6](#6-agent-identity-vs-user-identity) (agent identity taxonomy), [§8.7.4](#874-multi-layer-trust-architecture) |
@@ -17410,7 +17108,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 #### 23.12 Cross-Reference Summary
 
-| DR-0001 Section | EU AI Act Articles Satisfied | Primary Regulatory Function |
+| DR-0001 Section | Potentially Relevant EU AI Act Articles | Technical Contribution and Boundary |
 |:---|:---|:---|
 | **[§1](#1-current-mcp-authorization-and-protocol-baseline)** MCP Auth Spec | Art. 15(5) | Cybersecurity — token binding, confused deputy prevention |
 | **[§2](#2-stateless-streamable-http-authorization)** Streamable HTTP | Art. 15(4) | Cybersecurity — transport security |
@@ -17421,8 +17119,8 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 | **[§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)** NHI Governance | Art. 12, Art. 13, Art. 15 | Record-keeping, transparency, cybersecurity — NHI lifecycle |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)** A2A Protocol | Art. 12 (gap: cross-protocol) | Record-keeping — MCP × A2A log correlation |
 | **[§13](#13-gateway-mediated-mcp-architecture)** Gateway Architecture | Art. 9, Art. 12, Art. 15, Art. 26 | Risk management, record-keeping, cybersecurity |
-| **[§14](#14-user-consent-models-first-party-vs-third-party)** Consent Models | Art. 14(1), (4) | Human oversight — consent spectrum |
-| **[§15](#15-human-oversight-architecture)** Human Oversight (inc. CIBA) | Art. 14(4)(a)–(e), GDPR Art. 22 | Human oversight — strongest compliance mechanism |
+| **[§14](#14-authorization-approval-and-consent-models)** Authorization, Approval, and Consent Models | Art. 14(1), (4) | Separates requested authority, approval, grant, runtime enforcement, and evidence; this supports oversight design without treating consent as the universal control |
+| **[§15](#15-human-oversight-architecture)** Human Oversight (including CIBA) | Art. 14(4)(a)–(e), potentially GDPR Art. 22 | Supplies selectable interaction and approval patterns; compliance depends on applicability, competent reviewers, information, intervention/reversal controls, execution binding, and evidence |
 | **[§16](#16-task-based-access-control-tbac)** TBAC | Art. 9(4) | Risk management — proportionate controls |
 | **[§17](#17-authorization-across-mcp-primitives-and-durable-state)** Primitive and Handle Authorization | Art. 9(2)(a), Art. 14, Art. 27 | Risk classification, action authorization, human oversight, and FRIA/DPIA trigger support |
 | **[§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)** ContextForge | Art. 15(5), Art. 10 | Cybersecurity — guardrails, data governance |
@@ -17434,22 +17132,26 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 #### 23.13 GDPR Data Subject Rights and Agent Memory
 
-**The dual-retention paradox**: Art. 12 of the EU AI Act requires high-risk AI systems to maintain automatic logging with sufficient granularity for traceability (Art. 12(1)–(4)), and Art. 26(6)(a) requires deployers to retain these automatically generated logs for **at least six months**. Simultaneously, GDPR Art. 17 (Right to Erasure / "Right to be Forgotten") grants data subjects the right to have their personal data erased without undue delay. When agent audit logs contain personal data — user identity (`sub` claim), agent identity (`act` claim), tool parameters with PII (e.g., email addresses, booking details, financial data) — these two regulatory obligations directly conflict: one mandates retention, the other demands deletion.
+**The retention and data-rights problem**: [AI Act Art. 12](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) requires logging capabilities for high-risk AI systems. Arts. 19 and 26 require providers and deployers, respectively, to keep automatically generated logs under their control for an appropriate period of at least six months, unless applicable Union or national law provides otherwise, including data-protection law. [GDPR Art. 17](https://eur-lex.europa.eu/eli/reg/2016/679/oj) is not an unconditional deletion command: a controller evaluates the grounds for erasure, other legal bases, and Art. 17(3) exceptions. The architecture therefore needs purpose-specific retention and rights handling, not a blanket rule that logs always win or must always be deleted.
 
 ##### 23.13.1 Data Subject Rights Mapping for MCP Agent Deployments
 
 | GDPR Right | Article | Impact on MCP Agent Deployments | Resolution Pattern |
 |:-----------|:--------|:-------------------------------|:-------------------|
-| **Right of Access** | Art. 15 | User can request all tool invocation logs mentioning them — including `sub`-attributed audit records across all MCP gateways, consent events, and delegation chains where they appear as the delegating principal | Provide a data export API covering: audit logs ([§13.2](#132-gateway-responsibilities)), consent events ([§14.7.4](#1474-scalability-considerations)), delegation records (`act` chain, [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)), and tool invocation parameters containing PII |
-| **Right to Erasure** | Art. 17 | User can request deletion of agent-stored PII, **but** audit log retention under AI Act Art. 12 / Art. 26(6)(a) may override under Art. 17(3)(b) (legal obligation exception) or Art. 17(3)(e) (legal claims) | Pseudonymize audit logs after active retention period: replace `sub: user:alice` with `sub: hash_abc`; delete original PII mapping; retain pseudonymized logs for regulatory retention period |
-| **Right to Portability** | Art. 20 | User can export their consent history ([§14.7](#147-consent-persistence-architecture)) and tool invocation data in a structured, machine-readable format — particularly relevant when switching between agent platforms or IAM providers | Export consent events ([§14.7.4.1](#14741-event-sourced-consent-store-reference-schema) schema) and tool invocation logs in JSON/CSV; consent portability enables user to migrate consent state between providers without re-consenting |
-| **Right re: Automated Decision-Making** | Art. 22 | Agent tool calls that produce **legal effects** or **similarly significant effects** on the user (e.g., credit scoring, insurance pricing, employment screening) require human intervention — the user has the right not to be subject to purely automated decisions | Map to [§15.5](#155-tier-5-ciba-protocol) (CIBA Tier 5): tool calls classified as producing legal/significant effects must trigger out-of-band human approval; CIBA's `binding_message` provides the context-bound human-in-the-loop mechanism that Art. 22(3) requires |
+| **Right of Access** | Art. 15 | A person may request confirmation and access to personal data plus the required contextual information; this is not necessarily every raw security log or another person's data | Build a rights index across restricted evidence, grants, delegation records, and tool data; authenticate the requester, search by controlled subject identifiers, redact third-party/security-sensitive material lawfully, and record the response |
+| **Right to Erasure** | Art. 17 | Erasure applies when a ground in Art. 17(1) is met, subject to Art. 17(3) and other applicable law; withdrawal of consent removes that basis only where processing relied on consent | Evaluate each artifact's purpose, controller, legal basis, necessity, retention deadline, legal hold, and recipients; erase or restrict eligible data and preserve only what another documented basis requires |
+| **Right to Portability** | Art. 20 | Covers personal data provided by the person when processing is based on consent or contract and carried out by automated means; it is not a universal right to every inferred audit record | Export the qualifying data in a structured, commonly used, machine-readable format; a broader voluntary grant/evidence export can improve interoperability but must not be labeled mandatory portability without analysis |
+| **Automated decision-making safeguards** | Art. 22 plus Arts. 13–15 information duties | Where Art. 22 applies, the controller must establish an Art. 22(2) basis/authorization and applicable safeguards; in relevant cases those include human intervention, expressing a viewpoint, and contesting the decision | Provide a controller-owned review and contest process with a competent human able to change the outcome. A prospective CIBA approval can be one control, but it does not replace explanation, post-decision intervention, correction, or contest |
 
 ##### 23.13.2 Resolution Patterns
 
-**Pseudonymization of audit logs**: After the active retention period (e.g., 30 days for operational use), replace identifiable user data (`sub: user:alice`) with pseudonymized references (`sub: hash_abc`) using a one-way cryptographic hash. The pseudonymized logs satisfy AI Act Art. 12 retention requirements while GDPR Art. 17 erasure applies to the original PII mapping table — deleting the mapping renders the pseudonymized logs non-identifiable. **Soft deletion in consent stores**: Consent revocation events ([§14.7.4.1](#14741-event-sourced-consent-store-reference-schema), `consent_revoked`) are appended as tombstone events rather than physically deleting prior consent records — preserving the audit trail while marking consent as inactive. **Separated storage**: PII-containing data (user identity, tool parameters with personal data) is stored separately from structural metadata (timestamps, tool names, scope identifiers) with distinct retention policies per data category — enabling selective erasure without destroying the audit structure. **Legal basis assessment**: Each data processing purpose (audit logging, consent management, delegation tracking) requires an independent GDPR Art. 6 legal basis assessment — legitimate interest (Art. 6(1)(f)) for security logging, legal obligation (Art. 6(1)(c)) for AI Act-mandated retention, and consent (Art. 6(1)(a)) for agent-specific data processing.
+Use a retention register that identifies each artifact, purpose, controller/processor, data categories, legal basis, minimum/maximum period, holds, recipients, storage region, and deletion or anonymization test. Minimize at collection: log stable references and digests instead of complete tokens, approval text, or tool payloads unless the purpose requires the content. Separate identity mappings and sensitive evidence from operational events, encrypt both, and restrict correlation access.
 
-> **Cross-reference**: The dual-retention paradox is also addressed at the consent store schema level in [§14.7.5](#1475-regulatory-constraints-on-consent-persistence) (Regulatory Constraints on Consent Persistence), where the recommended architecture separates anonymized consent metadata from identifiable consent data. The pseudonymization pattern above extends that approach to the broader audit trail. See [§23.4](#234-art-12-and-art-26-audit-trail-requirements) for the full Art. 12 audit trail requirements and log schema.
+Pseudonymization reduces linkability but pseudonymized data remains personal data where re-identification remains reasonably possible; an unsalted or predictable hash of a subject identifier is especially weak. Use controlled, keyed, rotatable pseudonyms and do not claim that deleting one mapping automatically anonymizes every copy or correlation path. True anonymization needs a documented, context-sensitive re-identification assessment.
+
+Consent withdrawal, grant revocation, task termination, record restriction, and erasure are distinct transitions. An append-only `consent_revoked` event may be retained only under a documented purpose, basis, access policy, and deadline; event sourcing is not permission to keep identifiable history indefinitely. Propagate rectification, erasure, or restriction to recipients where required, and keep a minimal rights-request disposition record under its own retention policy.
+
+> **Cross-reference**: [§14.7.5](#1475-regulatory-constraints-on-consent-persistence) applies the same purpose, minimization, restricted-evidence, and retention logic to consent/approval stores. See [§23.4](#234-art-12-and-art-26-audit-trail-requirements) for the audit schema and [§14.7.3](#1473-consent-revocation-vs-token-revocation) for the distinction between withdrawal, credential revocation, task cancellation, retention, and erasure.
 
 
 #### 23.14 Liability Apportionment in Multi-Vendor Agent Chains
@@ -17500,7 +17202,7 @@ DR-0001's gateway-mediated architecture is not only an operational security patt
 | **Audit logs** ([§13.5.3](#1353-trace-context-and-audit-log-correlation), [§23.4](#234-art-12-and-art-26-audit-trail-requirements)) | Provide the **primary evidence** for liability disputes. Satisfy PLD Art. 9 disclosure obligations (courts can order disclosure) and AI Act Art. 12 logging requirements. | PLD Art. 9; AI Act Art. 12/26(6)(a); GDPR Art. 5(2) (accountability) |
 | **Authorization decision traces** ([§13.5.4](#1354-authorization-decision-tracing)) | Record the inputs, policy, engine, and rationale for each authorization decision — proving whether the gateway correctly enforced its policies or failed. | PLD Art. 7 (defect evidence); AI Act Art. 9 (risk management documentation) |
 | **TBAC tiers** ([§16](#16-task-based-access-control-tbac)) | Establish the **proportionate duty of care** standard. A Tier 5 (critical) tool call that bypasses human oversight represents a higher liability exposure than a Tier 1 (informational) call. | PLD Art. 7 (safety expectation calibration); AI Act Art. 9(4) (proportionate risk measures) |
-| **Consent records** ([§14](#14-user-consent-models-first-party-vs-third-party), [§14.7](#147-consent-persistence-architecture)) | Demonstrate the **scope of user authorization** — limiting liability to what the user explicitly or implicitly authorized the agent to do. | GDPR Art. 6; AI Act Art. 14 (human oversight evidence) |
+| **Approval, grant, and consent evidence** ([§14](#14-authorization-approval-and-consent-models), [§14.7](#147-approval-grant-and-consent-persistence-architecture)) | Shows the authority requested and granted, the interaction used, and the lifecycle state. Legal consent is recorded only where it is the applicable legal basis; enterprise policy or business approval must not be relabeled as consent. | Potential evidence for GDPR accountability and AI Act human-oversight controls, subject to applicability and evidentiary rules |
 | **Governed action-risk classification** ([§17.1](#171-decision-inputs-and-authorization-unit)) | Evidence of **foreseeable risk** when a trusted classification marks an action critical and the recorded decision omits the required step-up or approval. | PLD Art. 7 (defect assessment criteria); AI Act Art. 9(2)(a) (risk identification) |
 | **Gateway enforcement logs** ([§13](#13-gateway-mediated-mcp-architecture)) | Prove whether the gateway fulfilled its **duty of care** as the Policy Enforcement Point (PEP). Enforcement failures are independently actionable — even if the agent and tool functioned correctly, a gateway that failed to block an unauthorized action may bear liability. | PLD Art. 8(1)(b) (component liability); AI Act Art. 26(7) (deployer notification of modifications) |
 
@@ -17563,7 +17265,7 @@ When Agent A (EU) delegates to Agent B (US) via RFC 8693 token exchange ([§5](#
 | **EU-US Data Privacy Framework** | Art. 45 (adequacy) | EU→US token transfers to DPF-certified organizations | Covers bilateral EU→US only; onward US→third-country requires separate basis; legally fragile (third attempt after Safe Harbor and Privacy Shield) |
 | **Standard Contractual Clauses** | Art. 46(2)(c) | SCC agreements between gateway operator and each cross-border MCP server operator | Contractual overhead per tool provider; supplementary measures (EDPB Recommendations 01/2020) may be required; Schrems II DTIA for each route |
 | **Binding Corporate Rules** | Art. 47 | Intra-group transfers only | Not applicable to cross-organization MCP delegation chains |
-| **Explicit consent** | Art. 49(1)(a) | CIBA-mediated consent ([§15.5](#155-tier-5-ciba-protocol)) for each cross-border transfer | Derogation — not for systematic/repeated transfers; impractical for high-frequency agent chains |
+| **Explicit consent** | Art. 49(1)(a) | A separately designed data-subject consent flow may use CIBA only as its authentication/interaction channel | The controller must establish that consent is explicit, specific to the proposed transfer, informed of the particular risks, freely given, and withdrawable; the derogation is not a default for systematic or repeated transfers |
 | **Contract performance** | Art. 49(1)(b) | Tool call necessary for contract with data subject | Narrow — must be directly necessary, not merely useful |
 
 > **DPF stability risk**: The EU-US Data Privacy Framework is the **third** EU-US transfer mechanism — following Safe Harbor (invalidated 2015, Schrems I) and Privacy Shield (invalidated 2020, Schrems II). The EU General Court dismissed a challenge in September 2025, but [NOYB](https://noyb.eu/) has signaled further challenges. Organizations deploying cross-border MCP chains with US-bound tokens should maintain SCCs as a **dual-basis fallback** alongside DPF certification. The [EDPB Recommendations 01/2020](https://edpb.europa.eu/our-work-tools/our-documents/recommendations/recommendations-012020-measures-supplement-transfer_en) (finalized June 2021) require a six-step transfer assessment including supplementary technical measures — encryption of token payloads (JWE), pseudonymization of `sub` claims, and documented Data Transfer Impact Assessments (DTIAs) for each cross-border delegation route.
@@ -17608,7 +17310,7 @@ The gateway evaluates each cross-border delegation request against a jurisdictio
 | PII present | DPF-certified US org | **Transform** — apply Pattern 1, record DPF basis |
 | PII present | SCC-covered destination | **Transform** — apply Pattern 1, record SCC basis |
 | PII present | No legal basis | **Block** — deny delegation; return error to agent |
-| PII present | Art. 49 derogation eligible | **Escalate** — trigger CIBA approval ([§15.5](#155-tier-5-ciba-protocol)) for explicit data subject consent per Art. 49(1)(a) |
+| PII present | Art. 49 derogation is being considered | **Escalate to privacy/legal workflow** — establish the exact derogation conditions and a valid consent record if Art. 49(1)(a) is used; CIBA may authenticate the person but does not make the consent valid |
 
 This policy can be expressed in Cedar ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) or OPA/Rego ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), evaluating jurisdictional rules alongside authorization rules. The gateway's existing Policy Decision Point (PDP, [§24.5](#245-nist-ai-agent-standards-initiative-three-pillars)) gains a `jurisdiction_transfer_basis` attribute as an additional input to the authorization decision.
 
@@ -17696,7 +17398,7 @@ The **AI Risk Management Framework 1.0** ([NIST AI 100-1](https://airc.nist.gov/
 
 | AI RMF Function | Description | DR-0001 Mapping |
 |:----------------|:------------|:----------------|
-| **GOVERN** | Organizational accountability, policies, risk tolerance, roles and responsibilities | [§14](#14-user-consent-models-first-party-vs-third-party) (Consent models), [§15](#15-human-oversight-architecture) (Human Oversight Architecture), [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) (EU AI Act mapping) |
+| **GOVERN** | Organizational accountability, policies, risk tolerance, roles and responsibilities | [§14](#14-authorization-approval-and-consent-models) (Consent models), [§15](#15-human-oversight-architecture) (Human Oversight Architecture), [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) (EU AI Act mapping) |
 | **MAP** | Context understanding, stakeholder identification, risk categorization | [§6](#6-agent-identity-vs-user-identity) (Agent Identity), [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) (NHI Governance), [§16](#16-task-based-access-control-tbac) (TBAC risk tiers) |
 | **MEASURE** | Risk quantification, assessment, continuous testing and monitoring | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (Art. 12 audit trail) |
 | **MANAGE** | Risk treatment, active monitoring, incident response, and continuous improvement | [§13](#13-gateway-mediated-mcp-architecture) (Gateway enforcement), [§10](#10-authorization-continuity-and-durable-tasks) (Refresh token lifecycle), [§11](#11-credential-delegation-patterns) (Credential delegation) |
@@ -17994,7 +17696,7 @@ The operational packaging is a shared evidence pack: one MCP control should prod
 | **Art. 9** risk management | MAP / MANAGE | Tool risk classification, TBAC tiering, policy-engine enforcement | Risk owner + gateway owner | Tool risk register, policy version, risk acceptance or mitigation record |
 | **Art. 12 / Art. 26** logging and retention | MEASURE | Gateway audit log, authorization decision trace, retention policy | Deployer compliance owner + SIEM owner | `trace_id` lineage, `act` chain, tool call log, six-month retention evidence |
 | **Art. 13** deployer transparency | GOVERN / MAP | Agent/tool metadata, Agent Card, registry entry, intended-use documentation | Provider documentation owner + deployer owner | Agent profile, tool description, known limitations, versioned deployer instructions |
-| **Art. 14** human oversight | GOVERN / MANAGE | Oversight tiers, CIBA, step-up approval, stop/override controls | Operations owner + IdP owner | Approval event, binding message, denial/timeout, override/stop event |
+| **Art. 14** human oversight | GOVERN / MANAGE | Oversight selection, eligible-human workflow, exact-operation display/binding, stop/override/reversal controls | Operations owner + system/IdP owners | Decision/evidence ID, rendered-content reference, action digest, authentication context, denial/timeout, execution, override/stop/reversal event |
 | **Art. 15** cybersecurity | MANAGE / MEASURE | Token validation, sender constraint, explicit-handle binding, guardrails, isolation, continuous revocation | Security platform owner | Token validation log, sender-constraint proof, handle decision, guardrail result, CAEP/SSF event handling |
 | **Art. 50** AI disclosure | GOVERN / MAP | `ai_disclosure` metadata and application rendering | Gateway owner + application owner | Disclosure object, render/outbound evidence, content provenance identifier where applicable |
 | **GDPR/eIDAS cross-border identity and transfers** | MAP / MANAGE | EUDI/eIDAS trust checks, jurisdictional routing, PPID token transformation | Privacy owner + identity federation owner | Transfer-basis decision, jurisdiction transition metadata, PPID mapping custody record |
@@ -18125,14 +17827,14 @@ Filtering `tools/list` reduces accidental exposure and model choice, but it does
 
 **Evidence trail:** Tool Visibility, Invocation, and Backend Entitlement ([§17.2](#172-tool-visibility-invocation-and-backend-entitlement)); Gateway Enforcement ([§13](#13-gateway-mediated-mcp-architecture)); MCP Apps and product evidence ([§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§22.2](#222-architectural-model-summary)).
 
-##### 25.3.3 Key Finding 8: Consent Must Be a Durable Evidence Lifecycle, Not an Inference from Token Possession
+##### 25.3.3 Key Finding 8: Approval and Authority Need a Durable Evidence Lifecycle, Not an Inference from Token Possession
 <a id="finding-8"></a>
 
-Agent consent spans first-party administrative policy, incremental OAuth grants, per-tool approval, transaction confirmation, external-browser handoff, and unattended continuation. A token shows current authority under an authorization server's policy; it does not by itself preserve what the user saw, which action was approved, the expiry or withdrawal rule, or which later task consumed the approval. High-assurance deployments need a separately queryable consent record linked to policy decisions, task and input ledgers, and audit events.
+First-party administrative policy, OAuth resource-owner authorization, business approval, transaction confirmation, legal consent, external-browser handoff, and unattended continuation are different events. A token shows current authority under an authorization server's policy; it does not by itself preserve what was displayed, who decided, which action was approved, the expiry or withdrawal rule, or which later task consumed the authority. High-assurance deployments need typed, separately queryable request, decision, grant, execution-binding, lifecycle, and restricted-evidence records linked to policy decisions, task/input ledgers, and audit events.
 
-**Applicability:** Contract — current OAuth consent and human-oversight controls; surface — durable approval evidence; evidence — regulatory requirement, implementation evidence, and analysis; product role — IdP/AS, host/client, gateway/runtime, and MCP server.
+**Applicability:** Contract — current OAuth authorization and human-oversight controls; surface — durable approval and authority evidence; evidence — standards, implementation evidence, regulatory requirements where applicable, and analysis; product role — IdP/AS, host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** Consent and Authorization ([§14](#14-user-consent-models-first-party-vs-third-party)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Task Authority Record ([§10.6.3](#1063-task-authority-record)); EU AI Act mapping ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)).
+**Evidence trail:** Consent and Authorization ([§14](#14-authorization-approval-and-consent-models)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Task Authority Record ([§10.6.3](#1063-task-authority-record)); EU AI Act mapping ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)).
 
 ##### 25.3.4 Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization, but MCP Does Not Define a Tool Profile
 <a id="finding-9"></a>
@@ -18141,7 +17843,7 @@ RFC 9396 can carry structured authorization details that flat scopes cannot expr
 
 **Applicability:** Contract — RFC 9396 plus an explicitly monitored individual proposal; surface — structured authorization; evidence — final RFC plus maturity-labelled proposal; product role — IdP/AS, gateway/runtime, and MCP server.
 
-**Evidence trail:** RAR and Agent Extensions ([§19.4](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft)); Standards Maturity Map ([§20.1](#201-deployment-status-use-profile-or-monitor)); Task Lifecycle Binding ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
+**Evidence trail:** RAR and Agent Extensions ([§19.4](#194-rar-agent-extensions-monitor-not-baseline)); Standards Maturity Map ([§20.1](#201-deployment-status-use-profile-or-monitor)); Task Lifecycle Binding ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
 
 
 #### 25.4 Role-Normalized Product Evidence
@@ -19359,7 +19061,7 @@ APIM's current product documentation establishes gateway, conversion, authentica
 **Platform integration context**: APIM's MCP capabilities are embedded in a broader current Azure AI platform:
 -   **Azure API Center — MCP Server Registry** (preview, May 2025): API Center serves as a private remote MCP registry, enabling organizations to register, discover, and share MCP servers (local, remote, and partner). Auto-synchronization from APIM instances ensures registered MCP servers stay current. This is the adjacent registry/discovery role recorded separately from APIM's gateway/runtime role in [§21.1](#211-role-and-lifecycle-inventory).
 -   **Azure API Center — Agent Registry** (Feb 2026): API Center extends to AI agent discovery and management. Organizations can register first-party and third-party agents with Agent Card, Skills, and Capabilities metadata, creating a searchable hub for all enterprise agents.
--   **Microsoft Entra Agent ID** (public preview, Build 2025): First-class AI agent identities as service principals with dedicated `appId`, enabling fine-grained Azure RBAC and data-plane role assignments for agents. Agents can have discrete, auditable identities separate from user or application identities. APIM can authenticate agents via `validate-azure-ad-token` using Entra Agent ID credentials, though seamless propagation of agent identity through the gateway to backends is still maturing. See [§A.4.1](#a41-how-entra-agent-id-works) for a detailed architecture explanation and [§A.4.2](#a42-vendor-lock-in-and-identity-portability-analysis) for vendor lock-in analysis.
+-   **[Microsoft Entra Agent ID](https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id)** (platform GA, verified 24 July 2026): First-class agent identities and blueprints now have documented owners/sponsors, access packages, lifecycle workflows, Conditional Access, risk policy, disable controls, and cascade soft deletion. Some individual console experiences remain separately labeled Preview, so status must be reported per component. APIM can validate Entra-issued agent tokens, but the gateway still needs an explicit claim, audience, delegation, and downstream-enforcement contract. See [§A.4.1](#a41-how-entra-agent-id-works) for the identity model and [§A.4.2](#a42-vendor-lock-in-and-identity-portability-analysis) for portability analysis.
 -   **Microsoft Foundry** (formerly Azure AI Studio): Integrates the AI Gateway directly, providing simplified setup for governing AI workloads with APIM-powered observability and content safety policies. The **Foundry MCP Server** went live in December 2025, enabling cloud-hosted MCP interactions within the Foundry environment.
 -   **Azure Functions MCP** (GA, January 2026): General availability of Model Context Protocol support for Azure Functions, with built-in OAuth 2.1 and Entra ID authentication for secure data access without custom auth code — a natural backend for APIM MCP proxy (Mode A).
 
@@ -19680,7 +19382,7 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 | **[§11.1](#111-credential-delegation-pattern-taxonomy) Credential Delegation** | APIM implements Credential Manager with `identity-type="managed"` (unattended/application identity), Credential Manager with `identity-type="jwt"` (user-delegated, per-user backend tokens), and custom OBO via `send-request` ([§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request)) for richer delegation. These map to Pattern E (Cloud-Managed) but span application-only and user-delegated backend authority. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025) with OpenTelemetry GenAI semantic convention logging (March 2026) and cross-cloud agent governance via Foundry. The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
-| **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | **Entra Agent ID** (preview) provides first-class AI agent identities as service principals. APIM can validate agent tokens via `validate-azure-ad-token`, though end-to-end agent identity propagation through the gateway is still maturing |
+| **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | **Entra Agent ID** is GA at the platform level and provides first-class agent identities plus sponsor/lifecycle governance; separately labeled Preview experiences remain component-specific. APIM can validate Entra-issued tokens, while the deployment still defines end-to-end agent/delegator claim and enforcement semantics |
 | **[§21.1](#211-role-and-lifecycle-inventory) Registry/Discovery Role** | **Azure API Center** serves as the adjacent federation/discovery layer: MCP Server Registry (preview, May 2025) for remote MCP server discovery and Agent Registry (Feb 2026) for AI agent management, with auto-sync from APIM instances |
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) OBO Token Exchange** | [§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request) provides a concrete APIM XML policy implementing the OBO flow via `send-request` to the Entra token endpoint, producing tokens with chained `act` claims as recommended by [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (Rec 3) |
 | **[§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant) User-Context Access Control** | Credential Manager `identity-type="jwt"` ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) enables per-user backend token resolution; the backend MCP server receives a user-specific OAuth token and still applies tool-level authorization |
@@ -19877,7 +19579,7 @@ The gateway must bind downstream issuance to the exact backend audience and gran
 | **[§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity) Runtime Identity** | Conceptual framework connecting agent/workload identity ([§6](#6-agent-identity-vs-user-identity) and [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), explicit delegation ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) and [§11](#11-credential-delegation-patterns)), and per-action enforcement ([§13](#13-gateway-mediated-mcp-architecture) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)). The cited 2026 incident supplies a current motivating case |
 | **[§B.2.1](#b21-agent-iam-core-agent-lifecycle-and-delegation) Agent IAM Core** | Product implementation of agent identity, registration, delegated entitlements, and autonomous/on-behalf-of flows; connects to credential delegation ([§11](#11-credential-delegation-patterns)), NHI governance ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), and DPoP ([§B.6](#b6-secretless-jit-token-injection-and-dpop)) |
 | **[§B.2.2](#b22-agent-detection-behavioral-classification) Agent Detection** | Behavioral classification extends the signal-to-authorization pipeline; connects to closed-loop behavioral trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)), continuous-access events ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)), and per-request policy feedback ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
-| **[§B.5](#b5-pingauthorize-integration-fine-grained-mcp-authorization) HITL Mapping** | Ping's human-in-the-loop approval maps to Tier 5 (CIBA-based step-up) and Tier 6 (high-value transaction approval) in [§15](#15-human-oversight-architecture). Approval is evaluated synchronously at the PEP, not as a separate workflow engine |
+| **[§B.5](#b5-pingauthorize-integration-fine-grained-mcp-authorization) HITL Mapping** | PingGateway and PingAuthorize can enforce policy at the PEP. Where a deployment uses PingFederate CIBA, that documented decoupled authentication/authorization ceremony may support a Tier 5 interaction; public evidence reviewed here does not establish a native Tier 6 quorum workflow, so collective approval state remains an application or workflow-service responsibility |
 
 #### B.8 Evidence Required for Forward Admission
 
@@ -20081,7 +19783,7 @@ No other gateway in this investigation ([§A](#appendix-a-azure-apim-as-mcp-ai-g
 |:---|:---|
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Kong's AI MCP OAuth2 plugin now supports plugin-level token exchange before upstream MCP access, while Kong still depends on the external IdP and plugin configuration for subject/actor semantics and consent evidence |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Kong implements the gateway responsibilities ([§13.2](#132-gateway-responsibilities)) via its existing plugin architecture — the broadest plugin ecosystem in this investigation |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | Consent is handled by the external IdP (Okta, Auth0, Keycloak) via the OIDC plugin; Kong itself has no consent layer |
+| **[§14](#14-authorization-approval-and-consent-models) Consent** | Consent is handled by the external IdP (Okta, Auth0, Keycloak) via the OIDC plugin; Kong itself has no consent layer |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | MCP ACL (built-in to AI MCP Proxy, GA v3.13) provides Consumer/Consumer Group–based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | AI MCP OAuth2 enforces route-level scopes; generated-tool visibility and route admission still require an explicit per-tool and per-argument authorization decision |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A** | Kong AI Gateway 3.14 shipped native A2A support and structured A2A logging in April 2026; this closes the earlier "planned / not yet GA" gap while preserving the enterprise-only caveat for Kong's AI/MCP plugin stack |
@@ -20503,7 +20205,7 @@ This positions TrueFoundry alongside AgentGateway ([§E](#appendix-e-agentgatewa
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | TrueFoundry's Virtual Accounts provide a concrete implementation of the agent-as-identity concept described in [§6.2](#62-why-agents-are-not-just-oauth-clients) Approach C |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | Agent Hub provides native A2A support with Hub-and-Spoke routing, identity injection, and budget tracking for inter-agent communication |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | The Control Plane / Gateway Plane split maps to the gateway responsibilities in [§13.2](#132-gateway-responsibilities), but with a clean data plane / control plane separation |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | TrueFoundry supports the full consent spectrum: API key (no consent), OAuth per-user (explicit), and IdP JWT (admin-consented) |
+| **[§14](#14-authorization-approval-and-consent-models) Authorization / approval / consent** | TrueFoundry documents API-key, per-user OAuth, and IdP JWT authentication modes. Those modes establish different identity and grant inputs; their names do not prove whether a legal-consent record, business approval, or administrator policy exists |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Virtual MCP Servers implement task-based access at the tool level — the Sales Bot can only access sales-relevant tools |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Virtual MCP Servers use a composition model to expose tools; configuration-time inclusion narrows visibility but does not replace invocation and backend-entitlement checks |
 | **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) Guardrail-to-Authorization Feedback** | The guardrail suite spans built-in detectors, Cedar/OPA policy, and external providers; detector output must enter a per-request authorization decision rather than act as ambient trust |
@@ -20880,7 +20582,7 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 |:---|:---|
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | AgentGateway can authenticate clients and configure backend credentials, but the reviewed evidence does not establish that it performs RFC 8693 token exchange or supplies universal OBO semantics |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | AgentGateway's data plane maps to the gateway responsibilities in [§13.2](#132-gateway-responsibilities), but delegates state management externally |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | Native OIDC can run an Authorization Code + PKCE login flow; AgentGateway then enforces post-login access through MCP-aware CEL and route policies |
+| **[§14](#14-authorization-approval-and-consent-models) Consent** | Native OIDC can run an Authorization Code + PKCE login flow; AgentGateway then enforces post-login access through MCP-aware CEL and route policies |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | CEL `mcpAuthorization` enables request-context checks at the tool/resource level; unauthorized resources can be filtered from discovery before execution |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Tool federation changes discovery and composition; per-tool/per-resource CEL decisions still determine invocation authority |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | AgentGateway's A2A support establishes a cross-protocol runtime surface, while portable delegation context remains a separate evidence gap |
@@ -21052,7 +20754,7 @@ ContextForge has the **deepest observability integration** in this investigation
 |:---|:---|
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | `v1.0.6` adds RFC 8693 OBO token exchange for OAuth gateways, alongside per-user Vault credentials and direct credential-injection patterns; deployments must keep those modes distinct |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | ContextForge implements all 6 gateway responsibilities ([§13.2](#132-gateway-responsibilities)) plus safety guardrails as a 7th |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | OAuth SSO consent handled by external IdP (EntraID, Google, Okta); ContextForge itself relies on admin-configured access |
+| **[§14](#14-authorization-approval-and-consent-models) Consent** | OAuth SSO consent handled by external IdP (EntraID, Google, Okta); ContextForge itself relies on admin-configured access |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | RBAC via SSO claims, not task-based — guardrails provide an orthogonal authorization layer |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Virtual Server Manager maps REST/gRPC operations to MCP tools; tool visibility and API-key scoping do not replace invocation and backend authorization |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | OPA integration in the v1.0.0 release line adds Rego-based policy evaluation alongside the guardrail pipeline |
@@ -21067,7 +20769,7 @@ ContextForge has the **deepest observability integration** in this investigation
 ### Appendix G: WSO2 Identity Server/Asgardeo: IdP-Native MCP Authorization
 
 
-WSO2 Identity Server 7.2 and the cloud service transitioning from the **Asgardeo** name to **WSO2 Identity Platform** embody the **IdP-Native** archetype, where the identity platform acts as the OAuth Authorization Server for MCP. Unlike proxy-based gateways ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)), WSO2's model has the MCP server register as a **protected resource**, while the identity platform issues scoped tokens, manages user/agent/client identities, and records authorization grants. Within the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), WSO2 supports user-delegated, client-only, and dual-identity agent flows; the delegated-agent flow can carry the user as `sub` and the agent as `act`.
+WSO2 Identity Server 7.3 and **WSO2 Identity Platform** embody the **IdP-Native** archetype, where the identity platform acts as the OAuth Authorization Server for MCP. Unlike proxy-based gateways ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)), WSO2's model has the MCP server register as a **protected resource**, while the identity platform issues scoped tokens, manages user/agent/client identities, and records authorization grants. Within the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), WSO2 supports user-delegated, client-only, and dual-identity agent flows; the delegated-agent flow can carry the user as `sub` and the agent as `act`.
 
 > **Important — Strongest native OAuth/MCP alignment does not make WSO2 an inline gateway**
 >
@@ -21230,7 +20932,7 @@ Current WSO2 documentation lists OIDC Dynamic Client Registration as a supported
 
 #### G.3 Agent Identity: First-Class Digital Identities
 
-WSO2 IS 7.2 treats AI agents as **first-class digital identities** — a concrete implementation of the agent identity concepts from [§6.2](#62-why-agents-are-not-just-oauth-clients) (Approach C):
+WSO2 Identity Server 7.3 treats AI agents as **first-class digital identities** — a concrete implementation of the agent identity concepts from [§6.2](#62-why-agents-are-not-just-oauth-clients) (Approach C):
 
 | Capability | Implementation | Significance |
 |:---|:---|:---|
@@ -21248,7 +20950,7 @@ WSO2 IS 7.2 treats AI agents as **first-class digital identities** — a concret
 | **On-Behalf-Of (OBO)** | Agent acts as delegated user | Authorization Code + PKCE → user-scoped token |
 | **M2M** | Service-to-service (no human) | Client Credentials with pre-configured scopes |
 
-#### G.4 Scope Enforcement and Consent
+#### G.4 Scope Enforcement and User Authorization
 
 WSO2's scope enforcement goes beyond basic JWT validation:
 
@@ -21259,7 +20961,7 @@ WSO2's scope enforcement goes beyond basic JWT validation:
 
 The current organization model is more specific than generic “scope sharing”: an MCP server registered in the root organization, together with its scopes, is automatically inherited throughout the child hierarchy. Each child organization may authorize its own agents and applications against that inherited definition. It cannot independently register, share, or subscribe to the inherited server.
 
-This maps directly to the consent spectrum discussed in [§14](#14-user-consent-models-first-party-vs-third-party) and the scope lifecycle in [§3](#3-scope-and-client-identity-lifecycle).
+This maps to the user-delegated authorization pattern in [§14](#14-authorization-approval-and-consent-models) and the scope lifecycle in [§3](#3-scope-and-client-identity-lifecycle). The screen and resulting grant must still be distinguished from any separately applicable legal-consent or business-approval record.
 
 #### G.5 Multi-Tenant Architecture
 
@@ -21295,8 +20997,8 @@ WSO2 Identity Platform has broader OAuth capabilities, but the current MCP autho
 
 | Product | Deployment | Use Case |
 |:---|:---|:---|
-| **WSO2 Identity Server 7.2** | Self-hosted (on-prem / cloud VM / K8s) | Enterprise with existing WSO2 stack, data sovereignty |
-| **Asgardeo** | Cloud-native IDaaS (fully managed) | Cloud-native teams, rapid onboarding |
+| **WSO2 Identity Server 7.3** | Self-hosted (on-prem / cloud VM / K8s) | Enterprise with existing WSO2 stack, data sovereignty |
+| **WSO2 Identity Platform** | Cloud-native IDaaS (fully managed) | Cloud-native teams, rapid onboarding |
 
 Both share the same core architecture and feature set (MCP server templates, agent identity, and scope enforcement). The product also advertises DCR, but forward deployments covered by this report use administrator-managed pre-registration unless CIMD is explicitly established.
 
@@ -21308,7 +21010,7 @@ Both share the same core architecture and feature set (MCP server templates, age
 | **[§3](#3-scope-and-client-identity-lifecycle) Scope Lifecycle** | RFC 9728 discovery, exact issuer/resource binding, administrator-managed client identity, consent, and scope challenge |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | WSO2 IS directly implements Approach C (agents as first-class identities in IdP) |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Unlike gateways ([§13.2](#132-gateway-responsibilities)–[§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), WSO2 IS removes the intermediary — the IdP IS the AS |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | WSO2 IS provides native consent UIs with per-scope granularity and incremental consent |
+| **[§14](#14-authorization-approval-and-consent-models) Consent** | WSO2 IS provides native consent UIs with per-scope granularity and incremental consent |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Scope-based RBAC maps to TBAC via per-tool scope definitions |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | WSO2 documents access-token-backed connection authorization, but the reviewed MCP evidence does not establish enforcement that binds current application, task, subscription, and continuation handles to the authenticated user, agent, client, and tenant tuple |
 | **Organization Inheritance** | Root-registered MCP servers and scopes are inherited automatically; child organizations authorize local agents/apps but do not re-register, share, or subscribe to the inherited server |
@@ -21372,8 +21074,8 @@ flowchart TB
     token exchange| API1
     FGA -.->|document-level
     permissions| RAG
-    Async -.->|CIBA push
-    approval| User
+    Async -.->|Request-bound CIBA
+    interaction| User
 
     style UL text-align:center
     style TV text-align:center
@@ -21386,7 +21088,7 @@ flowchart TB
     style RAG text-align:center
 ```
 
-**Key architectural distinction**: Auth0 is not a gateway or a traditional IdP-as-AS — it's a **CIAM platform with purpose-built AI agent capabilities**. Where WSO2 IS ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)) provides the AS for MCP servers, Auth0 provides the **complete security stack** for the AI agent itself: user authentication, delegated API access (Token Vault), fine-grained data authorization (FGA), async consent (CIBA), and MCP client identity (CIMD).
+**Key architectural distinction**: Auth0 is a CIAM authorization server and identity platform, not an inline MCP gateway. It offers role-specific components for user authentication, delegated API access (Token Vault), relationship authorization (FGA), documented CIBA-plus-RAR flows, and MCP client/resource authorization. Those components are not automatically one execution pipeline: the application and MCP resource still define their composition, denial/cancellation paths, exact-operation binding, and runtime enforcement.
 
 This is a fundamentally different scope:
 
@@ -21395,7 +21097,7 @@ This is a fundamentally different scope:
 | **MCP traffic proxy** | ✅ Yes | ❌ No proxy | ❌ No proxy |
 | **OAuth AS for MCP** | Varied | ✅ Native AS | ✅ Native AS |
 | **Third-party token mgmt** | ❌ | ❌ | ✅ Token Vault |
-| **Human-in-the-loop** | ❌ | ❌ | ✅ CIBA async |
+| **Human-in-the-loop** | Product-specific | ✅ CIBA documented in WSO2 Identity Server 7.3 | ✅ CIBA plus RAR documented |
 | **RAG data permissions** | ❌ | ❌ | ✅ FGA/OpenFGA |
 | **AI framework SDKs** | ❌ | ❌ | ✅ LangChain, Vercel |
 | **MCP client identity** | N/A | ✅ MCP Client Application; pre-registration required by this report | ✅ CIMD |
@@ -21494,7 +21196,7 @@ Auth0 returns a `user_access_token` to the AI agent. This token represents the u
 <details>
 <summary><strong>3. End User grants third-party account consent via Auth0 Platform</strong></summary>
 
-The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts consent flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and grants specific permissions (e.g., `calendar.events.readonly`). If consent is denied, Auth0 terminates the OAuth flow with an `access_denied` error, actively emitting a `403 Forbidden` consent rejection to the compliance log. This is a one-time setup — the user links their Google account once, and the agent can use it indefinitely.
+The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and decides whether to grant the requested permissions (for example, `calendar.events.readonly`). A denial terminates the provider authorization flow with an error; operational logging must minimize sensitive authorization data. The connection remains usable only while the provider grant, stored credentials, Auth0 connection record, user/organization policy, and per-request authorization remain valid. Revocation, expiry, policy change, or a provider error can require reconnection or reauthorization.
 
 **Federated Connection Extracellular Call:**
 ```http
@@ -21624,29 +21326,26 @@ This is architecturally distinct from all other authorization models in this inv
 - **PingAuthorize ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive))**: Server-level scopes (can agent access this MCP server?)
 - **Auth0 FGA ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform))**: **Document-level ReBAC** (can agent see this specific document in the RAG pipeline?)
 
-#### H.4 Async Authorization: CIBA Human-in-the-Loop
+#### H.4 Async Authorization: Documented CIBA and RAR Composition
 
-> **Canonical reference**: For the vendor-agnostic CIBA protocol, delivery modes, token types (including refresh tokens for offline sessions), trigger architecture, and regulatory analysis, see [§15](#15-human-oversight-architecture) — Human Oversight & Asynchronous Patterns.
+> **Canonical reference**: For vendor-neutral CIBA delivery modes, token results, signed requests, approval-abuse controls, lifecycle boundaries, and regulatory limits, see [§15.5](#155-tier-5-ciba-protocol)–[§15.11](#1511-use-cases).
 
-Auth0's CIBA implementation provides **Auth0-specific capabilities** on top of the [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) standard:
+Auth0 documents a concrete composition on top of [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html):
 
-| Auth0 CIBA Feature | Description | Architectural Significance |
+| Documented Auth0 capability | Description | Architectural significance |
 |:---|:---|:---|
-| **Auth0 Guardian** | Push notification delivery via the Guardian mobile app | Pre-built mobile approval UX; biometric + PIN authentication |
-| **AI Framework SDKs** | CIBA triggers embedded in `@auth0/ai-langchain`, `@auth0/ai-vercel` | Developers call `asyncAuthorize()` inline — no manual CIBA plumbing |
-| **Token Vault + CIBA** | CIBA approval can gate Token Vault access ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)) | Agent gets both Auth0 token AND third-party credential only after human approval |
-| **FGA + CIBA** | CIBA triggered based on OpenFGA relationship check | Document-level permissions ([§H.3](#h3-fine-grained-authorization-fga-openfga-for-rag)) can escalate to CIBA for sensitive documents |
-| **Risk Rules** | Auth0 Actions can dynamically determine CIBA triggers | Custom JavaScript logic evaluates risk before escalating |
+| **Backchannel request and poll-mode result** | Confidential client calls `/bc-authorize`, receives an `auth_req_id`, and polls the token endpoint within the returned interval/expiry contract | Provides a real product implementation of the decoupled flow; it does not create a durable task or execution binding |
+| **Guardian or email interaction** | Auth0 can route the pending request to Guardian mobile push or email-based interaction | Supplies the product-specific approval channel; Core CIBA does not require a biometric or particular authenticator |
+| **Required short `binding_message`** | Client supplies a short visual cue for cross-device correlation | The cue is not the transaction object or a cryptographic amount/payee binding |
+| **RAR `authorization_details`** | The client can send registered structured details; after approval, Auth0 returns the granted details beside token fields in the token response | Separates structured operation context from the cue; the resource server validates the complete schema and actual execution |
+| **Consent API** | The authentication application retrieves the pending request and submits the user's response | Supports a custom approval UI while keeping the request and response under Auth0's CIBA lifecycle |
+| **Fresh response per request** | Auth0 documents that each CIBA request requires a user response instead of silently reusing an earlier grant | Reduces stale-approval reuse; replay, parameter drift, downstream cancellation, and evidence protection remain deployment duties |
 
-**What differentiates Auth0's CIBA from the generic pattern** ([§15](#15-human-oversight-architecture)):
+The reviewed material does **not** establish that a CIBA result automatically releases a Token Vault credential, that an OpenFGA decision automatically launches CIBA, or that those components share one standardized authority record. Those are possible application orchestrations only after the deployment defines and tests the workflow, denial path, request/grant/execution binding, and evidence model.
 
-1. **Token Vault integration**: CIBA approval can simultaneously release third-party API credentials (Google, Slack, GitHub) from the Token Vault — the agent gets approval AND the credential in one flow
-2. **FGA-aware triggers**: OpenFGA relationship checks can escalate to CIBA (e.g., "this agent can read public docs freely, but reading confidential docs requires CIBA approval")
-3. **Framework-native**: AI developers using LangChain or Vercel AI SDK get CIBA as a built-in method rather than raw OAuth plumbing
+Auth0 is therefore strong implementation evidence for CIBA plus RAR in an agent-oriented use case, not proof of a regulated production deployment or universal “most secure” ranking.
 
-This maps to the **most secure end** of the consent spectrum ([§14](#14-user-consent-models-first-party-vs-third-party)) — real-time, per-action, out-of-band human approval. Among the implementations in this investigation, Auth0 is one of the clearest **production** examples of packaging CIBA, RAR, and AI-framework SDKs together for agent workflows.
-
-> **Cross-reference**: See [§15.10](#1510-regulatory-drivers) for the comprehensive regulatory analysis (Art. 14 compliance mapping, GDPR Art. 22 dual obligation, PSD2 dynamic linking). See [§23.5](#235-art-14-human-oversight-implementation-patterns) for the MCP-specific Art. 14 oversight spectrum.
+> **Cross-reference**: See [§15.5.6.2](#15562-auth0-ciba-and-rar-a-documented-composition) for the verified request/response walkthrough, [§15.10](#1510-regulatory-drivers) for regulatory boundaries, and [§23.5](#235-art-14-human-oversight-implementation-patterns) for the system-level human-oversight controls that remain outside CIBA.
 
 #### H.5 MCP Integration: Auth for MCP GA, CIMD, and Cross App Access
 
@@ -21673,9 +21372,9 @@ As of the July 23, 2026 re-check, Auth0's MCP-specific story has three component
 | **Enterprise / Workforce** | Designed for managed environments where IT controls agent access |
 | **Beta constraints** | Participation requires Auth0 Support / TAM coordination; requesting apps must be confidential first-party clients; ID-JAG token exchanges are capped at 5 RPS during Beta |
 
-XAA directly implements the administrator-managed consent pattern in Rec 14: in enterprise contexts, IT administrators pre-authorize agent access rather than burdening users with per-interaction consent. Sub-agent expansion and cascading revocation remain unresolved architecture questions.
+XAA implements an administrator-managed **enterprise policy authorization** pattern in Rec 14: in managed contexts, IT administrators define which agents and applications may request access instead of presenting a per-interaction user prompt at every target. That is not automatically the user's legal consent, and sub-agent expansion plus cascading revocation remain separate architecture questions.
 
-Current XAA docs now describe the feature in the same enterprise-managed terms as [§14.3](#143-incremental-consent-in-agentic-workflows): IT admins centrally define app and agent access controls through the enterprise IdP, eliminating repeated end-user consent prompts while still grounding the flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
+Current XAA docs describe the feature in the enterprise-managed terms of [§14.1](#141-first-party-authorization-enterprisesame-organization) and [§14.5](#145-is-user-consent-always-required): IT admins centrally define app and agent access controls through the enterprise IdP, reducing repeated end-user prompts while grounding the token flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
 
 #### H.6 Auth0 MCP Server
 
@@ -21722,10 +21421,10 @@ This is unique among all implementations in this investigation — no other gate
 |:---|:---|
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Token Vault implements RFC 8693 with managed lifecycle — the most complete OBO/delegation implementation in this investigation |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | Auth0 provides dedicated AI agent identities with lifecycle management |
-| **[§14](#14-user-consent-models-first-party-vs-third-party) Consent** | Async authorization (CIBA) represents the most-secure end of the consent spectrum; XAA represents the enterprise-managed end |
-| **[§16](#16-task-based-access-control-tbac) TBAC** | FGA/OpenFGA provides document-level TBAC for RAG — finer-grained than tool-level access control |
+| **[§14](#14-authorization-approval-and-consent-models) Authorization and consent** | CIBA supplies a decoupled authenticated decision ceremony; XAA supplies enterprise-managed policy authorization. Neither label alone establishes legal consent or runtime operation authority |
+| **[§16](#16-task-based-access-control-tbac) Layered access control** | FGA/OpenFGA supplies document-level relationship authorization for RAG, composed with OAuth grants, task context, and resource-server policy |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Authorization Models** | FGA supplies relationship-based data authorization (user→document, agent→folder) alongside, rather than as a substitute for, OAuth scope and token validation |
-| **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) RAR** | FGA's typed relationships are semantically similar to RAR's `authorization_details` but at the data level |
+| **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) RAR** | RAR structures requested/granted OAuth authority; FGA evaluates relationships at runtime. They can share identifiers but are different artifacts and decision points |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | Auth0 publicly states it is partnering with Google Cloud to define A2A auth specifications based on secure standards and build SDKs / samples — positioning Auth0 as a CIAM layer adjacent to both MCP and A2A security |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Auth0/Okta issue and validate authorization artifacts but do not mediate every MCP transport request. MCP servers must bind application, task, subscription, cache, and continuation handles to the authenticated principal and client; sender-constrained tokens do not create that binding automatically |
 | **Lifecycle Boundary** | Auth for MCP is GA; Token Vault is Early Access; XAA is Beta; the Okta Open Source MCP Server is separately GA with Elicitation and scope-based tool loading |
@@ -23983,7 +23682,6 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Anthropic — Computer use tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool) — Current browser/computer-use guidance: isolated environments, minimal privileges, domain allowlists, prompt-injection precautions, and human confirmation for affirmative-consent actions ([§14.5](#145-is-user-consent-always-required))
 - [Birgisson et al. — "Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud"](https://research.google/pubs/macaroons-cookies-with-contextual-caveats-for-decentralized-authorization-in-the-cloud/) — Google Research, NDSS Symposium 2014; foundational paper on chained-HMAC authorization credentials with contextual caveats for decentralized delegation ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans))
 - [Biscuit — Decentralized Authorization Tokens](https://www.biscuitsec.org/) — Open-source bearer token with offline attenuation, Datalog-based authorization language, and public-key cryptography (Ed25519); multi-language support (Rust, Java, Go, Python, Haskell, WebAssembly, Swift, .NET); stable specification v3.x ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans))
-- [C2PA — Coalition for Content Provenance and Authenticity](https://c2pa.org/) — Open standard for content provenance via cryptographic manifests binding content to origin and edit history; potential extension to agent action provenance ([§13.2](#132-gateway-responsibilities))
 - [Chan et al. — "IDs for AI Systems"](https://arxiv.org/abs/2401.13138) — Framework for identifying AI systems via instance-level IDs for accountability, safety certification verification, and incident investigation; accepted at RegML workshop, NeurIPS 2024 ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
 - [CoSAI — MCP Security and Agentic IAM Resources](https://www.coalitionforsecureai.org/resources) — Coalition for Secure AI resource index covering the Model Context Protocol Security paper, Agentic Identity and Access Management, and adjacent MCP/agent security guidance. See also [GitHub](https://github.com/cosai-oasis/)
 - [Chrome Developers — When to use WebMCP and MCP](https://developer.chrome.com/blog/webmcp-mcp-usage) — Chrome guidance that MCP and WebMCP are complementary; backend-vs-browser-tab tool boundary and tab-bound WebMCP lifecycle (published March 11, 2026) ([§14.5](#145-is-user-consent-always-required), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§20.7](#207-web-bot-authentication))
@@ -23996,10 +23694,11 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [draft-meunier-webbotauth-httpsig-protocol-00](https://datatracker.ietf.org/doc/draft-meunier-webbotauth-httpsig-protocol/) — Active individual proposal for Web Bot Authentication using HTTP Message Signatures ([§20.7](#207-web-bot-authentication))
 - [draft-nottingham-webbotauth-use-cases-02](https://datatracker.ietf.org/doc/draft-nottingham-webbotauth-use-cases/) — Use cases for authentication of web bots: abuse mitigation, access control, differentiated content, auditing, traffic classification, site services, and contextual information (published April 1, 2026) ([§20.7](#207-web-bot-authentication))
 - [draft-rescorla-anonymous-webbotauth-01](https://datatracker.ietf.org/doc/draft-rescorla-anonymous-webbotauth/) — Active individual Anonymous Bot Authentication proposal: policy and rate-limiting signals without identifying a specific bot; updated July 19, 2026 ([§20.7](#207-web-bot-authentication))
-- [FAPI 2.0 Message Signing](https://openid.net/specs/fapi-2_0-message-signing.html) — HTTP message-level non-repudiation via RFC 9421 signatures (Final Specification, September 2025) (§3.6)
+- [FAPI 2.0 Message Signing](https://openid.net/specs/fapi-2_0-message-signing.html) — HTTP message integrity, signer authentication, and covered-component binding through RFC 9421 signatures (Final Specification, September 2025) (§3.6)
 - [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-2_0-security-profile.html) — Financial-grade API security profile mandating PAR, sender-constrained tokens, and `iss` validation (Final Specification, February 2025) (§3.6)
-- [FAPI CIBA Profile 1.0](https://openid.net/specs/openid-financial-api-ciba-id1.html) — Financial-grade API CIBA security profile for financial services ([§15.5.6.1](#15561-vendor-comparison-matrix))
+- [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) — OpenID Implementer's Draft profile strengthening CIBA for financial-grade deployments; profile controls do not by themselves establish a payment's SCA or dynamic-linking compliance ([§15.5](#155-tier-5-ciba-protocol), [§15.10.3](#15103-psd2psd3-payment-services))
 - [IETF webbotauth Working Group](https://datatracker.ietf.org/wg/webbotauth/about/) — Standardizing cryptographic authentication of automated web clients (bots, crawlers, AI agents) to websites ([§20.7](#207-web-bot-authentication))
+- [ISO/IEC TS 27560:2023 — Consent record information structure](https://www.iso.org/standard/80392.html) — Interoperable records and receipts for a PII principal's consent to PII processing; not a general business-approval or OAuth-grant schema ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
 - [JARM — JWT Secured Authorization Response Mode](https://openid.net/specs/oauth-v2-jarm.html) — JWT-encoded authorization responses with signing and encryption (Final Specification, November 2022) (§3.6)
 - [MCP Authorization Extensions](https://github.com/modelcontextprotocol/ext-auth) — Optional, additive, composable auth extensions for MCP
 - [MCP Authorization Spec (Draft)](https://modelcontextprotocol.io/specification/draft/basic/authorization) — Current draft spec
@@ -24012,7 +23711,8 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [OAuth 2.1 IETF Draft (v15)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-15) — Foundation for MCP auth (March 2, 2026)
 - [OAuth Client ID Metadata Documents (draft-ietf-oauth-client-id-metadata-document-02)](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) — URL-based `client_id` with hosted metadata; OAuth WG draft updated July 6, 2026
 - [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) — Client Initiated Backchannel Authentication, OpenID Foundation (finalized September 1, 2021) (§15.5)
-- [OpenID Authorization API 1.0](https://openid.net/specs/openid-authzen-authorization-api-1_0.html) — Final OpenID Foundation specification for PDP/PEP interoperability; approved January 12, 2026
+- [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) — Final OpenID Foundation specification for Subject–Action–Resource–Context PDP/PEP interoperability; approved January 12, 2026 ([§18.3.8](#1838-openid-authorization-api-10-peppdp-interoperability))
+- [OpenID CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) — Working-group draft profiling interoperable SSF transmitter/receiver endpoints and core CAEP session-event use cases; published July 21, 2026 ([§20.1](#201-deployment-status-use-profile-or-monitor), [§20.6](#206-policy-evidence-and-verified-authority))
 - [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-1_0-final.html) — Profile defining continuous access evaluation events: session-revoked, credential-changed, token-claims-change, assurance-level-change, and device-compliance-change (Final Specification, September 2025) (§12.3)
 - [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) — Framework for real-time security event transmission between identity systems via Security Event Tokens (SET, RFC 8417); push (webhook) and poll delivery modes (Final Specification, September 2025) (§12.3)
 - [OpenTelemetry — CNCF Observability Framework](https://opentelemetry.io/) — Vendor-neutral, open-source observability framework for traces, metrics, and logs; CNCF incubating project; semantic conventions for MCP attributes (`mcp.method.name`, `mcp.session.id`) ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability))
@@ -24028,6 +23728,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [RFC 9101 — The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/html/rfc9101) — Signed/encrypted authorization request parameters (August 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
 - [RFC 9126 — OAuth 2.0 Pushed Authorization Requests (PAR)](https://datatracker.ietf.org/doc/html/rfc9126) — Backchannel authorization request submission (September 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
 - [RFC 9396 — Rich Authorization Requests](https://www.rfc-editor.org/rfc/rfc9396.html) — Structured `authorization_details` for fine-grained authorization
+- [RFC 9470 — OAuth 2.0 Step Up Authentication Challenge Protocol](https://www.rfc-editor.org/rfc/rfc9470.html) — Resource-server challenge for stronger or fresher user authentication; does not itself grant the retried operation ([§15.5.5.2](#15552-authentication-step-up-is-not-business-approval))
 - [RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449) — Sender-constrained tokens via proof-of-possession; prevents token theft and replay ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents))
 - [RFC 9700 — Best Current Practice for OAuth 2.0 Security](https://datatracker.ietf.org/doc/html/rfc9700) — Mandates sender-constrained or rotated refresh tokens (January 2025)
 - [RFC 9728 — OAuth 2.0 Protected Resource Metadata](https://datatracker.ietf.org/doc/html/rfc9728) — Resource server metadata discovery
@@ -24051,11 +23752,12 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 > This subsection intentionally tracks active IETF and related draft work because agent authorization design is still moving quickly. Draft names, fields, and even problem decomposition may change or disappear before standardization, so references here should be read as signals of emerging design direction rather than deployment-safe commitments.
 
 - [draft-chen-agent-decoupled-authorization-model-00](https://datatracker.ietf.org/doc/draft-chen-agent-decoupled-authorization-model/) — Decoupled authorization model for Agent2Agent with intent-based JIT permissions (M. Chen, L. Su)
-- [draft-chen-oauth-rar-agent-extensions-01](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) — Individual Policy and Lifecycle Extensions proposal for OAuth Rich Authorization Requests; updated April 22, 2026, with no formal IETF standing ([§19.4](#194-rar-agent-extensions-policy_context-and-lifecycle_binding-ietf-draft))
+- [draft-chen-oauth-rar-agent-extensions-01](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) — Individual Policy and Lifecycle Extensions proposal for OAuth Rich Authorization Requests; updated April 22, 2026, with no formal IETF standing ([§19.4](#194-rar-agent-extensions-monitor-not-baseline))
 - [draft-chen-oauth-scope-agent-extensions-00](https://datatracker.ietf.org/doc/draft-chen-oauth-scope-agent-extensions/) — Structured scope syntax for AI agent Modular Capability Units (skills)
 - [draft-jia-oauth-scope-aggregation-00](https://datatracker.ietf.org/doc/draft-jia-oauth-scope-aggregation/) — OAuth scope aggregation for multi-step AI agent workflows
 - [draft-klrc-aiagent-auth-03](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/) — Individual AI Agent Authentication and Authorization proposal using WIMSE (AIMS model); updated July 6, 2026, with no formal IETF standing
 - [draft-liu-agent-operation-authorization-02](https://datatracker.ietf.org/doc/draft-liu-agent-operation-authorization/) — Agent Operation Authorization: structured authorization proposal + authorization token model binding user, agent, and operation; presented at IETF 125 OAuth materials (March 2026)
+- [draft-liu-oauth-authorization-evidence-01](https://datatracker.ietf.org/doc/draft-liu-oauth-authorization-evidence/) — Individual proposal for AS-signed authorization evidence and audit-trail references; monitor only, because AS assertions do not independently prove user perception or execution binding ([§20.6](#206-policy-evidence-and-verified-authority))
 - [draft-nennemann-wimse-ect-00](https://datatracker.ietf.org/doc/draft-nennemann-wimse-ect/) — Execution Context Tokens for distributed agentic workflows (WIMSE)
 - [draft-ni-wimse-ai-agent-identity-02](https://datatracker.ietf.org/doc/draft-ni-wimse-ai-agent-identity/) — WIMSE applicability for AI agent identity and credential management
 - [draft-ietf-oauth-transaction-tokens-09](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) — OAuth WG Transaction Tokens draft for trust-domain service graphs; in Working Group Last Call as of July 2026
@@ -24149,7 +23851,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [A2A Protocol — Security](https://google.github.io/A2A/specification/#security) — Enterprise authentication and authorization for A2A
 - [A2A Protocol — Agent Discovery](https://a2a-protocol.org/latest/topics/agent-discovery/) — Official A2A discovery guidance for Agent Cards, well-known URIs, curated registries, and catalogs; registries are an ecosystem strategy, not a normative A2A registry API
 - [A2A Protocol Specification](https://a2a-protocol.org/dev/specification/) — Current protocol specification for Agent Cards, transport, tasks, and agent-to-agent interaction semantics
-- [AP2 — Agent Payments Protocol](https://ap2-protocol.org/) — Open protocol for AI agent-initiated payments: Verifiable Digital Credentials (Cart Mandate, Intent Mandate, Payment Mandate), role-based PCI separation, human-present/not-present transaction flows, and 3DS2 challenge integration; the documentation root links to the current specification, Google/FIDO donation announcement, and GitHub reference implementation ([§8.8](#88-ap2-agent-payments-protocol))
+- [AP2 — Agent Payments Protocol](https://ap2-protocol.org/) — Open protocol for AI agent-initiated payments using open and closed Checkout and Payment Mandates, trusted-surface authorization, credential-provider separation, and human-present/not-present flows ([§8.8](#88-ap2-agent-payments-protocol))
 - [DIF MCP-I — Model Context Protocol Identity](https://modelcontextprotocol-identity.io/) — Open identity and delegation standard for AI agents using W3C DIDs and Verifiable Credentials; extends MCP with cryptographic identity headers, Edge Verifier pattern, three conformance levels (Basic/Standard/Enterprise), and credential-to-token OAuth 2.1 bridging; donated to DIF by Vouched (March 2026); developed under the Trusted AI Agents Working Group ([§6.5](#65-decentralized-identity-didvc-for-agent-identity), [§13.7.4](#1374-agent-discovery-and-registry-ecosystem))
 - [AP2 GitHub — google-agentic-commerce/AP2](https://github.com/google-agentic-commerce/AP2) — Reference implementations (Python), sample scenarios for human-present cards, human-present x402, and digital payment credentials
 - [Google — Agent Payments Protocol donated to FIDO](https://blog.google/products-and-platforms/platforms/google-pay/agent-payments-protocol-fido-alliance/) — April 2026 announcement that AP2 was donated to FIDO and v0.2 added Human Not Present autonomous payment support
@@ -24182,8 +23884,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Auth0 — MCP Nov 2025 Specification Update](https://auth0.com/blog/mcp-november-2025-specification-update/) — Auth0's January 7, 2026 analysis of the November 2025 MCP update introducing CIMD and XAA
 - [Auth0 MCP Server](https://auth0.com/docs/get-started/auth0-mcp-server) — Auth0's own MCP server for tenant management via natural language, using Device Authorization Flow and secure keychain storage
 - [Auth0 Token Vault](https://auth0.com/docs/secure/tokens/token-vault/call-apis-with-token-vault) — Token Vault-specific docs describe the capability as Early Access for public cloud tenants; stores external provider tokens for delegated API access
-- [Auth0 — Asynchronous Authorization Quickstart](https://auth0.com/ai/docs/get-started/asynchronous-authorization) — CIBA + RAR style human-in-the-loop approval flows for AI agents ([§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation))
-- [Auth0 — CIBA Backchannel Login](https://auth0.com/docs/authenticate/login/backchannel-login) — CIBA implementation guide with mobile push notifications and RAR integration ([§15.5.6.2](#15562-auth0-ciba-and-rar-the-reference-implementation))
+- [Auth0 — User Authorization with CIBA and RAR](https://auth0.com/docs/get-started/authentication-and-authorization-flow/client-initiated-backchannel-authentication-flow/user-authorization-with-ciba) — Documented CIBA poll-mode flow with `authorization_details`, Guardian/email interaction, and top-level token-response details ([§15.5.6.2](#15562-auth0-ciba-and-rar-a-documented-composition))
 - [Authorino — Cloud-Native Authorization Engine](https://github.com/Kuadrant/authorino) — Kubernetes-native external authorization service (Envoy `ext_authz`); supports JWT, API key, mTLS, K8s TokenReview, OPA Rego, CEL, pattern matching, wristband JWTs, and multi-phase AuthPolicy pipelines ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))
 - [Azure API Center — Agent Registry](https://learn.microsoft.com/en-us/azure/api-center/overview) — Centralized API and agent inventory with automatic APIM synchronization
 - [Azure APIM AI Gateway Labs (GitHub)](https://github.com/Azure-Samples/AI-Gateway) — 30+ hands-on labs including 4 MCP-specific labs (MCP proxy, MCP client authorization, Realtime Audio + MCP, A2A-enabled agents)
@@ -24207,7 +23908,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Cloudflare WAF — AI Security for Apps](https://developers.cloudflare.com/waf/detections/ai-security-for-apps/) — Formerly Firewall for AI; prompt-injection / PII / unsafe-topic detections exposed as WAF fields
 - [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/) — Edge model runtime complementary to Worker-hosted MCP server execution
 - [Descope — Agentic Identity Hub](https://docs.descope.com/agentic-identity/) — MCP ecosystem identity governance with CIBA for human-in-the-loop ([§15.5.6.1](#15561-vendor-comparison-matrix))
-- [Descope — Inbound Apps (OAuth Consent for AI Agents)](https://docs.descope.com/agentic-identity/inbound-apps/) — OAuth-based consent flows with Consent ID, time-bounded expiry, and progressive scoping for AI agents ([§14.7](#147-consent-persistence-architecture))
+- [Descope — Inbound Apps (OAuth Consent for AI Agents)](https://docs.descope.com/agentic-identity/inbound-apps/) — OAuth-based consent flows with Consent ID, time-bounded expiry, and progressive scoping for AI agents ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
 - [Docker MCP Catalog](https://hub.docker.com/catalogs/mcp) — Curated, verified MCP server images on Docker Hub
 - [Docker MCP Gateway](https://docs.docker.com/ai/mcp-gateway/) — Container-based MCP gateway with server isolation, interceptors, and secret management
 - [Docker MCP secret CLI](https://docs.docker.com/reference/cli/docker/mcp/secret/) — Docker MCP command reference for managing MCP secrets in the local OS keychain and active Secrets Engine providers ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary))
@@ -24229,15 +23930,17 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [LiteLLM — JWT Auth Architecture](https://docs.litellm.ai/docs/proxy/jwt_auth_arch) — Enterprise JWT authentication with OIDC JWKS discovery, role-based model access, and JWT-to-key mapping ([§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway))
 - [LiteLLM GHSA-jjhc-v7c2-5hh6 / CVE-2026-35030](https://github.com/BerriAI/litellm/security/advisories/GHSA-jjhc-v7c2-5hh6) — Critical OIDC userinfo cache-key collision affecting `litellm <1.83.0`, patched in `1.83.0`; relevant to JWT/OIDC-authenticated LiteLLM deployments ([§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway))
 - [LiteLLM PyPI compromise issue](https://github.com/BerriAI/litellm/issues/24518) — Maintainer issue documenting compromised and deleted PyPI releases `1.82.7` and `1.82.8`; supports package-provenance and version-pinning guidance ([§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway))
+- [Microsoft Entra Agent ID — What's new](https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id) — Platform GA and component-specific lifecycle/status evidence for agent identities, blueprints, governance, and deletion controls ([§21](#21-product-implementation-landscape), [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive))
+- [Okta Agent Gateway](https://www.okta.com/en-sg/blog/product-innovation/agent-gateway-runtime-governance/) — July 23, 2026 select-customer beta/research release for runtime credential brokerage, execution controls, XAA integration, and brokered-consent positioning ([§21](#21-product-implementation-landscape))
 - [OpenFGA](https://openfga.dev/) — Open-source ReBAC engine (CNCF Incubating since Oct 2025), powers Auth0 FGA
 - [Red Hat MCP Gateway (GitHub)](https://github.com/kagenti/mcp-gateway) — Envoy-based MCP gateway with ext_proc router, broker aggregation, and K8s MCPServerRegistration CRDs; Apache 2.0 ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))
 - [Red Hat MCP Gateway — Architecture](https://github.com/kagenti/mcp-gateway/blob/main/docs/design/overview.md) — Design constraints, component responsibilities (Broker, Router, Controller), and request flow documentation ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))
 - [Red Hat MCP Gateway — VISION](https://github.com/kagenti/mcp-gateway/blob/main/VISION.md) — Project vision, architectural principles (Envoy-first, defense in depth), integration with K8s AI Gateway WG / Kube Agentic Networking / CNCF ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))
 - [Ping Identity — Identity for AI GA announcement](https://press.pingidentity.com/2026-03-24-Ping-Identity-Defines-the-Runtime-Identity-Standard-for-Autonomous-AI) — General-availability announcement for Identity for AI, positioning Agent IAM Core, Agent Gateway, and Agent Detection as Ping's runtime-control stack for AI agents ([§15.5.6.4](#15564-ping-identity-identity-for-ai))
 - [SpiceDB](https://authzed.com/spicedb) — Zanzibar-based authorization with tunable consistency (AuthZed)
-- [Stytch — AI Agent Authentication](https://stytch.com/products/connected-apps) — OAuth + CIBA + OBO + RAR for agent authentication and decoupled authorization ([§15.5.6.1](#15561-vendor-comparison-matrix))
-- [Stytch — AI Agent Authentication via Connected Apps](https://stytch.com/blog/ai-agent-authentication) — OAuth delegation for AI agents with organizational consent controls ([§14.7](#147-consent-persistence-architecture))
-- [Stytch — Connected Apps (Consent Management)](https://stytch.com/docs/guides/connected-apps/overview) — OAuth/OIDC Authorization Server with admin-governed consent, allowlists, and one-click revocation ([§14.7](#147-consent-persistence-architecture))
+- [Stytch — Consent Management](https://stytch.com/docs/connected-apps/resources/consent-management) — Connected Apps consent grants, revocation, and organization app policy; the reviewed documentation does not establish CIBA or RAR support (§14.7, [§15.5.6.1](#15561-vendor-comparison-matrix))
+- [Stytch — AI Agent Authentication via Connected Apps](https://stytch.com/blog/ai-agent-authentication) — OAuth delegation for AI agents with organizational consent controls ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
+- [Stytch — Connected Apps (Consent Management)](https://stytch.com/docs/guides/connected-apps/overview) — OAuth/OIDC Authorization Server with admin-governed consent, allowlists, and one-click revocation ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
 - [Topaz](https://topaz.sh/) — OPA + Zanzibar directory hybrid authorization engine (Aserto)
 - [Traefik MCP Gateway](https://traefik.io/solutions/mcp-gateway) — MCP gateway product page covering TBAC, session-smart routing, runtime guardrails, and audit-ready observability
 - [Traefik Hub MCP Gateway Documentation](https://doc.traefik.io/traefik-hub/mcp-gateway/mcp) — MCP middleware configuration, OAuth 2.1 resource-server behavior, protected-resource metadata, TBAC, and session-affinity guidance
@@ -24247,6 +23950,8 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [TrueFoundry AI Gateway — Introduction](https://docs.truefoundry.com/docs/ai-gateway) — Unified API for 1000+ LLMs with MCP Registry, RBAC, guardrails
 - [TrueFoundry MCP Gateway](https://www.truefoundry.com/mcp) — Centralized MCP gateway with OAuth lifecycle management
 - [WSO2 Identity Server — Agentic AI and MCP Guide](https://is.docs.wso2.com/en/latest/guides/agentic-ai/mcp/) — Successor: native MCP server registration, agent identity, scope enforcement
+- [WSO2 Identity Server 7.3 — Release Overview](https://is.docs.wso2.com/en/next/get-started/about-this-release/) — Current CIBA and agentic-identity release evidence (§15.5.6, [§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization))
+- [WSO2 Identity Server — Rich Authorization Requests](https://is.docs.wso2.com/en/next/guides/authorization/rich-authorization-requests/) — Product-level RAR support documented separately from CIBA composition (§15.5.6, [§G.7](#g7-rich-authorization-and-protocol-version-boundary))
 - [ZITADEL — 2026 Hybrid Architecture Vision](https://zitadel.com/blog/the-vision-for-zitadel-in-2026) — Evolution from pure ES to hybrid ES + normalized PostgreSQL for scalability ([§14.7.4](#1474-scalability-considerations))
 - [ZITADEL — Event Sourcing Architecture](https://zitadel.com/docs/concepts/architecture/event-sourcing) — Event-sourced IAM with CQRS for consent and identity state management ([§14.7.4](#1474-scalability-considerations))
 
