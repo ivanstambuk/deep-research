@@ -45,6 +45,8 @@ const PRIMARY_SECTION_TAG = 'h2';
 const SECONDARY_SECTION_TAG = 'h3';
 const OVERSIZED_SECTION_BYTES = 34_000;
 const READER_LINK_BASE_URL = 'https://reader.local/';
+const STANDARD_REFERENCE_PATTERN = /\b(?:RFC\s+\d{3,5}(?:\s*\/\s*\d{3,5})?|draft-[a-z0-9]+(?:-[a-z0-9]+)+-\d{2})\b/gi;
+const EXACT_STANDARD_REFERENCE_PATTERN = /^(?:RFC\s+\d{3,5}|draft-[a-z0-9]+(?:-[a-z0-9]+)+-\d{2})$/i;
 
 const htmlCompiler = unified().use(rehypeStringify);
 
@@ -514,6 +516,129 @@ function shouldOpenExternalLinkInNewTab(href) {
   }
 }
 
+function createStandardReferenceLink(identifier, children) {
+  const rfcMatch = identifier.match(/^RFC\s+(\d{3,5})$/i);
+  const draftMatch = identifier.match(/^(draft-[a-z0-9]+(?:-[a-z0-9]+)+)-\d{2}$/i);
+  let href = null;
+
+  if (rfcMatch) {
+    href = `https://www.rfc-editor.org/rfc/rfc${rfcMatch[1]}.html`;
+  } else if (draftMatch) {
+    href = `https://datatracker.ietf.org/doc/${draftMatch[1].toLowerCase()}/`;
+  }
+
+  if (!href) {
+    return null;
+  }
+
+  return {
+    type: 'element',
+    tagName: 'a',
+    properties: { href },
+    children,
+  };
+}
+
+function linkifyStandardReferenceText(value) {
+  const children = [];
+  let cursor = 0;
+
+  for (const match of value.matchAll(STANDARD_REFERENCE_PATTERN)) {
+    const matchIndex = match.index ?? 0;
+    if (matchIndex > cursor) {
+      children.push({
+        type: 'text',
+        value: value.slice(cursor, matchIndex),
+      });
+    }
+
+    const matchedText = match[0];
+    const compactRfcPair = matchedText.match(/^(RFC\s+\d{3,5})(\s*\/\s*)(\d{3,5})$/i);
+    if (compactRfcPair) {
+      children.push(
+        createStandardReferenceLink(compactRfcPair[1], [{
+          type: 'text',
+          value: compactRfcPair[1],
+        }]),
+        {
+          type: 'text',
+          value: compactRfcPair[2],
+        },
+        createStandardReferenceLink(`RFC ${compactRfcPair[3]}`, [{
+          type: 'text',
+          value: compactRfcPair[3],
+        }]),
+      );
+    } else {
+      children.push(createStandardReferenceLink(matchedText, [{
+        type: 'text',
+        value: matchedText,
+      }]));
+    }
+
+    cursor = matchIndex + matchedText.length;
+  }
+
+  if (cursor === 0) {
+    return null;
+  }
+
+  if (cursor < value.length) {
+    children.push({
+      type: 'text',
+      value: value.slice(cursor),
+    });
+  }
+
+  return children;
+}
+
+function appendStandardReferenceLinks(tree) {
+  function visit(node) {
+    if (!node || typeof node !== 'object' || !Array.isArray(node.children)) {
+      return;
+    }
+
+    if (
+      node.type === 'element' &&
+      ['a', 'pre', 'script', 'style'].includes(node.tagName)
+    ) {
+      return;
+    }
+
+    const nextChildren = [];
+
+    node.children.forEach((child) => {
+      if (child?.type === 'text') {
+        nextChildren.push(...(linkifyStandardReferenceText(child.value) ?? [child]));
+        return;
+      }
+
+      if (
+        child?.type === 'element' &&
+        child.tagName === 'code' &&
+        child.children?.length === 1 &&
+        child.children[0]?.type === 'text' &&
+        EXACT_STANDARD_REFERENCE_PATTERN.test(child.children[0].value)
+      ) {
+        const standardLink = createStandardReferenceLink(
+          child.children[0].value,
+          [child],
+        );
+        nextChildren.push(standardLink ?? child);
+        return;
+      }
+
+      visit(child);
+      nextChildren.push(child);
+    });
+
+    node.children = nextChildren;
+  }
+
+  visit(tree);
+}
+
 function appendExternalLinkTargets(tree) {
   function visit(node) {
     if (!node || typeof node !== 'object') {
@@ -757,6 +882,7 @@ async function build() {
         diagnostics: sectionDiagnostics,
         targetIndex: crossReferenceIndex,
       }));
+      appendStandardReferenceLinks(section.tree);
       appendExternalLinkTargets(section.tree);
       return finalizeSectionRecord(section);
     });

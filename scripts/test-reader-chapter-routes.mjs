@@ -36,6 +36,8 @@ const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
 const DR1_LABEL_TARGET_HEADING_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
+const DR1_RAR_CHAPTER_ID = '19-rich-authorization-requests-rar-vs-oauth-scopes';
+const DR1_STANDARDS_CHAPTER_ID = '20-emerging-standards-for-ai-agent-authorization';
 const DR6_SLUG = 'DR-0006-modern-low-level-programming-languages';
 const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
 const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
@@ -669,6 +671,44 @@ async function assertExternalLinksOpenInNewTab(page) {
   const internalTarget = await internalLink.getAttribute('target');
   if (internalTarget !== null) {
     throw new Error(`internal cross-reference unexpectedly opens in a new tab: target=${internalTarget}`);
+  }
+}
+
+async function assertDr1StandardReferencesOpenInNewTab(page) {
+  const baseUrl = getBaseUrl(page.__readerPort);
+  const standardsUrl = `${baseUrl}/${DOC_SLUG}/${DR1_STANDARDS_CHAPTER_ID}`;
+  console.log(`[chapter routes smoke] checking DR-0001 standard reference links: ${standardsUrl}`);
+  await page.goto(standardsUrl, { waitUntil: 'domcontentloaded' });
+
+  const tableRfcLink = page.locator(
+    '.table-scroll a[href="https://www.rfc-editor.org/rfc/rfc9396.html"]',
+  ).first();
+  const inlineDraftLink = page.locator(
+    'a[href="https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/"]',
+  ).filter({ has: page.locator('code') }).first();
+
+  await tableRfcLink.waitFor({ state: 'visible', timeout: 20_000 });
+  await inlineDraftLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  for (const link of [tableRfcLink, inlineDraftLink]) {
+    const target = await link.getAttribute('target');
+    const rel = await link.getAttribute('rel');
+    if (target !== '_blank' || !rel?.includes('noopener') || !rel?.includes('noreferrer')) {
+      throw new Error(`DR-0001 standard reference link missing new-tab safety attrs: target=${target}, rel=${rel}`);
+    }
+  }
+
+  const noteUrl = `${baseUrl}/${DOC_SLUG}/${DR1_RAR_CHAPTER_ID}`;
+  await page.goto(noteUrl, { waitUntil: 'domcontentloaded' });
+  const noteRfcLink = page.locator(
+    'blockquote a[href="https://www.rfc-editor.org/rfc/rfc9728.html"]',
+  ).first();
+  await noteRfcLink.waitFor({ state: 'visible', timeout: 20_000 });
+
+  const noteTarget = await noteRfcLink.getAttribute('target');
+  const noteRel = await noteRfcLink.getAttribute('rel');
+  if (noteTarget !== '_blank' || !noteRel?.includes('noopener') || !noteRel?.includes('noreferrer')) {
+    throw new Error(`DR-0001 note standard reference link missing new-tab safety attrs: target=${noteTarget}, rel=${noteRel}`);
   }
 }
 
@@ -2126,6 +2166,7 @@ async function main() {
     await assertGeneratedCrossReferenceNavigation(page);
     await assertGeneratedLabelCrossReferenceNavigation(page);
     await assertExternalLinksOpenInNewTab(page);
+    await assertDr1StandardReferencesOpenInNewTab(page);
     await assertArfLinksResolveAsExternalLinks(page);
     await assertArfTopicLinksResolveAsExternalLinks(page);
     await assertInitialHashRouteSurvivesMermaidRender(page);

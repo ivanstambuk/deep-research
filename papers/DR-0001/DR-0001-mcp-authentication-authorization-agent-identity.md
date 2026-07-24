@@ -15803,7 +15803,7 @@ sequenceDiagram
     Note right of Agent: Phase 1: Tool Call & Token Exchange Request
     Agent->>GW: POST /mcp tools/call: process_patient_data<br/>Authorization: Bearer {user-token}
     GW->>AS: Token Exchange Request
-    Note right of GW: POST /token<br/><br/>grant_type=token-exchange<br/>subject_token={user-token}<br/>authorization_details=[{<br/>  "type": "mcp_tool_invocation",<br/>  "tool": "process_patient_data",<br/>  "policy_context": {<br/>    "assurance_level": "hipaa_phi_access",<br/>    "compliance_frameworks": ["hipaa", "gdpr"]<br/>  },<br/>  "lifecycle_binding": {<br/>    "type": "task_status_webhook",<br/>    "task_id": "analysis-job-1138"<br/>  }<br/>}]
+    Note right of GW: POST /token<br/><br/>grant_type=urn:ietf:params:oauth:grant-type:token-exchange<br/>subject_token={user-token}<br/>authorization_details=[{<br/>⠀⠀"type": "mcp_tool_invocation",<br/>⠀⠀"tool": "process_patient_data",<br/>⠀⠀"policy_context": {<br/>⠀⠀⠀⠀"assurance_level": "hipaa_phi_access",<br/>⠀⠀⠀⠀"compliance_frameworks": ["hipaa", "gdpr"]<br/>⠀⠀},<br/>⠀⠀"lifecycle_binding": {<br/>⠀⠀⠀⠀"type": "task_status_webhook",<br/>⠀⠀⠀⠀"task_id": "analysis-job-1138"<br/>⠀⠀}<br/>}]
     Note right of Task: ⠀
     Note right of Task: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
