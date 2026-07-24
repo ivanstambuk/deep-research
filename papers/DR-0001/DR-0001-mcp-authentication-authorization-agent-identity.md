@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-24 · ~24,400 lines
+**DR-0001** · Published · Last updated 2026-07-24 · ~23,100 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -64,17 +64,21 @@ related: []
     - [3.6 High-Assurance Authorization: FAPI 2.0, PAR, JAR, JARM](#36-high-assurance-authorization-fapi-20-par-jar-jarm)
   </details>
 - [Identity, Delegation, and Durable Authority](#identity-delegation-and-durable-authority)
-  - <details><summary><a href="#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant">4 The Identity Trilemma: Impersonation vs. Delegation vs. Direct Grant</a></summary>
+  - <details><summary><a href="#4-choosing-the-authority-relationship">4 Choosing the Authority Relationship</a></summary>
 
-    - [4.1 Comparison Matrix](#41-comparison-matrix)
-    - [4.2 Why Delegation is the Default](#42-why-delegation-is-the-default)
+    - [4.1 Authority Planes and the Decision Contract](#41-authority-planes-and-the-decision-contract)
+    - [4.2 Operation-Specific Authority Composition](#42-operation-specific-authority-composition)
+    - [4.3 Solved Authority Branches](#43-solved-authority-branches)
+    - [4.4 Selection Matrix and Failure Boundaries](#44-selection-matrix-and-failure-boundaries)
   </details>
-  - <details><summary><a href="#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern">5 OAuth Token Exchange (RFC 8693) and the On-Behalf-Of Pattern</a></summary>
+  - <details><summary><a href="#5-oauth-token-exchange-rfc-8693-and-delegated-derivation">5 OAuth Token Exchange (RFC 8693) and Delegated Derivation</a></summary>
 
-    - [5.1 Token Exchange Flow](#51-token-exchange-flow)
-    - [5.2 Token Exchange Request Parameters](#52-token-exchange-request-parameters)
-    - [5.3 Resulting Delegated Token Structure](#53-resulting-delegated-token-structure)
-    - [5.4 Chained Delegation (Multi-Agent)](#54-chained-delegation-multi-agent)
+    - [5.1 Standards Boundary and Evidence Map](#51-standards-boundary-and-evidence-map)
+    - [5.2 Profiled Token Exchange Flow](#52-profiled-token-exchange-flow)
+    - [5.3 Request, Response, and Failure Semantics](#53-request-response-and-failure-semantics)
+    - [5.4 Current Actor and Delegation History](#54-current-actor-and-delegation-history)
+    - [5.5 Derivation, Lifecycle, and Cross-Domain Boundary](#55-derivation-lifecycle-and-cross-domain-boundary)
+    - [5.6 When Token Exchange Is Not the Answer](#56-when-token-exchange-is-not-the-answer)
   </details>
   - <details><summary><a href="#6-agent-identity-vs-user-identity">6 Agent Identity vs. User Identity</a></summary>
 
@@ -85,19 +89,18 @@ related: []
     - [6.5 Decentralized Identity (DID/VC) for Agent Identity](#65-decentralized-identity-didvc-for-agent-identity)
     - [6.6 Multi-User Agent Authorization](#66-multi-user-agent-authorization)
   </details>
-  - <details><summary><a href="#7-nhi-governance-and-owasp-nhi-top-10-mapping">7 NHI Governance and OWASP NHI Top 10 Mapping</a></summary>
+  - <details><summary><a href="#7-agent-definition-identity-and-governance-lifecycles">7 Agent Definition, Identity, and Governance Lifecycles</a></summary>
 
-    - [7.1 Why NHI Governance Matters for AI Agents](#71-why-nhi-governance-matters-for-ai-agents)
-    - [7.2 NHI Lifecycle for AI Agents](#72-nhi-lifecycle-for-ai-agents)
-    - [7.3 NHI Governance Platform Landscape](#73-nhi-governance-platform-landscape)
-    - [7.4 Credential Architecture for AI Agents](#74-credential-architecture-for-ai-agents)
-    - [7.5 NHI Governance Contributions to an EU AI Act Control System](#75-nhi-governance-contributions-to-an-eu-ai-act-control-system)
-    - [7.6 CSA Agentic Trust Framework (ATF)](#76-csa-agentic-trust-framework-atf)
-    - [7.7 OWASP NHI Top 10: MCP Agent Risk Mapping](#77-owasp-nhi-top-10-mcp-agent-risk-mapping)
-    - [7.8 OWASP Agentic AI Top 10 Mapping](#78-owasp-agentic-ai-top-10-mapping)
-    - [7.9 CoSAI MCP Threat Taxonomy Mapping](#79-cosai-mcp-threat-taxonomy-mapping)
-    - [7.10 NIST SP 800-63-4 Assurance Levels for Agent Identity](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity)
-    - [7.11 Agent De-Provisioning vs. Token Revocation](#711-agent-de-provisioning-vs-token-revocation)
+    - [7.1 One Agent, Several Correlated Lifecycles](#71-one-agent-several-correlated-lifecycles)
+    - [7.2 Agent Definitions, Versions, and Provenance](#72-agent-definitions-versions-and-provenance)
+    - [7.3 Registration, Sponsorship, Ownership, and Succession](#73-registration-sponsorship-ownership-and-succession)
+    - [7.4 Correlated Object Lifecycles, Owners, and Artifacts](#74-correlated-object-lifecycles-owners-and-artifacts)
+    - [7.5 Runtime Admission and Workload Identity](#75-runtime-admission-and-workload-identity)
+    - [7.6 Authority Review, Suspension, Renewal, Retirement, and Recovery](#76-authority-review-suspension-renewal-retirement-and-recovery)
+    - [7.7 Provisioning and Lifecycle Event Subjects](#77-provisioning-and-lifecycle-event-subjects)
+    - [7.8 Risk and Governance Crosswalk](#78-risk-and-governance-crosswalk)
+    - [7.9 Product Implementation Evidence and Maturity Boundaries](#79-product-implementation-evidence-and-maturity-boundaries)
+    - [7.10 Termination Orchestration and the Credential-Custody Handoff](#710-termination-orchestration-and-the-credential-custody-handoff)
   </details>
   - <details><summary><a href="#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns">8 A2A Protocol and AP2: Agent-to-Agent Authentication and Payment Patterns</a></summary>
 
@@ -113,9 +116,11 @@ related: []
   </details>
   - <details><summary><a href="#9-authorization-context-and-delegation-representation">9 Authorization Context and Delegation Representation</a></summary>
 
-    - [9.1 Enrichment Sources](#91-enrichment-sources)
-    - [9.2 Backend JWT Structure (Fully Enriched)](#92-backend-jwt-structure-fully-enriched)
-    - [9.3 On-Behalf-Of Representation Approaches](#93-on-behalf-of-representation-approaches)
+    - [9.1 Backend Decision Contract and Carrier Selection](#91-backend-decision-contract-and-carrier-selection)
+    - [9.2 Claim Provenance and Context Volatility](#92-claim-provenance-and-context-volatility)
+    - [9.3 Internal Assertion and Trusted-Channel Profile](#93-internal-assertion-and-trusted-channel-profile)
+    - [9.4 Solved Gateway-to-Backend Transformation](#94-solved-gateway-to-backend-transformation)
+    - [9.5 Representation Matrix and Handoffs](#95-representation-matrix-and-handoffs)
   </details>
   - <details><summary><a href="#10-authorization-continuity-and-durable-tasks">10 Authorization Continuity and Durable Tasks</a></summary>
 
@@ -127,22 +132,32 @@ related: []
     - [10.6 MCP Tasks Extension: Authorization for Durable Async Workflows](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)
     - [10.7 Offline Authority: User-Not-Present Continuation](#107-offline-authority-user-not-present-continuation)
   </details>
-  - <details><summary><a href="#11-credential-delegation-patterns">11 Credential Delegation Patterns</a></summary>
+  - <details><summary><a href="#11-credential-custody-and-release-patterns">11 Credential Custody and Release Patterns</a></summary>
 
-    - [11.1 Credential Delegation Pattern Taxonomy](#111-credential-delegation-pattern-taxonomy)
-    - [11.2 Credential Delegation Comparison Matrix](#112-credential-delegation-comparison-matrix)
-    - [11.3 Credential Lifecycle for AI Agent Delegation](#113-credential-lifecycle-for-ai-agent-delegation)
-    - [11.4 Cloud-Native Credential Delegation Platforms](#114-cloud-native-credential-delegation-platforms)
+    - [11.1 Custody Is Separate from Identity and Authority](#111-custody-is-separate-from-identity-and-authority)
+    - [11.2 Credential Roles and Trust Boundaries](#112-credential-roles-and-trust-boundaries)
+    - [11.3 Composable Custody and Release Patterns](#113-composable-custody-and-release-patterns)
+    - [11.4 Material Possession, Use Authority, and the Credential-Capability Matrix](#114-material-possession-use-authority-and-the-credential-capability-matrix)
+    - [11.5 Platform, Federation, Resource, Delegated-User, and Transaction Credentials](#115-platform-federation-resource-delegated-user-and-transaction-credentials)
+    - [11.6 Delivery, Overlap, Rotation, Reload, and Purge](#116-delivery-overlap-rotation-reload-and-purge)
+    - [11.7 Brokered Credential Use: Solved Walkthrough](#117-brokered-credential-use-solved-walkthrough)
+    - [11.8 Dated Implementation Evidence and Product Limitations](#118-dated-implementation-evidence-and-product-limitations)
+    - [11.9 Failure Handling, Credential-Oracle Prevention, and Lifecycle Handoff](#119-failure-handling-credential-oracle-prevention-and-lifecycle-handoff)
   </details>
-  - <details><summary><a href="#12-credential-security-and-revocation">12 Credential Security and Revocation</a></summary>
+  - <details><summary><a href="#12-credential-state-revocation-and-termination-convergence">12 Credential State, Revocation, and Termination Convergence</a></summary>
 
-    - [12.1 Credential Revocation Architecture for Distributed MCP Gateways](#121-credential-revocation-architecture-for-distributed-mcp-gateways)
-    - [12.2 DPoP: Sender-Constrained Tokens for AI Agents](#122-dpop-sender-constrained-tokens-for-ai-agents)
-    - [12.3 Event-Driven Revocation: SSF, CAEP, and MCP Provider Commands](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)
-    - [12.4 Decentralized Delegation: Biscuits, Macaroons, and UCANs](#124-decentralized-delegation-biscuits-macaroons-and-ucans)
-    - [12.5 Pattern Traceability](#125-pattern-traceability)
+    - [12.1 Expiry, Revocation, Signals, and Termination Are Different](#121-expiry-revocation-signals-and-termination-are-different)
+    - [12.2 Exposure-Window Controls](#122-exposure-window-controls)
+    - [12.3 Sender Constraint and Key-Custody Boundaries](#123-sender-constraint-and-key-custody-boundaries)
+    - [12.4 Token and Authorization Status](#124-token-and-authorization-status)
+    - [12.5 Event Subjects, Provisioning Events, and Continuous Signals](#125-event-subjects-provisioning-events-and-continuous-signals)
+    - [12.6 Receiver Processing, Stream Health, and Reconciliation](#126-receiver-processing-stream-health-and-reconciliation)
+    - [12.7 Session/Cache Invalidation and Request/Task Cancellation](#127-sessioncache-invalidation-and-requesttask-cancellation)
+    - [12.8 Capability Attenuation and the Recall Problem](#128-capability-attenuation-and-the-recall-problem)
+    - [12.9 Suspension, Recovery, and Stale-State Prevention](#129-suspension-recovery-and-stale-state-prevention)
+    - [12.10 Dependency-Aware Termination Orchestration](#1210-dependency-aware-termination-orchestration)
+    - [12.11 Convergence Ledger, Residual Windows, and Evidence](#1211-convergence-ledger-residual-windows-and-evidence)
   </details>
-- [Gateway and Authorization Architecture](#gateway-and-authorization-architecture)
   - <details><summary><a href="#13-gateway-mediated-mcp-architecture">13 Gateway-Mediated MCP Architecture</a></summary>
 
     - [13.1 General Gateway Architecture](#131-general-gateway-architecture)
@@ -283,7 +298,7 @@ related: []
     - [25.4 Role-Normalized Product Evidence](#254-role-normalized-product-evidence)
     - [25.5 Platform and Runtime Implementations](#255-platform-and-runtime-implementations)
     - [25.6 Regulatory Compliance](#256-regulatory-compliance)
-    - [25.7 NHI Governance](#257-nhi-governance)
+    - [25.7 Agent and Non-Human Identity Governance](#257-agent-and-non-human-identity-governance)
     - [25.8 Credential Delegation and Federation](#258-credential-delegation-and-federation)
     - [25.9 Cross-Organization Federation](#259-cross-organization-federation)
     - [25.10 Composable Agentic Identity Stack](#2510-composable-agentic-identity-stack)
@@ -535,16 +550,16 @@ An accepted request satisfies every row. “Unknown” is a deny condition, not 
 
 **Authorization & Oversight**
 
-5. **Preserve the human principal and acting agent while separating tokens at every handoff.** Prefer audience-bound RFC 8693 exchange or another explicit, agreed profile over impersonation. Preserve `sub`/`act`, issuer, audience, consent, and task provenance when MCP crosses into A2A or another framework; never transit the incoming MCP token to a downstream API ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§6](#6-agent-identity-vs-user-identity), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns), Rec 3, Rec 11, and Rec 36).
+5. **Compose authority per operation and separate credentials at every handoff.** When another party exercises a user's authority, preserve the user as subject and the current agent as actor; when work is organization-owned, use direct workload authority without inventing a user. Authenticate client and workload separately, target each credential to its resource, retain detailed grant/task provenance by reference, and never transit the incoming MCP token to a downstream API ([§4](#4-choosing-the-authority-relationship), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§6](#6-agent-identity-vs-user-identity), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns), [§9](#9-authorization-context-and-delegation-representation), Rec 3, Rec 11, and Rec 36).
 6. **Separate tool visibility, invocation authorization, and backend entitlement.** A filtered tool catalog reduces exposure but does not authorize `tools/call`; a permitted call does not prove access to every backend identifier in its arguments ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 7).
 7. **Choose policy and guardrail composition by semantics and failure behavior.** Cedar, OPA/Rego, OpenFGA, CEL, and commercial PDPs solve different policy shapes. Version the PEP–PDP contract, retain decision provenance, and define whether detection runs before or after authorization and how disagreement or outage is handled ([§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, Rec 10, Rec 40, Rec 41).
-8. **Choose credential treatment per trust boundary.** Token exchange, managed custody, injection, stripping, and workload identity have different delegation and exposure properties. Document issuer, subject/actor meaning, audience, storage, rotation, revocation, recovery, and failure for each downstream credential ([§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 13, Rec 20, and Rec 21).
+8. **Choose credential treatment per trust boundary.** Token exchange, managed custody, injection, stripping, and workload identity have different delegation and exposure properties. Document issuer, subject/actor meaning, audience, storage, rotation, revocation, recovery, and failure for each downstream credential ([§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 13, Rec 20, and Rec 21).
 9. **Select oversight from action consequence, not a universal tier.** Use reversibility, sensitivity, legal or financial effect, autonomy, and time pressure to select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Preserve who decided, what was displayed, and what happened ([§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), Rec 14, and Rec 17).
 
 **Compliance & Identity Governance**
 
 10. **Verify products by role, version, lifecycle, and evidence.** Record exact core and extension support, credential treatment, handle policy, conformance evidence, and source date. Compare gateways with gateways and identity authorities with identity authorities; do not turn feature breadth into endorsement ([§21](#21-product-implementation-landscape), [§22](#22-consolidated-comparison-thirteen-architectural-models), and Rec 12).
-11. **Govern identities, software, and registry state through incident response.** Reconcile agent sponsors, workload bindings, credentials, reachable resources, packages, publisher evidence, versions, correction/takedown state, and offboarding across every control plane ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping), [§13.7](#137-mcp-tool-supply-chain-security), Rec 18, Rec 19, Rec 32).
+11. **Govern identities, software, and registry state through incident response.** Reconcile agent sponsors, workload bindings, credentials, reachable resources, packages, publisher evidence, versions, correction/takedown state, and offboarding across every control plane ([§7](#7-agent-definition-identity-and-governance-lifecycles), [§13.7](#137-mcp-tool-supply-chain-security), Rec 18, Rec 19, Rec 32).
 12. **Build an evidence graph without collapsing legal regimes.** Put interaction disclosure at the user-experience layer, derive retention from the applicable record and jurisdiction, and connect identity, consent, policy, task, outcome, and incident evidence to named owners. Regulatory classification depends on the deployed use case; gateway telemetry alone is not legal compliance ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping), [§24](#24-us-regulatory-framework-nist-ai-risk-management-and-agent-identity), Rec 15, Rec 16, Rec 17, Rec 30, and Rec 37).
 
 ---
@@ -635,8 +650,8 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 - MCP scope lifecycle (discovery, selection, and challenge via RFC 6750)
 - OAuth 2.1 patterns relevant to MCP (Authorization Code + PKCE, Client Credentials, Token Exchange)
 - Current client registration through pre-registration or Client ID Metadata Documents, with issuer binding and safe metadata retrieval
-- Delegation models: impersonation vs. on-behalf-of vs. direct grant
-- Agent vs. user identity separation and the identity trilemma
+- Operation-specific authority composition: impersonation, delegation, direct machine authority, and hybrid enterprise policy
+- Human, organization, agent, OAuth client, workload, transport-peer, and authorization-subject separation
 - Non-Human Identity (NHI) governance and OWASP NHI Top 10 mapping
 - A2A and AP2 agent-to-agent authentication, federation, and payment patterns
 - Gateway architecture for MCP security enforcement with four reference architecture profiles (Enterprise/Workforce, SaaS Platform, High-Assurance/FAPI 2.0, Cross-Org Federation)
@@ -647,7 +662,7 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 - Authorization models and policy engines (Cedar, OPA/Rego, OpenFGA)
 - Rich Authorization Requests (RAR) vs. OAuth scopes (RFC 9396)
 - Emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0)
-- Authorization-context enrichment and delegation-chain representation
+- Provenance-aware authorization-context transformation, carrier selection, and current-actor representation
 - Refresh-token and authority lifecycle for durable agent work
 - Credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation)
 - Product implementation landscape with thirteen gateway deep-dives and consolidated comparison matrices
@@ -1283,7 +1298,7 @@ Content-Type: application/json
 
 **CIMD intersection** — A CIMD URL can provide a stable client identifier across authorization servers that accept it, reducing per-AS identifier mapping. It remains subject to each authorization server's trust and retrieval policy; it does not create a universal client trust relationship.
 
-> **Cross-references**: [§14.1](#141-first-party-authorization-enterprisesame-organization) (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), [§14.7](#147-approval-grant-and-consent-persistence-architecture) (organization-managed consent pattern), [§8.7.2](#872-openid-federation-11-for-agent-trust) (OpenID Federation — separate trust-establishment layer), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining — the parent runtime propagation specification), §H.5 (Auth0 XAA — a production implementation of this flow), [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) (DPoP sender-constraining of ID-JAGs).
+> **Cross-references**: [§14.1](#141-first-party-authorization-enterprisesame-organization) (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), [§14.7](#147-approval-grant-and-consent-persistence-architecture) (organization-managed consent pattern), [§8.7.2](#872-openid-federation-11-for-agent-trust) (OpenID Federation — separate trust-establishment layer), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining — the parent runtime propagation specification), §H.5 (Auth0 XAA — a production implementation of this flow), [§12.3](#123-sender-constraint-and-key-custody-boundaries) (DPoP sender-constraining of ID-JAGs).
 
 #### 1.4 Layered Failure Taxonomy
 
@@ -2545,115 +2560,285 @@ Among the gateways surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-pr
 
 ## Identity, Delegation, and Durable Authority
 
-This group addresses the **end-to-end lifecycle of identity and authority** in agentic MCP deployments—from the initial question of *who the agent is* to the controls that let delegated work continue, narrow, and end. Sections 4–8 establish the identity models: the Impersonation/Delegation/Direct-Grant trilemma ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)), OAuth Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)), human/agent/workload identity ([§6](#6-agent-identity-vs-user-identity)), non-human identity governance ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), and cross-protocol authentication ([§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)). Sections 9–12 then carry verified authority through request context, long-running work, credential delegation, storage, rotation, revocation, and continuous re-evaluation. None of those lifecycle mechanisms creates ambient protocol-session authority.
+This group addresses the **end-to-end lifecycle of identity and authority** in agentic MCP deployments—from selecting who owns an operation's authority to the controls that let delegated or machine-owned work continue, narrow, and end. Sections 4–8 establish the authority and identity inputs: operation-specific authority composition ([§4](#4-choosing-the-authority-relationship)), OAuth Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)), human/agent/workload identity ([§6](#6-agent-identity-vs-user-identity)), non-human identity governance ([§7](#7-agent-definition-identity-and-governance-lifecycles)), and cross-protocol authentication ([§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)). Sections 9–12 then transform verified authority into minimal downstream context and govern long-running work, credential delegation, storage, rotation, revocation, and continuous re-evaluation. None of those lifecycle mechanisms creates ambient protocol-session authority.
 
 ---
 
-### 4. The Identity Trilemma: Impersonation vs. Delegation vs. Direct Grant
+### 4. Choosing the Authority Relationship
 
-When an AI agent performs actions that affect users and systems, three fundamental identity models are possible. Each carries distinct implications for security, auditability, and compliance.
+An agent identity does not answer the authorization question by itself. For each operation, the deployment must decide **whose authority permits the action, which actor is exercising that authority, which client and workload may present it, and what the resource server is expected to decide**. Treating “the agent” as one permanent subject collapses distinctions that later determine token contents, approval, revocation, and audit evidence.
 
-> **Important — Delegation is the default for user-scoped agent actions**
+This chapter chooses the authority relationship. Agent and workload classification remain in Agent Identity vs. User Identity ([§6](#6-agent-identity-vs-user-identity)); token derivation follows in OAuth Token Exchange and Delegated Derivation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); approval and consent evidence remain in Authorization, Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)).
+
+> **Important — Delegation is conditional, not universal**
 >
-> If an agent is acting for a user, the baseline is auditable delegation rather than impersonation. A deployment that cannot represent the agent as a distinct actor fails the report’s accountability requirement.
+> When an agent exercises a user's authority, preserve the user as the authorization subject and the agent as a distinct current actor. When an organization-owned workload performs organization-owned work, use direct machine authority without inventing a user or consent event.
 
-#### 4.1 Comparison Matrix
+#### 4.1 Authority Planes and the Decision Contract
 
-| Dimension | Impersonation | Delegation (OBO) | Direct Grant (Service Identity) |
-|:---|:---|:---|:---|
-| **Token Subject (`sub`)** | User | User | Agent / Service |
-| **Token Actor (`act`)** | Not present | Agent identity recorded | Not applicable |
-| **Who appears in audit** | User only (agent invisible) | Both user and agent | Agent only (user invisible) |
-| **Scope** | Full user scope | Attenuated (scope-attenuated) | Agent's own scope |
-| **Consent Model** | Implicit / dangerous | Explicit delegation consent | Admin pre-authorized |
-| **Use Case** | Prohibited for agent actions | **Agentic scenarios (CIAM + WIAM)** | Background jobs, M2M |
-| **Security Risk** | High — agent has full user identity | Low — scoped and auditable | Medium — no user context |
-| **Applicability** | ❌ Anti-pattern | ✅ Primary pattern | ✅ For non-user-scoped ops |
-| **EU AI Act Art. 50(1)** | ❌ Non-compliant — agent invisible to user, violates AI interaction disclosure | ✅ Compliant — agent identity recorded and traceable | ⚠️ Partial — user context absent, disclosure possible but attribution limited |
+Five planes meet at an authorization boundary. They can be implemented by the same service in a small deployment, but they remain separate roles whenever collapsing them would change policy or evidence:
 
 ```mermaid
 ---
 config:
   flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
+    nodeSpacing: 28
+    rankSpacing: 45
 ---
-flowchart TB
-    subgraph Imp["❌ Impersonation"]
-        direction TB
-        I_Token["`**Token Claims**
-        sub:&nbsp;alice@example.com
-        scope:&nbsp;full&nbsp;user&nbsp;scope
-        act:&nbsp;(absent)`"]
-        I_Audit["`**📋 Audit Log**
-        WHO:&nbsp;alice@example.com
-        AGENT:&nbsp;invisible
-        ⚠️&nbsp;User&nbsp;blamed&nbsp;for&nbsp;agent&nbsp;actions`"]
-        I_Token --> I_Audit
-    end
+flowchart LR
+    Authority["`**Authority plane**
+    human · organization
+    service principal · grant`"]
+    Client["`**Protocol-client plane**
+    OAuth client or
+    protocol requester`"]
+    Agent["`**Logical-agent plane**
+    governed agent
+    or agent instance`"]
+    Runtime["`**Runtime plane**
+    workload · process
+    transport peer`"]
 
-    subgraph Del["✅ Delegation (OBO)"]
-        direction TB
-        D_Token["`**Token Claims**
-        sub:&nbsp;alice@example.com
-        act.sub:&nbsp;travel-agent-xyz
-        scope:&nbsp;calendar:read&nbsp;email:send`"]
-        D_Audit["`**📋 Audit Log**
-        WHO:&nbsp;alice@example.com
-        VIA:&nbsp;travel-agent-xyz
-        ✅&nbsp;Full&nbsp;attribution&nbsp;chain`"]
-        D_Token --> D_Audit
-    end
+    Authority --> Decision
+    Client --> Decision
+    Agent --> Decision
+    Runtime --> Decision
 
-    subgraph Dir["⚠️ Direct Grant"]
-        direction TB
-        G_Token["`**Token Claims**
-        sub:&nbsp;travel-agent-xyz
-        scope:&nbsp;agent's&nbsp;own&nbsp;scope
-        act:&nbsp;(not&nbsp;applicable)`"]
-        G_Audit["`**📋 Audit Log**
-        WHO:&nbsp;travel-agent-xyz
-        USER:&nbsp;invisible
-        ⚠️&nbsp;No&nbsp;human&nbsp;attribution`"]
-        G_Token --> G_Audit
-    end
+    Decision{"`**Decision plane**
+    subject · action · resource
+    context · current actor`"}
+    Decision --> Outcome["`**Policy result**
+    permit or deny
+    obligations · reason`"]
+    Outcome --> Evidence["`**Evidence**
+    decision id · policy version
+    authority reference · outcome`"]
 
-    style I_Token text-align:left
-    style I_Audit text-align:left
-    style D_Token text-align:left
-    style D_Audit text-align:left
-    style G_Token text-align:left
-    style G_Audit text-align:left
-
+    style Authority text-align:left
+    style Client text-align:left
+    style Agent text-align:left
+    style Runtime text-align:left
+    style Decision text-align:left
+    style Outcome text-align:left
+    style Evidence text-align:left
 ```
 
-#### 4.2 Why Delegation is the Default
+The decision-plane vocabulary follows the [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) information model: **subject**, **action**, **resource**, optional **context**, and **decision**. It is a neutral way to describe a policy evaluation, not a required token schema. A deployment can place the current actor, client, workload, grant reference, approval reference, and risk signals in typed subject properties or context while keeping their distinct meanings.
 
-Whether the end user is an external customer (CIAM) or an internal employee (WIAM), **delegation (on-behalf-of)** is the correct pattern because:
+| Plane or role | Question it answers | What it does **not** prove |
+|:--------------|:--------------------|:---------------------------|
+| **Authority source** | Which human, organization, service principal, grant, or policy makes the action permissible? | That the presenter is the authorized runtime |
+| **Authorization subject** | Whose permissions are evaluated for this action and resource? | Which agent or workload performed the action |
+| **Current actor** | Which distinct party is acting for the subject now? | Complete prior process lineage, approval, or lawful basis |
+| **OAuth client** | Which registered protocol client requested a token or initiated a flow? | The executing workload or delegating human |
+| **Logical agent** | Which governed agent, version, owner, and capability set are implicated? | Cryptographic possession by the current runtime |
+| **Workload / runtime** | Which process or platform identity is presenting the request? | Delegated user authority |
+| **Transport peer** | Which adjacent TLS or mesh identity established the channel? | That the same entity is the application-level caller |
+| **Approver / policy authority** | Which decision source supplied an approval or entitlement ceiling? | That the operation stayed inside that decision after approval |
 
-1. **Accountability** — The audit trail shows *who* authorized *what agent* to do *which action*. Neither the user nor the agent can deny their participation.
-2. **Least privilege** — The delegated token can be scoped to exactly the permissions needed for the current task, not the user's full access.
-3. **Revocability** — The delegation can be revoked independently of the user's session.
-4. **Compliance** — GDPR and similar regulations require that data processing be attributable to a specific lawful basis. Delegation tokens encode this attribution.
-5. **EU AI Act Art. 50(1)** — Art. 50(1) of [Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689) requires that *"providers of AI systems that are intended to directly interact with natural persons shall [...] ensure that the AI system is designed and developed in such a way that the natural person concerned is informed that they are interacting with an AI system"*. Impersonation — where the agent is invisible in the identity chain — makes this disclosure structurally impossible. Delegation, by recording the agent's identity in the `act` claim, enables downstream systems to detect and disclose AI-mediated interactions.
+The implementation consequence is a two-stage check: authenticate the client and workload, then authorize the subject/current-actor operation. A valid workload credential cannot substitute for user delegation; a valid user token cannot identify the workload that exercised it.
 
-**Anti-pattern warning**: Impersonation is tempting in enterprise first-party scenarios because it "just works" — the agent gets a token that looks exactly like the user's. But this creates an unauditable gap in the identity chain. If the agent performs an unauthorized action, the audit log blames the user. In EU jurisdictions, impersonation may also violate Art. 50(1) of the EU AI Act ([§23.3](#233-art-50-ai-interaction-disclosure-for-mcp)).
+#### 4.2 Operation-Specific Authority Composition
+
+Authority is selected for an operation and target resource, not once for an agent globally. The same report agent might use Alice's delegated authority to deliver her report, direct organization authority to perform a fleet health check, and a separately approved task record to continue after Alice goes offline.
+
+```mermaid
+flowchart TD
+    Start(["Requested operation"]) --> Owner{"Who owns the authority<br/>for this action?"}
+    Owner -->|"Human or customer"| UserNeed{"Must the resource authorize<br/>as that person?"}
+    UserNeed -->|"Yes"| Delegation["Delegation<br/>subject = person<br/>actor = agent or service"]
+    UserNeed -->|"No; human only initiated work"| Enterprise["Enterprise-managed authority<br/>subject = organization or service"]
+    Owner -->|"Organization or service"| Direct["Direct machine authority<br/>subject = service principal"]
+
+    Delegation --> Runtime{"Must a specific workload<br/>be bound and evaluated?"}
+    Enterprise --> Runtime
+    Direct --> Runtime
+    Runtime -->|"Yes"| Bind["Authenticate and bind<br/>client + workload separately"]
+    Runtime -->|"No"| Decide
+    Bind --> Decide{"Additional approval or<br/>durable continuation?"}
+    Decide -->|"Approval"| Approval["Reference bounded approval<br/>and enforce obligations"]
+    Decide -->|"Continuation"| Durable["Create separate task/grant<br/>with expiry and revocation"]
+    Decide -->|"Neither"| Evaluate["Evaluate subject · action<br/>resource · context"]
+    Approval --> Evaluate
+    Durable --> Evaluate
+```
+
+A compact **authority-composition record** makes the selection explicit before a token is derived:
+
+```json
+{
+  "operation_id": "report-delivery-8472",
+  "authority_source": "grant:report-delivery-8472",
+  "subject": { "type": "user", "id": "user:alice" },
+  "current_actor": { "type": "agent", "id": "agent:report-agent" },
+  "oauth_client": "client:report-orchestrator",
+  "workload": "spiffe://corp.example/workload/report-agent",
+  "action": "reports.deliver",
+  "resource": "workspace:board-report",
+  "user_present": true,
+  "continuation": "not_granted",
+  "decision_id": "decision:7f8b2c",
+  "expires_at": "2026-07-24T16:15:00Z"
+}
+```
+
+This is a deployment authority record, not an MCP wire object or standardized OAuth claim set. §5 shows how an authorization server can consume selected evidence from it. §10 defines the stronger record required if the work becomes durable.
+
+#### 4.3 Solved Authority Branches
+
+The two branches below use the same workspace and enforcement boundary so the difference is the authority source, not the technology stack.
+
+##### 4.3.1 User-Delegated Report Delivery
+
+Alice asks `agent:report-agent` to deliver a sensitive report to `workspace:board-report`. The resource must evaluate Alice's permission to deliver that report, but the agent remains visible as the current actor. The OAuth client and SPIFFE workload are separately authenticated because either could be compromised or misbound even when Alice's grant is valid.
+
+```json
+{
+  "subject": { "id": "user:alice" },
+  "action": { "name": "reports.deliver" },
+  "resource": {
+    "type": "workspace",
+    "id": "workspace:board-report"
+  },
+  "context": {
+    "current_actor": "agent:report-agent",
+    "client_id": "client:report-orchestrator",
+    "workload_id": "spiffe://corp.example/workload/report-agent",
+    "grant_ref": "grant:report-delivery-8472",
+    "user_present": true
+  }
+}
+```
+
+The grant can be narrower than Alice's ordinary workspace access and can require an obligation such as `record_delivery_receipt`. The decision record supports attribution and reconstruction, but neither the token nor the log independently proves valid consent, legal non-repudiation, lawful basis, or regulatory compliance.
+
+##### 4.3.2 Enterprise-Owned Integrity Scan
+
+At midnight, `agent:integrity-agent` scans the same workspace under an organization-owned maintenance policy. No user is the authorization subject, no user is present, and no consent event occurred. The service principal and workload carry direct machine authority:
+
+```json
+{
+  "subject": { "id": "service:workspace-integrity" },
+  "action": { "name": "workspace.scan_integrity" },
+  "resource": {
+    "type": "workspace",
+    "id": "workspace:board-report"
+  },
+  "context": {
+    "logical_agent": "agent:integrity-agent",
+    "client_id": "client:integrity-scheduler",
+    "workload_id": "spiffe://corp.example/workload/integrity-agent",
+    "schedule_ref": "schedule:integrity-scan-2026-07-24"
+  }
+}
+```
+
+This branch still needs least privilege, workload authentication, policy, audit, expiry, and revocation. Its lack of user context is not itself a weakness: adding Alice would create false attribution.
+
+##### 4.3.3 User-Absent and Hybrid Boundaries
+
+Two compositions require additional records rather than broader bearer tokens:
+
+| Composition | Authority decision | Required evidence |
+|:------------|:-------------------|:------------------|
+| **User-absent continuation** | The agent may continue a previously authorized task after the initiating interaction ends. | Separate task/grant record with exact resource and operation, autonomy window, budget, current-policy checks, expiry, and revocation ([§10](#10-authorization-continuity-and-durable-tasks) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)) |
+| **Hybrid enterprise workflow** | User authority permits the business action; workload identity permits this runtime; enterprise policy imposes an entitlement ceiling or additional approval. | User grant, authenticated client/workload, current policy decision, approval reference where required, and a rule for resolving conflicts without unioning privileges |
+
+The authority at an enforcement point is the intersection of applicable grants and policy ceilings, not the union of every identity in the workflow.
+
+#### 4.4 Selection Matrix and Failure Boundaries
+
+The comparison is useful only after the authority source and decision contract are known:
+
+| Pattern | Authorization subject | Current actor | Appropriate use | Principal risk | Evidence boundary |
+|:--------|:----------------------|:--------------|:----------------|:---------------|:------------------|
+| **Impersonation** | Human or other principal | Indistinguishable from subject at the consumer | Narrow compatibility cases where indistinguishability is an explicit, accepted requirement | Agent/service action is hidden from the resource and ordinary audit | Do not describe as delegation; add compensating issuer-side evidence if policy permits it |
+| **Delegation** | Human, organization, or service whose authority is exercised | Distinct agent/service | Agent acts for another principal and the resource needs both identities | Actor evidence is trusted without validating issuer, audience, client, workload, or grant | Preserve current actor and target-bounded authority; keep approval and lifecycle records separate |
+| **Direct machine authority** | Service principal or organization-owned workload | Same entity or no separate actor | Scheduled maintenance, monitoring, CI/CD, and M2M work owned by the service or organization | A user is fabricated or a broad service grant becomes ambient privilege | Bind exact workload, resource, action, lifetime, and owner |
+| **Enterprise-managed authority** | Organization or governed service | Agent/workload | Employee-initiated work governed by enterprise policy rather than personal delegation | “User initiated” is mistaken for “user authorized as subject” | Record initiator separately from authority subject |
+| **Hybrid composition** | Depends on the business action | Distinct agent/workload | User authority, workload identity, and enterprise ceilings all matter | Privileges are unioned or the system silently switches authority source | Compute an explicit intersection and record every decision input |
+
+Common failures reveal why the roles must remain separate:
+
+| Failure | Why it fails | Fail-closed response and evidence |
+|:--------|:-------------|:---------------------------------|
+| Shared service account stands in for every user | Hides both subject and actor semantics | Deny user-scoped action; record missing delegation and accountable subject |
+| User bearer token is replayed and called delegation | Possession does not identify the acting agent or authorized presenter | Require accepted actor/client/workload evidence or an explicit impersonation profile |
+| Transport identity is treated as the application caller | A proxy or mesh peer may terminate the channel for another application | Authenticate the application-level credential and record both identities where policy needs them |
+| Several users' grants are unioned | Creates authority no individual principal granted | Evaluate each operation against one explicit subject or a separately authorized multi-party decision |
+| Delegated flow silently falls back to service authority | Changes accountability and privileges without a new decision | Deny and require a new direct-authority composition |
+| Machine-owned job is attributed to an arbitrary user | Creates false consent, ownership, and audit evidence | Use the real service/organization subject and record any human initiator separately |
+
+> **Warning — No user-shaped attribution for machine-owned work**
+>
+> Do not place a convenient employee in `sub` merely to make a machine-owned operation fit a user-delegation model. False human attribution is worse than an explicit service principal because it misstates both authority and evidence.
+
+The next chapter derives a target-bounded token when token exchange is the selected mechanism. Agent Identity vs. User Identity ([§6](#6-agent-identity-vs-user-identity)) classifies the participating entities; Authorization, Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)) governs approval evidence; Task-Based Access Control ([§16](#16-task-based-access-control-tbac)) applies task and operation constraints.
 
 ---
 
-### 5. OAuth Token Exchange (RFC 8693) and the On-Behalf-Of Pattern
+### 5. OAuth Token Exchange (RFC 8693) and Delegated Derivation
 
-> **See also**: [§11](#11-credential-delegation-patterns) (Credential Delegation Patterns), [§20.3](#203-transaction-scoped-credentials) (Transaction Tokens), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining)
+[RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) defines an OAuth extension-grant protocol for an authorization server acting as a Security Token Service (STS). It can derive a token for a new resource, audience, scope, or token type and can express delegation or impersonation, but it does **not** define a universal agent trust model, token syntax, consent ceremony, or lifecycle linkage.
 
-RFC 8693 defines the standard mechanism for exchanging one security token for another, and is the foundational building block for enabling AI agents to act on behalf of users.
+This chapter explains derivation. Credential custody remains in Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); durable continuation remains in Authorization Continuity and Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks)); current cross-domain and transaction-token work remains in Emerging Standards for AI Agent Authorization ([§20](#20-emerging-standards-for-ai-agent-authorization)).
 
-> **Warning — The OBO Fallacy for Agent Swarms**
+> **Important — Token exchange is a policy decision, not token forwarding**
 >
-> While RFC 8693 is often treated as the "Gold Standard" for identity propagation, it relies heavily on centralized Identity Providers. For high-speed, decoupled agent swarms processing hundreds of concurrent tool calls, forcing every token exchange through a central IdP creates a severe latency bottleneck and availability risk. In these scenarios, gateway-driven JIT/Ephemeral token injection (see [§11.1](#111-credential-delegation-pattern-taxonomy) Token Treatment Spectrum) is often superior to strict OBO.
+> The authorization server validates accepted input evidence and issues a new target-appropriate token under its own policy. It does not merely copy an incoming MCP token to another service, and the [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) explicitly forbids passing the MCP client token through to an upstream API.
 
-#### 5.1 Token Exchange Flow
+#### 5.1 Standards Boundary and Evidence Map
+
+RFC 8693 standardizes the request and response ceremony. A deployment profile chooses accepted token types, issuers, client-authentication methods, trust relationships, claim mapping, sender constraint, and authorization policy.
+
+Delegation, impersonation, and direct authority remain distinct:
+
+| Semantic result | Subject at the consumer | Current actor | Meaning |
+|:----------------|:------------------------|:--------------|:--------|
+| **Delegation** | The principal whose authority is represented | A distinct party acting for that subject | The actor acts as itself while representing the subject |
+| **Impersonation** | The represented principal | Indistinguishable from the subject in the authorized rights context | The consumer treats the presenter as the subject |
+| **Direct machine authority** | Service principal or workload | No separate actor is required | The machine acts on its own behalf; this is neither delegation nor impersonation |
+
+The exchange request combines evidence with different jobs:
+
+```mermaid
+flowchart LR
+    Client["`**Client authentication**
+    Who may call the STS?`"] --> AS
+    Subject["`**subject_token**
+    Whose identity or authority
+    is presented?`"] --> AS
+    Actor["`**actor_token** *(optional)*
+    Which acting party
+    is presented?`"] --> AS
+    Target["`**resource / audience**
+    Where will the result
+    be used?`"] --> AS
+    Grant["`**scope / local grant**
+    Which permissions and
+    policy constraints apply?`"] --> AS
+
+    AS{"`**Authorization Server**
+    validate evidence
+    apply profile + policy`"}
+    AS --> Result["`**Issued token or denial**
+    type · target · lifetime
+    subject · current actor`"]
+
+    style Client text-align:left
+    style Subject text-align:left
+    style Actor text-align:left
+    style Target text-align:left
+    style Grant text-align:left
+    style AS text-align:left
+    style Result text-align:left
+```
+
+Client authentication is separate from `subject_token` and `actor_token`. It identifies the requester to the token endpoint and lets the STS restrict who may use the presented evidence. RFC 8693 permits unidentified clients as a deployment choice, but warns that doing so lets anyone possessing a compromised input token attempt to exchange it.
+
+The worked flow below is a **profile-specific delegation example**: Alice is the subject, `report-agent` is the current actor, `report-orchestrator` authenticates as the OAuth client, and the issued access token targets one MCP server. Other conforming exchanges can omit the actor token or issue a non-access-token security token.
+
+#### 5.2 Profiled Token Exchange Flow
 
 ```mermaid
 ---
@@ -2670,52 +2855,61 @@ sequenceDiagram
     autonumber
     participant Agent as 🤖 AI Agent
     participant AS as 🔑 Authorization Server<br/>(Token STS)
-    participant MCP as 🛠️ MCP Server<br/>(Tool)
+    participant MCP as 🛠️ MCP Server
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Context Preparation
-    Agent->>Agent: Prepare credentials<br/>1. Agent holds user's<br/>access token (subject_token)
+    Note right of Agent: Phase 1: Evidence Selection
+    Agent->>Agent: Select authority record<br/>and accepted token inputs
     Note right of MCP: ⠀
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of Agent: Phase 2: Token Exchange Request
-    Agent->>AS: Token Exchange Request<br/>grant_type=token-exchange<br/>subject_token=user_jwt<br/>actor_token=agent_credential<br/>scope=tools:execute:email.send<br/>resource=https://mcp.example.com
-    AS->>AS: Validate request<br/>3. Validates:<br/>- subject_token<br/>- actor_token<br/>- requested scope<br/>- delegation policy
-    AS-->>Agent: Delegated access token<br/>(with act claim)
+    Note right of Agent: Phase 2: Authenticated Exchange
+    Agent->>AS: POST token exchange request<br/>subject + optional actor evidence<br/>one target resource + scope
+    AS->>AS: Validate client, tokens,<br/>target, attenuation,<br/>and delegation policy
+    AS-->>Agent: Return issued token<br/>or OAuth error
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Authorized Execution
-    Agent->>MCP: Call MCP tool with delegated token
+    Agent->>MCP: Call MCP tool with<br/>MCP-audience access token
+    MCP->>MCP: Validate token profile,<br/>current actor, and operation
+    MCP-->>Agent: Return MCP result
     Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
 <details>
-<summary><strong>1. AI Agent prepares its credentials for token exchange</strong></summary>
+<summary><strong>1. AI Agent selects the authority record and accepted token inputs</strong></summary>
 
-The agent holds two distinct tokens: the user's root access token (`subject_token`)—obtained earlier via a standard OAuth 2.1 authorization code flow or direct human interaction—and the agent's own foundational credential (`actor_token`), which is physically tied to its workload identity. This self-referential initialization step prepares the cryptographic boundaries: the `subject_token` represents the human delegating authority, while the `actor_token` proves the agent is the machine executing the proxy call.
+For `report-delivery-8472`, the agent selects Alice's target-bounded input access token as `subject_token`, a profile-accepted workload assertion as `actor_token`, and `grant:report-delivery-8472` as local policy evidence. RFC 8693 requires the subject token but does not require that it be a user's universal “root” credential. The actor token is optional and appears here because this deployment has profiled one.
+
+The OAuth client credential is held separately. It authenticates `client:report-orchestrator` to the token endpoint; it does not replace Alice's subject evidence or the actor's workload assertion.
 
 </details>
 <details>
-<summary><strong>2. AI Agent sends the token exchange request to the Authorization Server</strong></summary>
+<summary><strong>2. AI Agent sends an authenticated token exchange request to the Authorization Server</strong></summary>
 
-The agent executes the RFC 8693 token exchange via `POST /token`. It transmits `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` and explicitly requests an attenuated scope (`tools:execute:email.send`), voluntarily dropping broader permissions held by the `subject_token` to enforce least privilege. It additionally binds the request strictly to the downstream resource (`https://mcp.example.com`).
+The agent posts the RFC 8693 form to the token endpoint and authenticates the OAuth client with a signed client assertion. The request asks for one resource and one attenuated scope. The client assertion and actor token are profile choices; the `grant_type`, subject token, and subject-token type are the RFC-required exchange fields.
 
+**Profile-specific request example:**
 ```http
 POST /token HTTP/1.1
 Host: auth.example.com
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=eyJhbGciOi...
+&client_id=client%3Areport-orchestrator
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJhbGciOiJSUzI1NiIs...
+&subject_token=eyJhbGciOiJSUzI1NiIs...
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
-&actor_token=eyJhbGciOi...
+&actor_token=eyJhbGciOiJSUzI1NiIs...
 &actor_token_type=urn:ietf:params:oauth:token-type:jwt
-&scope=tools:execute:email.send
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
+&scope=tools:reports.deliver
 &resource=https://mcp.example.com
 ```
 
@@ -2723,62 +2917,84 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 <details>
 <summary><strong>3. Authorization Server validates the exchange request and applies delegation policy</strong></summary>
 
-The AS executes multi-dimensional validation:
-1. Cryptographically verifies the `subject_token` signature and expiry.
-2. Validates the `actor_token` to definitively confirm the agent's identity.
-3. Evaluates if the requested `scope` is a strict subset of the subject's allowable scope.
-4. Executes the **Delegation Policy**: checks if the `may_act` claim inside the `subject_token` permits this specific agent (`actor`) to impersonate them.
-
-The AS generates a high-severity delegation audit log confirming the `subject_token` to `actor_token` relationship mapping.
+The AS validates the client assertion, each presented token according to its declared type, the single target resource, the requested scope, and local delegation policy. If the subject token contains `may_act`, the AS may use it as actor-eligibility evidence, but still evaluates the authenticated client, actor, workload, resource, scope, grant status, and policy. `may_act` is not a completed delegation or consent record.
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-    VerifySubject --> VerifyActor: valid signature
-    VerifyActor --> CheckScope: valid workload
-    CheckScope --> EvaluatePolicy: subset match
-    EvaluatePolicy --> IssueToken: may_act permits
+    direction TB
+    [*] --> VerifyClient
+    VerifyClient --> ValidateInputs: authenticated
+    ValidateInputs --> BindTarget: accepted types and issuers
+    BindTarget --> Attenuate: one resource
+    Attenuate --> EvaluateGrant: no scope expansion
+    EvaluateGrant --> Issue: grant and policy permit
+    VerifyClient --> Deny: invalid client
+    ValidateInputs --> Deny: invalid or stale token
+    BindTarget --> Deny: invalid target
+    Attenuate --> Deny: requested expansion
+    EvaluateGrant --> Deny: actor or grant rejected
 ```
+
+**Artifact Produced:** Token-exchange decision record containing input fingerprints, validated issuer/subject/current-actor evidence, client authentication method, requested and granted target/scope, policy version, decision id, and outcome.
 
 </details>
 <details>
-<summary><strong>4. Authorization Server issues a delegated access token with the act claim</strong></summary>
+<summary><strong>4. Authorization Server returns the issued token or an OAuth error to the AI Agent</strong></summary>
 
-The AS mints a heavily tailored, audience-bound JWT reflecting the explicit delegation chain. The `sub` claim identifies the subject under the issuer's semantics, while the nested `act` (Actor) claim identifies the current actor. Those claims improve attribution only after signature, issuer, audience, client, chain, and policy validation; they do not establish legal non-repudiation, user consent, or GDPR compliance by themselves.
+On success, the AS returns the issued security token and its required `issued_token_type`. The response member remains named `access_token` for historical OAuth compatibility even when the issued security token is another type. This profile returns an MCP-audience access token; refresh-token issuance is not requested or implied.
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "access_token": "eyJhbGci...&lt;JWT>",
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
   "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "tools:execute:email.send"
+  "expires_in": 300,
+  "scope": "tools:reports.deliver"
 }
 ```
 
-*(The decoded JWT payload contains the structural `act` representation:)*
+If the target is unknown or the request is too broad, `invalid_target` is the standardized exchange error. Token/type/policy failures ordinarily use OAuth error handling such as `invalid_request`; detailed internal reasons belong in the protected decision record rather than a client-visible taxonomy.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "error": "invalid_target",
+  "error_description": "The requested resource is not permitted."
+}
+```
+
+**Resource-server view of this profile's decoded JWT access-token claims:**
+
 ```json
 {
   "iss": "https://auth.example.com",
-  "sub": "user-12345",
+  "sub": "user:alice",
   "aud": "https://mcp.example.com",
-  "exp": 1735689600,
-  "scp": ["tools:execute:email.send"],
+  "exp": 1784909700,
+  "iat": 1784909400,
+  "jti": "exchange:1b8e3f",
+  "client_id": "client:report-orchestrator",
+  "scope": "tools:reports.deliver",
   "act": {
-    "sub": "agent-travel-assistant-001"
+    "sub": "agent:report-agent"
   }
 }
 ```
 
-**Artifact Produced:** Delegated Access Token (RFC 8693)
+The client treats the access token as opaque even when the authorization server and resource server have agreed on a JWT access-token profile.
+
+**Artifact Produced:** Issued security token plus the completed exchange decision record.
 
 </details>
 <details>
-<summary><strong>5. AI Agent calls the MCP tool with the delegated token</strong></summary>
+<summary><strong>5. AI Agent calls the MCP Server with the MCP-audience access token</strong></summary>
 
-The agent seamlessly attaches the newly minted delegated JWT to its final execution call.
+The agent presents the new token to the MCP server for which it was issued. The original subject token and profile-specific actor token do not cross this resource boundary.
 
 ```http
 POST /mcp HTTP/1.1
@@ -2791,13 +3007,44 @@ Content-Type: application/json
   "id": 5,
   "method": "tools/call",
   "params": {
-    "name": "email.send",
-    "arguments": { "to": "hotel@example.com" }
+    "name": "reports.deliver",
+    "arguments": {
+      "report_id": "board-report",
+      "workspace_id": "workspace:board-report"
+    }
   }
 }
 ```
 
-The MCP Server decodes the token, validating internal authorization logic by cross-referencing `sub` against the file ownership and `act.sub` against logging policies. *(Warning: High-throughput agent swarms invoking this per-tool exchange pattern will hit severe latency bottlenecks. See [§11.1](#111-credential-delegation-pattern-taxonomy) for offline vault strategies).*
+</details>
+<details>
+<summary><strong>6. MCP Server validates the token profile, current actor, and requested operation</strong></summary>
+
+The MCP server validates the selected access-token profile: token type, signature, exact issuer, its own audience, lifetime, client binding where required, and scope-to-tool mapping. For delegated policy it evaluates top-level subject claims and the current actor in the outermost `act`. Prior nested actors, if any, are informational and cannot add permission.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> ValidateType
+    ValidateType --> VerifyJWT: at+jwt profile
+    VerifyJWT --> BindAudience: signature and issuer valid
+    BindAudience --> CheckOperation: MCP audience matches
+    CheckOperation --> CheckActor: scope maps to tool
+    CheckActor --> Permit: subject and current actor allowed
+    ValidateType --> Deny: wrong token kind
+    VerifyJWT --> Deny: invalid or expired
+    BindAudience --> Deny: wrong audience
+    CheckOperation --> Deny: scope mismatch
+    CheckActor --> Deny: actor not permitted
+```
+
+The server also re-evaluates current policy and any referenced grant state. Successful exchange is evidence of an earlier AS decision, not a command to skip resource-server authorization.
+
+</details>
+<details>
+<summary><strong>7. MCP Server returns the authorized tool result to the AI Agent</strong></summary>
+
+After the operation succeeds, the server returns an ordinary MCP result and records the subject, current actor, client, workload evidence available at the boundary, resource, tool, decision id, and outcome. The audit event supports reconstruction but is not itself a consent record or complete historical lineage.
 
 ```http
 HTTP/1.1 200 OK
@@ -2808,143 +3055,160 @@ Content-Type: application/json
   "id": 5,
   "result": {
     "resultType": "complete",
-    "content": [{ "type": "text", "text": "Email successfully dispatched." }]
+    "content": [
+      { "type": "text", "text": "Report delivered to the board workspace." }
+    ]
   }
 }
 ```
+
+**Artifact Produced:** Resource-server authorization and tool-execution record correlated to `decision:7f8b2c`.
 
 </details>
 
 
-#### 5.2 Token Exchange Request Parameters
+#### 5.3 Request, Response, and Failure Semantics
 
-| Parameter | Value | Purpose |
-|:---|:---|:---|
-| `grant_type` | `urn:ietf:params:oauth:grant-type:token-exchange` | Identifies the token exchange grant |
-| `subject_token` | User's access token (JWT) | The identity being delegated |
-| `subject_token_type` | `urn:ietf:params:oauth:token-type:access_token` | Token type identifier |
-| `actor_token` | Agent's own credential (JWT or assertion) | Proves the agent's identity |
-| `actor_token_type` | `urn:ietf:params:oauth:token-type:jwt` | Agent token type |
-| `scope` | `tools:execute:email.send` | Requested scope (attenuated) |
-| `resource` | `https://mcp.example.com` | Target MCP server (RFC 8707) |
-| `audience` | Target service identifier | Alternate to `resource` |
+The request parameters should be read as a target-and-evidence contract, not as one mandatory agent schema:
 
-#### 5.3 Resulting Delegated Token Structure
+| Parameter | RFC 8693 status | Meaning and profile boundary |
+|:----------|:----------------|:-----------------------------|
+| `grant_type` | **Required** | Exact token-exchange grant-type URN |
+| `subject_token` | **Required** | Accepted security token for the party on whose behalf the request is made; not necessarily a user token or JWT |
+| `subject_token_type` | **Required** | Declares how the AS validates the subject token |
+| `actor_token` | Optional | Presents a distinct acting party when the profile and policy need one |
+| `actor_token_type` | Required only with `actor_token`; prohibited otherwise | Declares how the AS validates the actor token |
+| `resource` | Optional; repeatable | Absolute target-resource URI; [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707.html) supplies the broader OAuth resource-indicator model |
+| `audience` | Optional; repeatable | Logical target name understood by client and AS; can appear with `resource`, not merely as its alternate |
+| `scope` | Optional | Requested service-specific permissions for the resulting token |
+| `requested_token_type` | Optional | Requested output representation; AS chooses when omitted |
 
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
----
-flowchart LR
-    subgraph Token["Delegated Access Token"]
-        direction TB
-        SUB["`**sub:** user-12345`"]
-        AUD["`**aud:** mcp.example.com`"]
-        SCOPE["`**scope:** tools:execute:email.send`"]
-        ACT["`**act.sub:** agent-travel-assistant
-        **act.client_id:** mcp-client-xyz`"]
-        MAY["`**may_act.sub:** agent-travel-assistant`"]
-    end
+Multiple resources, audiences, and scopes request a token usable for their Cartesian product. A client should therefore request the narrowest practical target set; the AS can reject an unfulfillable or overbroad request with `invalid_target`.
 
-    User(["👤 User Identity"]) --> SUB
-    RFC8707(["🔒 RFC 8707"]) --> AUD
-    Consent(["✅ Consent"]) --> SCOPE
-    Agent(["🤖 Agent Identity"]) --> ACT
-    Policy(["📋 AS Policy"]) --> MAY
+The successful response has equally important distinctions:
 
-    style SUB text-align:left
-    style AUD text-align:left
-    style SCOPE text-align:left
-    style ACT text-align:left
-    style MAY text-align:left
+| Response member | RFC 8693 status | Meaning |
+|:----------------|:----------------|:--------|
+| `access_token` | **Required** | Historical response-member name carrying the issued security token; the value need not be an OAuth access token |
+| `issued_token_type` | **Required** | Declares the representation of the issued security token |
+| `token_type` | **Required** | Says how an issued access token is presented, such as `Bearer`; use `N_A` when not applicable |
+| `expires_in` | Recommended | Token-type-independent validity duration |
+| `scope` | Optional if unchanged; required if different from requested | Actual issued scope |
+| `refresh_token` | Optional | Typically absent for temporary-to-temporary exchange; profile must document when it can appear |
 
-```
+Protocol errors and protected policy reasons serve different audiences:
+
+| Boundary | Client-visible result | Protected evidence |
+|:---------|:----------------------|:-------------------|
+| Malformed, invalid, or policy-unacceptable input token | OAuth `invalid_request` or another applicable registered error | Failed validation class, input fingerprint, issuer/type, client, policy version |
+| Unknown, forbidden, or overbroad target | `invalid_target` | Requested resource/audience set and target-policy reason |
+| Scope or actor denied by local policy | Profiled OAuth error without sensitive detail | Requested/granted scope comparison, actor/client/grant rule, decision id |
+| Suspected replay or stale grant | Fail closed; avoid exposing detection logic | Token id/fingerprint, sender evidence, grant version, replay signal, incident correlation |
+
+#### 5.4 Current Actor and Delegation History
+
+The [RFC 8693 `act` claim](https://www.rfc-editor.org/rfc/rfc8693.html#section-4.1) identifies the party currently acting for the top-level subject. When `act` is nested, the outermost object is the current actor and deeper objects are successively older actors:
 
 ```json
 {
   "iss": "https://auth.example.com",
-  "sub": "user-12345",              // ← Original user
-  "aud": "https://mcp.example.com", // ← Target MCP server (RFC 8707)
-  "exp": 1741510800,
-  "iat": 1741507200,
-  "scope": "tools:execute:email.send",
-  "act": {                             // ← Actor claim (RFC 8693 §13.1)
-    "sub": "agent-travel-assistant",
-    "iss": "https://agents.example.com",
-    "client_id": "mcp-client-xyz"
-  },
-  "may_act": {                         // ← Authorized delegation (optional)
-    "sub": "agent-travel-assistant"
-  }
-}
-```
-
-#### 5.4 Chained Delegation (Multi-Agent)
-
-When Agent A delegates to Agent B (sub-agent), the `act` claim nests:
-
-```json
-{
-  "sub": "user-12345",
+  "sub": "user:alice",
+  "aud": "https://mcp.example.com",
+  "scope": "tools:reports.deliver",
   "act": {
-    "sub": "agent-B-specialist",
+    "sub": "agent:report-agent",
     "act": {
-      "sub": "agent-A-coordinator"
+      "sub": "service:report-planner"
     }
   }
 }
 ```
 
+The resource server applies access-control policy to the token's top-level claims and the **current actor** only. RFC 8693 makes prior nested actors informational: they can support reconstruction, but they cannot add permission or become independent PDP inputs. Claims inside `act` identify an actor; validity claims such as `exp`, `nbf`, and `aud` are not meaningful there in the way they are at the token's top level.
+
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
----
 flowchart TB
-    User(["`**👤 User**
-    user-12345`"]) -->|"delegates to"| AgentA(["`**🤖 Agent A**
-    agent-A-coordinator`"])
-    AgentA -->|"sub-delegates to"| AgentB(["`**🤖 Agent B**
-    agent-B-specialist`"])
+    Token["`**Top-level token**
+    sub:&nbsp;user:alice
+    resource + scope + validity`"]
+    Current["`**Outermost act**
+    agent:report-agent
+    current actor`"]
+    Prior["`**Nested act**
+    service:report-planner
+    prior actor · informational`"]
 
-    subgraph Token["Resulting Token — read innermost act outward"]
-        direction TB
-        Sub["`**sub:** user-12345`"]
-        Act1["`**act.sub:** agent-B-specialist
-        (outer&nbsp;=&nbsp;current&nbsp;actor)`"]
-        Act2["`**act.act.sub:** agent-A-coordinator
-        (inner&nbsp;=&nbsp;original&nbsp;delegator)`"]
-        Sub --- Act1 --- Act2
-    end
+    Token -->|"PDP input"| Decision["`**Access decision**
+    subject + current actor
+    action + resource + context`"]
+    Current -->|"PDP input"| Decision
+    Prior -.->|"audit context only"| Evidence["`**Reconstruction evidence**
+    combine with exchange, grant,
+    task, policy, and trace records`"]
+    Decision --> Evidence
 
-    style User text-align:center
-    style AgentA text-align:center
-    style AgentB text-align:center
-    style Sub text-align:left
-    style Act1 text-align:left
-    style Act2 text-align:left
-
-    AgentB -->|"holds"| Token
-
-    subgraph Audit["📋 Audit Trail Reconstruction"]
-        direction LR
-        A1["`user-12345`"] -->|"→"| A2["`agent-A-coordinator`"] -->|"→"| A3["`agent-B-specialist`"]
-    end
-
-    Token -.->|"unwinding act chain"| Audit
-
+    style Token text-align:left
+    style Current text-align:left
+    style Prior text-align:left
+    style Decision text-align:left
+    style Evidence text-align:left
 ```
 
-This enables full audit trail reconstruction of the delegation chain: User → Agent A → Agent B.
+The nested claim is therefore an issuer-asserted authorization history trail, not a complete operational lineage. It does not by itself say when each delegation occurred, which scope was granted at every hop, which approval applied, whether a prior grant was revoked, which workload executed each step, or which legal entity bears responsibility. Those facts come from correlated exchange, grant, task, policy-decision, and trace records.
+
+The [`may_act` claim](https://www.rfc-editor.org/rfc/rfc8693.html#section-4.4) has a different time and purpose: it identifies a party asserted as eligible to become an actor. An AS can use it when deciding an exchange, but still validates client, token, actor, target, scope, and local policy. It is not required, is not copied into every issued token, and is not a consent or approval artifact.
+
+#### 5.5 Derivation, Lifecycle, and Cross-Domain Boundary
+
+Token exchange is a point-in-time derivation. Unless a token type has one-time-use semantics, performing an exchange does not change the validity of the subject or actor token. The exchange also creates no tight automatic linkage between input and output: renewal, extension, or revocation propagation requires deployment-specific state and events.
+
+```mermaid
+flowchart LR
+    Inputs["`**Input credentials**
+    own expiry + revocation`"] --> Exchange["`**Exchange decision**
+    validate + attenuate
+    record derivation`"]
+    Exchange --> Output["`**Issued token**
+    own target + lifetime
+    own token id`"]
+    Exchange --> Record["`**Derivation record**
+    fingerprints · policy
+    decision · grant reference`"]
+    Inputs -.->|"no automatic linkage"| Output
+    Record --> Lifecycle["`**Lifecycle controls**
+    revocation events · introspection
+    task state · re-evaluation`"]
+    Lifecycle --> Output
+
+    style Inputs text-align:left
+    style Exchange text-align:left
+    style Output text-align:left
+    style Record text-align:left
+    style Lifecycle text-align:left
+```
+
+An optional refresh token is likewise not durable authority by itself. RFC 8693 says it is typically absent when one temporary credential is exchanged for another; a profile that issues one must state the conditions. Authorization Continuity and Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks)) supplies the authority record, expiry, revocation, and re-evaluation needed for user-not-present work.
+
+> **Note — Cross-domain chaining is close to publication, but is not yet an RFC**
+>
+> As of **July 24, 2026**, [OAuth Identity and Authorization Chaining Across Domains `-17`](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) is in the RFC Editor queue. It combines an RFC 8693 exchange in trust domain A with an RFC 7523 JWT authorization grant presented to the authorization server in trust domain B. It allows controlled claim transcription and recommends a single target-AS audience where possible. Until publication, treat it as a dated profile, not as proof that ordinary nested `act` claims solve federation.
+
+Cross-domain claim transcription can add, remove, change, or map claims, including subject identifiers. The evidence record must therefore show which authority transformed each claim and why the target domain trusted that transformation. Data minimization is a feature of the boundary, not a loss of required audit state: detailed provenance can remain in protected records while the foreign-domain token carries only what its resource needs.
+
+#### 5.6 When Token Exchange Is Not the Answer
+
+Token exchange is one derivation mechanism, not the universal solution to every agent credential problem:
+
+| Need | Better-fit mechanism | Why it is different |
+|:-----|:---------------------|:--------------------|
+| Derive a target-bounded token from accepted subject/actor evidence | **RFC 8693 token exchange** | The AS validates inputs and issues a new token under policy |
+| Organization-owned agent acts as itself | **Direct workload/service grant** | No delegated subject needs to be preserved |
+| Reach an API that supports only provider-issued user credentials | **Gateway-held provider credential** with explicit custody and consent | Credential injection or translation is not automatically RFC 8693 |
+| Propagate short-lived context inside one trust domain | **Transaction token profile** where adopted ([§20.3](#203-transaction-scoped-credentials)) | Internal call-chain context is distinct from an external access token and remains draft-stage |
+| Continue after user presence ends | **Durable task/grant record** ([§10](#10-authorization-continuity-and-durable-tasks) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)) | Persistence, budget, re-evaluation, and revocation are lifecycle decisions |
+| Obtain approval for a new high-consequence operation | **Approval/authorization flow** ([§14](#14-authorization-approval-and-consent-models)–[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)) | A token exchange cannot manufacture human or policy approval |
+
+Availability and latency still matter: a central STS needs capacity, caching discipline, safe failure behavior, and recovery design. Those operational concerns do not make transparent token forwarding or a broader gateway credential semantically equivalent to exchange.
 
 ---
 
@@ -3224,7 +3488,7 @@ Some IdPs (Okta, Ping Identity) are beginning to model agents as **first-class i
 
 > **Caution — Vendor Lock-In Caveat**
 >
-> Cloud-based Approach C implementations — Microsoft **Entra Agent ID** ([§A.4.1](#a41-how-entra-agent-id-works)), **Google Cloud Agent Identity** ([§11.4.2](#1142-gcp-agent-identity-and-secret-manager-and-workload-identity-federation)) — create **hard vendor lock-in**: agent identities exist exclusively in the cloud provider's SaaS IdP or managed agent platform, cannot be self-hosted or exported, and require user principals and agent principals to live inside provider-specific policy and audit surfaces for delegated/attended mode. In multi-IdP enterprises (e.g., users in Okta, agents in Entra), there is no seamless cross-IdP token exchange to produce composite user+agent tokens. Self-hosted IdPs like **WSO2 IS** ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)) offer Approach C with identity sovereignty, and **SPIFFE/WIMSE** (Approach B) provides a fully vendor-neutral alternative. See [§A.4.2](#a42-vendor-lock-in-and-identity-portability-analysis) for a detailed portability comparison table and [§11.4.5](#1145-cloud-native-platform-synthesis) for a cloud-platform synthesis.
+> Cloud-based Approach C implementations — Microsoft **Entra Agent ID** ([§A.4.1](#a41-how-entra-agent-id-works)), **Google Cloud Agent Identity** ([§7.9](#79-product-implementation-evidence-and-maturity-boundaries) and [§11.8](#118-dated-implementation-evidence-and-product-limitations)) — create provider-specific portability and lifecycle boundaries: agent identities live in the provider's managed identity/platform surface, and delegated/attended modes depend on provider-specific policy and audit integration. In multi-IdP enterprises, composite user+agent authority still requires an explicit federation/delegation design. Self-hosted IdPs such as **WSO2 IS** ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)) preserve more identity-plane control, while **SPIFFE/WIMSE** (Approach B) provides workload-identity building blocks. See [§A.4.2](#a42-vendor-lock-in-and-identity-portability-analysis) for the detailed portability comparison and §§7.9/11.8 for dated product evidence and limitations.
 
 **Approach C implementation variants** — "Agent-as-identity" is no longer one idea. Current product evidence splits it into several distinct patterns that should not be collapsed into a single first-class-agent bucket:
 
@@ -3315,7 +3579,7 @@ The approaches in [§6.3](#63-three-architectural-approaches-to-agent-identity)�
 | **Agent authentication** | `client_secret_jwt` / `private_key_jwt` / mTLS (RFC 8705) — credential verified by AS | DID Authentication (DIDAuth) — agent proves control of the private key associated with its DID via challenge-response | DIDAuth is AS-independent but lacks the battle-tested token introspection and revocation infrastructure of OAuth; no standardized DIDAuth protocol has reached production maturity |
 | **Capability declaration** | CIMD `client_name`, `grant_types`, `scope` ([§1.3](#13-client-registration-and-enterprise-governance)) or RAR `authorization_details` ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)) | Verifiable Credential with agent capabilities — issuer (e.g., deploying organization) attests to specific capabilities, model family, trust level in a cryptographically signed VC | VCs enable richer, portable capability attestation (including model version, safety certifications) that travels with the agent across organizations; CIMD is sufficient for single-AS scenarios |
 | **Cross-org trust** | OIDC Federation ([§8.7.2](#872-openid-federation-11-for-agent-trust)) — hierarchical Trust Chains via signed Entity Statements | DID resolution + VC verification — verifier resolves the agent's DID, retrieves the DID Document, and validates presented VCs against trusted issuer DIDs | OIDC Federation provides a structured governance hierarchy (Trust Anchors, Intermediates); DID/VC offers flatter, more ad-hoc trust but requires each verifier to maintain its own trusted issuer list |
-| **Credential delegation** | RFC 8693 token exchange — STS issues scoped delegated token with `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) | VC issuance/presentation — delegating entity issues a scoped VC to the agent; agent presents the VC to downstream services | VC-based delegation supports offline verification and cross-domain portability without real-time STS connectivity; RFC 8693 provides tighter integration with existing OAuth token lifecycle (introspection, revocation) |
+| **Credential delegation** | RFC 8693 token exchange — STS issues scoped delegated token with `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) | VC issuance/presentation — delegating entity issues a scoped VC to the agent; agent presents the VC to downstream services | VC-based delegation supports offline verification and cross-domain portability without real-time STS connectivity; RFC 8693 provides tighter integration with existing OAuth token lifecycle (introspection, revocation) |
 
 ##### 6.5.2 Personhood Credentials and Inverse Personhood
 
@@ -3389,8 +3653,8 @@ MCP-I is composed of six modular services:
 | Service | Function | DR-0001 Mapping |
 |:--------|:---------|:----------------|
 | **DID Service** | Issues and resolves DIDs for agents and users | [§6.5](#65-decentralized-identity-didvc-for-agent-identity) (DID method taxonomy) |
-| **Credential Service** | Issues Verifiable Credentials (delegation, identity) | [§6.5](#65-decentralized-identity-didvc-for-agent-identity) (VC issuance), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (token exchange) |
-| **Delegation Service** | Verifies and chains authority credentials | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (delegation chains), [§20.4](#204-delegation-and-identity-chains) (identity-chain proposals) |
+| **Credential Service** | Issues Verifiable Credentials (delegation, identity) | [§6.5](#65-decentralized-identity-didvc-for-agent-identity) (VC issuance), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (token exchange) |
+| **Delegation Service** | Verifies and chains authority credentials | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (delegation chains), [§20.4](#204-delegation-and-identity-chains) (identity-chain proposals) |
 | **Edge Verifier** | Enforces identity + delegation checks before request passes to backend | **[§13](#13-gateway-mediated-mcp-architecture) (MCP Gateway)** — direct architectural equivalent |
 | **Audit Service** | Tracks identity, credential, delegation, and authorization-decision events | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (Art. 12 record-keeping) |
 | **Core Service** | Orchestrates events, registry, crypto utilities | Infrastructure layer |
@@ -3417,7 +3681,7 @@ async function handleRequest(request) {
 }
 ```
 
-**Delegation credentials** in MCP-I are encoded as VCs containing: the issuer DID (user/delegator), the subject DID (agent/delegatee), the scope of allowed actions, an expiration timestamp, and a cryptographic proof signed by the issuer. Scopes follow the format `action:resource[/subresource][#instance]` (e.g., `read:email`, `write:calendar/events`, `transfer:finance#account123`). Chained delegation is supported (User → Agent A → Agent B), with each link represented as a separate VC — the verifier must validate each credential in the chain recursively, ensuring each delegation's scope is a subset of its parent, checking for circular dependencies, and verifying no credential in the chain has been revoked or expired. This mirrors DR-0001's delegation chain model ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) but uses VCs as the chain medium instead of nested `act` claims in OAuth tokens.
+**Delegation credentials** in MCP-I are encoded as VCs containing: the issuer DID (user/delegator), the subject DID (agent/delegatee), the scope of allowed actions, an expiration timestamp, and a cryptographic proof signed by the issuer. Scopes follow the format `action:resource[/subresource][#instance]` (e.g., `read:email`, `write:calendar/events`, `transfer:finance#account123`). Chained delegation is supported (User → Agent A → Agent B), with each link represented as a separate VC — the verifier must validate each credential in the chain recursively, ensuring each delegation's scope is a subset of its parent, checking for circular dependencies, and verifying no credential in the chain has been revoked or expired. This mirrors DR-0001's delegation chain model ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) but uses VCs as the chain medium instead of nested `act` claims in OAuth tokens.
 
 MCP-I defines **three conformance levels** for incremental adoption:
 
@@ -3899,33 +4163,42 @@ Content-Type: application/json
 
 <br/>
 
-No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)) addresses multi-user agent authorization. The RFC 8693 `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) assumes a single authorization subject in `sub` with an actor chain in `act` — there is no standard representation for "this agent acts on behalf of Alice AND Bob with differentiated permissions." The active individual Transaction Tokens for Agents draft (`draft-araut-oauth-transaction-tokens-for-agents-02`, §20.3) preserves that single `sub`/`act` authorization identity while adding `agentic_ctx` originator, current-actor, and chain metadata; it does not define differentiated authority for multiple principals. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see [OQ 14](#oq-14) ([§27](#27-open-questions)).
+No current mechanism in the MCP specification, IETF OAuth drafts, or surveyed gateway implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)) addresses multi-user agent authorization. The RFC 8693 `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) represents one top-level authorization subject and a current actor, with any prior actors informational for access control; it does not represent "this agent acts on behalf of Alice AND Bob with differentiated permissions." The active OAuth WG Transaction Tokens draft (`draft-ietf-oauth-transaction-tokens-09`, §20.3) propagates subject, workload, scope, request context, and transaction facts inside one trust domain but likewise does not define differentiated authority for multiple principals. Similarly, no gateway policy engine (Cedar, OPA, OpenFGA) provides built-in primitives for computing permission sets across multiple delegating principals. This is a genuinely open architectural question with significant implications for enterprise deployments where shared agents are the norm rather than the exception — see [OQ 14](#oq-14) ([§27](#27-open-questions)).
 
 ---
 
-### 7. NHI Governance and OWASP NHI Top 10 Mapping
+### 7. Agent Definition, Identity, and Governance Lifecycles
 
-> **See also**: [§6](#6-agent-identity-vs-user-identity) (Agent Identity Models), [§7.8](#78-owasp-agentic-ai-top-10-mapping)–[7.9](#79-cosai-mcp-threat-taxonomy-mapping) (OWASP/CoSAI threat mappings), §25.7 (NHI Governance findings)
+> **See also**: [§6](#6-agent-identity-vs-user-identity) (agent identity models), [§11](#11-credential-custody-and-release-patterns) (credential custody and use), [§12](#12-credential-state-revocation-and-termination-convergence) (state invalidation and termination), [§13](#13-gateway-mediated-mcp-architecture) (gateway enforcement), and [§25.7](#257-agent-and-non-human-identity-governance) (governance findings)
 
-The identity taxonomy ([§6.1](#61-the-identity-taxonomy)) places AI agents within the broader Non-Human Identity (NHI) category. While [§6.2](#62-why-agents-are-not-just-oauth-clients)–[§6.4](#64-recommendation-layered-identity-strategy) address *how agents get identities*, this section addresses *how those identities are governed across their lifecycle* — a discipline now recognized by Gartner as a strategic priority in the 2025 Hype Cycle for Digital Identity under "Workload Identity Management."
+An agent does not have one lifecycle. Its **definition**, **registered identity**, **runtime instance**, **authority**, **credentials**, **sessions**, **tasks**, and **downstream effects** can be created, changed, suspended, or terminated on different clocks. Treating those objects as one “agent account” produces predictable failures: a retired definition can still have a live instance, a disabled identity can leave a usable credential, and a cancelled task can leave a downstream operation running.
 
-#### 7.1 Why NHI Governance Matters for AI Agents
+This chapter defines the governance model that keeps those objects correlated without pretending they are the same object. It governs ownership, admission, review, recovery, and lifecycle evidence. Credential custody belongs to [§11](#11-credential-custody-and-release-patterns); protocol-specific invalidation and termination convergence belong to [§12](#12-credential-state-revocation-and-termination-convergence); request enforcement belongs to [§13](#13-gateway-mediated-mcp-architecture).
 
-NHIs now outnumber human identities by ratios of **40:1 to 144:1** in enterprise environments (Forrester 2025, Gartner IAM Summit 2025). This massive expansion is driving a fundamental shift across the 2026 cybersecurity landscape — as evidenced by Ping Identity driving executive tracks at **RSAC 2026 (March)**, headlining the newly established **Non-Human & AI Identity Pavilion at Identiverse 2026 (June)**, and focusing their own **Ping YOUniverse 2026** directly on Agentic AI.
+#### 7.1 One Agent, Several Correlated Lifecycles
 
-AI agents accelerate this NHI explosion because they are **ephemeral, non-deterministic, and autonomously created** — a single user interaction may spawn multiple agents, each requiring credentials, scopes, and network access. Without governance, this creates:
+The governing invariant is:
 
-| Risk | Description | DR-0001 Mitigation |
-|:-----|:-----------|:-------------------|
-| **Identity sprawl** | Thousands of agent identities created daily without inventory | [§6.4](#64-recommendation-layered-identity-strategy) layered strategy provides structure; NHI platform provides discovery |
-| **Credential sprawl** | API keys, tokens, and secrets scattered across agent environments | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker secret injection; [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) Token Vault |
-| **Orphaned identities** | Agents decommissioned without revoking credentials | [§10.4](#104-security-guardrails-for-agent-refresh-tokens) guardrails (inactivity timeout, consent binding) |
-| **Over-privileged agents** | Agents configured with broader access than needed (reported at 97% by NHI industry data) | [§16](#16-task-based-access-control-tbac) TBAC; [§3.4](#34-scope-minimization-best-practices) scope minimization |
-| **Unattributed actions** | Agent actions not traceable to a human owner | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) `act` claim; [§9](#9-authorization-context-and-delegation-representation) JWT enrichment |
+> **A lifecycle transition applies only to the named object unless an explicit, observed workflow changes the dependent objects.**
 
-#### 7.2 NHI Lifecycle for AI Agents
+For example, accepting an identity-disable request is not proof that every access token, gateway session, durable task, and downstream side effect has stopped. The control plane needs a stable correlation key, object-specific state, a monotonic termination epoch, and evidence for each required effect.
 
-AI agent identities differ fundamentally from traditional NHIs (service accounts, API keys) because they are **ephemeral, task-scoped, and potentially self-replicating** (an orchestrator agent may spawn sub-agents). The lifecycle must accommodate these characteristics:
+| Governance question | Object that answers it | Minimum evidence |
+|:--------------------|:-----------------------|:-----------------|
+| What behavior and tools were approved? | Agent definition and immutable version | Signed/versioned manifest, provenance, inherited policy, review decision |
+| Which tenant-local principal represents it? | Agent identity or registration | Stable identity ID, definition version, owner, sponsor, status |
+| Which execution is present now? | Runtime instance | Workload identity, attestation/admission result, start and expiry |
+| What may this execution do? | Authority or grant | Subject, actor, resource, action, constraints, issuer, expiry |
+| What proves possession or enables access? | Credential or lease | Credential ID or hash, binding method, custodian, issue/expiry state |
+| What conversational or transport state persists? | Session, channel, or cache | Session ID, owner, policy snapshot, expiry, invalidation status |
+| What durable work survives the request? | Task or continuation | Task ID, authority snapshot, cancel state, terminal state |
+| What happened outside the control plane? | Downstream effect | Provider operation ID, status, compensation or reconciliation evidence |
+
+Identity governance therefore has two simultaneous duties: keep every object attributable to a definition and accountable owner, and prevent state in one object from silently resurrecting authority in another.
+
+#### 7.2 Agent Definitions, Versions, and Provenance
+
+The agent definition is a governed software and policy object, not an authenticated principal. It describes what an agent is intended to be; a registered identity describes which tenant-local principal may act as an instance of that definition. One definition version may produce many identities or runtimes, and one identity must never drift between definition versions without an explicit transition.
 
 ```mermaid
 ---
@@ -3937,364 +4210,296 @@ config:
     rankSpacing: 60
 ---
 flowchart LR
-    subgraph Lifecycle["AI Agent NHI Lifecycle"]
-        direction LR
+    D["`**Agent definition**
+    Purpose, model, tools,
+    provenance, policy`"]
+    I["`**Registered identity**
+    Tenant principal,
+    owner, sponsor, status`"]
+    R["`**Runtime instance**
+    Workload identity,
+    admission, expiry`"]
+    A["`**Authority / grant**
+    Resource, action,
+    constraints, expiry`"]
+    C["`**Credential / lease**
+    Custodian, binding,
+    issue and expiry state`"]
+    S["`**Session / channel**
+    Owner, policy snapshot,
+    cache and expiry`"]
+    T["`**Task / continuation**
+    Authority snapshot,
+    cancel and terminal state`"]
+    E["`**Downstream effect**
+    Provider operation,
+    completion or compensation`"]
+    L["`**Evidence overlay**
+    Correlation ID,
+    event and verification log`"]
 
-        P["`**📋 Provision**
-        (JIT or pre-registered)`"]
+    D -->|"version selected"| I
+    I -->|"fresh admission"| R
+    I -->|"policy decision"| A
+    R -->|"proof or broker input"| C
+    A -->|"bounds use"| S
+    C -->|"enables request"| S
+    S -->|"creates or resumes"| T
+    T -->|"may initiate"| E
+    L -.-> D
+    L -.-> I
+    L -.-> R
+    L -.-> A
+    L -.-> C
+    L -.-> S
+    L -.-> T
+    L -.-> E
 
-        I["`**🔑 Credential Issue**
-        (ephemeral token,
-        SVID, X.509 cert)`"]
-
-        M["`**📡 Monitor**
-        (behavioral analytics,
-        anomaly detection)`"]
-
-        R["`**🔄 Rotate**
-        (auto, continuous,
-        minutes/hours)`"]
-
-        V["`**🛑 Revoke**
-        (task complete,
-        policy violation,
-        user revocation)`"]
-
-        D["`**🗑️ Decommission**
-        (delete identity,
-        purge credentials,
-        retain audit logs)`"]
-
-        P --> I
-        I --> M
-        M --> R
-        R --> M
-        M --> V
-        V --> D
-    end
-
-    style P text-align:left
-    style I text-align:left
-    style M text-align:left
-    style R text-align:left
-    style V text-align:left
     style D text-align:left
+    style I text-align:left
+    style R text-align:left
+    style A text-align:left
+    style C text-align:left
+    style S text-align:left
+    style T text-align:left
+    style E text-align:left
+    style L text-align:left
 ```
 
-| Lifecycle Phase | Traditional NHI | AI Agent NHI | MCP Pattern |
-|:------|:------|:------|:------|
-| **Provisioning** | Manual, admin-created, long-lived | Just-in-time (JIT), automated, per-task or per-session | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C: agent registered in IdP |
-| **Credential type** | Static API key, client secret | Ephemeral token, SPIFFE SVID, X.509 cert | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B: SVID as actor_token ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
-| **Rotation** | Scheduled (90-day cycles) | Continuous, auto-rotated (minutes to hours) | [§10.4](#104-security-guardrails-for-agent-refresh-tokens): rotation on use |
-| **Scope governance** | Static roles, broad permissions | Task-scoped, dynamically computed | [§16](#16-task-based-access-control-tbac) TBAC; [§3.4](#34-scope-minimization-best-practices) scope minimization |
-| **Monitoring** | Periodic access reviews | Continuous behavioral analytics | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) decision evidence; [§23.4](#234-art-12-and-art-26-audit-trail-requirements) Art. 12 |
-| **Revocation** | Manual, often forgotten | Automatic on task completion or policy violation | [§10.4](#104-security-guardrails-for-agent-refresh-tokens): consent binding, inactivity timeout |
-| **Deprovisioning** | Manual, risk of orphaned accounts | Automatic: credentials expire with workload | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B: SVID lifespan = workload lifespan |
-| **Ownership** | Often unclear (orphaned accounts) | Tied to human owner or organizational unit | NHI governance requirement |
+**Illustrative definition record**:
 
-**Lifecycle evidence artifacts**:
-
-| Lifecycle Phase | Required Owner | Control Artifact | Failure Mode Prevented |
-|:----------------|:---------------|:-----------------|:-----------------------|
-| **Provision** | Agent sponsor, platform owner, or tenant admin | Agent record with purpose, owner, blueprint/template, allowed tools, risk tier, and expiration policy | Shadow agents and unowned automation |
-| **Authorize** | Authorization owner / app owner | Consent record, grant package, scope mapping, and policy decision baseline | Overprivileged agent identity or undocumented delegation |
-| **Credential issue** | Identity platform / workload platform | Short-lived token, SVID, certificate, or secretless broker lease tied to agent instance | Long-lived secrets and NHI reuse |
-| **Monitor** | SOC / NHI governance owner | Behavioral baseline, tool-call trace, risk score, and owner alert route | Unattributed actions and dormant compromise |
-| **Review** | Sponsor + entitlement owner | Access review result, unused-scope report, and exception decision | Permission creep after task or team changes |
-| **Revoke / suspend** | Incident responder or policy engine | Revocation event, disabled identity state, session kill record, downstream propagation status | Orphaned tokens after offboarding or compromise |
-| **Decommission** | Platform owner | Deleted/retired agent record, retained audit log, purged credentials, dependency cleanup | Ghost agents and stale tool grants |
-
-#### 7.3 NHI Governance Platform Landscape
-
-NHI governance should be evaluated as a set of control tiers rather than as a vendor category. A mature agent program needs each tier, but a single product rarely owns all of them:
-
-| Governance Tier | Question Answered | Typical Control Plane | DR-0001 Connection |
-|:----------------|:------------------|:----------------------|:-------------------|
-| **Inventory and discovery** | Which agents, service accounts, OAuth apps, secrets, and workload identities exist? | NHI-native platform, cloud inventory, MCP registry, agent registry | [§7.2](#72-nhi-lifecycle-for-ai-agents) lifecycle; [§13.7.4](#1374-agent-discovery-and-registry-ecosystem) registry ecosystem |
-| **Ownership and sponsorship** | Who is accountable for this agent and its delegated authority? | IdP agent records, Entra sponsor, governance platform owner field | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C; [§23.8](#238-the-multi-agent-accountability-gap) accountability gap |
-| **Entitlement governance** | What can the agent do, and who approved it? | IdP groups/roles, entitlement management, OpenFGA/Cedar/OPA policy | [§16](#16-task-based-access-control-tbac) TBAC; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) policy engines |
-| **Credential and runtime binding** | Which runtime instance can use the credential? | SPIFFE/WIMSE, DPoP/mTLS, secretless brokers, vault leases | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B; [§11](#11-credential-delegation-patterns) credential patterns; [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) |
-| **Behavioral monitoring and response** | Is the agent acting within expected context and risk limits? | SIEM/UEBA, NHI risk scoring, CAEP/SSF events, gateway audit | [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) CAEP; [§13.5.4](#1354-authorization-decision-tracing) authorization decision tracing |
-| **Lifecycle closure** | Are tokens, state, grants, and downstream delegations removed when the agent is retired? | IdP deprovisioning, revocation fan-out, ticketed offboarding workflow | [§7.11](#711-agent-de-provisioning-vs-token-revocation); [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) revocation propagation |
-
-The products below are evidence examples for those tiers, not a substitute for the architecture decision. They differ mainly in whether they start from NHI discovery, workload credentials, cloud IAM, IdP-native agent identity, PKI, or runtime behavior:
-
-| Platform | Agent-Specific Capability | Approach | Connection to DR-0001 |
-|:---------|:------------------------|:---------|:----------------------|
-| **CyberArk** | "Secure AI Agents" — privileged access and lifecycle management for AI agents. Zero standing privilege enforcement. | PAM-centric | Extends [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)'s credential isolation to agent lifecycle governance |
-| **Astrix Security** | "AI Agent Control Plane (ACP)" — discover, secure, and govern AI agents. Shadow AI detection. Agentic JIT access with short-lived credentials. | NHI-native | Complements [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C with governance layer |
-| **Oasis Security** | "Agentic Access Management (AAM™)" — intent-aware access and continuous policy enforcement for agents. NHI provisioning. NHI Management Fundamentals Certification (Sep 2025). | NHI-native | Aligns with [§16](#16-task-based-access-control-tbac) TBAC through intent-aware authorization |
-| **Aembit** | **IAM for Agentic AI** (Oct 2025): purpose-built **MCP Identity Gateway** authenticates agent, enforces policy, performs RFC 8693 token exchange — agent never sees credential (secretless). **Blended Identity** combines agent's cryptographic identity with human user's rights into single auditable identity per action. Policy-based conditional access with continuous identity verification. Named "Overall ID Management Solution of the Year" (CyberSecurity Breakthrough Awards 2025). | Workload IAM | Implements [§11.1](#111-credential-delegation-pattern-taxonomy) Pattern D (secretless) with RFC 8693 exchange — strongest credential isolation with delegation semantics. First NHI platform with purpose-built MCP integration. Deep dive: [§11.4](#114-cloud-native-credential-delegation-platforms) |
-| **Microsoft** | **Entra Agent ID** — dedicated identity framework treating AI agents as special service principals created from agent identity blueprints, with sponsors, optional 1:1 agent user accounts, and tenant-local governance in Entra. | Cloud IAM | Extends [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive) APIM's facade AS with first-class agent identity; implements [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C at cloud platform level. Deep dive: [§11.4.1](#1141-azure-entra-agent-id-and-key-vault-and-managed-identity) |
-| **HashiCorp** | **Vault** (Enterprise 1.21+, late 2025) — dynamic secrets with per-request TTLs and lease-based auto-revocation. SPIFFE/SVID integration for workload identity. **Project Infragraph** (private beta Dec 2025) provides trusted data substrate for AI agent context-aware credential access. Gateway-agnostic. | Infrastructure secrets | Operates at the infrastructure layer complementing IAM-native solutions. Ephemeral credentials eliminate lifecycle management. Deep dive: [§11.4.4](#1144-hashicorp-vault-dynamic-secrets-and-project-infragraph) |
-| **Clutch Security** | Universal NHI Security Platform. Identity lineage visualization. Zero Trust enforcement for agents. Ephemeral credentials. | NHI-native | Connects to [§10.4](#104-security-guardrails-for-agent-refresh-tokens) ephemeral credential patterns |
-| **Silverfort** | Unified identity protection (human + NHI). AI Agent Security with behavioral analytics. Lateral movement prevention. | Identity platform | Adds runtime protection layer to [§13](#13-gateway-mediated-mcp-architecture) gateway architecture |
-| **Keyfactor** | X.509 certificate-based identity for AI agents. PKI + CLM for agentic AI (Nov 2025). | Machine identity | Extends [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B with enterprise certificate governance |
-| **Venafi (CyberArk)** | Machine identity management (CyberArk Certificate Manager). Certificate lifecycle for NHIs. | Machine identity | Foundation for certificate-based agent identity |
-
-> **Market evolution**: The 2025–2026 platform shift is from "find my secrets" toward **govern my autonomous principals**. NHI-native platforms are strongest at inventory, ownership, risk, and orphan detection; workload IAM platforms are strongest at secretless runtime credentialing; cloud IAM extensions are strongest where the agent is already hosted inside that cloud; IdP-native platforms are strongest at consent, entitlement, and audit semantics. DR-0001 recommends treating NHI governance as a complementary control plane above IdP-based agent identity and SPIFFE/WIMSE runtime identity, especially for organizations operating hundreds or thousands of agents.
-
-#### 7.4 Credential Architecture for AI Agents
-
-Three credential models are in use, each corresponding to the identity approaches in [§6.3](#63-three-architectural-approaches-to-agent-identity):
-
-| Model | Credential Type | Lifespan | Agent Exposure | DR-0001 Pattern |
-|:------|:---------------|:---------|:--------------|:----------------|
-| **A: Bearer Token** | OAuth access token + refresh token | Minutes (AT) / Hours–Days (RT) | Agent holds token | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) RFC 8693 token exchange; §10 refresh patterns |
-| **B: SPIFFE SVID** | X.509 certificate or JWT SVID | Minutes to hours (auto-rotated by SPIRE) | Agent holds cert but cannot exfiltrate | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B: SPIFFE-based identity |
-| **C: Secretless** | No credential held; injected per-request | Per-request | Agent **never** sees credential | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker secret injection; Aembit |
-
-The **defense-in-depth** principle applies: Models B and C are preferred for high-risk agent operations. Model A is adequate for low-risk, user-delegated tasks within a gateway-mediated architecture ([§13](#13-gateway-mediated-mcp-architecture)) where the gateway manages token lifecycle ([§10.5](#105-gateway-side-token-lifecycle-management)).
-
-> **Connection to NIST SP 800-207 (Zero Trust Architecture)**: Apply the same resource-access principles to human, agent, and workload identities: reduce long-lived credentials (Model C), enforce least privilege ([§16](#16-task-based-access-control-tbac)), centralize secrets management where appropriate ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), and continuously evaluate decision evidence ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)). See [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures) for the expanded Zero Trust mapping to MCP agent architectures.
-
-#### 7.5 NHI Governance Contributions to an EU AI Act Control System
-
-The EU AI Act does not define a separate non-human-identity regime. Where an agent or workload participates in an in-scope AI system, disciplined credential and identity governance can contribute evidence to wider provider or deployer controls:
-
-| EU AI Act Requirement | NHI Governance Contribution | DR-0001 Section |
-|:-----|:-----|:-----|
-| Art. 12 — record-keeping | Every agent credential issuance, rotation, and revocation must be logged | [§23.4](#234-art-12-and-art-26-audit-trail-requirements) audit trail |
-| Art. 13 — transparency | Agent identity metadata (model, vendor, trust level) must be available to deployers | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C: agent registry |
-| Art. 15 — cybersecurity | Agent credentials must resist unauthorized third-party exploitation | [§7.4](#74-credential-architecture-for-ai-agents) credential models (secretless preferred) |
-| Art. 26(6) — log retention | Retain relevant automatically generated high-risk-system logs under the deployer's control for the applicable period; decide separately which credential-lifecycle events are needed to make those logs intelligible | [§23.4](#234-art-12-and-art-26-audit-trail-requirements); [§26](#26-recommendations) Rec 15 |
-| Art. 50(1) — AI disclosure | NHI governance enables systematic identification of AI-mediated actions | [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) `ai_disclosure` metadata |
-
-#### 7.6 CSA Agentic Trust Framework (ATF)
-
-The [Cloud Security Alliance (CSA)](https://cloudsecurityalliance.org/artifacts/agentic-trust-framework) published the **Agentic Trust Framework (ATF)** on February 2, 2026 — the first governance specification applying Zero Trust principles to autonomous AI agents. The ATF translates NIST SP 800-207's "never trust, always verify" tenet to the agent domain: **no AI agent is trusted by default, regardless of its purpose or claimed capabilities**. Trust must be continuously earned through demonstrated behavior and verified through monitoring.
-
-**ATF Maturity Levels**:
-
-| ATF Level | Agent Role | Autonomy | Cross-Org Trust Requirement | Example DR-0001 Safeguard |
-|:----------|:----------|:---------|:---------------------------|:-------------------------------|
-| **Level 1: Intern** | Read-only observer | None — cannot modify state | Minimal (discovery only) | Audit, read-only policy, and strict resource bounds |
-| **Level 2: Junior** | Supervised executor | Actions require human approval | Medium (delegated with approval) | In-session interaction or policy-gated approval for the proposed action |
-| **Level 3: Senior** | Autonomous within guardrails | Can execute actions, notify humans | High (trusted cross-org agent) | Bounded standing authority plus consequence-based escalation |
-| **Level 4: Principal** | Autonomous within domain | Self-directed; escalates edge cases only | Full (domain-autonomous agent) | Stronger delegation ceilings, continuous evaluation, and independent approval where the action—not the maturity label—requires it |
-
-The last column is a local architectural mapping, not part of the CSA framework. Greater agent maturity does not automatically imply a higher-numbered approval ceremony; the deployment selects oversight from the exact operation's consequences and applicable rules ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)).
-
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
----
-flowchart BT
-    subgraph ATF["CSA&nbsp;Agentic&nbsp;Trust&nbsp;Framework&nbsp;— Maturity&nbsp;Progression"]
-        direction BT
-
-        L1(["`**Level 1: Intern**
-        Read-only observer
-        No autonomy
-        Oversight: Audit-only`"])
-
-        L2(["`**Level 2: Junior**
-        Supervised executor
-        Actions require approval
-        Oversight: In-session / Policy-gated`"])
-
-        L3(["`**Level 3: Senior**
-        Autonomous within guardrails
-        Notify humans post-action
-        Oversight: Webhook / CIBA`"])
-
-        L4(["`**Level 4: Principal**
-        Domain-autonomous
-        Escalates edge cases only
-        Oversight: CIBA / Multi-party`"])
-
-        L1 -->|"+ supervised execution"| L2
-        L2 -->|"+ guardrailed autonomy"| L3
-        L3 -->|"+ domain autonomy"| L4
-    end
-
-    style L1 text-align:left
-    style L2 text-align:left
-    style L3 text-align:left
-    style L4 text-align:left
+```json
+{
+  "definition_id": "agentdef:claims-reviewer",
+  "version": "2026-07-24.3",
+  "artifact_digest": "sha256:8fb9…",
+  "publisher": "org:clinical-automation",
+  "model_profile": "model-profile:bounded-review-v4",
+  "tool_manifest": "toolset:claims-readonly@12",
+  "inherited_policy": [
+    "policy:regulated-data",
+    "policy:no-autonomous-payment"
+  ],
+  "provenance": {
+    "source_repository": "repo:claims-reviewer",
+    "build_attestation": "attestation:7f63…"
+  },
+  "status": "approved"
+}
 ```
 
-**Cross-organization relevance**: The ATF provides a **governance vocabulary** for structuring cross-organization trust agreements. When Organization X's agent calls a tool hosted by Organization Y, both organizations can reference ATF maturity levels in their federation agreement — e.g., "Organization Y accepts Level 2 agents from Organization X for read/write operations, but requires Level 3 attestation for financial operations." This maps ATF levels to the trust establishment taxonomy in [§8.7](#87-cross-organization-agent-federation).
+Definition promotion is an authorization decision. The promotion record should bind the exact digest, inherited policy, approved tool manifest, reviewer, and effective time. A new version does not silently mutate existing identities: the deployment must either pin them to the old approved version, migrate them through a recorded review, or retire them.
 
-**Alignment with existing frameworks**:
-- **OWASP Agentic App Top 10** (December 2025): ATF governance controls operationalize OWASP threat mitigations
-- **CoSAI MCP Security Whitepaper** (January 2026): ATF provides the governance layer above CoSAI's technical threat taxonomy
-- **NIST SP 800-207**: ATF explicitly builds on Zero Trust principles, extending them from network/identity to agent behavioral trust
+#### 7.3 Registration, Sponsorship, Ownership, and Succession
 
-> **Industry signal (CSA 2026 Survey)**: 82% of organizations lack confidence in their current IAM capabilities for AI agents — validating that traditional identity management designed for human users is insufficient for autonomous agent governance.
+A registration instantiates a definition in a tenant or trust domain. It is the inventory and accountability anchor; it is not itself proof that a runtime is currently present or authorized.
 
+```json
+{
+  "agent_identity_id": "agent:tenant-a:claims-reviewer-042",
+  "definition": "agentdef:claims-reviewer@2026-07-24.3",
+  "tenant": "tenant-a",
+  "owners": ["group:claims-automation-owners"],
+  "sponsors": ["user:9c17…"],
+  "authority_profile": "grant-profile:claims-readonly",
+  "status": "active",
+  "created_at": "2026-07-24T08:42:00Z",
+  "review_due_at": "2026-10-22T00:00:00Z"
+}
+```
 
-#### 7.7 OWASP NHI Top 10: MCP Agent Risk Mapping
+The owner is accountable for the definition, deployment, and operational response. A sponsor is a tenant-local human or organizational principal who vouches for the registration and receives review, anomaly, and orphaning notifications. Those roles may coincide, but the record should model them separately so that organizational changes do not erase accountability.
 
-The [OWASP Non-Human Identities Top 10 (2025)](https://owasp.org/www-project-non-human-identities-top-10/) is the first industry-standard framework for NHI security risks. This mapping connects each risk to the MCP agent architecture and identifies which DR-0001 patterns mitigate it.
+| Transition | Required control | Evidence that closes the transition |
+|:-----------|:-----------------|:-------------------------------------|
+| **Create** | Approved definition version, named owner and sponsor, bounded authority profile | Registration ID and review schedule |
+| **Change owner** | Current-owner or governance approval; conflict-of-interest check where required | Old/new owner, approver, reason, effective time |
+| **Sponsor leaves** | Detect the dependency and assign a successor before the grace period expires | Successor acceptance or automatic suspension |
+| **Definition upgrade** | Re-evaluate inherited policy, tools, model profile, and risk tier | Migration decision binding old and new versions |
+| **Suspend** | State change plus dependent-object termination workflow | Suspension epoch and convergence record |
+| **Retire** | Block new admission and begin dependency-aware closure | Retirement record, retention policy, unresolved dependencies |
 
-| OWASP Risk | Description | MCP Agent Exposure | DR-0001 Mitigation | Gap? |
-|:-----------|:-----------|:-------------------|:--------------------|:-----|
-| **NHI1: Improper Offboarding** | NHIs not deactivated when no longer needed | Ephemeral agents may leave orphaned tokens, registered client_ids, or refresh tokens | [§10.4](#104-security-guardrails-for-agent-refresh-tokens) (inactivity timeout, consent binding); [§7.2](#72-nhi-lifecycle-for-ai-agents) (decommission phase) | ⚠️ No automated offboarding standard for MCP agents |
-| **NHI2: Secret Leakage** | Credentials exposed in code, logs, or configs | Agent API keys in tool outputs, conversation logs, or model context windows | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker secret injection); [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) (Token Vault — agent never sees refresh token) | ⚠️ MCP spec does not address credential leakage in tool responses |
-| **NHI3: Vulnerable Third-Party NHI** | Compromised third-party NHI credentials | Third-party MCP servers may have compromised credentials or malicious updates | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker supply chain — signed, scanned images); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare edge security) | ⚠️ No MCP-standard MCP server trust verification |
-| **NHI4: Insecure Authentication** | Weak or deprecated auth for NHIs | Agents using basic auth or static API keys instead of OAuth 2.1 | [§1](#1-current-mcp-authorization-and-protocol-baseline) (MCP spec mandates OAuth 2.1 + PKCE); [§6.3](#63-three-architectural-approaches-to-agent-identity) (SPIFFE attestation); [§20.5](#205-sender-audience-and-workload-constraints) (SPIFFE Client Auth — secretless OAuth client auth) | ✅ MCP spec addresses this |
-| **NHI5: Overprivileged NHI** | NHIs with excessive permissions | Agents requesting all `scopes_supported` instead of minimum needed | [§3.4](#34-scope-minimization-best-practices) (scope minimization); [§16](#16-task-based-access-control-tbac) (TBAC); [§D.3](#d3-virtual-mcp-servers-tool-level-access-control) (Virtual MCP Servers — structural exclusion) | ✅ Strong existing coverage |
-| **NHI6: Insecure Cloud Deployment** | Static credentials in CI/CD | Agent deployment pipelines with hard-coded secrets | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker sandbox); [§7.4](#74-credential-architecture-for-ai-agents) Model C (secretless) | 🟡 Not directly addressed in MCP context |
-| **NHI7: Long-Lived Secrets** | No expiration on credentials | Uncapped refresh tokens for agents | [§10.4](#104-security-guardrails-for-agent-refresh-tokens) (max refresh lifetime, rotation on use); [§7.4](#74-credential-architecture-for-ai-agents) (SVID auto-rotation); Rec 21 (revocation convergence) | ⚠️ Default RT lifetime not specified |
-| **NHI8: Environment Isolation** | Dev/staging NHIs with prod access | Agent credentials shared across environments | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker container isolation per MCP server); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare Zero Trust) | 🟡 Not explicitly addressed for agent credentials |
-| **NHI9: NHI Reuse** | Same credential for multiple services | Shared `client_id` across agents of same type ([§6.2](#62-why-agents-are-not-just-oauth-clients) limitation) | [§1](#1-current-mcp-authorization-and-protocol-baseline) (RFC 8707 audience binding); §6.3 Approach B (per-instance SVID) | ✅ Mitigated by layered identity strategy ([§6.4](#64-recommendation-layered-identity-strategy)) |
-| **NHI10: Human Use of NHI** | Humans using service accounts | Admins bypassing gateway by using agent credentials directly | [§13](#13-gateway-mediated-mcp-architecture) (gateway as single enforcement point); [§9](#9-authorization-context-and-delegation-representation) (JWT enrichment with actor context) | 🟡 No detection mechanism specified |
+An identity with no accountable owner or sponsor becomes **orphaned**. The safe default is to stop new admissions and authority issuance while preserving the record and evidence needed to assign a successor or complete retirement.
 
-> **Assessment**: DR-0001's patterns address 5 of the 10 OWASP NHI risks well. Four risks (NHI1, NHI2, NHI3, NHI7) are partially mitigated but lack explicit, systematic controls. One risk (NHI6, insecure cloud deployment) is out of DR-0001's primary scope but relevant for deployment guidance.
+#### 7.4 Correlated Object Lifecycles, Owners, and Artifacts
 
-#### 7.8 OWASP Agentic AI Top 10 Mapping
+The lifecycle controller needs one inventory that joins the objects, but each object keeps its own status and owner. The following matrix is the minimum operational model:
 
-The [OWASP Agentic AI Top 10](https://owasp.org/www-project-agentic-ai/) (February 2025, OWASP Agentic Security Initiative) identifies the ten most critical security risks specific to autonomous AI agents — distinct from the NHI-focused risks in [§7.7](#77-owasp-nhi-top-10-mcp-agent-risk-mapping). This mapping evaluates DR-0001's coverage of each risk.
+| Object class | Create/admit owner | Mutable state | Termination or expiry trigger | Required artifact |
+|:-------------|:-------------------|:--------------|:------------------------------|:------------------|
+| **Definition/version** | Product owner and security reviewer | Draft, approved, deprecated, retired | Supersession, provenance failure, policy withdrawal | Versioned manifest and promotion decision |
+| **Identity/registration** | Tenant admin, owner, sponsor | Active, suspended, orphaned, retired | Sponsor loss, review failure, compromise, retirement | Registration and succession record |
+| **Authority/grant** | Authorization server or policy authority | Pending, active, narrowed, expired, revoked | Expiry, user/admin revocation, policy change | Grant ID, decision evidence, constraints |
+| **Credential/lease** | Issuer or broker | Issued, rotated, expired, revoked | TTL, key compromise, authority change | Credential reference, binding and custody evidence |
+| **Runtime instance** | Workload platform and admission controller | Starting, admitted, quarantined, stopped | Attestation failure, identity suspension, workload exit | Instance ID, workload proof, admission result |
+| **Session/channel/cache** | Gateway or protocol endpoint | Open, restricted, invalidated, closed | Policy event, timeout, channel close | Session owner, snapshot, invalidation evidence |
+| **Task/continuation** | MCP server or orchestrator | Working, input-required, cancelling, terminal | Authority loss, explicit cancellation, expiry | Task ID, authority snapshot, terminal result |
+| **Downstream effect** | Tool or external provider | Requested, accepted, running, complete, compensated | Provider-specific cancellation or reconciliation | Provider operation ID and observed state |
 
-| ASI ID | Risk | Description | DR-0001 Coverage | Coverage Level |
-|:-------|:-----|:------------|:------------------|:---------------|
-| **ASI01** | **Agent Goal Hijack** | Attackers manipulate an agent's objectives via indirect prompt injection or embedded instructions, causing it to pursue unintended actions | [§13](#13-gateway-mediated-mcp-architecture) gateway validates tool calls against authorized scopes; [§16](#16-task-based-access-control-tbac) TBAC constrains tool access to declared task context; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Cedar/OPA policy enforcement | 🟡 Moderate — DR-0001 constrains *which tools* an agent can call, but goal hijacking operates at the LLM reasoning layer (out of scope per [§1](#1-current-mcp-authorization-and-protocol-baseline)) |
-| **ASI02** | **Tool Misuse & Exploitation** | Agents use legitimate tools in unsafe or unintended ways due to prompt injection, misalignment, or unsafe delegation—leading to data exfiltration or destructive actions | [§3.4](#34-scope-minimization-best-practices) scope minimization; [§16](#16-task-based-access-control-tbac) TBAC; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) OBO delegation with scope attenuation; [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) decision evidence | ✅ Strong — least privilege and per-action decisions limit misuse; traceable outcomes support detection and response |
-| **ASI03** | **Identity & Privilege Abuse** | Attackers exploit inherited or cached credentials, delegated permissions, or agent-to-agent trust to gain unauthorized access | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) RFC 8693 (OBO with `act` claim); §6.3 layered identity strategy; [§7.4](#74-credential-architecture-for-ai-agents) credential models (secretless preferred); [§11](#11-credential-delegation-patterns) credential isolation patterns; [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) agent identity governance | ✅ Strong — core DR-0001 theme; layered identity, ephemeral credentials, and delegation chain tracking |
-| **ASI04** | **Agentic Supply Chain Vulnerabilities** | Malicious or tampered tools, descriptors, models, or agent personas compromise execution — including tools introduced dynamically at runtime | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker MCP (signed, scanned images); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) Cloudflare edge security; [§8.7.3](#873-a2a-v10-signed-agent-cards) Signed Agent Cards | ⚠️ Weak — DR-0001 covers container supply chain ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)) but lacks systematic tool descriptor integrity verification or runtime tool provenance |
-| **ASI05** | **Unexpected Code Execution (RCE)** | Agents generate or execute code that is malicious when prompts are manipulated or unsafe serialization paths occur | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker container isolation (code execution sandboxing); [§13.2](#132-gateway-responsibilities) request validation | ⚠️ Weak — container isolation provides a runtime boundary, but DR-0001 does not address code generation security or serialization attack vectors |
-| **ASI06** | **Memory & Context Poisoning** | Persistent corruption of an agent's memory, RAG stores, embeddings, or contextual knowledge to bias future decisions | Not directly addressed — RAG security and memory integrity are out of DR-0001's scope ([§1](#1-current-mcp-authorization-and-protocol-baseline)) | ❌ Gap — DR-0001 focuses on authentication/authorization, not on agent memory or RAG store integrity |
-| **ASI07** | **Insecure Inter-Agent Communication** | Exchanges between agents lack proper authentication or integrity, enabling spoofing, manipulation, or interception | [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A protocol analysis; [§8.3](#83-a2a-security-model) A2A security model; [§8.3.2](#832-a2a-specific-security-threats) A2A-specific threats (agent shadowing, rug pull); [§8.7](#87-cross-organization-agent-federation) cross-org federation with trust chains | ✅ Strong — dedicated A2A analysis ([§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) with bilateral threat model and cross-org federation architecture |
-| **ASI08** | **Cascading Failures** | A single-point fault propagates through multi-agent workflows, amplifying across autonomous agent networks | [§8.4](#84-the-mcp--a2a-security-gap) cross-protocol delegation gap analysis; [§15](#15-human-oversight-architecture) human oversight tiers (circuit-breaker escalation); [§13.2](#132-gateway-responsibilities) rate limiting | 🟡 Moderate — human oversight tiers provide escalation, but DR-0001 does not model fault propagation or circuit-breaker patterns for multi-agent cascades |
-| **ASI09** | **Human–Agent Trust Exploitation** | Over-reliance on persuasive agents leads to unsafe approvals or data disclosure; attackers exploit anthropomorphism to manipulate users | [§14](#14-authorization-approval-and-consent-models) authorization/approval evidence; [§15](#15-human-oversight-architecture) oversight taxonomy and approval-abuse controls; [§23.5](#235-art-14-human-oversight-implementation-patterns) Art. 14 control contributions | 🟡 Moderate — request binding, number matching, rate limits, and deny/report paths constrain approval abuse, but persuasive-agent UX and broader social-engineering safeguards remain outside the report's main authorization scope |
-| **ASI10** | **Rogue Agents** | Compromised or misaligned agents diverge from intended behavior, acting harmfully or pursuing hidden goals | [§7.2](#72-nhi-lifecycle-for-ai-agents) NHI lifecycle (revocation/decommission); [§7.6](#76-csa-agentic-trust-framework-atf) CSA ATF maturity levels; [§10.4](#104-security-guardrails-for-agent-refresh-tokens) guardrails (inactivity timeout, consent binding); [§13.2](#132-gateway-responsibilities) behavioral monitoring; **[§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) behavioral trust scoring** (closed-loop scoring engine, 7 signal categories, trust-to-authorization mapping, CAEP propagation) | ✅ Strong — lifecycle controls and revocation combine with a real-time behavioral anomaly-detection and risk-adaptive authorization architecture |
+Evidence is an overlay, not a ninth source of authority. Logs and receipts explain what a control plane observed; they do not create permission and cannot substitute for a missing owner, grant, or runtime proof.
 
-> **Assessment**: DR-0001 provides **strong coverage** for identity-centric risks (ASI02, ASI03, ASI07) — the areas closest to its authentication and authorization focus. **Moderate coverage** exists for risks that intersect with authorization controls but extend into LLM behavior (ASI01, ASI08, ASI09, ASI10). **Weak or gap coverage** exists for supply chain integrity (ASI04), code execution safety (ASI05), and memory/RAG poisoning (ASI06) — domains that fall outside DR-0001's scope but represent important complementary security concerns. Organizations should pair DR-0001's identity and authorization controls with dedicated LLM security, supply chain integrity, and runtime isolation frameworks to achieve comprehensive agentic AI security.
+The practical consequence is that “agent status” must be a projection. A dashboard may summarize an agent as suspended or retired, but operators must still be able to expand that summary into the state of every correlated object and every unresolved dependency.
 
-#### 7.9 CoSAI MCP Threat Taxonomy Mapping
+#### 7.5 Runtime Admission and Workload Identity
 
-The [CoSAI MCP Security whitepaper](https://github.com/cosai-oasis/model-context-protocol-security) (January 2026, OASIS Open — Coalition for Secure AI) identifies 12 threat categories with ~40 specific threats targeting MCP deployments. This taxonomy distinguishes between traditional security concerns amplified by AI mediation and novel attack vectors unique to LLM–tool interactions. The mapping below evaluates DR-0001's coverage of each category.
+A registered identity says which principal exists; runtime admission decides whether this particular execution may represent it now. The admission controller should bind a workload proof to the registered identity, definition version, deployment environment, and policy epoch.
 
-CoSAI's April 2026 **Agentic Identity and Access Management** resource is adjacent rather than a replacement for the MCP Security taxonomy. The practical implication for DR-0001 is that the MCP threat categories below should be read together with agent identity governance: MCP transport and tool controls reduce protocol exposure, while Agentic IAM closes the ownership, lifecycle, and authority questions that appear in [§6](#6-agent-identity-vs-user-identity), [§7.2](#72-nhi-lifecycle-for-ai-agents), and [§11](#11-credential-delegation-patterns).
+[SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) provides a stable production model for issuing short-lived X.509-SVIDs or JWT-SVIDs to attested workloads through the Workload API. An SVID proves workload identity inside its trust model; it does not, by itself, prove the human principal, business purpose, tool permission, or OAuth delegation for a request. The IETF WIMSE work is relevant directionally to workload identity in multi-system environments, but its active drafts remain Internet-Drafts and should be labeled accordingly.
 
-**Agentic IAM crosswalk**:
+**Fresh admission checklist**:
 
-| CoSAI Agentic IAM Principle | DR-0001 Control Surface | Implementation Consequence |
-|:----------------------------|:------------------------|:---------------------------|
-| **Agents are first-class identities** | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C; [§6.4](#64-recommendation-layered-identity-strategy) layered identity; [§7.2](#72-nhi-lifecycle-for-ai-agents) lifecycle | Do not hide agents behind generic app registrations; preserve agent ID in tokens, logs, and policy decisions |
-| **No standing broad privilege** | [§3.4](#34-scope-minimization-best-practices) scope minimization; [§16](#16-task-based-access-control-tbac) TBAC; [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) Rich Authorization Requests; [§11](#11-credential-delegation-patterns) secretless delegation | Use short-lived, task/context-bounded entitlements instead of durable all-tool grants |
-| **Runtime-verifiable identity claims** | [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach B; [§20.5](#205-sender-audience-and-workload-constraints) SPIFFE client auth; [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP | Bind access tokens to workload/runtime proof so stolen tokens cannot be replayed from arbitrary infrastructure |
-| **Delegated authority remains attributable** | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) `act` claim; [§6.6](#66-multi-user-agent-authorization) multi-user context; [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) authorization decision observability | Log human principal, agent actor, selected delegation, policy reason, and tool/resource in the same trace |
-| **Lifecycle and revocation are governance requirements** | [§7.2](#72-nhi-lifecycle-for-ai-agents) lifecycle; [§7.11](#711-agent-de-provisioning-vs-token-revocation) deprovisioning; revocation propagation in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) and [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) | Agent retirement must trigger token, explicit-handle, delegation, and downstream grant cleanup, not just account deletion |
-| **Tenant/audit isolation matters** | Audit schema in [§13.5.3](#1353-trace-context-and-audit-log-correlation), Art. 12 logging in [§23.4](#234-art-12-and-art-26-audit-trail-requirements), and exit analysis in [§22.5](#225-portability-and-exit-risk-analysis) | Multi-tenant agent platforms need tenant-partitioned audit stores and tamper-evident retention |
+1. Resolve the active registration and exact approved definition version.
+2. Verify that owner, sponsor, review deadline, and identity status permit admission.
+3. Validate the platform-specific workload evidence and expected trust domain.
+4. Bind the runtime instance to a new admission epoch and bounded lifetime.
+5. Obtain authority independently; never inherit an old session or task grant merely because the identity ID matches.
+6. Record the policy version, proof reference, runtime environment, and correlation ID.
 
-| # | CoSAI Threat Category | Key Threats | DR-0001 Coverage | Coverage Level |
-|:--|:---------------------|:------------|:------------------|:---------------|
-| 1 | **Authentication** | Weak/missing identity verification, credential theft, impersonation of MCP clients or servers | [§1](#1-current-mcp-authorization-and-protocol-baseline) OAuth 2.1 + PKCE mandate; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) RFC 8693 OBO with `act` claim; §6.3 layered identity strategy (OAuth → SPIFFE → IdP-native); [§11](#11-credential-delegation-patterns) credential isolation | ✅ Strong — authentication architecture is DR-0001's core contribution |
-| 2 | **Authorization** | Overprivileged agents, scope creep, insufficient tool-level access control | [§3.4](#34-scope-minimization-best-practices) scope minimization; [§16](#16-task-based-access-control-tbac) TBAC; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) scope-to-tool mapping; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Cedar & OPA policy engines | ✅ Strong — TBAC, fine-grained scope mapping, and policy engine integration provide comprehensive authorization |
-| 3 | **Input Validation** | Prompt injection (direct and indirect), malformed JSON-RPC, schema manipulation of tool inputs | [§13.2](#132-gateway-responsibilities) request validation (MCP JSON-RPC format); [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) ContextForge guardrail/plugin ecosystem (40+ plugins across guardrails, security, and integration); **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) guardrail→authorization feedback pattern** (per-request graduated response to guardrail detections) | ⚠️→🟡 Weak→Moderate — [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) defines the guardrail→authorization feedback pattern for per-request prompt injection response, specifying how guardrail detection feeds into authorization decisions (pipeline ordering, three-outcome decision table, Cedar policy). Full prompt injection *detection* architecture remains out of scope ([§1](#1-current-mcp-authorization-and-protocol-baseline)), but the *authorization response* to detection is now architecturally specified. CVE-2026-26118 ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) validates that MCP server-level input validation remains a critical gap |
-| 4 | **Data Boundaries** | Data/control plane confusion, indirect injection via tool responses, exfiltration through tool outputs | [§16](#16-task-based-access-control-tbac) TBAC separates authorization plane from data plane; [§D.3](#d3-virtual-mcp-servers-tool-level-access-control) Virtual MCP Servers (structural data exclusion) | 🟡 Moderate — TBAC and Virtual MCP Servers address structural boundaries, but runtime data/control separation within tool responses is not specified |
-| 5 | **Data Protection** | Sensitive data exposure in tool parameters, responses, or logs; insufficient encryption at rest | [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) Token Vault; [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker secret injection; [§13.5.3](#1353-trace-context-and-audit-log-correlation) audit evidence | 🟡 Moderate — credential protection is strong, while tool-I/O classification and log minimization remain deployment controls |
-| 6 | **Integrity** | Tool poisoning (malicious tool descriptors), schema manipulation, rug-pull attacks (post-approval tool modification) | [§8.3.2](#832-a2a-specific-security-threats) A2A-specific threats (agent shadowing, rug pull); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker signed images; [§8.7.3](#873-a2a-v10-signed-agent-cards) Signed Agent Cards | ⚠️ Weak — DR-0001 identifies rug-pull and tool poisoning threats but lacks a systematic integrity verification mechanism for MCP tool descriptors |
-| 7 | **Transport Security** | TLS downgrade, insecure custom transports, unencrypted Streamable HTTP | [§2.1](#21-current-transport-contract) Streamable HTTP contract; [§2.5](#25-retry-idempotency-and-custom-transports) custom-transport authorization boundary; [§13.2](#132-gateway-responsibilities) TLS termination; [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) Cloudflare edge TLS | ✅ Strong — the current Streamable HTTP path is explicit; custom transports receive no implied authorization equivalence |
-| 8 | **Network Isolation** | Lateral movement from compromised MCP server, insufficient network segmentation between tool backends | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker container isolation (per-server containers); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) Cloudflare Zero Trust network access | 🟡 Moderate — container isolation provides process-level segmentation, but cross-container network policies and microsegmentation are not specified |
-| 9 | **Trust Boundaries** | Privilege escalation via confused deputy, cross-boundary trust violations, gateway bypass | [§13](#13-gateway-mediated-mcp-architecture) gateway as single enforcement point; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) OBO delegation prevents confused deputy; [§11](#11-credential-delegation-patterns) downstream credential separation. CVE-2026-26118 demonstrates trust boundary bypass via SSRF within MCP server ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) | ✅ Strong — gateway architecture, token separation, and OBO delegation directly address trust boundary enforcement; CVE-2026-26118 analysis validates the threat model |
-| 10 | **Resource Limits** | Denial of service via excessive tool calls, durable work, subscriptions, inference, or downstream fan-out | [§13.2](#132-gateway-responsibilities) rate limiting (per-user, per-agent, per-tool); **[§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance) Identity-Aware Rate Limiting & Token Budget Governance** (four-dimensional model, gateway capability matrix, authorization-vs-traffic-management distinction); [§10](#10-authorization-continuity-and-durable-tasks) task expiry and cancellation; [§17](#17-authorization-across-mcp-primitives-and-durable-state) handle, subscription, cache, and server-initiated-action authority; **[§13.8](#138-authorization-infrastructure-resilience) Authorization Infrastructure Resilience** | ✅ Strong — current requests receive identity-aware rate and token-budget controls; durable and server-initiated operations have explicit owners, budgets, expiry, cancellation, and evidence; infrastructure failures use component-specific fail-closed or bounded-degraded policy. |
-| 11 | **Supply Chain** | Malicious MCP server packages, shadow servers, dependency hijacking, unsigned tool registries | [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) Docker supply chain (signed, scanned container images); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) Cloudflare access control | ⚠️ Weak — container supply chain is addressed, but MCP-specific supply chain risks (shadow servers, malicious tool registries, dependency confusion) lack dedicated coverage |
-| 12 | **Audit & Logging** | Insufficient forensic capability, missing correlation across MCP requests, handles, and cross-protocol tasks, tamper-evident logging gaps | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) trace and decision schema; [§23.4](#234-art-12-and-art-26-audit-trail-requirements) Art. 12 mapping; [§9](#9-authorization-context-and-delegation-representation) authorization context; [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) `act` claim | ✅ Strong — decision evidence joins user/agent attribution, handles, and cross-protocol correlation |
-| 13 | **Cryptographic Agility** | "Harvest now, decrypt later" attacks on captured delegation tokens; JWT/DPoP signature algorithm ossification on ES256/RS256; PQC signature size impact on HTTP header limits | [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP (ES256 key binding — PQC note); existing ML-DSA mentions at [§14](#14-authorization-approval-and-consent-models)/AWS IAM Roles Anywhere and [§20.5](#205-sender-audience-and-workload-constraints)/SPIFFE | 🟡 Moderate — DR-0001 references PQC readiness in vendor contexts (AWS IAM Roles Anywhere ML-DSA support, SPIFFE PQC exploration) but does not architecturally address crypto-agility for JWT/DPoP algorithm transition. NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets 2030 deprecation and 2035 disallowance of RSA/ECC. [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA-65 signatures (3,309 bytes) are ~52× larger than ES256 (64 bytes), creating token transport challenges ([OQ 30](#oq-30)). See [RFC 9881](https://datatracker.ietf.org/doc/html/rfc9881) for ML-DSA in X.509 certificates. |
+```json
+{
+  "runtime_id": "runtime:tenant-a:7e62…",
+  "agent_identity_id": "agent:tenant-a:claims-reviewer-042",
+  "definition": "agentdef:claims-reviewer@2026-07-24.3",
+  "workload_identity": "spiffe://tenant-a.example/agent/claims-reviewer",
+  "admission_epoch": 18,
+  "policy_version": "admission-policy:2026-07-21",
+  "admitted_at": "2026-07-24T09:00:00Z",
+  "expires_at": "2026-07-24T10:00:00Z"
+}
+```
 
-> **Assessment**: DR-0001 provides **strong coverage** in 6 of 13 CoSAI categories — Authentication, Authorization, Transport Security, Trust Boundaries, Resource Limits, and Audit & Logging — reflecting its core focus on identity and access management for MCP. Authorization-infrastructure resilience ([§13.8](#138-authorization-infrastructure-resilience)) supplies systematic fail-open/fail-closed guidance for resource-exhaustion and dependency-failure scenarios. **Moderate coverage** exists for Data Boundaries, Data Protection, Input Validation, Network Isolation, and Cryptographic Agility, where DR-0001 provides foundational controls but lacks depth in runtime enforcement. The guardrail-to-authorization feedback pattern ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) specifies the authorization response to input-risk detections; full prompt-injection *detection* architecture remains out of scope ([§1](#1-current-mcp-authorization-and-protocol-baseline)). **Weak coverage** in Integrity and Supply Chain reflects DR-0001's deliberate scoping decision to exclude LLM-layer security ([§1](#1-current-mcp-authorization-and-protocol-baseline)) — organizations should complement DR-0001 with dedicated MCP security tooling (e.g., [MCPScan](https://mcpscan.ai/), Acuvity, CoSAI guidelines) for these categories.
+Reusing a stable identity identifier is safe only when the new execution passes this gate. Restoring a database row, re-enabling a service principal, or receiving a new workload certificate must not revive prior grants, cached policy decisions, sessions, or continuations.
 
-#### 7.10 NIST SP 800-63-4 Assurance Levels for Agent Identity
+#### 7.6 Authority Review, Suspension, Renewal, Retirement, and Recovery
 
-[NIST SP 800-63-4](https://pages.nist.gov/800-63-4/) — the **Digital Identity Guidelines, Revision 4** — reached final publication in August 2025, superseding SP 800-63-3 (2017). This revision introduces a risk-based **Digital Identity Risk Management (DIRM)** framework, integrates phishing-resistant authentication (FIDO Passkeys at AAL2/AAL3), adds controls for injection attacks and deepfake detection in identity proofing, and incorporates subscriber-controlled wallets into the federation model.
+Lifecycle verbs must have precise effects. “Disable,” “revoke,” “cancel,” and “delete” are not interchangeable:
 
-While SP 800-63-4 targets human digital identity, its three-tier assurance framework — **IAL, AAL, and FAL** — maps directly to the AI agent identity problem space:
+| Action | Immediate meaning | Dependent work that must follow |
+|:-------|:------------------|:--------------------------------|
+| **Narrow authority** | Future decisions use a smaller grant | Re-evaluate sessions and tasks whose snapshots exceed the new ceiling |
+| **Suspend identity** | Deny new admission and authority issuance | Invalidate credentials and sessions; cancel or isolate tasks; reconcile effects |
+| **Revoke grant** | The named authorization is no longer valid | Evict decisions/caches derived from it and stop dependent operations where possible |
+| **Retire definition or identity** | No new instances or grants; record enters retention workflow | Close every dependent object and preserve audit/provenance evidence |
+| **Delete record** | Remove data allowed by retention and legal policy | Never use deletion as the mechanism that initiates termination |
+| **Restore/re-enable** | Make the record eligible for evaluation | Require fresh ownership, admission, authority, credential, and session decisions |
 
-| Assurance Level | NIST SP 800-63-4 Definition | Agent Identity Mapping | Example Agent Scenarios |
-|:----------------|:---------------------------|:----------------------|:-----------------------|
-| **IAL** (Identity Assurance Level) | Strength of the identity proofing process — how confident are we that the claimed identity is real? | **Agent registration verification strength** — how rigorously was the agent's identity established? | IAL1: Self-asserted agent metadata (CIMD, [§1.3](#13-client-registration-and-enterprise-governance)) — no verification of claims. IAL2: Verified publisher identity (e.g., Signed Agent Cards [§8.7.3](#873-a2a-v10-signed-agent-cards) with organizational PKI). IAL3: Attested identity with hardware binding (SPIFFE SVID with TEE attestation, [§6.3](#63-three-architectural-approaches-to-agent-identity) and [§20](#20-emerging-standards-for-ai-agent-authorization)) |
-| **AAL** (Authenticator Assurance Level) | Strength of the authentication process — how confident are we that the entity presenting credentials is the registered entity? | **Agent credential strength** — what mechanism proves the agent is who it claims to be? | AAL1: API key or client secret ([§7.4](#74-credential-architecture-for-ai-agents)). AAL2: mTLS with software-managed private key (RFC 8705, §12.2.3) or DPoP (RFC 9449, §12.2). AAL3: SPIFFE SVID with hardware-bound key (TPM/TEE) or mTLS with HSM-backed certificate |
-| **FAL** (Federation Assurance Level) | Strength of the federation assertion — how confident are we in cross-domain identity claims? | **Cross-org trust chain strength** — how secure is the identity assertion when agents cross organizational boundaries? | FAL1: Bearer assertion (standard JWT access token, [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)). FAL2: Holder-of-key assertion (DPoP-bound or mTLS-bound federation token). FAL3: Holder-of-key + encrypted assertion (signed + encrypted OIDC Federation Entity Statement, [§8.7.2](#872-openid-federation-11-for-agent-trust)) |
+Periodic review is not a ceremonial recertification of the top-level identity. It must compare current purpose and owner with effective grants, actual tool use, live credentials, open sessions, durable tasks, and unresolved downstream effects.
 
-> **Complementary to CSA ATF ([§7.6](#76-csa-agentic-trust-framework-atf))**: SP 800-63-4 and the CSA Agentic Trust Framework address different dimensions of agent trust. ATF maturity levels (Intern → Principal) classify **behavioral autonomy** — what an agent is *allowed to do*. SP 800-63-4 assurance levels classify **identity confidence** — how certain we are the agent *is who it claims to be*. A complete trust model requires both: an ATF Level 3 (Senior) agent should also meet IAL2/AAL2/FAL2 minimums, while an ATF Level 4 (Principal) agent handling regulated data should meet IAL3/AAL3/FAL3.
-
-> **Practical application**: When defining agent trust policies ([§10.4](#104-security-guardrails-for-agent-refresh-tokens) guardrails), organizations can reference SP 800-63-4 assurance levels as minimum thresholds—for example, agents accessing financial tools under the [§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm) FAPI 2.0 profile can be required to meet AAL2 or higher, while cross-organization agents ([§8.7](#87-cross-organization-agent-federation)) can be required to satisfy FAL2 or higher.
-
-#### 7.11 Agent De-Provisioning vs. Token Revocation
-
-> **Important — Agent de-provisioning must trigger cascading revocation**
+> **Important — Reactivation is a new admission, not a reversal**
 >
-> Deleting an agent identity is not the same operation as revoking one token. Proper offboarding has to revoke outstanding credentials, invalidate delegation chains, and propagate the state change downstream.
+> Re-enabling an identity must not reverse a prior termination epoch. The control plane creates a new admission epoch, evaluates current definition and policy, issues new authority and credentials, and refuses stale sessions or continuations from the earlier epoch.
 
-A critical operational distinction exists between **revoking a token** and **de-provisioning an agent identity** — conflating the two is the root cause of OWASP NHI Top 10's **NHI1 (Improper Offboarding)** risk ([§7.7](#77-owasp-nhi-top-10-mcp-agent-risk-mapping)). Token revocation (RFC 7009) invalidates a specific access or refresh token at the Authorization Server, terminating a single credential's validity. Agent de-provisioning — whether via an IdP lifecycle API or administrative action ([§G.3](#g3-agent-identity-first-class-digital-identities)) or a lifecycle-policy trigger ([§7.2](#72-nhi-lifecycle-for-ai-agents) Decommission phase) — is a broader identity-level operation that must **cascade**: deleting the agent identity should automatically revoke all outstanding tokens ([§10](#10-authorization-continuity-and-durable-tasks) refresh token guardrails), invalidate all delegation chains where the agent acted as delegatee ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) OBO, RFC 8693), and propagate the de-provisioning event to downstream services via Shared Signals Framework (SSF) or the revocation strategies defined in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Push/Pull/Hybrid). Without this cascading behavior, orphaned tokens from a de-provisioned agent can continue authorizing tool calls — the exact gap NHI1 describes. Organizations should implement de-provisioning as an **atomic lifecycle transition** (active → decommissioned) that triggers cascading revocation, rather than relying on individual token expiration to eventually clean up a removed agent's access.
+**Illustrative recovery decision**:
 
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 40
-    rankSpacing: 60
----
-flowchart TB
-    Trigger["`**🗑️&nbsp;Agent&nbsp;De-Provisioning&nbsp;Trigger**
-    (IdP&nbsp;lifecycle&nbsp;API&nbsp;/&nbsp;Admin&nbsp;action&nbsp;/&nbsp;Lifecycle&nbsp;policy)`"]
-
-    Atomic["`**Atomic Lifecycle Transition**
-    active → decommissioned`"]
-
-    Trigger --> Atomic
-
-    subgraph Cascade["Cascading Effects (must be atomic)"]
-        direction TB
-
-        C1["`**1.&nbsp;Revoke&nbsp;All&nbsp;Tokens**
-        Access&nbsp;+&nbsp;Refresh&nbsp;tokens&nbsp;(RFC&nbsp;7009)`"]
-
-        C2["`**2.&nbsp;Invalidate&nbsp;Delegation&nbsp;Chains**
-        All&nbsp;OBO&nbsp;chains&nbsp;where&nbsp;agent&nbsp;was&nbsp;delegatee&nbsp;(§5&nbsp;act&nbsp;claim)`"]
-
-        C3["`**3.&nbsp;Propagate&nbsp;to&nbsp;Downstream**
-        SSF&nbsp;/&nbsp;CAEP&nbsp;event&nbsp;to&nbsp;federated&nbsp;services&nbsp;(§12.1)`"]
-
-        C4["`**4.&nbsp;Retain&nbsp;Audit&nbsp;Logs**
-        Delete&nbsp;identity,&nbsp;purge&nbsp;credentials,&nbsp;preserve&nbsp;audit&nbsp;trail&nbsp;(§7.2)`"]
-
-        C1 --> C2
-        C2 --> C3
-        C3 --> C4
-    end
-
-    Atomic --> Cascade
-
-    subgraph NoCascade["⚠️ Without Cascading (NHI1 Risk)"]
-        direction TB
-
-        NC1["`Identity deleted but
-        tokens still valid`"]
-
-        NC2["`Orphaned tokens continue
-        authorizing tool calls`"]
-
-        NC3["`**❌ Improper Offboarding**
-        (OWASP NHI1)`"]
-
-        NC1 --> NC2
-        NC2 --> NC3
-    end
-
-    Atomic -.->|"if NOT implemented"| NoCascade
-
-    style Trigger text-align:left
-    style Atomic text-align:left
-    style C1 text-align:left
-    style C2 text-align:left
-    style C3 text-align:left
-    style C4 text-align:left
-    style NC1 text-align:left
-    style NC2 text-align:left
-    style NC3 text-align:left
-
+```json
+{
+  "agent_identity_id": "agent:tenant-a:claims-reviewer-042",
+  "prior_termination_epoch": 18,
+  "requested_definition": "agentdef:claims-reviewer@2026-07-24.3",
+  "checks": {
+    "owner_confirmed": true,
+    "sponsor_confirmed": true,
+    "definition_approved": true,
+    "old_grants_closed": true,
+    "old_sessions_closed": true,
+    "old_tasks_reconciled": true
+  },
+  "decision": "admit_new_epoch",
+  "new_admission_epoch": 19
+}
 ```
+
+If closure cannot be proved—for example, a provider cannot report whether an old payment operation completed—the recovery decision records that ambiguity and applies an explicit hold, compensation, or operator escalation. It does not infer safety from elapsed time.
+
+#### 7.7 Provisioning and Lifecycle Event Subjects
+
+Provisioning and security events are inputs to lifecycle orchestration, not a universal offboarding protocol. [SCIM 2.0](https://www.rfc-editor.org/rfc/rfc7644) can provision and change identities where the target implements an appropriate resource model. [RFC 8417](https://www.rfc-editor.org/rfc/rfc8417) defines Security Event Tokens (SETs); [RFC 9493](https://www.rfc-editor.org/rfc/rfc9493) defines subject identifiers for SETs; and [RFC 9967](https://www.rfc-editor.org/rfc/rfc9967) defines event-stream management operations. None of them proves, alone, that an MCP session, task, or external provider operation reached a terminal state.
+
+The lifecycle service should normalize an incoming signal into an internal event with an explicit subject:
+
+```json
+{
+  "event_id": "evt:01J3…",
+  "event_type": "identity.suspended",
+  "subject": {
+    "format": "iss_sub",
+    "iss": "https://idp.tenant-a.example",
+    "sub": "agent:tenant-a:claims-reviewer-042"
+  },
+  "source_time": "2026-07-24T09:31:05Z",
+  "received_time": "2026-07-24T09:31:06Z",
+  "termination_epoch": 20
+}
+```
+
+| Signal or operation | What it can establish | What still requires local verification |
+|:--------------------|:----------------------|:----------------------------------------|
+| SCIM disable/delete response | Target provisioning service accepted or completed the named identity operation | Tokens, sessions, tasks, broker leases, and downstream effects |
+| Validated SET | Issuer made the signed event claim for the identified subject | Applicability, freshness, policy action, and effect |
+| SSF stream status/configuration | Stream configuration or delivery state | That every required event was received and enforced |
+| RFC 9967 `feed:remove` | Receiver requests removal of selected events from a feed | It does **not** revoke the subject or terminate dependent work |
+| MCP cancellation notification | Client requested cancellation of a matching in-flight request | Whether server work or an external side effect actually stopped |
+
+Unknown subjects, stale epochs, duplicate events, and out-of-order delivery must be handled explicitly. Deduplication may suppress repeated work, but it must not suppress evidence that a later epoch was observed.
+
+#### 7.8 Risk and Governance Crosswalk
+
+Risk frameworks help test the architecture, but they do not create protocol semantics. The [OWASP Non-Human Identities Top 10 — 2025](https://owasp.org/www-project-non-human-identities-top-10/2025/), [OWASP Top 10 for Agentic Applications — 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/), [CoSAI MCP Security](https://github.com/cosai-oasis/ws4-secure-design-agentic-systems/blob/main/model-context-protocol-security.md), and [CSA Agentic Trust Framework](https://cloudsecurityalliance.org/blog/2026/02/02/the-agentic-trust-framework-zero-trust-governance-for-ai-agents) should be used as complementary risk and governance lenses.
+
+| Risk family | Lifecycle failure exposed | Primary control in this report | Residual boundary |
+|:------------|:--------------------------|:-------------------------------|:------------------|
+| **Improper offboarding and orphaning** | Identity changes but credentials, tasks, or effects remain live | Correlated inventory, sponsor succession, termination epoch, [§12](#12-credential-state-revocation-and-termination-convergence) convergence | Provider-specific effect cancellation may remain asynchronous |
+| **Secret leakage and long-lived credentials** | Credential outlives runtime or appears in model/tool context | [§11](#11-credential-custody-and-release-patterns) custody isolation, short leases, sender constraints | A short-lived bearer token is still replayable while valid |
+| **Overprivilege and authority reuse** | Definition, identity, or prior session is mistaken for current permission | Independent grant lifecycle, task context, fresh admission | Policy quality and resource classification remain deployment duties |
+| **Environment or identity reuse** | Development or sibling runtimes share a principal or credential | Per-environment registration, workload admission, audience/binding controls | Legacy downstream systems may not support strong binding |
+| **Identity and delegation abuse** | Human, agent, and workload attribution collapse into one subject | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) delegation chain, [§6](#6-agent-identity-vs-user-identity) layered identity, joined evidence | Attribution does not prove intent or model correctness |
+| **Supply-chain and definition drift** | Tool, model, manifest, or policy changes after approval | Immutable definition version and provenance record | Runtime code and tool integrity require complementary controls |
+| **Cascading or rogue behavior** | One compromised runtime fans out tasks and effects | Bounded authority, rate/budget controls, suspend-and-converge workflow | LLM reasoning and behavioral safety are outside this report’s core scope |
+| **Protocol/session lifecycle mismatch** | Identity event is treated as proof of session or task termination | Object-specific state, event processing, verified convergence | MCP cancellation remains best-effort unless the server proves effect |
+
+[NIST SP 800-63-4](https://pages.nist.gov/800-63-4/) governs human digital identity proofing, authentication, and federation. Its IAL/AAL/FAL labels must not be reassigned as agent registration or autonomy levels. Agent systems can consume NIST-assured human and federated identities and can apply risk-management principles, but workload identity strength, definition provenance, and behavioral autonomy need their own evidence.
+
+NIST’s [Software and AI Agent Identity and Authorization concept project](https://www.nccoe.nist.gov/projects/software-and-ai-agent-identity-and-authorization) is useful directional evidence that identification, authentication, authorization, delegation, logging, lifecycle, and data-flow tracking need distinct treatment. It is a concept project, not a completed NIST agent-identity standard.
+
+The EU AI Act likewise does not define an NHI lifecycle protocol. Where an agent participates in an in-scope system, the inventory, change history, attribution, and termination evidence in this chapter may contribute to broader record-keeping, transparency, cybersecurity, human-oversight, and deployer-control obligations discussed in [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping). That contribution must be assessed in the context of the applicable system and role; an agent registry entry is not compliance by itself.
+
+#### 7.9 Product Implementation Evidence and Maturity Boundaries
+
+Products demonstrate pieces of the model; none of these examples establishes a universal lifecycle contract. The following evidence was checked against first-party documentation on **2026-07-24**:
+
+| Product or project | Current evidence | Architectural lesson | Boundary |
+|:-------------------|:-----------------|:---------------------|:---------|
+| [Microsoft Entra Agent ID](https://learn.microsoft.com/en-us/entra/agent-id/agent-identities) | Agent identity blueprints, agent identities, [owners and sponsors](https://learn.microsoft.com/en-us/entra/agent-id/agent-owners-sponsors-managers), and [reactivation controls](https://learn.microsoft.com/en-us/entra/agent-id/manage-agent-identities-admin) are documented in the current preview family | Separate reusable definition-like objects from tenant identities; make sponsorship and reactivation explicit | Preview features and object behavior can change; Entra state does not prove external task/effect closure |
+| [Google Cloud Agent Identity](https://docs.cloud.google.com/iam/docs/agent-identity-overview?hl=en) | Agent identities and Agent Identity and Authorization management expose first-class identity/authorization patterns in preview documentation | Cloud platforms are moving beyond generic service-account reuse | Preview and cloud-specific; cross-cloud and external provider cleanup remain separate |
+| [SPIFFE](https://spiffe.io/docs/latest/spiffe-about/overview/) | Workload attestation and short-lived SVID delivery through the Workload API | Runtime identity should be issued to an admitted workload, not embedded in an agent definition | SPIFFE identifies workloads; it does not supply user delegation or tool authorization |
+| [IETF WIMSE](https://datatracker.ietf.org/wg/wimse/about/) | Active working-group drafts address workload identity in multi-system environments | Track emerging interoperable workload identity and credential-exchange patterns | Internet-Drafts are not final standards |
+| [Amazon Bedrock AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/get-workload-access-token.html) | Managed workload identity and [OAuth token retrieval](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html) separate agent access from raw downstream secrets | A broker can mediate credential acquisition and use | Provider behavior is service-specific; broker success is not downstream-effect proof |
+| [HashiCorp Vault leases](https://developer.hashicorp.com/vault/docs/concepts/lease) | Dynamic secrets and leases provide bounded credential material with explicit renewal and [revocation surfaces](https://developer.hashicorp.com/vault/api-docs/system/leases) | Credential leases need an owner, TTL, and revocation workflow independent of the agent record | Lease revocation affects the credential backend, not automatically every cached session or provider action |
+
+Product records should therefore be tagged with documentation date, release status, deployment dependency, and the exact object boundary they control. Marketing maturity rankings and unsupported “first” or “strongest” claims do not belong in the architecture.
+
+#### 7.10 Termination Orchestration and the Credential-Custody Handoff
+
+Termination begins by allocating a monotonic epoch and blocking new work. The orchestrator then issues object-specific actions, observes their effects, retries or escalates failures, and records a final convergence state. The workflow is dependency-aware, not atomic:
+
+| Order | Object/action | Completion evidence | Next chapter |
+|:-----:|:--------------|:--------------------|:-------------|
+| 1 | Freeze new definition promotion, admission, and authority issuance | Policy epoch active at all admission/decision points | [§13](#13-gateway-mediated-mcp-architecture) enforcement |
+| 2 | Suspend the registered identity and mark owner/sponsor workflow | Identity read-back and lifecycle record | This chapter |
+| 3 | Revoke grants and credential leases | Issuer/broker state plus cache eviction | §§11–12 |
+| 4 | Close sessions, channels, and authorization caches | Gateway/server acknowledgements and negative admission test | [§12](#12-credential-state-revocation-and-termination-convergence) |
+| 5 | Cancel or quarantine tasks and continuations | Terminal task state or documented “unknown” | [§12](#12-credential-state-revocation-and-termination-convergence) |
+| 6 | Cancel, compensate, or reconcile downstream effects | Provider-specific observed state | [§12](#12-credential-state-revocation-and-termination-convergence) |
+| 7 | Retain evidence and retire/delete records under policy | Signed convergence record and retention disposition | §§23–24 |
+
+The final state is one of:
+
+- **Converged** — every required object has a verified terminal or safely bounded state.
+- **Converged with exceptions** — named effects cannot be reversed, but compensating controls and accountable acceptance are recorded.
+- **Pending** — retries or provider operations are still in progress; new admission remains blocked.
+- **Unknown** — required state cannot be observed; the control plane fails closed and escalates.
+
+This chapter hands the credential and session actions to §§11–12 because the identity registry cannot know whether a broker destroyed material, an authorization server invalidated a token, or a server stopped a durable task. The correlation ID and termination epoch join those independent observations into one governance record.
 
 ---
 
@@ -4540,7 +4745,7 @@ Beyond the cross-protocol delegation gap ([§8.4](#84-the-mcp--a2a-security-gap)
 | **Agent Card Poisoning** | Injecting malicious instructions into Agent Card descriptions or skill metadata | Input sanitization, schema validation | [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) — ContextForge guardrails |
 | **Authorization Creep** | Agent gradually accumulates broader permissions than originally intended | Least-privilege scopes, time-bound tokens | [§3](#3-scope-and-client-identity-lifecycle) — scope minimization |
 | **Task Replay** | Attacker replays previously valid task requests | Nonce + timestamp verification per task | [§2](#2-stateless-streamable-http-authorization) — Streamable HTTP CSRF protection |
-| **Cross-Agent Escalation** | Agent B uses Agent A's valid credentials for unauthorized tool access | Per-task credential validation, scope binding | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) — OBO scope binding |
+| **Cross-Agent Escalation** | Agent B uses Agent A's valid credentials for unauthorized tool access | Per-task credential validation, scope binding | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) — OBO scope binding |
 
 > **Out of scope**: Cross-agent prompt injection — where A2A message content manipulates an agent's LLM behavior — remains a model-level security concern, excluded per the scope definition in [§1](#1-current-mcp-authorization-and-protocol-baseline).
 
@@ -4608,7 +4813,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. End User instructs Agent A with a compound request</strong></summary>
 
-The user issues a natural language instruction: *"Book me a flight and hotel"*. Agent A serves as the primary orchestrator. In this deployment's RFC 8693 profile ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)), Agent A holds an access token in which the user is the subject and Agent A is represented as the current actor.
+The user issues a natural language instruction: *"Book me a flight and hotel"*. Agent A serves as the primary orchestrator. In this deployment's RFC 8693 profile ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)), Agent A holds an access token in which the user is the subject and Agent A is represented as the current actor.
 
 ```json
 {
@@ -5064,7 +5269,7 @@ The architectural merging of discovery is accelerating. Advanced gateways (like 
 |:--------------------------|:----------------------|:--------------------|:------------------|:--------------------|
 | **Well-known Agent Card** | Domain control over `/.well-known/agent-card.json`; optionally signed card metadata | Public by default, unless the card is sensitive | Domain spoofing, stale cards, or accidental exposure of sensitive skills | Treat the card as discovery metadata only; still perform TLS, OAuth, and policy checks before task execution |
 | **Authenticated extended card** | A2A server controls who can fetch richer card details | Per-client auth, usually OAuth, mTLS, network policy, or direct relationship | Selective disclosure drift: different clients see different capabilities | Cache by client/session and bind authorization decisions to the specific card version observed |
-| **Enterprise registry/catalog** | RBAC, workflow approval, or platform ownership before publication | Enterprise RBAC, group membership, or policy filters | Central registry becomes both trust anchor and choke point | Enforce publisher ownership, lifecycle review, and delisting workflows as NHI governance controls ([§7.2](#72-nhi-lifecycle-for-ai-agents)) |
+| **Enterprise registry/catalog** | RBAC, workflow approval, or platform ownership before publication | Enterprise RBAC, group membership, or policy filters | Central registry becomes both trust anchor and choke point | Enforce publisher ownership, lifecycle review, and delisting workflows as NHI governance controls ([§7.2](#72-agent-definitions-versions-and-provenance)) |
 | **Public marketplace/catalog** | Catalog-specific publisher policy; may verify namespace but not behavior | Often public or account-gated search | Dependency-confusion-style discovery and over-trust in catalog membership | Do not treat listing as endorsement; apply the same tool descriptor integrity and risk checks as [§13.7.2](#1372-defense-in-depth-for-tool-supply-chain) |
 | **Federated signed-card ecosystem** | Publisher signs Agent Card; trust anchor validates issuer/key chain | Query may be public, but acceptance depends on signature and trust path | Key rotation, revocation, and stale trust bundles | Verify signatures and trust anchors before exposing the agent to MCP tools or user-delegated scopes |
 | **Gateway-mediated federation** | Local gateway imports or mirrors remote cards after policy review | Local policy decides which users/agents can see each remote agent | Local catalog hides remote policy changes or stale remote capabilities | Maintain card version, source, import time, and policy decision in the audit trail |
@@ -5602,8 +5807,8 @@ The complete cross-org trust architecture comprises four layers, each addressed 
 |:------|:-----------------|:-----------------|:-----------------|:---------------|
 | **1. Organizational Identity** | "Is Org X a legitimate participant?" | OpenID Federation 1.1; eIDAS QWAC/QSeal | [§8.7.2](#872-openid-federation-11-for-agent-trust), [§23.10](#2310-eidas-20-and-cross-border-agent-identity) | Rec 22 |
 | **2. Agent Identity** | "Is this agent actually operated by Org X?" | OIDC-A claims; SPIFFE SVIDs; A2A Signed Agent Cards | [§20.4](#204-delegation-and-identity-chains), [§20.5](#205-sender-audience-and-workload-constraints), [§8.7.3](#873-a2a-v10-signed-agent-cards) | [OQ 12](#oq-12), [OQ 16](#oq-16) |
-| **3. Delegation Authorization** | "Has a user authorized this action?" | RFC 8693 token exchange; monitored OIDC-A delegation claims | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§20.4](#204-delegation-and-identity-chains) | [OQ 9](#oq-9), [OQ 11](#oq-11) |
-| **4. Behavioral Trust** | "Does this agent's behavior match its trust level?" | CSA ATF maturity levels; WIMSE/RATS attestation | [§7.6](#76-csa-agentic-trust-framework-atf), [§20.5](#205-sender-audience-and-workload-constraints), [§20.6](#206-policy-evidence-and-verified-authority), **[§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)** | [Finding 25](#finding-25), [Finding 38](#finding-38) |
+| **3. Delegation Authorization** | "Has a user authorized this action?" | RFC 8693 token exchange; monitored OIDC-A delegation claims | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§20.4](#204-delegation-and-identity-chains) | [OQ 9](#oq-9), [OQ 11](#oq-11) |
+| **4. Behavioral Trust** | "Does this agent's behavior match its trust level?" | CSA ATF governance context; WIMSE/RATS attestation | [§7.8](#78-risk-and-governance-crosswalk), [§20.5](#205-sender-audience-and-workload-constraints), [§20.6](#206-policy-evidence-and-verified-authority), **[§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)** | [Finding 25](#finding-25), [Finding 38](#finding-38) |
 
 **Critical insight**: Each layer answers a **different trust question**. An agent can have valid organizational identity (Layer 1) and verified workload identity (Layer 2) but lack user delegation (Layer 3) — making it an authenticated but unauthorized agent. Conversely, an agent with valid delegation (Layer 3) but no organizational trust (Layer 1) cannot be verified as legitimate. All four layers must be satisfied for a fully trusted cross-org agent operation.
 
@@ -5689,7 +5894,7 @@ The **Interoperability Profile for Secure Identity in the Enterprise (IPSIE)** i
 
 IPSIE's relevance to cross-organization agent federation is twofold:
 
-1. **Standardized agent identity metadata exposure**: IPSIE profiles define how enterprise IdPs should expose lifecycle events (provisioning, deprovisioning), entitlements, and risk signals via standardized protocols (SCIM, CAEP/SSF). For AI agents, this means an IPSIE-conformant IdP could expose agent registration/deregistration events, agent entitlement changes, and agent behavioral risk signals through the same interoperable interfaces used for human identities. This directly supports the NHI lifecycle model ([§7.2](#72-nhi-lifecycle-for-ai-agents)) and the multi-layer trust architecture ([§8.7.4](#874-multi-layer-trust-architecture)) by providing a standard channel for Layer 2 (agent identity) and Layer 4 (behavioral trust) signals.
+1. **Standardized agent identity metadata exposure**: IPSIE profiles define how enterprise IdPs should expose lifecycle events (provisioning, deprovisioning), entitlements, and risk signals via standardized protocols (SCIM, CAEP/SSF). For AI agents, this means an IPSIE-conformant IdP could expose agent registration/deregistration events, agent entitlement changes, and agent behavioral risk signals through the same interoperable interfaces used for human identities. This directly supports the NHI lifecycle model ([§7.2](#72-agent-definitions-versions-and-provenance)) and the multi-layer trust architecture ([§8.7.4](#874-multi-layer-trust-architecture)) by providing a standard channel for Layer 2 (agent identity) and Layer 4 (behavioral trust) signals.
 
 2. **Enterprise SSO baseline for agent-hosting platforms**: As AI agent platforms (MCP clients, orchestrators) adopt enterprise SSO for their administrative interfaces, IPSIE-conformant SSO ensures consistent authentication security across the agent supply chain. When Organization X's agent platform federates with Organization Y's IdP, IPSIE conformance on both sides guarantees baseline security properties (phishing-resistant auth, proper logout, token revocation) without per-vendor configuration — reducing the trust establishment overhead described in [§8.7.1](#871-trust-establishment-taxonomy).
 
@@ -5721,11 +5926,11 @@ AP2 defines a role separation that ensures Shopping Agents **never access PCI da
 | Actor | Role | PCI Data Access | DR-0001 Analogue |
 |:------|:-----|:----------------|:------------------|
 | **Shopping Agent (SA)** | Discovery, cart negotiation, mandate presentation | ❌ No access | MCP Client / AI Agent |
-| **Credentials Provider (CP)** | Payment method management, tokenization, SCA | ✅ Full access | Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store), Pattern B in [§11](#11-credential-delegation-patterns)) |
+| **Credentials Provider (CP)** | Payment method management, tokenization, SCA | ✅ Full access | Managed credential custodian/use broker ([§11](#11-credential-custody-and-release-patterns)) |
 | **Merchant Endpoint (ME)** | Product/service provision, cart creation and signing | Partial (receives payment tokens) | MCP Server / Tool backend |
 | **Merchant Payment Processor (MPP)** | Transaction authorization with payment network | ✅ Full access | Out of scope (payment infrastructure) |
 
-This separation parallels DR-0001's **Secretless Credential Model** ([§11](#11-credential-delegation-patterns), Pattern C/D) — the same zero-credential principle applied to the payment context. The Shopping Agent operates with the same architectural constraint as a secretless MCP client: it orchestrates the workflow but never holds the sensitive material.
+This separation parallels [§11](#11-credential-custody-and-release-patterns)’s custody model: the Shopping Agent may orchestrate the workflow without reading/exporting payment credentials, while the Credentials Provider still owns material, permitted use, renewal, revocation, and evidence.
 
 ##### 8.8.3 Human-in-the-Loop Modes
 
@@ -5895,191 +6100,447 @@ When Agent A (Framework X) delegates to Agent B (Framework Y) via an A2A gateway
 
 The practical consequence is that when a heterogeneous delegation crosses a framework boundary (e.g., LangGraph → ADK via A2A), the **user's original delegation scope is lost** at the boundary. The receiving framework cannot verify that the request was authorized by a specific user, cannot enforce the user's scope constraints, and cannot produce an audit trail linking the downstream action to the original user consent. This extends [§8.4](#84-the-mcp--a2a-security-gap)'s Problem #1 (cross-protocol delegation) from the wire-protocol layer to the framework layer.
 
-##### 8.9.2 Transaction Tokens as Framework-Agnostic Identity Carrier
+##### 8.9.2 Transaction Context as a Candidate Framework-Neutral Carrier
 
-The framework identity gap suggests that identity normalization should occur at the **gateway layer** rather than within individual frameworks — no single framework will adopt a competitor's identity model, but all frameworks interact through A2A gateways that can inject standardized identity context.
+The framework identity gap suggests that normalization should occur at an explicit gateway or trust-domain boundary rather than inside each framework. That boundary can map a framework's local user, agent, workload, and request fields into one governed decision contract, but no current A2A or OAuth standard defines a complete cross-framework agent-identity envelope.
 
-The active individual Transaction Tokens for Agents draft (`draft-araut-oauth-transaction-tokens-for-agents-02`; see [§20.3](#203-transaction-scoped-credentials)) provides a candidate bridge mechanism. It preserves the JWT authorization subject and actor chain in `sub` and `act`, then adds `agentic_ctx.current_actor`, `agentic_ctx.originator`, and `agentic_ctx.chain_metadata` for agent-specific operational context:
+The active OAuth WG [Transaction Tokens draft `-09`](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) is a candidate for **short-lived context propagation inside one trust domain**. Its model can preserve authorization subject, requesting workload, scope, environmental request context (`rctx`), and immutable transaction facts (`tctx`) along a call chain. It does not standardize the older individual proposal's `agentic_ctx` lineage fields, does not define a portable A2A user-delegation envelope, and does not replace a durable task/grant record.
 
-1. **Framework-agnostic** — proposed JWT claims, not tied to any framework's internal model
-2. **Gateway-mintable** — the gateway can produce a locally profiled Transaction Token from the user's original `sub`/`act` authorization context ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) at the A2A boundary
-3. **Service-graph-propagable** — designed to traverse multi-hop service chains without losing identity context (unlike nested `act` claims which are lost at each hop, [§20.3](#203-transaction-scoped-credentials))
-4. **Complementary to workload evidence** — Transaction Tokens carry the user's delegation identity while WIMSE or EAT evidence ([§20.5](#205-sender-audience-and-workload-constraints) and [§20.6](#206-policy-evidence-and-verified-authority)) can carry runtime identity and posture, providing both "who authorized this" and "what is executing this" at every framework boundary
+A gateway that adopts a local transaction-token profile can still improve framework interoperability:
 
-The gateway-based approach aligns with Rec 11 (Protocol-Agnostic AI Gateways) — the same gateway that bridges MCP and A2A protocols should also normalize identity context across framework boundaries. This adds a seventh responsibility to the gateway's role: **identity normalization** — translating framework-specific user context into a standard Transaction Token for outbound A2A requests, and extracting Transaction Token claims into framework-specific context for inbound requests.
+1. **Normalize before propagation** — map framework-specific fields into a typed subject/action/resource/context decision and record every transformation.
+2. **Separate authorization from execution lineage** — carry only the current subject, actor, workload, and transaction facts needed by downstream policy; retain complete framework and trace history in protected evidence.
+3. **Re-scope at each hop** — bind each carrier to the trust domain, workload, operation, audience, and short lifetime rather than forwarding the original MCP or A2A credential.
+4. **Label the profile honestly** — a private mapping can be useful without being described as standardized cross-vendor `agentic_ctx`.
 
-> **Connection to [§8.4](#84-the-mcp--a2a-security-gap)**: This partially addresses Problem #1 (cross-protocol delegation) by providing a mechanism for user identity to survive both protocol and framework boundaries. Problems #2–#5 (authority propagation, audit chain, session correlation, and opaque execution) remain framework-dependent and are not addressed by identity normalization alone.
->
-> **Connection to [§20.3](#203-transaction-scoped-credentials)**: Transaction Tokens for Agents retain the ordinary `sub`/`act` authorization identity and supplement it with `agentic_ctx` operational lineage. Cross-framework agent delegation is a candidate use of that still-individual proposal, not a standardized A2A identity carrier.
->
-> **See also**: [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (RFC 8693 `act` claim — the source identity that the gateway translates into a Transaction Token), [§7.3](#73-nhi-governance-platform-landscape) (NHI platforms — particularly Entra Agent ID as the strongest platform-specific identity model), [§8.5.1](#851-a2amcp-bridge-context-mapping-pattern) (A2A↔MCP Bridge context mapping — this extends the bridge to include framework identity normalization), [§20.5](#205-sender-audience-and-workload-constraints) (WIMSE — complementary workload identity for agent attestation).
+This partially addresses [§8.4](#84-the-mcp--a2a-security-gap)'s cross-protocol context-loss problem, but authority propagation, audit completeness, session correlation, and opaque execution remain separate controls. Authorization Context and Delegation Representation ([§9](#9-authorization-context-and-delegation-representation)) defines carrier selection and provenance; Transaction-Scoped Credentials ([§20.3](#203-transaction-scoped-credentials)) tracks the draft's current maturity; WIMSE ([§20.5](#205-sender-audience-and-workload-constraints)) supplies complementary workload-identity direction.
 
 ---
 
 ### 9. Authorization Context and Delegation Representation
 
-With the identity models, delegation patterns, and agent authentication mechanisms established in [§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns), the next question is practical: **how is all of this identity context physically represented inside the tokens** that flow through the system? This section addresses how tokens are enriched with delegation metadata during their lifecycle.
+With authority selected in [§4](#4-choosing-the-authority-relationship) and any token derivation performed in [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), the next boundary is a constrained trust transformation: **what does the enforcing backend need to decide, which source is authoritative for each fact, and which carrier can deliver the minimum safe context?** The answer is not automatically “build a richer JWT.”
 
-When the gateway receives an authenticated request and needs to forward identity context to the MCP server backend, it constructs a backend-facing JWT that combines the user identity, agent identity, delegation chain, request correlation, and explicit application or task context. The token is audience-bound to the backend and does not turn transport or connection state into authority.
+A gateway may forward a resource-appropriate access token, mint a private short-lived assertion, obtain a transaction token inside one trust domain, or pass an opaque reference to protected state. Whichever representation is selected, the backend still validates its intended issuer, audience, token or assertion type, lifetime, and current policy inputs.
 
-#### 9.1 Enrichment Sources
+> **Warning — The MCP access token stops at the MCP resource boundary**
+>
+> The [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) requires the MCP server to accept only tokens intended for itself and forbids passing that client token through to an upstream API. A backend or upstream service receives a separately issued token, a deliberately profiled internal assertion, or a protected state reference—not the original bearer token by convenience.
 
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
-    nodeSpacing: 15
-    rankSpacing: 30
----
-flowchart TD
-    subgraph S1["`**🔑 User Token (from IdP)**`"]
-        direction LR
-        A1(["`sub`"]) ~~~ A2(["`email`"]) ~~~ A3(["`roles`"]) ~~~ A4(["`groups`"])
-    end
+#### 9.1 Backend Decision Contract and Carrier Selection
 
-    subgraph S2["`**🤖 Agent Registry**`"]
-        direction LR
-        B1(["`agent_id`"]) ~~~ B2(["`agent_type`"]) ~~~ B3(["`trust_level`"])
-    end
+Carrier selection starts with the backend's authorization contract. In the delegated report example, the backend needs the subject, action, resource, current actor, client/workload binding required by policy, grant/decision references, and an obligation. It does not need Alice's email address, full group inventory, raw approval text, or unrelated task state:
 
-    subgraph S3["`**📋 Authorized Application State**`"]
-        direction LR
-        C1(["`task_ctx`"]) ~~~ C2(["`txn_id`"]) ~~~ C3(["`ip`"]) ~~~ C4(["`geo`"])
-    end
-
-    S1 --> D
-    S2 --> D
-    S3 --> D
-
-    D{"`**⚙️ Gateway JWT Builder**
-    Merge&nbsp;claims&nbsp;·&nbsp;Sign&nbsp;·&nbsp;Encrypt`"}
-
-    D --> E["`**📦 Backend JWT**
-    (X‑Identity‑JWT&nbsp;header)`"]
-
-    style A1 text-align:center
-    style A2 text-align:center
-    style A3 text-align:center
-    style A4 text-align:center
-    style B1 text-align:center
-    style B2 text-align:center
-    style B3 text-align:center
-    style C1 text-align:center
-    style C2 text-align:center
-    style C3 text-align:center
-    style C4 text-align:center
-    style D text-align:center
-    style E text-align:left
-
+```json
+{
+  "subject": { "id": "user:alice" },
+  "action": { "name": "reports.deliver" },
+  "resource": { "id": "workspace:board-report" },
+  "context": {
+    "current_actor": "agent:report-agent",
+    "client_id": "client:report-orchestrator",
+    "workload_id": "spiffe://corp.example/workload/report-agent",
+    "grant_ref": "grant:report-delivery-8472",
+    "decision_ref": "decision:7f8b2c"
+  },
+  "obligations": ["record_delivery_receipt"]
+}
 ```
 
-#### 9.2 Backend JWT Structure (Fully Enriched)
+This uses the [AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) subject/action/resource/context vocabulary to explain the decision, not to prescribe a token claim set.
 
 ```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
----
 flowchart LR
-    IdP(["`**👤 IdP Token**`"]) --> G1["`sub,&nbsp;email,&nbsp;name
-    roles,&nbsp;entitlements`"]
-    OBO(["`**🤖 Token Exchange**`"]) --> G2["`act.sub,&nbsp;act.iss
-    agent_type,&nbsp;trust_level`"]
-    Session(["`**📦 Explicit State Record**`"]) --> G3["`task.id,&nbsp;task.type
-    task.initiated_at`"]
-    Consent(["`**✅ Consent**`"]) --> G4["`scope`"]
-    AuthN(["`**🔐 Security**`"]) --> G5["`amr,&nbsp;acr,&nbsp;azp`"]
+    Contract["`**Backend decision contract**
+    subject · action · resource · context
+    obligations · freshness needs`"]
+    Contract --> Choice{"`**Choose the narrowest
+    acceptable carrier**`"}
+    Choice -->|"OAuth resource consumes it"| Access["`**JWT or opaque access token**
+    target-resource authorization
+    RFC 9068 when JWT-profiled`"]
+    Choice -->|"Private gateway trust boundary"| Assertion["`**Private signed assertion**
+    explicit local type
+    short-lived + audience-bound`"]
+    Choice -->|"One trust-domain call chain"| Txn["`**Transaction token**
+    immutable transaction context
+    active WG draft`"]
+    Choice -->|"Detailed or volatile state"| Reference["`**Opaque reference**
+    introspection or protected
+    authority/context lookup`"]
 
-    G1 --> JWT["`**Backend JWT**
-    (signed&nbsp;by&nbsp;gateway)`"]
-    G2 --> JWT
-    G3 --> JWT
-    G4 --> JWT
-    G5 --> JWT
+    Access --> Backend["Backend PEP"]
+    Assertion --> Backend
+    Txn --> Backend
+    Reference --> Backend
 
-    JWT --> Backend["`**MCP Server Backend**`"]
+    style Contract text-align:left
+    style Choice text-align:left
+    style Access text-align:left
+    style Assertion text-align:left
+    style Txn text-align:left
+    style Reference text-align:left
+```
 
-    style IdP text-align:center
-    style OBO text-align:center
-    style Session text-align:center
-    style Consent text-align:center
-    style AuthN text-align:center
-    style G1 text-align:left
-    style G2 text-align:left
-    style G3 text-align:left
-    style G4 text-align:left
-    style G5 text-align:left
-    style JWT text-align:center
-    style Backend text-align:center
+| Carrier | Appropriate boundary | Required discipline | Do not use it as |
+|:--------|:---------------------|:--------------------|:-----------------|
+| **Access token** | Backend is an OAuth resource server or receives a separately issued downstream token | Exact target audience, minimum privilege, sender constraint where appropriate; use [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html) validation when JWT-profiled | An identity-document dump or a token for another resource |
+| **Private signed assertion** | Gateway and backend share a deliberately profiled internal trust boundary | Private `typ`, issuer/audience, distinct keys and validation rules, short lifetime, protected channel | A standard MCP header, OAuth access token, or ID token |
+| **Transaction token** | Services inside one trust domain need short-lived immutable transaction/request context | Date and label the active [Transaction Tokens `-09`](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) profile; enforce expiry, scope, audience, and call-chain policy | A published RFC, external bearer token, or durable task grant |
+| **Opaque/reference state** | Context is sensitive, large, high-volatility, revocable, or needed by only a few consumers | Authenticated lookup, tenant binding, least-data response, cache/revocation rules | Ambient session authority or an unvalidated correlation id |
 
+The decision is conditional. A self-contained token reduces lookup latency but freezes claims until expiry; a reference can preserve freshness and minimization but introduces availability and authorization requirements for the context service.
+
+#### 9.2 Claim Provenance and Context Volatility
+
+```mermaid
+flowchart LR
+    Token["`**Validated token**
+    issuer · subject · actor
+    audience · scope`"]
+    Registry["`**Registry / workload**
+    owner · version · posture
+    freshness timestamp`"]
+    Request["`**Request evidence**
+    operation · resource
+    network + risk signals`"]
+    State["`**Protected authority state**
+    grant · approval · task
+    revocation + budgets`"]
+    Policy["`**Policy decision**
+    permit/deny · obligations
+    policy version`"]
+
+    Token --> Transform
+    Registry --> Transform
+    Request --> Transform
+    State --> Transform
+    Policy --> Transform
+
+    Transform{"`**Provenance transformation**
+    validate · narrow · rename
+    generalize · drop · reference`"}
+    Transform --> Carrier["`**Selected carrier**
+    minimum claims or
+    protected reference`"]
+    Transform --> Ledger["`**Transformation record**
+    source · authority · freshness
+    sensitivity · destination`"]
+
+    style Token text-align:left
+    style Registry text-align:left
+    style Request text-align:left
+    style State text-align:left
+    style Policy text-align:left
+    style Transform text-align:left
+    style Carrier text-align:left
+    style Ledger text-align:left
+```
+
+Every propagated claim needs a provenance entry. The transformation record can be a protected audit artifact rather than another object sent to the backend:
+
+| Candidate fact | Authoritative source | Freshness / sensitivity | Disposition for report backend | Reason |
+|:---------------|:---------------------|:------------------------|:--------------------------------|:-------|
+| `sub = user:alice` | Validated AS-issued token | Token lifetime; pseudonymous id | **Retain** | Backend evaluates Alice's workspace permission |
+| `act.sub = agent:report-agent` | Validated AS-issued token | Token lifetime | **Retain as current actor** | Backend policy and audit distinguish the acting agent |
+| `client_id` | AS-issued token / validated client binding | Token lifetime | **Retain** | Backend restricts which client may exercise the grant |
+| Workload id | Authenticated gateway/runtime evidence | Re-evaluate per connection or request | **Retain only if backend enforces it** | Do not convert optional posture metadata into authority |
+| Email and display name | IdP token or directory | Personal data; not required | **Drop** | Stable subject id is sufficient |
+| Full roles/groups | Directory or token | Can change before token expiry; correlation risk | **Narrow or resolve at PDP** | Carry only the target-relevant entitlement or decision |
+| Grant/approval details | Protected authority store | Sensitive and revocable | **Reference** `grant:report-delivery-8472` | Backend needs status, not raw approval text |
+| IP / geography / risk | Gateway and risk services | High volatility | **Use in current decision; omit by default** | A cached value can become stale or misleading |
+| Decision id / obligations | PDP | Short decision lifetime | **Retain** | Correlates enforcement and required side effects |
+
+The **context-volatility budget** determines where a value lives:
+
+| Volatility class | Examples | Preferred representation |
+|:-----------------|:---------|:-------------------------|
+| Stable for the carrier lifetime | Issuer, target audience, pseudonymous subject, client id, current actor, exact operation scope | Short-lived token/assertion claim |
+| Immutable for one internal transaction | Normalized operation parameters, transaction id, request workload, derived transaction facts | Transaction token where the draft profile is adopted |
+| Mutable or revocable during execution | Grant status, approval withdrawal, budget, group membership, risk score, task lifecycle | Protected lookup/reference and current policy evaluation |
+| Sensitive but unnecessary to enforce | Email, display name, raw approval text, full role/group inventory | Omit |
+
+Transaction Tokens `-09` distinguishes environmental request context (`rctx`) from transaction authorization facts (`tctx`). That distinction is useful for planning, but the draft's token remains short-lived call-chain context inside one trust domain. It does not replace the durable task authority record in §10.
+
+#### 9.3 Internal Assertion and Trusted-Channel Profile
+
+When a gateway and backend use a private signed assertion, they are defining an internal protocol. The profile must be explicit enough that the backend cannot confuse the assertion with an OAuth access token, OpenID ID Token, MCP token, or client-supplied JWT.
+
+**Deployment-local assertion header and claims:**
+
+```json
+{
+  "alg": "ES256",
+  "kid": "gateway-internal-2026-07",
+  "typ": "dr-authority+jwt"
+}
 ```
 
 ```json
 {
-  // Standard claims
-  "iss": "https://gateway.example.com",
-  "sub": "user-12345",
-  "aud": "https://mcp-backend.internal",
-  "exp": 1741510800,
-  "iat": 1741507200,
-  "jti": "txn-7890-abcd",
-
-  // User identity (from IdP token)
-  "email": "user@example.com",
-  "name": "Jane Doe",
-  "roles": ["customer-premium"],
-  "entitlements": ["email", "calendar", "reports"],
-
-  // Delegation context (from token exchange / OBO)
-  "act": {
-    "sub": "agent-travel-assistant",
-    "iss": "https://agents.example.com",
-    "agent_type": "mcp-tool-agent",
-    "trust_level": "verified"
-  },
-
-  // Task context (from the authorized task record)
-  "task": {
-    "id": "task-456",
-    "type": "travel-booking",
-    "initiated_at": "2026-03-09T05:30:00Z"
-  },
-
-  // Granted scopes (intersection of consent + request)
-  "scope": "tools:email.send tools:calendar.read",
-
-  // Security metadata
-  "amr": ["pwd", "mfa"],
-  "acr": "urn:mcp:acr:delegated",
-  "azp": "mcp-client-xyz"
+  "iss": "https://gateway.internal.example",
+  "sub": "user:alice",
+  "aud": "https://reports.internal.example",
+  "iat": 1784909400,
+  "exp": 1784909460,
+  "jti": "internal:4d91aa",
+  "client_id": "client:report-orchestrator",
+  "act": { "sub": "agent:report-agent" },
+  "workload_id": "spiffe://corp.example/workload/report-agent",
+  "permissions": ["reports.deliver"],
+  "resource_id": "workspace:board-report",
+  "grant_ref": "grant:report-delivery-8472",
+  "decision_ref": "decision:7f8b2c",
+  "obligations": ["record_delivery_receipt"]
 }
 ```
 
-#### 9.3 On-Behalf-Of Representation Approaches
+`dr-authority+jwt`, `permissions`, `resource_id`, `grant_ref`, `decision_ref`, and `obligations` are deployment-local names. If the carrier were an RFC 9068 access token, it would instead use that profile's `at+jwt` type and validation contract. [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725.html) supports explicit typing and mutually exclusive validation rules to prevent one JWT kind being substituted for another.
 
-There are three architectural approaches to representing the OBO relationship:
+| Control | Required behavior |
+|:--------|:------------------|
+| **Trusted-header sanitation** | Strip or reject every client-supplied instance of the private assertion header before minting internal context |
+| **Origin reachability** | Prevent clients from bypassing the gateway and reaching an origin that trusts the internal assertion |
+| **Issuer, audience, and type** | Match exact configured values and reject any other JWT kind, even when its signature is otherwise valid |
+| **Keys and algorithms** | Use keys and validation rules dedicated to the private profile; rotate safely and reject unapproved algorithms |
+| **Lifetime and replay** | Use a short lifetime and unique `jti`; add sender binding or single-use tracking where replay consequences require it |
+| **Protected hop** | Authenticate and encrypt the gateway-to-backend channel; preserve both transport peer and application assertion identities where policy needs them |
+| **Failure behavior** | Fail closed for missing, stale, wrong-audience, wrong-type, oversized, or unverifiable assertions |
+| **Logging** | Do not log raw bearer tokens or sensitive claims; record assertion fingerprint, decision reference, profile version, and outcome |
 
-| Approach | Mechanism | Pros | Cons |
-|:---|:---|:---|:---|
-| **A. `act` claim (RFC 8693)** | Nested `act` object in JWT | Standard, supports chaining | Requires AS support for token exchange |
-| **B. Request-context enrichment** | Gateway joins delegation and explicit state records into a short-lived backend JWT | Works with any gateway | Requires a protected context channel and fresh authorization on every request |
-| **C. Sidecar JWE artifact** | Delegation proof travels as a separate encrypted artifact | Independent proof with bounded lifetime | Extra artifact management and encryption-key lifecycle |
+[RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html) requires reverse proxies to sanitize security-relevant headers and protect the proxy-to-application link against eavesdropping, injection, and replay. Deployed products implement the same pattern with product-specific contracts: [Google IAP](https://cloud.google.com/iap/docs/signed-headers-howto) injects `x-goog-iap-jwt-assertion`, strips client `x-goog-*` headers, and requires origin validation; [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/) uses `Cf-Access-Jwt-Assertion`; [Azure API Management](https://learn.microsoft.com/en-us/azure/api-management/authentication-authorization-overview) can validate inbound authorization and [obtain a separate managed-identity token](https://learn.microsoft.com/en-us/azure/api-management/authentication-managed-identity-policy) for the backend. These are implementation precedents, not a standard `X-Identity-JWT` convention.
 
-For **MCP agentic scenarios** (both CIAM and WIAM), **Approach A (`act` claim)** is preferred because:
-- It's a published RFC standard (8693)
-- It naturally chains for multi-agent scenarios
-- The token is self-contained and verifiable by any downstream service
-- It aligns with the IETF draft for AI agent authorization ([§20](#20-emerging-standards-for-ai-agent-authorization))
+#### 9.4 Solved Gateway-to-Backend Transformation
+
+The following deployment-local flow uses a private assertion because the backend is not consuming the MCP-audience access token directly. The gateway remains the MCP resource boundary, the PDP makes the current authorization decision, and detailed grant state stays behind an authenticated reference.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 MCP Client
+    participant Gateway as 🛡️ MCP Gateway
+    participant PDP as ⚖️ PDP + Context Service
+    participant Backend as 📊 Reports Backend
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: MCP Admission
+    Client->>Gateway: Send reports.deliver<br/>with MCP-audience token
+    Gateway->>Gateway: Strip trusted headers<br/>and validate MCP request
+    Note right of Backend: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Gateway: Phase 2: Current Decision
+    Gateway->>PDP: Evaluate subject, action,<br/>resource, actor, and context
+    PDP-->>Gateway: Return decision,<br/>obligations, and references
+    Note right of Backend: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Gateway: Phase 3: Internal Enforcement
+    Gateway->>Backend: Send minimal private assertion<br/>over authenticated channel
+    Backend->>Backend: Validate assertion,<br/>resolve current state,<br/>enforce obligations
+    Backend-->>Gateway: Return backend result<br/>and delivery receipt
+    Gateway-->>Client: Return MCP result
+    Note right of Backend: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. MCP Client sends the report-delivery call to the MCP Gateway</strong></summary>
+
+The client sends `tools/call` with the access token issued for the MCP resource. This token authenticates and authorizes the MCP-facing request; it is not forwarded to the reports backend.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.example.com
+Authorization: Bearer eyJhbGci...
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/call",
+  "params": {
+    "name": "reports.deliver",
+    "arguments": {
+      "report_id": "board-report",
+      "workspace_id": "workspace:board-report"
+    }
+  }
+}
+```
+
+</details>
+<details>
+<summary><strong>2. MCP Gateway strips trusted headers and validates the MCP request</strong></summary>
+
+Before trusting any internal context, the gateway removes client-supplied instances of the deployment-local assertion header and validates the MCP token's type, signature, issuer, MCP audience, lifetime, client, scope, and current actor. A spoofed internal header is rejected or overwritten according to one documented policy; it is never merged with gateway claims.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> Sanitize
+    Sanitize --> ValidateToken: no trusted-header ambiguity
+    ValidateToken --> NormalizeCall: valid MCP token
+    NormalizeCall --> Continue: tool and arguments valid
+    Sanitize --> Deny: spoofed or duplicate trusted header
+    ValidateToken --> Deny: wrong issuer, audience, type, or expiry
+    NormalizeCall --> Deny: invalid tool or resource binding
+```
+
+</details>
+<details>
+<summary><strong>3. MCP Gateway asks the PDP and Context Service for a current authorization decision</strong></summary>
+
+The gateway normalizes the call into a decision request. It sends identifiers and the minimum current context; detailed grant and approval records remain protected in the authority service.
+
+**Deployment profile using the AuthZEN information model:**
+
+```json
+{
+  "subject": {
+    "type": "user",
+    "id": "user:alice",
+    "properties": {
+      "current_actor": "agent:report-agent",
+      "client_id": "client:report-orchestrator",
+      "workload_id": "spiffe://corp.example/workload/report-agent"
+    }
+  },
+  "action": { "name": "reports.deliver" },
+  "resource": {
+    "type": "workspace",
+    "id": "workspace:board-report"
+  },
+  "context": {
+    "grant_ref": "grant:report-delivery-8472",
+    "mcp_request_id": 41
+  }
+}
+```
+
+</details>
+<details>
+<summary><strong>4. PDP and Context Service return the decision, obligations, and protected references</strong></summary>
+
+The PDP resolves current grant status, resource entitlement, policy version, workload requirements, and risk signals. A permit result includes only the obligations and references the gateway and backend must enforce; deny always stops the operation.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "id": "decision:7f8b2c",
+    "policy_version": "reports-policy-2026-07-24",
+    "grant_ref": "grant:report-delivery-8472",
+    "expires_at": "2026-07-24T16:11:00Z",
+    "obligations": ["record_delivery_receipt"]
+  }
+}
+```
+
+**Artifact Produced:** Current policy decision with obligations and protected authority references.
+
+</details>
+<details>
+<summary><strong>5. MCP Gateway sends a minimal private assertion to the Reports Backend</strong></summary>
+
+The gateway chooses the private-assertion lane because the backend trusts the gateway's internal profile rather than the external MCP token. It mints the short-lived assertion shown in [§9.3](#93-internal-assertion-and-trusted-channel-profile) and sends it over an authenticated, encrypted internal channel. The header name below is deployment-local.
+
+```http
+POST /internal/reports/deliver HTTP/1.1
+Host: reports.internal.example
+X-DR-Authority: eyJhbGciOiJFUzI1NiIsInR5cCI6ImRyLWF1dGhvcml0eStqd3QifQ...
+Content-Type: application/json
+
+{
+  "report_id": "board-report",
+  "workspace_id": "workspace:board-report"
+}
+```
+
+The transformation record notes which claims were retained, narrowed, generalized, referenced, or dropped. Raw input tokens, Alice's email, full roles, and approval text are not copied.
+
+**Artifact Produced:** Short-lived deployment-local assertion and claim-transformation record.
+
+</details>
+<details>
+<summary><strong>6. Reports Backend validates the assertion, resolves current state, and enforces obligations</strong></summary>
+
+The backend uses the private profile's dedicated keys and rules. It validates exact `typ`, issuer, audience, signature, lifetime, and replay identifier; confirms the authenticated gateway channel; resolves the grant reference when current status is required; and prepares the required delivery receipt.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> ValidateType
+    ValidateType --> VerifySignature: dr-authority+jwt
+    VerifySignature --> BindAudience: approved gateway key
+    BindAudience --> CheckFreshness: reports backend audience
+    CheckFreshness --> ResolveGrant: short lifetime and unused jti
+    ResolveGrant --> Enforce: grant active
+    ValidateType --> Deny: wrong JWT kind
+    VerifySignature --> Deny: invalid signature or issuer
+    BindAudience --> Deny: wrong audience
+    CheckFreshness --> Deny: stale or replayed
+    ResolveGrant --> Deny: revoked or mismatched grant
+```
+
+A valid signature with the wrong token type or audience still fails. This prevents an ID Token, MCP access token, or assertion minted for another backend from crossing the boundary through key reuse or permissive parsing.
+
+</details>
+<details>
+<summary><strong>7. Reports Backend returns the result and delivery receipt to the MCP Gateway</strong></summary>
+
+After enforcing the operation, the backend returns the business result and the obligation artifact. The receipt binds the resource, operation, subject, current actor, decision reference, assertion fingerprint, timestamp, and outcome without retaining the raw assertion.
+
+The compact response reports `status = delivered`, `receipt_id = receipt:board-report:9281`, and `decision_ref = decision:7f8b2c`; the full receipt remains in the protected evidence store.
+
+**Artifact Produced:** Delivery receipt correlated to the policy decision and assertion fingerprint.
+
+</details>
+<details>
+<summary><strong>8. MCP Gateway returns the completed MCP result to the MCP Client</strong></summary>
+
+The gateway translates the backend result into the MCP response while keeping internal credentials, policy records, and private topology out of the protocol transcript.
+
+Compared with the originating call, the response preserves JSON-RPC request id `41`, changes the operation state to `resultType: "complete"`, and returns only the user-relevant confirmation that the report was delivered. The private assertion, grant reference, and backend receipt are not exposed to the client.
+
+</details>
+
+<br/>
+
+The enterprise-owned integrity scan follows the same carrier-selection process but does not invent a user or `act` claim. Its private assertion uses `sub = service:workspace-integrity`, identifies the logical agent and authenticated workload only where backend policy requires them, and carries `workspace.scan_integrity` rather than Alice's report-delivery permission.
+
+#### 9.5 Representation Matrix and Handoffs
+
+The final choice depends on who validates the carrier and how quickly its inputs can change:
+
+| Decision question | Access token | Private assertion | Transaction token | Opaque/reference state |
+|:------------------|:-------------|:------------------|:------------------|:-----------------------|
+| **Primary validator** | OAuth resource server | Profiled internal backend | Workloads inside one trust domain | Authorized context/authority service plus consuming PEP |
+| **Authority source** | Authorization server | Gateway after validating upstream authority and current PDP decision | Transaction Token Service | Protected records and current policy |
+| **Best for** | Resource-targeted authorization | Gateway-to-backend identity and decision projection | Short-lived call-chain context | Volatile, sensitive, large, or revocable state |
+| **Freshness model** | Fixed until expiry or introspection | Very short lifetime; re-mint per decision | Short transaction lifetime | Current lookup with bounded caching |
+| **Main failure risk** | Wrong audience, bearer theft, stale embedded claims | Header spoofing, origin bypass, token substitution, key reuse | Draft drift, replay, trust-domain overreach | Context-service outage, insecure lookup, ambient reference |
+| **Durable authority?** | No | No | No | Reference may point to a durable record, but the record and its policy create the authority |
+
+§10 governs durable task and grant state; Gateway-Mediated MCP Architecture ([§13](#13-gateway-mediated-mcp-architecture)) places the transformation in the wider enforcement pipeline; Task-Based Access Control ([§16](#16-task-based-access-control-tbac)) supplies task and operation constraints; Transaction-Scoped Credentials ([§20.3](#203-transaction-scoped-credentials)) tracks the monitor-stage transaction-token work.
 
 ---
 
 ### 10. Authorization Continuity and Durable Tasks
 
-> **See also**: [§11](#11-credential-delegation-patterns) (Credential Delegation), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (SSF/CAEP event-driven revocation)
+> **See also**: [§11](#11-credential-custody-and-release-patterns) (Credential Custody and Release), §§12.5–12.6 (SSF/CAEP signals and receiver processing)
 
 AI agents often perform work for hours or days after the initiating interaction ends. The question is not merely how to keep a token alive; it is how to keep durable work within the original consent, current policy, explicit task authority, revocation state, and bounded autonomy window.
 
@@ -6118,10 +6579,10 @@ gantt
 
 #### 10.2 Refresh Token from Token Exchange
 
-RFC 8693 (§4.1) explicitly allows the authorization server to issue a **refresh token** as part of the token exchange response:
+[RFC 8693 §2.2.1](https://www.rfc-editor.org/rfc/rfc8693.html#section-2.2.1) makes `refresh_token` an **optional** token-exchange response member and says it is typically absent when one temporary credential is exchanged for another. A deployment profile may issue one for user-not-present access, but must document the conditions and must not treat exchange success as durable authority.
 
 ```json
-// Token Exchange Response (with refresh token)
+// Profile-specific token exchange response with an optional refresh token
 {
   "access_token": "eyJhbGciOiJSUzI1NiIs...",
   "token_type": "Bearer",
@@ -6138,11 +6599,12 @@ Whether the AS issues a refresh token depends on:
 
 | Factor | Issues Refresh Token? | Rationale |
 |:---|:---|:---|
-| User-present interactive flow | Usually yes | Standard OAuth behavior |
+| User-present interactive authorization | Profile-dependent | The underlying grant and client policy, not user presence alone, determine issuance |
+| Temporary-to-temporary token exchange | Typically no | RFC 8693 identifies this as the ordinary case without a refresh token |
 | Token exchange (OBO) | **Policy-dependent** | AS decides based on agent trust level, scope sensitivity |
 | Client Credentials (M2M) | Typically no | Service can re-authenticate anytime |
 | High-risk scopes (`payments:create`) | Often no | Force re-consent for each use |
-| Long-running task context | **Policy-dependent** | Duration supports the request, but risk and consent policy still control issuance |
+| Long-running task context | **Insufficient by itself** | A separate task/grant record must authorize continuation; duration only informs token policy |
 
 #### 10.3 Authorization-Continuity Patterns
 
@@ -6247,7 +6709,7 @@ The agent never handles refresh tokens directly — the gateway transparently re
 
 #### 10.6 MCP Tasks Extension: Authorization for Durable Async Workflows
 
-> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-agent-extensions-monitor-not-baseline) (`lifecycle_binding`), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (CAEP/SSF)
+> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-agent-extensions-monitor-not-baseline) (`lifecycle_binding`), §§12.5–12.7 (CAEP/SSF and task cancellation)
 
 MCP Tasks has two deliberately separate status labels. **SEP-2663 is Final**, meaning the extension design was accepted through the MCP enhancement process; the published `io.modelcontextprotocol/tasks` **extension specification is still Draft**, meaning its wire contract may continue to change independently of core MCP.
 
@@ -6510,7 +6972,7 @@ CAEP/SSF events must reach the task authority record. `session-revoked` should t
 
 #### 10.7 Offline Authority: User-Not-Present Continuation
 
-A defining characteristic of agentic workflows is that the user **initiates an action and then leaves**. The agent may continue operating for hours or days, but only under explicit offline authority whose scope, duration, task, refresh family, and revocation behavior are independently governed. The same boundary applies whether authority originated through Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) or CIBA ([§15.5](#155-tier-5-ciba-protocol)).
+A defining characteristic of agentic workflows is that the user **initiates an action and then leaves**. The agent may continue operating for hours or days, but only under explicit offline authority whose scope, duration, task, refresh family, and revocation behavior are independently governed. The same boundary applies whether authority originated through Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) or CIBA ([§15.5](#155-tier-5-ciba-protocol)).
 
 ##### 10.7.1 The Offline Authority Pattern
 
@@ -6754,7 +7216,7 @@ This traceability lets an authorized investigator follow an API decision to the 
 
 ##### 10.7.4 Token Exchange vs. CIBA: Offline Authority Comparison
 
-Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) and CIBA ([§15.5](#155-tier-5-ciba-protocol)) are inputs to different authorization-server decisions. Neither guarantees an offline session or refresh token; CIBA permits an optional refresh token, while token-exchange issuance and renewal depend on the selected profile and AS policy.
+Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) and CIBA ([§15.5](#155-tier-5-ciba-protocol)) are inputs to different authorization-server decisions. Neither guarantees an offline session or refresh token; CIBA permits an optional refresh token, while token-exchange issuance and renewal depend on the selected profile and AS policy.
 
 | Dimension | Token Exchange | CIBA |
 |:----------|:---------------|:-----|
@@ -6769,17 +7231,24 @@ Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-patt
 
 ---
 
-### 11. Credential Delegation Patterns
+### 11. Credential Custody and Release Patterns
 
-AI agents accessing third-party APIs on behalf of users face a fundamental security challenge: how should credentials be **delegated** across the agent's lifecycle? This section synthesizes the credential delegation patterns discovered across the thirteen implementations surveyed in this investigation, connecting them to the identity models in [§6](#6-agent-identity-vs-user-identity), the token exchange mechanics in [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), and the refresh token lifecycle in [§10](#10-authorization-continuity-and-durable-tasks). For the complementary concerns of credential storage, rotation, and revocation, see [§12](#12-credential-security-and-revocation).
+> **See also**: [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (delegated authority and token exchange), [§6](#6-agent-identity-vs-user-identity) (agent/workload identity), [§7](#7-agent-definition-identity-and-governance-lifecycles) (governed lifecycle objects), [§10](#10-authorization-continuity-and-durable-tasks) (refresh-token handling), [§12](#12-credential-state-revocation-and-termination-convergence) (credential state and termination), and [§13](#13-gateway-mediated-mcp-architecture) (gateway enforcement)
 
-#### 11.1 Credential Delegation Pattern Taxonomy
+A credential is not the identity it represents or the authority it carries. It is material—or a handle to material—that a presenter can use at a particular protocol boundary. Secure agent architecture therefore asks two separate questions: **who is authorized to cause a use**, and **which component can possess or exercise the credential**.
 
-Five distinct patterns for credential delegation have emerged from the thirteen implementations surveyed in this investigation. Each represents a different trade-off between agent exposure, operational complexity, and third-party API support.
+The objective is not the slogan “secretless.” Credentials still exist at an issuer, broker, signer, vault, runtime, or provider even when the model cannot read them. The objective is a bounded custody path in which discovery, reading, export, use, derivation, renewal, revocation, and purge are independently controlled and observable.
 
-##### 11.1.1 The Token Treatment Spectrum
+#### 11.1 Custody Is Separate from Identity and Authority
 
-Before classifying the specific implementations, it is critical to understand the three overarching approaches gateways take when handling tokens across the client-gateway-server boundary:
+The following invariants prevent the most common category errors:
+
+- A registered agent identity does not authorize a provider operation.
+- Workload authentication does not supply delegated-user authority.
+- A grant or policy decision does not prove that credential material was safely delivered.
+- Non-exportable material can still be abused through a signer, broker, or gateway.
+- “Not visible to the model” does not mean “not readable by application code.”
+- Expiration or revocation at one credential backend does not prove that cached sessions or downstream effects stopped.
 
 ```mermaid
 ---
@@ -6787,254 +7256,137 @@ config:
   flowchart:
     subGraphTitleMargin:
       bottom: 25
+    nodeSpacing: 40
+    rankSpacing: 60
 ---
 flowchart LR
-    subgraph Treatment["`**Token Treatment Spectrum**`"]
-        direction LR
-        S["`**Token Stripping / Isolation**
-        Gateway&nbsp;holds&nbsp;JWT
-        High&nbsp;Security&nbsp;/&nbsp;Low&nbsp;Transparency`"]
-        J["`**JIT / Ephemeral Injection**
-        Gateway&nbsp;creates&nbsp;DPoP&nbsp;tool&nbsp;tokens
-        Optimal&nbsp;for&nbsp;High‑Speed&nbsp;Swarms`"]
-        O["`**OBO Token Exchange**
-        Gateway&nbsp;passes&nbsp;delegated&nbsp;token
-        Optimal&nbsp;for&nbsp;Enterprise&nbsp;Auditability`"]
-    end
+    I["`**Issuer**
+    Creates credential
+    or lease`"]
+    A["`**Authority owner**
+    Approves user,
+    organization, or task use`"]
+    C["`**Material custodian**
+    Stores key, token,
+    secret, or lease`"]
+    B["`**Use / release broker**
+    Evaluates request
+    and exercises material`"]
+    H["`**Holder / presenter**
+    Sends proof or
+    provider request`"]
+    R["`**Resource server**
+    Validates credential
+    and authorizes action`"]
+    E["`**Evidence owner**
+    Correlates decision,
+    use, and outcome`"]
 
-    S --> J
-    J --> O
+    I -->|"issues"| C
+    A -->|"bounds permitted use"| B
+    C -->|"handle, proof, or release"| B
+    B -->|"credential or signed request"| H
+    H -->|"presents"| R
+    E -.-> A
+    E -.-> C
+    E -.-> B
+    E -.-> R
 
-    style S text-align:center
-    style J text-align:center
-    style O text-align:center
-
+    style I text-align:left
+    style A text-align:left
+    style C text-align:left
+    style B text-align:left
+    style H text-align:left
+    style R text-align:left
+    style E text-align:left
 ```
 
-*   **Token Stripping / Isolation:** The gateway trades transparency for security by holding the user's JWT at the edge, passing only sanitized payload data or synthetic headers to the downstream server. This provides high security but obscures the user identity from the MCP tool.
-*   **JIT / Ephemeral Token Injection:** The gateway dynamically creates short-lived, structurally minimal tokens (e.g., DPoP-bound tool tokens) on-the-fly for each request. This is optimal for high-speed, decoupled agent swarms.
-*   **OBO Token Exchange:** The gateway intercepts the agent's token and exchanges it (via RFC 8693) for a user-delegated token. This maintains strict identity coupling across boundaries, making it optimal for enterprise auditability.
+#### 11.2 Credential Roles and Trust Boundaries
 
-##### 11.1.2 The Five Delegation Patterns
+One component may implement several roles, but the evidence model should keep them distinct:
 
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
----
-flowchart TB
-    subgraph Spectrum["`**Credential Delegation Pattern Spectrum**`"]
-        direction TB
-        A["`**Pattern A: Direct Token Exchange**
-        Agent&nbsp;holds&nbsp;delegated&nbsp;AT
-        RFC&nbsp;8693&nbsp;·&nbsp;Traefik&nbsp;Hub&nbsp;§I`"]
-        B["`**Pattern B: Managed Credential Store**
-        Agent&nbsp;gets&nbsp;short‑lived&nbsp;token&nbsp;from&nbsp;vault
-        Auth0&nbsp;Token&nbsp;Vault&nbsp;§H.2`"]
-        C["`**Pattern C: Gateway Identity Injection**
-        Agent&nbsp;never&nbsp;sees&nbsp;third‑party&nbsp;credential
-        TrueFoundry&nbsp;§D.2`"]
-        D["`**Pattern D: Secret Injection (Secretless)**
-        Agent&nbsp;literally&nbsp;cannot&nbsp;access&nbsp;credential
-        Docker&nbsp;§J.6&nbsp;·&nbsp;Aembit&nbsp;MCP&nbsp;Gateway`"]
-        E["`**Pattern E: Cloud Managed Identity**
-        No&nbsp;credential&nbsp;held&nbsp;by&nbsp;agent
-        Azure&nbsp;·&nbsp;GCP&nbsp;·&nbsp;AWS&nbsp;·&nbsp;HashiCorp&nbsp;Vault`"]
-    end
+| Role | Decision or action owned | Failure if left implicit |
+|:-----|:-------------------------|:-------------------------|
+| **Issuer** | Create, bind, expire, and sometimes revoke a credential | Unknown authoritative status or wrong audience |
+| **Authority/grant owner** | Decide whether the user, agent, organization, or task may cause a use | Custody mistaken for permission |
+| **Material custodian** | Store material and control reading/export | Model or plugin receives reusable secrets |
+| **Use/release broker** | Turn an authorized request into a bounded credential use or release | Broker becomes an unbounded credential oracle |
+| **Holder/presenter** | Possess proof material or send the provider request | Presenter identity and authority collapse |
+| **Renewal/rotation owner** | Obtain replacement material and coordinate overlap | Partial reload leaves stale or expired copies |
+| **Revocation/purge owner** | Revoke at the issuer/backend and remove retained copies | “Revoke” closes one plane but not another |
+| **Incident-cleanup controller** | Coordinate emergency closure independently of normal renewal | Compromised workload controls its own cleanup |
+| **Evidence owner** | Join request, decision, credential, presentation, and effect | Audit shows issuance but not actual use |
 
-    A -.->|"decreasing agent exposure"| B
-    B -.-> C
-    C -.-> D
-    D -.-> E
+For high-impact credentials, the workload requesting use should not be the only component able to renew, revoke, or attest to purge. Independent cleanup remains possible when the workload is compromised or unavailable.
 
-    style A text-align:center
-    style B text-align:center
-    style C text-align:center
-    style D text-align:center
-    style E text-align:center
+#### 11.3 Composable Custody and Release Patterns
 
-```
+The patterns are building blocks, not a weakest-to-strongest ladder:
 
-| Pattern | Mechanism | Agent Exposure | Credential Lifespan | Third-Party API Support | DR-0001 Implementations |
-|:--------|:----------|:---------------|:--------------------|:----------------------|:------------------------|
-| **A: Direct Token Exchange (RFC 8693)** | Agent exchanges user token for delegated token via STS | Token holder (delegated AT) | Minutes (AT), policy-dependent (RT) | Via STS configuration per-provider | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) |
-| **B: Managed Credential Store (Token Vault)** | Platform manages full lifecycle (obtain, store, rotate, exchange); agent receives short-lived token | Short-lived token only | Auto-rotated by vault | ✅ Native (Google, Slack, GitHub, Salesforce, etc.) | Auth0 Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)) |
-| **C: Gateway Identity Injection** | Gateway injects user's actual third-party token per-request; agent never handles credential | Never sees third-party credential | Per-request injection | ✅ Via gateway-stored provider tokens | TrueFoundry Identity Injection ([§D.2](#d2-authentication-architecture-three-inbound-and-five-outbound-patterns)) |
-| **D: Secret Injection (Secretless)** | Container runtime or workload IAM injects credential into execution environment; agent literally cannot access it | Zero exposure | Workload/process lifetime | ✅ Via runtime secret store | Docker ([§J.6](#j6-authentication-centralized-secret-management)), Aembit MCP Identity Gateway |
-| **E: Cloud Managed Identity** | Cloud platform identity (Managed Identity, Service Account, IAM Role) + vault integration provides credential without agent involvement | No credential held by agent | Auto-rotated by platform | Via vault-stored OAuth tokens | Azure Entra Agent ID, Google Cloud Agent Identity, AWS Bedrock AgentCore |
+| Pattern | Material location | Typical use interface | Appropriate boundary | Principal risk |
+|:--------|:------------------|:----------------------|:---------------------|:---------------|
+| **Client-held delegated token** | MCP client or trusted local token manager | Client presents bearer or sender-constrained token | User-delegated MCP call where the client is the intended holder | Token reaches a broader client process or plugin surface |
+| **Managed connection/token vault** | Platform vault | Opaque connection handle resolves to provider token | Repeated third-party access with managed renewal | Vault status may lag provider-side revocation |
+| **Gateway/broker-held credential** | Gateway, proxy, or credential broker | Authorized request causes proxying, signing, or bounded release | Centralized policy and provider integration | Compromised caller may use broker as an oracle |
+| **Runtime-injected secret or handle** | File, environment, memory, sidecar, or local API | Application reads material or invokes local handle | Legacy SDK or constrained workload integration | “Injected” may still be readable/exportable and may leave stale copies |
+| **Platform workload identity** | Workload identity plane; private key may be non-exportable | mTLS, signed proof, federation exchange | Workload admission and platform/resource access | It authenticates workload, not necessarily user delegation |
+| **Transaction-scoped derived credential** | Broker or issuer creates a short-lived derivative | Bound request, transaction token, exchanged token, or one-shot lease | High-impact, context-bound operations | Derivation graph and cleanup may be incomplete |
 
-> **Architectural insight**: Patterns A–D correspond to the four credential models in [§7.4](#74-credential-architecture-for-ai-agents) (Bearer, SVID, Secretless, Embedded), viewed from the *delegation* perspective rather than the *identity* perspective. Pattern E captures cloud-managed workload identity and credential resolution.
+Compositions are normal. A workload identity may authenticate the agent to a broker; the broker may validate delegated-user authority; a vault may retain the provider refresh token; and the gateway may use a short-lived provider token without returning it to the agent.
 
-> **Key principle**: These patterns are **complementary, not competing**. An enterprise MCP deployment typically combines multiple patterns — e.g., Pattern B (Auth0 Token Vault for Slack/Google API delegation) + Pattern C (TrueFoundry gateway injection for same-trust MCP servers) + Pattern E (Azure Key Vault for Azure-native services).
+#### 11.4 Material Possession, Use Authority, and the Credential-Capability Matrix
 
-The five-pattern taxonomy is intentionally stable, but current product implementations now show several important **variants inside** those patterns. These variants are where most implementation mistakes occur: teams correctly choose "vault" or "gateway injection" but then miss who owns consent, refresh, fallback, signer keys, or per-user resolution.
+“Has access to the credential” is too coarse for design review. Record the actual capability:
 
-| Variant | Base Pattern | Current Product Evidence | Architectural Meaning | Failure Mode to Avoid |
-|:--------|:-------------|:-------------------------|:----------------------|:----------------------|
-| **Connected-account token vault** | B: Managed Credential Store | Auth0 Token Vault stores third-party access/refresh tokens after user consent, then exchanges Auth0 tokens for provider access tokens | The vault owns provider refresh logic; the agent receives only short-lived provider tokens | Treating the agent as the refresh-token holder or bypassing the disconnect/revocation path |
-| **Credential manager with user-delegated connection** | B/E hybrid | Azure API Management Credential Manager can resolve configured connections at runtime with managed identity or `identity-type="jwt"` user context | The gateway becomes the OAuth client and token lifecycle manager for backend SaaS APIs | Confusing unattended managed-identity connections with per-user delegated backend access |
-| **Verify-and-re-sign wristband** | C: Gateway Identity Injection | LiteLLM MCPJWTSigner and Red Hat/Kuadrant wristband-style flows validate inbound identity and issue a short-lived downstream assertion | Downstream tools trust the gateway's JWKS and receive bounded identity/context claims, not the original bearer token | Letting tools accept direct calls that bypass the gateway or forwarding raw upstream tokens into tool code |
-| **Vault plus priority fallback** | B/C hybrid | Kuadrant AuthPolicy can fetch per-user secrets from Vault and fall back to token exchange patterns in a declarative gateway policy | The gateway resolves the best credential source per request while keeping policy in versioned infrastructure config | Hiding fallback behavior in custom code with no audit trail or policy review surface |
-| **Runtime secret injection** | D: Secret Injection | Docker MCP Gateway runs MCP servers in isolated containers, injects required credentials, and manages server lifecycle/routing | The secret boundary is the process/container runtime rather than the OAuth layer | Assuming container injection provides user-delegated semantics; it prevents exposure but does not prove user consent by itself |
-| **Cloud agent identity plus vault** | E: Cloud Managed Identity | Entra Agent ID + Key Vault, GCP Agent Identity + Secret Manager, Bedrock AgentCore + Secrets Manager, and Vault dynamic secrets | The cloud or infrastructure platform owns workload identity and credential retrieval; user delegation must still be modeled separately | Treating workload identity as equivalent to human user delegation or portable agent identity |
+| Component | Discover | Read | Export | Invoke/use | Derive/delegate | Renew/rotate | Revoke | Purge |
+|:----------|:--------:|:----:|:------:|:----------:|:---------------:|:------------:|:------:|:-----:|
+| Model context | No | No | No | No direct use | No | No | No | No |
+| Agent application | Handle only | Prefer no | No | Bounded handle | No unless policy grants | No | Request only | Local cache only |
+| Workload sidecar | Handle/metadata | Profile-dependent | Prefer no | Yes, for admitted workload | Profile-dependent | Automatic within policy | Request/receive update | Local material |
+| Gateway/broker | Connection and policy metadata | Sometimes | Prefer no | Yes, bounded by decision | Only explicit exchange/derivation | Yes | Yes | Broker copies |
+| Vault | Lease/secret metadata | Backend-dependent | Controlled | Issue/release/lease | Backend-dependent | Yes | Yes | Stored material and metadata |
+| Issuer/provider | Authoritative record | Authoritative material/state as applicable | N/A | Validate/presented use | Issue derivatives where supported | Yes | Authoritative mechanism where supported | Provider-specific |
+| Incident controller | Inventory | Normally no | No | No business use | No | Suspend | Yes | Coordinate/verify |
 
+Two negative guarantees matter:
 
-#### 11.2 Credential Delegation Comparison Matrix
+1. **Non-exportable is not non-usable.** Malware in an admitted workload may invoke a signer or broker repeatedly even when it cannot extract the key.
+2. **Secretless to the model is not credential-free.** The custodian, use interface, renewal path, revocation mechanism, and purge evidence still need owners.
 
-This section provides both the high-level trade-off matrix for the Token Treatment Spectrum and the granular 10-dimension analysis of the five concrete credential-delegation patterns. For the role-normalized product contract, extension, and conformance matrix, see [§22.1](#221-protocol-admission-extensions-and-conformance).
+#### 11.5 Platform, Federation, Resource, Delegated-User, and Transaction Credentials
 
-##### 11.2.1 Token Treatment Trade-Off Matrix
+Credential classes should not be reused across boundaries merely because they share a JWT, certificate, or opaque-token format:
 
-When evaluating the overarching Token Treatment Spectrum (Stripping vs. Injection vs. OBO), organizations must navigate the **OBO Fallacy** — the assumption that RFC 8693 is always the "Gold Standard" for identity propagation. While OBO provides unparalleled auditability by strictly coupling the agent to a centralized IdP for every token exchange, it introduces a severe bottleneck for decoupled, high-speed agent swarms generating hundreds of asynchronous tool calls. In these swarm scenarios, **JIT Injection** is often architecturally superior because the gateway synthesizes the required permissions locally, removing the remote IdP hop entirely while preserving downstream security (e.g., via ephemeral DPoP binding).
+| Credential class | Purpose | Expected subject/binding | Reuse boundary |
+|:-----------------|:--------|:-------------------------|:---------------|
+| **Platform admission credential** | Prove an execution belongs to an admitted platform workload | Workload identity and platform environment | Platform control plane only |
+| **Federation credential** | Exchange trust across identity domains | One workload identity, issuer, audience, proof method | Named federation endpoint |
+| **Resource credential** | Access a concrete API/resource server | Workload or client plus resource/audience | Named resource or resource set |
+| **Delegated-user credential** | Exercise authority derived from a user grant | User subject plus client/agent actor and constraints | Named resource, scope, consent, and lifetime |
+| **Transaction-scoped credential** | Bind one workflow or effect to a narrow context | Transaction/task ID, audience, action, expiry | One transaction or bounded operation set |
 
-| Dimension | Token Stripping / Isolation | JIT / Ephemeral Token Injection | OBO Token Exchange (RFC 8693) |
-|:----------|:----------------------------|:--------------------------------|:------------------------------|
-| **Swarm Scalability** | High (Edge termination) | **Maximum** (Local synthesis) | Low (IdP bottleneck per hop) |
-| **Enterprise Auditability** | Low (Opaque downstream) | Medium (Gateway correlation) | **Maximum** (End-to-end identity chain) |
-| **Latency Impact** | Low | Low | High (Network hop to AS) |
-| **Downstream Transparency** | Destroyed | Synthetic / Partial | Fully preserved |
-| **Ideal Workload** | Untrusted third-party tools | High-speed, decoupled agent swarms | Regulated enterprise internal access |
+Current IETF WIMSE work distinguishes workload credentials from the proof-of-possession protocol that uses them and recommends one workload identity per credential. Its active [workload-credential](https://datatracker.ietf.org/doc/draft-ietf-wimse-workload-creds/) and [deployment-practices](https://datatracker.ietf.org/doc/draft-ietf-wimse-workload-identity-practices/) documents also separate platform, federation, and resource credentials and discuss audience, delivery, and rotation overlap. These are Internet-Drafts, not published RFCs.
 
-##### 11.2.2 10-Dimension Delegation Analysis
+[OAuth SPIFFE Client Authentication](https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/) is an active OAuth working-group draft that profiles SPIFFE material for OAuth client authentication. It does not make workload identity equivalent to the user or organizational authority carried by an OAuth grant.
 
-| Dimension | A: Token Exchange | B: Token Vault | C: Gateway Inject | D: Secret Inject | E: Managed Identity |
-|:----------|:-----------------|:---------------|:-----------------|:----------------|:-------------------|
-| **Rotation model** | Manual (re-exchange at expiry) | Auto (vault handles RT→AT cycle) | Per-request (gateway injects fresh token) | Container restart or re-mount | Auto (platform manages lifecycle) |
-| **Revocation speed** | Token expiry (minutes) | Vault invalidation (seconds) | Immediate (gateway stops injection) | Container stop (seconds) | Platform-managed (varies) |
-| **Cross-gateway propagation** | N/A (agent-held) | Via vault event | Via control plane | Via orchestrator | Via cloud IAM |
-| **Third-party API support** | Via STS configuration per-provider | ✅ Native (Google, Slack, GitHub, Salesforce) | ✅ Via gateway-stored provider tokens | ✅ Via runtime secret store | Via vault-stored OAuth tokens |
-| **RFC 8693 required** | ✅ Yes | ✅ Yes (internal exchange) | ❌ No | ❌ No (or ✅ optional via Aembit) | ❌ No |
-| **DPoP compatible** | ✅ (sender-constrains delegated AT) | ✅ (Auth0 supports DPoP binding) | N/A (agent never holds token) | N/A (agent never holds token) | N/A (platform-managed) |
-| **NHI governance integration** | Via IdP (WSO2 [§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization), Auth0 [§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) | Via CIAM platform audit | Via gateway audit trail | Via container governance / Aembit | Via cloud IAM + NHI platforms |
-| **OWASP NHI risk addressed** | NHI4 (insecure AuthN) | NHI1 (offboarding), NHI7 (long-lived secrets) | NHI2 (secret leakage) | NHI2, NHI7 (strongest mitigation) | NHI1, NHI4, NHI7 |
-| **Best suited for** | Standard OAuth flows, single-AS MCP servers | IAM platform + third-party API delegation | Same-trust-domain MCP servers | High-security / regulated workloads | Cloud-native MCP deployments |
-| **MCP gateway support** | Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) | Auth0 ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) | TrueFoundry ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane)) | Docker ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)), Aembit | Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)), Bedrock AgentCore |
+#### 11.6 Delivery, Overlap, Rotation, Reload, and Purge
 
-##### 11.2.3 Use/Avoid Guidance by Delegation Pattern
+Rotation is a distributed state transition. The issuer may create replacement material before every consumer reloads it, so the system needs an explicit overlap window and proof that old material left every delivery surface.
 
-| Pattern | Use When | Avoid When | Evidence Owner |
-|:--------|:---------|:-----------|:---------------|
-| **A: Direct Token Exchange** | The downstream resource server needs a standards-based delegated token and the agent/gateway can tolerate an AS round trip for each delegation boundary | The agent would need to store refresh tokens, call many tools at swarm speed, or operate across providers with no common STS | Authorization server logs, token exchange request, `act`/audience claims |
-| **B: Managed Credential Store** | Users connect external SaaS accounts once and expect the platform to handle refresh, provider-specific scopes, disconnect, and re-consent | The enterprise needs fully self-hosted credential custody or cannot accept the platform as credential processor | Vault connection record, consent artifact, token exchange event, disconnect event |
-| **C: Gateway Identity Injection** | The gateway and MCP servers are in the same trust domain and the security goal is keeping raw user tokens out of tool code | Downstream services require native third-party OAuth tokens with provider-visible user delegation | Gateway decision log, injected assertion hash, upstream token hash, tool-call trace |
-| **D: Secret Injection** | MCP servers run as managed workloads and the primary risk is secrets leaking into prompts, logs, local config, or the agent process | The task requires per-user OAuth consent semantics that the runtime secret store cannot express | Container/server lifecycle event, secret mount/injection event, process isolation audit |
-| **E: Cloud Managed Identity** | The agent workload lives on a cloud/control-plane substrate that can issue identity, enforce IAM, and retrieve vault material without static secrets | Cross-cloud portability, self-hosted agent identity, or multi-IdP user+agent composite claims are hard requirements | IAM policy decision, vault access log, cloud audit trail, workload identity attestation |
+| Delivery surface | Rotation concern | Purge evidence |
+|:-----------------|:-----------------|:---------------|
+| Environment variable | Usually fixed for process lifetime | Process exit and deployment replacement |
+| Mounted file | Atomic replacement may not update an already-open descriptor or in-memory copy | File version plus consumer reload acknowledgement |
+| In-memory API response | Application may cache beyond intended TTL | Cache key/epoch invalidation and negative use test |
+| Local sidecar/agent | Sidecar may stream updates while application retains old handles | Version acknowledgement from both sidecar and consumer |
+| Remote broker handle | Handle may remain usable after material rotates | Broker policy epoch and rejected old-handle test |
+| Non-exportable signer | Key may rotate while sessions or signing permissions persist | Key version, policy update, and denied old-key invocation |
 
+A safe rotation runbook issues new material, starts a bounded overlap, updates consumers, verifies new use, blocks old use, purges recoverable copies, and closes the overlap. Rollback creates another recorded transition; it must not silently reactivate an old key after a compromise-driven rotation.
 
-#### 11.3 Credential Lifecycle for AI Agent Delegation
+#### 11.7 Brokered Credential Use: Solved Walkthrough
 
-The credential lifecycle for AI agents calling third-party APIs on behalf of users spans eight phases. Unlike traditional OAuth where the application manages its own tokens, agentic scenarios require a clear division of responsibility between the user, the authorization server, the credential store (vault/gateway), and the agent.
-
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
----
-flowchart LR
-    subgraph User["`**👤 User**`"]
-        P1["`**1. Consent**`"]
-    end
-
-    subgraph AS["`**🔑 AS / IdP**`"]
-        P2["`**2. Issuance**`"]
-    end
-
-    subgraph Platform["`**🏗️ Credential Platform**`"]
-        direction TB
-        P3["`**3. Storage**`"]
-        P4["`**4. Rotation**`"]
-        P7["`**7. Purge**`"]
-        P8["`**8. Audit**`"]
-    end
-
-    subgraph Agent["`**🤖 Agent**`"]
-        P5["`**5. Exchange**`"]
-    end
-
-    subgraph Revocation["`**⛔ Revocation Triggers**`"]
-        P6["`**6. Revoke**`"]
-    end
-
-    P1 --> P2 --> P3 --> P4 --> P5
-    P6 --> P7 --> P8
-    P5 -.->|"task completes
-    or policy trigger"| P6
-
-    style P1 text-align:center
-    style P2 text-align:center
-    style P3 text-align:center
-    style P4 text-align:center
-    style P5 text-align:center
-    style P6 text-align:center
-    style P7 text-align:center
-    style P8 text-align:center
-```
-
-| Phase | Responsibility | Pattern A (Exchange) | Pattern B (Vault) | Pattern C (Inject) | Pattern D (Secret) | Pattern E (Managed ID) |
-|:------|:--------------|:--------------------|:------------------|:------------------|:------------------|:---------------------|
-| 1. User consent | User + AS | OAuth consent | Universal Login / Connected Accounts | OAuth consent | N/A (infra-level) | N/A (IAM policy) |
-| 2. Token issuance | AS / Provider | STS token exchange | Provider OAuth flow | Provider OAuth flow | Secret provisioning | Platform auto-provisions |
-| 3. Secure storage | Agent / Vault | Agent memory (⚠️) | ✅ Encrypted vault | Gateway/CP store | Container secret store | Platform-managed store |
-| 4. Auto-rotation | Agent / Platform | ❌ Agent must re-exchange | ✅ Automatic (vault) | ✅ Auto-refresh (CP) | ❌ Manual re-mount | ✅ Automatic (IAM) |
-| 5. Per-request exchange | Platform / Agent | Agent presents AT | RFC 8693 exchange | Gateway injects | Runtime mounts | Platform provides token |
-| 6. Revocation | User / Policy | Agent token revoked | Vault entry invalidated | Injection stopped | Container stopped | IAM role detached |
-| 7. Credential purge | Platform | Agent responsible (⚠️) | ✅ Vault cleanup | ✅ Store cleanup | ✅ Container destroyed | ✅ Platform-managed |
-| 8. Audit retention | Infra | AS logs only | ✅ Platform audit trail | ✅ Flight Recorder | ✅ Interceptor logs | ✅ Cloud audit logs |
-
-> **Critical observation**: Pattern A (Direct Token Exchange) places both **storage** and **purge** responsibility on the agent — the weakest link. Patterns B–E progressively shift these responsibilities to the platform, with Pattern D providing the strongest isolation. This is why Auth0 Token Vault (Pattern B) and Docker Secret Injection (Pattern D) represent the most mature credential lifecycle implementations in this investigation.
-
-> **Important — Credential storage and purge should move off the agent whenever possible**
->
-> If the agent is responsible for holding delegated credentials or cleaning them up, the lifecycle has already been pushed onto the least reliable boundary. Prefer platform-owned vault, gateway, runtime, or cloud identity patterns whenever they are available.
-
-The lifecycle table above should be read as an **ownership map**, not just a feature checklist. A production architecture needs one accountable component for each transition, plus an audit artifact proving that the transition occurred.
-
-| Lifecycle Control | Primary Owner | Required Evidence | Product-Backed Implementation Pattern |
-|:------------------|:--------------|:------------------|:--------------------------------------|
-| **Approval and grant capture** | IdP / authorization server plus domain workflow | OAuth grant, requested/granted RAR objects, connected-account record, CIBA approval evidence, or domain mandate | Auth0 Connected Accounts, APIM user-delegated connection, AP2 mandates, CIBA plus a domain approval service |
-| **Credential custody** | Vault, gateway, runtime, or cloud secret manager | Encrypted storage record, key-management policy, access policy, or secret lease | Auth0 Token Vault, Azure Credential Manager/Key Vault, Docker secret store, Vault dynamic secrets |
-| **Per-request credential release** | Gateway or credential broker | Token exchange event, injected header/JWT hash, secret mount event, or SigV4/JWKS verification log | LiteLLM JWT signer, Kuadrant AuthPolicy, Docker gateway injection, APIM `get-authorization-context` |
-| **Refresh / rotation** | Credential platform or AS | Refresh event, token-family ID, rotation status, refresh failure reason | Token Vault provider refresh, APIM Credential Manager auto-refresh, cloud IAM rotation, Vault TTL renewal |
-| **Revocation / suspension** | IdP, gateway, policy engine, or runtime orchestrator | Revocation event, CAEP SET `jti`, gateway decision, task/session disposition | SSF/CAEP receiver, Entra CAE, gateway deny list, container stop, Vault lease revoke |
-| **Purge / retention** | Credential store and audit platform | Deleted connection/secret, retention timer, result TTL, compliance export | Token Vault disconnect, Key Vault delete/purge, Docker container destruction, task result TTL expiry |
-
-##### 11.3.1 Lifecycle Coverage by Implementation
-
-| Phase | Auth0 ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) | TF ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane)) | Docker ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)) | CF ([§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)) | AgentGW ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a)) | Traefik ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) | Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) | Bedrock AgentCore |
-|:------|:-----------|:---------|:-------------|:---------|:-------------|:-------------|:----------------|:----------------|
-| Consent | ✅ Universal Login | ✅ | ❌ | ✅ | ✅ (OAuth2 Proxy) | ✅ | ✅ (Entra ID) | ✅ (Cognito/Auth0) |
-| Issuance | ✅ Connected Accounts | ✅ | ✅ Secret store | ✅ | ✅ (OAuth2 Proxy) | ✅ RFC 8693 | ✅ Subscription key | ✅ AgentCore Identity |
-| Storage | ✅ Token Vault | ✅ CP store | ✅ Secret store | ❌ | ❌ | ❌ | ✅ Key Vault | ✅ Secrets Manager |
-| Rotation | ✅ Auto | ✅ Auto | ❌ Manual | ❌ | ❌ | ✅ via re-exchange | ✅ MI auto | ✅ Zero-touch |
-| Exchange | ✅ RFC 8693 | ✅ Inject | ✅ Mount | ❌ | ✅ (sidecar) | ✅ RFC 8693 OBO | ✅ Token transform | ✅ Tool gateway |
-| Revocation | ⚠️ AT only | ⚠️ Limited | ✅ Container stop | ❌ | ❌ | ⚠️ Limited | ✅ via Entra | ⚠️ Role detach |
-| Purge | ✅ Vault | ⚠️ Manual | ✅ Container destroy | ❌ | ❌ | ❌ | ✅ Key Vault | ✅ Secrets Manager |
-| Audit | ✅ | ✅ Flight Recorder | ✅ Interceptors | ✅ | ✅ OTel | ❌ | ✅ Azure Monitor | ✅ CloudTrail |
-| **Coverage** | **7/8** | **6/8** | **6/8** | **2/8** | **3/8** | **4/8** | **7/8** | **7/8** |
-
-> **Key insight**: No single implementation covers all eight lifecycle phases. Auth0, Azure APIM (with Entra Agent ID + Key Vault), and AWS Bedrock AgentCore tie at 7/8 — each missing cross-gateway revocation propagation. Docker and TrueFoundry cover 6/8 with different strength areas. The universal gap in the "Revocation" column reinforces Rec 21's convergence requirement; [OQ 32](#oq-32) retains the unresolved timing and in-flight-work semantics.
-
-#### 11.4 Cloud-Native Credential Delegation Platforms
-
-For enterprises running MCP gateways on cloud infrastructure, the credential delegation patterns in [§11.1](#111-credential-delegation-pattern-taxonomy) can be implemented using cloud-native secret management and identity platforms. These complement platform-specific solutions (Auth0 Token Vault, [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)) with infrastructure-level credential lifecycle management. All four platforms implement **Pattern E** (Cloud Managed Identity) from [§11.1](#111-credential-delegation-pattern-taxonomy).
-
-##### 11.4.1 Azure: Entra Agent ID and Key Vault and Managed Identity
-
-Microsoft's credential delegation stack for AI agents combines three components:
-
-| Component | Function | Status |
-|:----------|:---------|:-------|
-| **Entra Agent ID** | Agent identities are special service principals created from agent identity blueprints; they have no credentials of their own, can have sponsors, and may link 1:1 to an optional agent user account | Microsoft Learn docs updated May 1, 2026 |
-| **Managed Identity** | System/user-assigned identity for Azure resources; eliminates credential storage entirely | GA |
-| **Azure Key Vault** | Centralized secret storage with RBAC, audit logging, auto-rotation policies | GA |
-
-Current Entra Agent ID documentation clarifies the authority boundary. The **agent identity** is the governed object, but credential material belongs to the **agent identity blueprint**, which authenticates through federated identity credentials, certificates/keys, or client secrets. Agent identities are single-tenant Entra objects; a sponsor provides human accountability, and the optional agent user account supports delegated scenarios where an agent needs user-like access to Microsoft 365 resources. This strengthens the NHI governance story, but it also reinforces the lock-in caveat: the identity, sponsor, blueprint, and optional agent user account are Entra-local constructs rather than portable OAuth claims.
-
-**Credential delegation flow**:
+This example keeps the provider refresh token in a managed connection vault and lets the gateway use a short-lived provider access token. The agent sees the connection ID and outcome, not the reusable provider credential.
 
 ```mermaid
 ---
@@ -7043,608 +7395,204 @@ config:
     noteBkgColor: "transparent"
     noteBorderColor: "transparent"
   sequence:
-    messageAlign: left
-    noteAlign: left
     actorMargin: 250
 ---
 sequenceDiagram
     autonumber
-    participant Agent as 🤖 Agent
-    participant MI as Managed Identity<br/>(Entra ID)
-    participant KV as Azure Key Vault
-    participant API as Third-Party API
-    participant Monitor as Azure Monitor
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Infrastructure Identity
-    Note over Agent,MI: No credential needed —<br/>identity is infrastructure
-    Agent->>MI: Authenticate (implicit)
-    MI-->>Agent: Azure AD token
-    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of Agent: Phase 2: Credential Retrieval
-    Agent->>KV: Access Key Vault (with MI token)
-    Note right of KV: Stores third-party OAuth tokens<br/>with policy-based auto-rotation
-    KV-->>Agent: Short-lived third-party AT
-    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Agent: Phase 3: Authorized Execution
-    Agent->>API: API call (per-request token)
-    API-->>Agent: Response
-    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 4: Auditing
-    Agent->>Monitor: All actions logged under<br/>Entra Agent ID
-    Note right of Monitor: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of Monitor: ⠀
-```
-
-<details>
-<summary><strong>1. Agent authenticates implicitly to Azure IMDS via Managed Identity</strong></summary>
-
-The agent executes an active HTTP GET request to the local link-local metadata service (IMDS) spanning the hypervisor. This implicit transaction utilizes system-assigned Managed Identity; no literal passwords are exchanged, isolating the authentication explicitly to the compute node's hardware. The IMDS natively logs this hardware-bound attestation event into Azure Activity Logs for centralized SIEM ingestion.
-
-```http
-GET /metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fvault.azure.net HTTP/1.1
-Metadata: true
-```
-
-**Artifact Produced:** IMDS Identity Token Request.
-
-</details>
-
-<details>
-<summary><strong>2. Azure IMDS returns an Azure AD token to the Agent</strong></summary>
-
-The metadata endpoint physically processes the request against the fabric ring and responds with an Azure AD Token (access token scoped implicitly to Azure services like Key Vault).
-
-```json
-{
-  "access_token": "eyJ0eXAi...",
-  "client_id": "a1b2c3d4-...",
-  "expires_in": "3599",
-  "expires_on": "1710003600",
-  "not_before": "1709999700",
-  "resource": "https://vault.azure.net",
-  "token_type": "Bearer"
-}
-```
-
-**Artifact Produced:** Azure AD Managed Identity Token.
-
-</details>
-
-<details>
-<summary><strong>3. Agent accesses Azure Key Vault using the Managed Identity token</strong></summary>
-
-With the Azure AD token secured in memory, the agent initiates an HTTPS GET explicitly to the Azure Key Vault secrets API. RBAC policy logic inside the vault verifies `Key Vault Secrets User` assignment mapped to the specific compute node identity.
-
-```http
-GET /secrets/ThirdPartyOAuthToken?api-version=7.4 HTTP/1.1
-Host: agent-ops-kv.vault.azure.net
-Authorization: Bearer eyJ0eXAi...
-```
-
-**Artifact Produced:** Key Vault Secret Retrieval Request.
-
-</details>
-
-<details>
-<summary><strong>4. Azure Key Vault returns a short-lived third-party access token</strong></summary>
-
-Key Vault decrypts the requested Secret, dynamically determining if aggressive auto-rotation was triggered by its backend polling logic. It returns the raw third-party access token string securely. If the Managed Identity lacks the correct RBAC bindings, Key Vault securely generates a `403 Forbidden` response and fires a high-severity evaluation log routing an unauthorized access alert directly to the Azure SOC.
-
-```json
-{
-  "value": "gho_xyz123...",
-  "id": "https://agent-ops-kv.vault.azure.net/secrets/ThirdPartyOAuthToken/...",
-  "attributes": {
-    "enabled": true,
-    "created": 1710000000,
-    "updated": 1710000000
-  }
-}
-```
-
-**Artifact Produced:** Decrypted Third-Party OAuth Token.
-
-</details>
-
-<details>
-<summary><strong>5. Agent calls the third-party API with the per-request token</strong></summary>
-
-The agent physically binds the retrieved `gho_xyz123...` credential to an outbound API call crossing into an external SaaS perimeter.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    RetrieveKV --> KeepInMemory
-    KeepInMemory --> InvokeSaaS
-    InvokeSaaS --> FlushMemory
-```
-
-</details>
-
-<details>
-<summary><strong>6. Third-party API returns the response to the Agent</strong></summary>
-
-The external SaaS evaluates the third-party token normally, entirely unaware of the Managed Identity architecture generating it, and executes the computational agent prompt request. If the short-lived token has expired organically, the SaaS terminates the boundary call with a `401 Unauthorized` challenge.
-
-</details>
-
-<details>
-<summary><strong>7. Agent logs operational telemetry under its Entra Agent ID via Azure Monitor</strong></summary>
-
-Telemetry output including timestamps, execution blocks, and memory signatures are shipped recursively and structurally logged under the explicit Entra Agent ID within Azure Monitor, unifying its behavior alongside human audit chains.
-
-```json
-{
-  "time": "2026-03-19T10:05:00Z",
-  "resourceId": "/SUBSCRIPTIONS/XYZ/RESOURCEGROUPS/AGENT-CORE/PROVIDERS/MICROSOFT.KEYVAULT/VAULTS/AGENT-OPS-KV",
-  "operationName": "SecretGet",
-  "identity": {
-    "claim": { "appid": "a1b2c3d4-..." }
-  },
-  "resultType": "Success"
-}
-```
-
-**Artifact Produced:** Azure Monitor Identity Audit Event.
-
-</details>
-<br/>
-
-**Architectural significance**: Entra Agent ID creates a **unified agent directory** — security teams manage agent identities alongside human users in the same Entra ID tenant with the same Zero Trust policies (conditional access, device posture, risk scoring). This directly implements [§6.3](#63-three-architectural-approaches-to-agent-identity) Approach C (Agent-as-First-Class-Identity) at the cloud platform level.
-
-**MCP connection**: Extends Azure APIM's facade AS pattern ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) — APIM can use the agent's Managed Identity for upstream MCP server authentication, while Key Vault provides the credential store that APIM's token transformation policies draw from.
-
-##### 11.4.2 GCP: Agent Identity and Secret Manager and Workload Identity Federation
-
-Google Cloud's current agent-identity story has moved into the Gemini Enterprise Agent Platform / Agent Engine documentation. Architecturally, it remains one of the clearest examples of a **lifecycle-bound per-agent identity**: Agent Identity provides SPIFFE-based cryptographic identity, unique X.509 certificates, certificate-bound access tokens, and audit visibility that can show both user and agent identities in delegated flows. Google also documents an **Agent Identity auth manager** plus DPoP and mTLS patterns through Agent Gateway. The caveat is maturity: the auth manager and several external-auth models are still marked Preview, so DR-0001 treats Google Cloud Agent Identity as a strong cloud-native design signal rather than a universally stable portability layer.
-
-| Component | Function | Status |
-|:----------|:---------|:-------|
-| **Agent Identity (Gemini Enterprise Agent Platform / Agent Engine)** | Per-agent SPIFFE-based identity with unique X.509 certificates, bound access tokens, delegated-flow audit context, and `effectiveIdentity`-style principal mapping | Core identity model documented; auth manager and several external-auth models remain Preview |
-| **Agent Gateway DPoP / mTLS** | Sender-constrains access tokens and gateway-mediated calls using DPoP and mutual TLS patterns | Documented with Preview caveats for some auth-manager flows |
-| **IAM allow / deny / Principal Access Boundary** | First-party authorization boundary for Google Cloud resources accessed by the agent principal | GA |
-| **Secret Manager** | Stores third-party API keys, OAuth client IDs, and OAuth client secrets; access can be granted directly to the agent principal | GA |
-| **Service accounts** | Shared-identity fallback when agent identity is not used; default service agent or custom service account | GA |
-| **Workload Identity Federation** | Keyless authentication for external workloads to GCP; adjacent to, but distinct from, Agent Engine's per-agent identity model | GA |
-| **VPC Service Controls** | Optional network perimeter to reduce data exfiltration risk around Google Cloud resources | GA |
-| **Cloud Logging** | Audit visibility for agent operations; delegated flows can show both user and agent identities | GA |
-
-**Credential and access flow**:
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Engine as ⚙️ Vertex AI<br/>Agent Engine
-    participant Agent as 🤖 Agent
-    participant IAM as 🔑 GCP IAM
-    participant CAA as 🛡️ Context-Aware<br/>Access (CAA)
-    participant SM as 📦 Secret Manager
-    participant VPC as 🧱 VPC Service<br/>Controls
-    participant API as 🌐 Third-Party API
-    participant Log as 📜 Cloud Logging
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Engine: Phase 1: Identity Provisioning
-    Engine->>Agent: Deploy with agent identity
-    Note right of Engine: Per-agent SPIFFE identity +<br/>managed x509 certificate
-    CAA->>Agent: Apply default CAA policy<br/>(mTLS + cert-bound tokens)
-    Note right of Log: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    alt First-party Google Cloud resources
-        rect rgba(46, 204, 113, 0.14)
-        Note right of Agent: Phase 2a: Native Google Cloud Access
-        Agent->>IAM: Access GCP API via ADC
-        IAM->>IAM: Evaluate allow / deny / PAB
-        VPC->>IAM: Optional perimeter guard
-        IAM-->>Agent: API access permitted or denied
-        Note right of Log: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-        end
-    else Third-party API access
-        rect rgba(241, 196, 15, 0.14)
-        Note right of Agent: Phase 2b: Secret Retrieval + External Auth
-        Agent->>SM: Retrieve API key or OAuth client secret<br/>using agent identity via ADC
-        SM-->>Agent: Secret material
-        Agent->>API: API call
-        API-->>Agent: Response
-        Note right of Log: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-        end
-    Note right of Log: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of Log: Phase 3: Audit Visibility
-    Agent->>Log: Emit runtime activity
-    Note over Log: Delegated flow: user + agent<br/>Autonomous flow: agent only
-    Note right of Log: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. Agent Engine deploys the agent with a unique, lifecycle-bound identity</strong></summary>
-
-When you create an Agent Engine instance with `identity_type` set to agent identity, Google provisions an identity tied to that **specific Agent Engine resource ID**. Google exposes it as `effectiveIdentity`, which embeds the immutable reasoning-engine resource path rather than a shared service account name.
-
-```json
-{
-  "spec": {
-    "effectiveIdentity": "agents.global.org-ORGANIZATION_ID.system.id.goog/resources/aiplatform/projects/PROJECT_ID/locations/LOCATION/reasoningEngines/AGENT_ENGINE_ID"
-  }
-}
-```
-
-**Artifact Produced:** Per-agent `effectiveIdentity`.
-
-</details>
-
-<details>
-<summary><strong>2. Context-Aware Access applies the default credential-binding policy to the agent</strong></summary>
-
-Google's docs say agent identity is based on **SPIFFE**, and that Google auto-provisions and manages an **x509 certificate** on the agent with the same identity. The same docs also state that a default **Context-Aware Access (CAA)** policy is applied unless the operator explicitly opts out. Google describes that policy as enforcing **mTLS** and **certificate-bound tokens** for the agent credentials.
-
-This is the most interesting part of Google's design: the credential is not just "a service account token for some workload." It is a per-agent, certificate-backed identity with a default credential-binding policy.
-
-**Artifact Produced:** Bound agent credential policy state.
-
-</details>
-
-<details>
-<summary><strong>3. In the first-party branch, the agent calls a Google Cloud API via ADC</strong></summary>
-
-For first-party Google Cloud APIs, the agent uses standard Application Default Credentials (ADC) backed by the agent identity.
-
-**Artifact Produced:** First-Party API Access Request.
-
-</details>
-
-<details>
-<summary><strong>4. IAM evaluates allow policy, deny policy, and Principal Access Boundary constraints</strong></summary>
-
-Google documents three relevant policy layers for these first-party accesses:
-
-- **Allow policies** — grant the agent access to a resource
-- **Deny policies** — explicitly block access even if allow bindings exist
-- **Principal Access Boundary (PAB)** — constrain what resources the agent may access despite other permissions
-
-This is cleaner than the earlier "attestation token" framing: the runtime identity is bound to the agent, but the authorization decision is still an ordinary Google IAM evaluation.
-
-**Artifact Produced:** IAM Policy Evaluation Context.
-
-</details>
-
-<details>
-<summary><strong>5. VPC Service Controls can add a perimeter guard around the IAM-mediated access path</strong></summary>
-
-When configured, VPC Service Controls provide an additional exfiltration-oriented boundary around the Google-hosted resources involved in the request path.
-
-**Artifact Produced:** Optional Perimeter Enforcement Decision.
-
-</details>
-
-<details>
-<summary><strong>6. IAM returns whether the Google Cloud API access is permitted or denied</strong></summary>
-
-The first-party branch concludes with a normal IAM authorization outcome delivered back to the agent.
-
-**Artifact Produced:** First-Party Authorization Decision.
-
-</details>
-
-<details>
-<summary><strong>7. In the third-party branch, the agent retrieves auxiliary credentials from Secret Manager</strong></summary>
-
-Google's current documented third-party pattern is not "mint a general GCP token and then impersonate a service account." It is more direct: store the **API key**, **OAuth client ID**, or **OAuth client secret** in **Secret Manager**, grant the **agent principal** access to that secret, and let the agent retrieve it at runtime using ADC under the agent identity.
-
-This is useful, but it is not a full third-party delegated-access platform in the Auth0 Token Vault sense. It is a secure credential-retrieval pattern built on the Google control plane.
-
-**Artifact Produced:** Secret Retrieval Request.
-
-</details>
-
-<details>
-<summary><strong>8. Secret Manager returns the requested secret material to the agent</strong></summary>
-
-The agent receives the API key, OAuth client secret, or other auxiliary credential needed for the external integration.
-
-**Artifact Produced:** Retrieved Secret Material.
-
-</details>
-
-<details>
-<summary><strong>9. The agent calls the third-party API with the retrieved credential material</strong></summary>
-
-The third-party branch then leaves Google's control plane and uses the retrieved secret material in the external API call.
-
-**Artifact Produced:** Third-Party API Request.
-
-</details>
-
-<details>
-<summary><strong>10. The third-party API returns its response to the agent</strong></summary>
-
-The external system completes the request and returns the response directly to the agent runtime.
-
-**Artifact Produced:** Third-Party API Response.
-
-</details>
-
-<details>
-<summary><strong>11. The agent emits runtime activity to Cloud Logging for delegated or autonomous audit visibility</strong></summary>
-
-Google's docs also give a useful audit signal that DR-0001 should preserve:
-
-- When the agent acts **on a user's behalf**, logs show **both the agent's and the user's identities**
-- When the agent acts **on its own authority**, logs show **only the agent's identity**
-
-That is stronger than a generic "agent audit log" claim because it draws a real distinction between delegated and autonomous execution.
-
-**Artifact Produced:** Runtime Audit Log Entry.
-
-</details>
-<br/>
-
-**Architectural significance**: Google Cloud's strongest current contribution is not "generic cryptographic attestation" in the abstract. It is the combination of: **(1)** a per-agent identity tied to the Agent Engine lifecycle, **(2)** SPIFFE-based identity with a managed x509 certificate, **(3)** default CAA enforcement for mTLS / certificate-bound tokens, and **(4)** audit logs that distinguish delegated user+agent activity from autonomous agent-only activity. That is a compelling architecture for first-party cloud deployments. But the same docs also say the feature is **Preview** and recommend it for **test environments only**, so it should be treated as an important directional signal rather than as a production-wide baseline.
-
-**MCP connection**: The practical lesson for MCP is the value of a **distinct runtime agent principal** with clear audit semantics. Google has not solved portable agent identity for the broader ecosystem; the identity is still GCP-specific. **Workload Identity Federation** remains the right primitive when *external* workloads need keyless access to GCP, but it is adjacent to — not a substitute for — Agent Engine's per-agent identity model. VPC Service Controls remain a useful defense-in-depth perimeter around Google-hosted MCP-adjacent resources.
-
-##### 11.4.3 AWS: Bedrock AgentCore and Secrets Manager and IAM Roles Anywhere
-
-AWS's credential delegation architecture is the most **component-rich** of the four, with AgentCore providing a purpose-built AI agent infrastructure layer:
-
-| Component | Function | Status |
-|:----------|:---------|:-------|
-| **Bedrock AgentCore Identity** | Manages agent authentication, token exchange, OBO flows; compatible with Cognito and Auth0 — agent code never accesses credentials directly | GA (late 2025) |
-| **Bedrock AgentCore Gateway** | Converts APIs/Lambda to MCP-compatible tools; enforces access policies per tool | GA |
-| **Bedrock AgentCore Runtime** | Serverless agent execution with Firecracker microVM isolation (same technology as Lambda/Fargate) | GA |
-| **Bedrock AgentCore Policy** | Real-time interception of agent tool calls; deterministic governance controls | GA (2026) |
-| **Secrets Manager** | Centralized secret storage with zero-touch rotation for third-party secrets (Salesforce, MongoDB, ServiceNow) | GA, zero-touch rotation re:Invent 2025 |
-| **IAM Roles Anywhere** | X.509 certificate-based role assumption for non-AWS workloads; FIPS 204 ML-DSA quantum-resistant signing (March 2026) | GA |
-
-**Credential delegation flow**:
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Runtime as ⚙️ AgentCore Runtime<br/>(Firecracker microVM)
-    %% lint-sequence: allow-disconnected Runtime
-    participant Agent as 🤖 Agent
-    participant Identity as 🔑 AgentCore<br/>Identity
-    participant GW as 🛡️ AgentCore<br/>Gateway
-    participant SM as 📦 Secrets Manager
-    participant Policy as 📜 AgentCore<br/>Policy
-    participant API as 🌐 External API /<br/>Lambda
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Runtime: Phase 1: Isolated Authentication
-    Note over Runtime,Agent: 1. Hardware-level isolation<br/>(Firecracker microVM)
-    Agent->>Identity: Authenticate
-    Note right of Identity: Agent code never<br/>accesses credentials directly
-    Identity-->>Agent: Token (managed)
+    participant A as Agent Runtime
+    participant G as MCP Gateway
+    participant P as Policy Authority
+    participant V as Connection Vault
+    participant API as Provider API
+
+    A->>G: tools/call + workload proof + user/task context
+    G->>P: Evaluate agent, user, tool, resource, and transaction
+    P-->>G: Permit + constraints + decision_id
+    G->>V: Request bounded use(connection_id, decision_id)
+    V->>API: Refresh or exchange as needed and invoke bounded operation
+    API-->>V: Operation result + provider operation ID
+    V-->>G: Sanitized result + credential_use_id
+    G-->>A: Tool result + correlation ID (no provider token)
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of GW: Phase 2: Gateway Interception & Policy
-    Agent->>GW: Tool call (MCP format)
-    Note right of GW: Converts APIs/Lambda →<br/>MCP-compatible tools
-    GW->>Policy: Real-time interception
-    Policy-->>GW: ✅ Allowed
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW: Phase 3: Credential Resolution
-    alt Third-party secrets
-        GW->>SM: Retrieve secret
-        Note right of SM: Lambda 4-step rotation:<br/>create → update → test → promote
-        SM-->>GW: Rotated credential
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of GW: Phase 4: Authorized Execution
-    GW->>API: Forward request
-    API-->>GW: Response
-    GW-->>Agent: MCP response
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of API: ⠀
 ```
 
 <details>
-<summary><strong>1. Agent authenticates to AgentCore Identity from the Firecracker microVM</strong></summary>
+<summary><strong>1. Agent Runtime sends the originating tool call to the MCP Gateway</strong></summary>
 
-The agent executable spins up inside a strict Firecracker microVM. It explicitly authenticates strictly to the internal AgentCore Identity component, leveraging hypervisor-bound attestation that entirely obfuscates literal secrets from the execution layer.
+The request identifies the admitted workload, user or organizational authority, tool, resource, and transaction context. It carries no provider refresh token.
 
-</details>
-
-<details>
-<summary><strong>2. AgentCore Identity returns a managed token to the Agent</strong></summary>
-
-AgentCore generates a structural representation of the agent's identity via a managed token. This token behaves exclusively internally across the AWS AgentCore ecosystem boundaries (Gateway, Policy, SM).
+**Illustrative request context**:
 
 ```json
 {
-  "agent_id": "bedrock-agent-core-9a8b",
-  "internal_token": "aws_managed_v1_...",
-  "ttl": 300
+  "tool": "crm.update_case",
+  "agent_identity_id": "agent:tenant-a:case-worker-17",
+  "runtime_id": "runtime:tenant-a:71aa…",
+  "user_subject": "user:29f1…",
+  "connection_id": "conn:crm:8842",
+  "transaction_id": "task:case-3108"
 }
 ```
 
-**Artifact Produced:** AgentCore Internal Identity Token.
+**Boundary preserved**: identity and a connection handle are inputs to authorization; neither is the provider credential.
 
 </details>
 
 <details>
-<summary><strong>3. Agent sends a tool call in MCP format to the AgentCore Gateway</strong></summary>
+<summary><strong>2. MCP Gateway requests a policy decision</strong></summary>
 
-The agent generates a raw JSON-RPC transmission structurally matching the MCP specification and routes it securely to the proprietary AgentCore Gateway.
+The gateway resolves the current admission and authority epochs, then asks whether this actor may cause this provider action now.
+
+**Artifact produced**: a decision request containing the exact tool, resource, action, data classification, and transaction ceiling.
+
+</details>
+
+<details>
+<summary><strong>3. Policy Authority returns a constrained permit</strong></summary>
+
+The decision binds the permitted provider operation, connection, fields, time window, and request hash. It does not release material.
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": "1",
-  "method": "tools/call",
-  "params": {
-    "name": "aws_s3_read",
-    "arguments": {
-      "bucket": "financial-data"
-    }
-  }
+  "decision_id": "dec:01J3…",
+  "effect": "permit",
+  "connection_id": "conn:crm:8842",
+  "allowed_operation": "cases.update",
+  "expires_at": "2026-07-24T10:02:00Z"
 }
 ```
 
-**Artifact Produced:** Encapsulated MCP Tool Request.
+**Failure rule**: a stale, mismatched, or broader decision fails closed. A valid workload identity does not override withdrawn user, organizational, or task authority; on deny, the gateway does not call the vault and no material is released or exercised.
 
 </details>
 
 <details>
-<summary><strong>4. AgentCore Gateway forwards the tool call to AgentCore Policy for governance</strong></summary>
+<summary><strong>4. MCP Gateway asks the Connection Vault for bounded use</strong></summary>
 
-AgentCore Gateway actively intercepts the transmission, preventing it from touching underlying execution hardware, and pushes the entire payload boundary into the AgentCore Policy tier for real-time compliance evaluation.
+The request includes the decision ID and transaction context. The vault verifies that the decision authorizes this connection and operation before it accesses renewal material.
+
+**Trust boundary**: the gateway can cause a bounded use, but it cannot export the stored refresh token.
 
 </details>
 
 <details>
-<summary><strong>5. AgentCore Policy approves the tool call</strong></summary>
+<summary><strong>5. Connection Vault obtains a derivative if needed and invokes the Provider API</strong></summary>
 
-The Policy Engine checks parameters analytically, confirming the agent is mapped appropriately against the requested tool string and arguments. It responds `✅ Allowed` ensuring no logic bypassing occurred. If the parameter validation organically fails, Policy issues a strict deny, prompting the Gateway to sever the request with a `403 Forbidden` JSON-RPC response and decisively logging an AWS CloudTrail violation.
+The vault uses the provider grant under its documented client, audience, and token-binding rules, then presents the derivative directly to the Provider API. A provider error, revoked grant, or required re-consent returns a typed failure; it is not hidden behind an indefinite retry.
+
+**Trust boundary**: neither the reusable grant nor the derivative crosses into the agent or gateway process. The durable artifact is a credential-use record, never the token value.
+
+</details>
+
+<details>
+<summary><strong>6. Provider API returns the operation result to the Connection Vault</strong></summary>
+
+The resource server remains authoritative at use time. Its response distinguishes complete, pending, and rejected operations and supplies a provider operation ID where durable work exists.
+
+**Failure interpretation**: `401`, `403`, binding failure, or provider-side revocation invalidates the local derivative and triggers bounded re-evaluation, not an unlimited refresh loop.
+
+</details>
+
+<details>
+<summary><strong>7. Connection Vault returns a sanitized result to the MCP Gateway</strong></summary>
+
+The vault removes credential material and returns the business response, provider operation ID, and `credential_use_id`. A queued operation is not labeled complete merely because the provider returned `202 Accepted`.
+
+**Artifact produced**: credential class, use time, expiry, connection, decision, provider operation ID, and observed state.
+
+</details>
+
+<details>
+<summary><strong>8. MCP Gateway returns a credential-free tool result</strong></summary>
+
+The agent receives the business result and correlation ID. Provider access tokens, refresh tokens, vault metadata unnecessary for the task, and credential-bearing error bodies are removed.
+
+**Lifecycle handoff**: the custody record and provider operation ID pass to [§12](#12-credential-state-revocation-and-termination-convergence) for expiry, invalidation, cancellation, and incident termination.
+
+</details>
+
+#### 11.8 Dated Implementation Evidence and Product Limitations
+
+The following first-party examples were checked on **2026-07-24**. They illustrate topology choices, not rankings:
+
+| Product/project | Demonstrated pattern | Limitation to preserve |
+|:----------------|:---------------------|:-----------------------|
+| [Google Cloud Agent Identity](https://docs.cloud.google.com/iam/docs/agent-identity-overview?hl=en) | Separates agent/workload identity, user-delegated or agent-owned authority, an auth manager, and gateway-mediated credential use | Auth-manager and several external-authentication modes are preview; “raw credential withheld” applies to the documented topology |
+| [Amazon Bedrock AgentCore Identity](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/get-workload-access-token.html) | Separates workload access tokens, user binding, vault custody, and [outbound provider tokens](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html) | Provider-side revocation may be undetectable and a returned cached token is not guaranteed to remain valid |
+| [HashiCorp Vault leases](https://developer.hashicorp.com/vault/docs/concepts/lease) | Dynamic credentials have lease IDs, TTLs, renewal, and revocation | Revocation may be queued; [force revocation](https://developer.hashicorp.com/vault/api-docs/system/leases) can ignore backend errors and cannot guarantee provider cleanup |
+| [SPIFFE Workload API](https://spiffe.io/docs/latest/spiffe-specs/spiffe_workload_api/) | Streams workload credentials, bundles, and relevant updates to authorized callers | Short lifetime does not make material intrinsically non-exportable; caller authorization and runtime isolation remain essential |
+
+#### 11.9 Failure Handling, Credential-Oracle Prevention, and Lifecycle Handoff
+
+A broker becomes a credential oracle when a caller can cause arbitrary signing, token release, audience selection, field substitution, or retry. Prevent that by binding every use to a current decision, canonical provider operation, immutable connection, bounded transaction, and caller/admission epoch. Rate and budget controls apply per agent, user, connection, provider, and operation—not only per HTTP client.
+
+Each use emits a custody record:
 
 ```json
 {
-  "eventSource": "bedrock.amazonaws.com",
-  "eventName": "InvokeAgentTool",
-  "userIdentity": {
-    "arn": "arn:aws:bedrock:us-east-1:123:agent/bedrock-agent-core-9a8b"
-  },
-  "requestParameters": {
-    "toolName": "aws_s3_read"
-  },
-  "responseElements": {
-    "policyDecision": "Allow"
-  }
+  "credential_use_id": "cuse:01J3…",
+  "credential_class": "delegated_user_resource_token",
+  "issuer": "https://accounts.provider.example",
+  "subject": "user:29f1…",
+  "actor": "agent:tenant-a:case-worker-17",
+  "workload": "spiffe://tenant-a.example/agent/case-worker",
+  "audience": "https://api.provider.example",
+  "material_custodian": "vault:connections",
+  "use_interface": "gateway-proxy",
+  "holder_presenter": "gateway:tenant-a",
+  "derivation_right": "refresh_to_access_token",
+  "renewal_rule": "provider_grant_and_policy_current",
+  "expires_at": "2026-07-24T10:10:00Z",
+  "revocation_mechanism": "provider_and_vault_specific",
+  "purge_owner": "credential-incident-controller",
+  "decision_id": "dec:01J3…",
+  "termination_epoch": 20
 }
 ```
 
-**Artifact Produced:** CloudTrail Policy Evaluation Record.
+§12 consumes this record. It determines what can be revoked or introspected, which cached copies and sessions depend on the credential, how sender constraints affect replay, and what evidence is required before the credential plane is declared converged.
 
-</details>
+---
 
-<details>
-<summary><strong>6. AgentCore Gateway retrieves the required credential from Secrets Manager</strong></summary>
+### 12. Credential State, Revocation, and Termination Convergence
 
-Triggered internally by the Gateway, it retrieves explicit third-party configurations directly from AWS Secrets Manager.
+> **See also**: [§7](#7-agent-definition-identity-and-governance-lifecycles) (correlated lifecycle objects), [§10](#10-authorization-continuity-and-durable-tasks) (refresh-token handling), [§11](#11-credential-custody-and-release-patterns) (credential custody and release), [§13](#13-gateway-mediated-mcp-architecture) (gateway enforcement), and [§17](#17-authorization-across-mcp-primitives-and-durable-state) (durable handles and authority)
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    SecretUpdate --> TriggerLambda
-    TriggerLambda --> IssueNewKey
-    IssueNewKey --> SwapOldKey
-```
+Expiry, revocation, status, security events, cancellation, and termination answer different questions. A token may expire while its grant remains active; a grant may be withdrawn while a self-contained token remains cryptographically valid; a task may be logically cancelled while its executor continues; and a provider may accept a cancellation without reversing an effect. The architecture must name the object, action, observation, and residual window.
 
-</details>
+#### 12.1 Expiry, Revocation, Signals, and Termination Are Different
 
-<details>
-<summary><strong>7. Secrets Manager returns the rotated credential to the Gateway</strong></summary>
+| Control | Object changed or observed | What it establishes | What it does not establish |
+|:--------|:---------------------------|:--------------------|:---------------------------|
+| **Expiry** | Token, credential lease, session, task, or grant | The named object passed its configured time boundary | Other objects were revoked or effects stopped |
+| **Revocation** | Token, grant, lease, key, or product-specific handle | The relevant authority accepted/applied its mechanism | Instant global invalidation or downstream rollback |
+| **Introspection/status** | Presented token or status-list entry | Authoritative or profile-defined status for that object at query time | Identity, runtime, session, task, and effect state |
+| **Security event** | Signed event claim about a subject | Issuer asserted a state change | Receiver applied a prescribed action |
+| **Cancellation** | Request, task, continuation, or provider operation | Cancellation was requested or logical state changed | Executor stopped or side effects were compensated |
+| **Termination convergence** | Dependency graph of all relevant objects | Required terminal/bounded states were observed or exceptions recorded | That termination was atomic |
 
-The Gateway pulls exactly the newly promoted Secret mapped via Lambda 4-step rotation. This entirely removes the burden of managing credential pipelines from the agent itself.
+The control plane uses a monotonic **termination epoch**. Every new admission, session, decision, credential use, and task snapshot carries the current epoch; artifacts from an earlier epoch cannot authorize recovery or resumption.
 
-</details>
+#### 12.2 Exposure-Window Controls
 
-<details>
-<summary><strong>8. AgentCore Gateway forwards the authorized request to the external API</strong></summary>
+Short lifetimes reduce—not eliminate—the period in which stale or stolen material can work:
 
-The Gateway actively recompiles the underlying protocol constraints. If the call was to an external API like Snowflake or MongoDB, it directly injects the secret material and transmits over HTTPS.
+| Control | Exposure bounded | Operational obligation |
+|:--------|:-----------------|:-----------------------|
+| Short access-token lifetime | Replay window for one token | Renewal path, clock handling, outage behavior |
+| Refresh-token rotation | Replay detection for public-client refresh tokens | Reuse detection, token-family response, atomic storage update |
+| Sender-constrained refresh token | Use from an unauthorized key holder | Key custody, rotation, recovery |
+| Refresh-token inactivity timeout | Dormant renewal path | Activity definition and explicit expiry response |
+| Authorization expiry | Underlying permission to mint/use derivatives | Re-authorization; never infer renewal from refresh-token possession |
+| Credential/lease TTL | Backend or broker credential lifetime | Backend cleanup verification and renewal ownership |
 
-</details>
+[RFC 9700](https://www.rfc-editor.org/rfc/rfc9700) requires public-client refresh tokens to use sender constraint or rotation for replay detection. [RFC 7009](https://www.rfc-editor.org/rfc/rfc7009) defines token revocation at an authorization server, while related-token handling depends on the implementation and token family.
 
-<details>
-<summary><strong>9. External API returns the response to the Gateway</strong></summary>
+The active OAuth working-group draft [OAuth 2.0 Refresh Token and Authorization Expiration](https://datatracker.ietf.org/doc/draft-ietf-oauth-refresh-token-expiration/) distinguishes refresh-token timeout from authorization expiry and states that a refresh token does not grant or renew authorization. It remains an Internet-Draft; use its distinction as monitor-stage guidance, not as a published protocol requirement.
 
-The external resource evaluates the injected valid API token conventionally and returns its standard JSON stream.
+#### 12.3 Sender Constraint and Key-Custody Boundaries
 
-</details>
-
-<details>
-<summary><strong>10. AgentCore Gateway returns the MCP-formatted response to the Agent</strong></summary>
-
-The Gateway catches the raw inbound API response, structurally mutates it back into an explicit JSON-RPC MCP structure, and feeds the response string directly into the Agent's waiting STDIN loop.
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "result": {
-    "content": [
-      {
-        "type": "text",
-        "text": "File read successfully."
-      }
-    ]
-  }
-}
-```
-
-**Artifact Produced:** Gateway JSON-RPC Response Transmutation.
-
-This payload reproduces AWS's documented translation shape. Its missing `resultType` is not evidence of the `2026-07-28` response contract; current-contract support remains unverified in the available AWS product evidence.
-
-</details>
-<br/>
-
-**Architectural significance**: The **three-layer control** model (Identity controls *who can act*, Gateway controls *what tools are available*, Policy controls *how tools are used*) is the most granular separation of concerns among the four providers. Firecracker microVM isolation (same technology as Lambda and Fargate) provides hardware-level agent sandboxing — architecturally comparable to Docker's container isolation ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)) but at the hypervisor level.
-
-**MCP connection**: AgentCore Gateway directly implements MCP protocol compatibility — it converts existing AWS APIs and Lambda functions into MCP-format tools. This makes AgentCore the only cloud-native platform with native MCP tool gateway capability (complementing the purpose-built MCP gateways surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)).
-
-**Quantum-readiness**: IAM Roles Anywhere's March 2026 support for FIPS 204 ML-DSA (module-lattice-based digital signatures, per NIST PQC standards and RFC 9881) makes it the first workload identity service to support post-quantum X.509 certificate signing — future-proofing agent credential chains against quantum attacks on current ECDSA/RSA signatures.
-
-##### 11.4.4 HashiCorp Vault: Dynamic Secrets and Project Infragraph
-
-HashiCorp Vault represents the **infrastructure-agnostic** credential management approach — it works across all clouds, on-premises, and hybrid environments:
-
-| Component | Function | Status |
-|:----------|:---------|:-------|
-| **Dynamic Secrets Engine** | Generates just-in-time credentials with per-request TTLs (minutes) and lease-based auto-revocation | GA |
-| **SPIFFE/SVID Integration** | Workload identity via SPIFFE SVIDs + Vault Secrets Operator (VSO) for Kubernetes | GA (Enterprise 1.21+, late 2025) |
-| **Dynamic Secrets Plugins** | Per-provider credential generation (database, cloud, OpenAI — PoC demonstrated mid-2025) | GA (core), PoC (OpenAI) |
-| **Project Infragraph** | Trusted data substrate for AI agents — context-aware, role-scoped credential access | Private beta Dec 2025 |
-| **KV v2 + Auto-Rotation** | Static secret storage with version history and automated rotation via policies | GA |
-
-**Dynamic secrets model**:
+[DPoP](https://www.rfc-editor.org/rfc/rfc9449) binds a proof and, when used, an access token to a public key. [OAuth mTLS](https://www.rfc-editor.org/rfc/rfc8705) can bind an access token to the certificate/key used on resource requests. Both reduce bearer-token replay, but neither revokes the underlying grant or proves that the client/workload is trusted for the requested action.
 
 ```mermaid
 ---
@@ -7653,707 +7601,110 @@ config:
     noteBkgColor: "transparent"
     noteBorderColor: "transparent"
   sequence:
-    messageAlign: left
-    noteAlign: left
     actorMargin: 250
 ---
 sequenceDiagram
     autonumber
-    participant Agent as 🤖 Agent
-    participant Vault as 🔐 HashiCorp Vault<br/>(Dynamic Secrets)
-    participant DB as 🗄️ Target System<br/>(DB / API / Cloud)
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Dynamic Credential Generation
-    Agent->>Vault: Request credential<br/>(role + TTL)
-    Note right of Vault: Generate just-in-time credential<br/>with 5-minute TTL
-    Vault->>DB: Create ephemeral credential
-    DB-->>Vault: Credential created
-    Vault-->>Agent: Fresh credential + lease ID
-    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Agent: Phase 2: Ephemeral Execution
-    Agent->>DB: Use credential
-    DB-->>Agent: Response
-    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(231, 76, 60, 0.14)
-    Note right of Vault: Phase 3: Automated Expiration
-    Note right of Vault: 5. TTL expires (5 min)
-    Vault->>DB: Auto-revoke credential
-    Note right of Vault: No cleanup needed —<br/>self-destructing by design
-    Note right of DB: ⠀
-    Note right of DB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. Agent requests a dynamic credential from Vault with a specified role and TTL</strong></summary>
-
-The agent executes an active HTTPS POST to the Vault dynamic secrets engine representing an atomic demand for temporary state execution mapped under the `mcp-agent-readonly` DB role.
-
-```http
-POST /v1/database/creds/mcp-agent-readonly HTTP/1.1
-Host: vault.core.internal:8200
-X-Vault-Token: s.xyz123...
-
-{
-  "ttl": "5m"
-}
-```
-
-**Artifact Produced:** Dynamic Secret Generation Request.
-
-</details>
-
-<details>
-<summary><strong>2. Vault generates a just-in-time credential on the target system</strong></summary>
-
-Vault immediately opens a Postgres/MySQL master administrative connection to the target system and explicitly executes the schema modification commands to spawn a new synthetic identifier.
-
-```sql
-CREATE ROLE "v-mcp-agent-xyz123" WITH LOGIN PASSWORD 'ComplexAutoGeneratedPassword123!';
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO "v-mcp-agent-xyz123";
-ALTER ROLE "v-mcp-agent-xyz123" VALID UNTIL '2026-03-19 18:05:00';
-```
-
-**Artifact Produced:** Substrate JIT Credential Injection.
-
-</details>
-
-<details>
-<summary><strong>3. Target system confirms the credential was created successfully</strong></summary>
-
-The DB engine responds with successful completion codes, ensuring the credential propagates completely across backend DB shards before Vault unblocks.
-
-</details>
-
-<details>
-<summary><strong>4. Vault returns the fresh credential and lease ID to the Agent</strong></summary>
-
-Vault replies to the incoming POST Request, physically providing the Agent with the freshly compiled network coordinates and lease structures.
-
-```json
-{
-  "lease_id": "database/creds/mcp-agent-readonly/abcdef123456",
-  "lease_duration": 300,
-  "renewable": true,
-  "data": {
-    "username": "v-mcp-agent-xyz123",
-    "password": "ComplexAutoGeneratedPassword123!"
-  }
-}
-```
-
-**Artifact Produced:** Vault Dynamic Credential Lease.
-
-</details>
-
-<details>
-<summary><strong>5. Agent uses the ephemeral credential against the target system</strong></summary>
-
-The agent incorporates the dynamically granted username and password implicitly into its SQL connection framework.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    ParseJSON --> InjectCredentials
-    InjectCredentials --> ConnectDB
-    ConnectDB --> ExecuteQuery
-```
-
-</details>
-
-<details>
-<summary><strong>6. Target system returns the response to the Agent</strong></summary>
-
-The Database processes the SELECT string, verifies the valid credentials mapping tightly around the unique string `v-mcp-agent-xyz123` generated strictly 30 seconds earlier, and returns the result tuples. If the lease expired prior to query execution, the Database rejects the payload with a `401 Unauthorized` or Invalid Credentials exception, triggering immediate SIEM alerts for potentially anomalous persistent connections.
-
-</details>
-
-<details>
-<summary><strong>7. Vault automatically revokes the credential when the TTL expires</strong></summary>
-
-Vault's strictly enforced internal clock initiates a sweeping garbage-collection thread precisely at the 5-minute lease expiry, terminating any active sessions and cascading physical revocation.
-
-```sql
-REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM "v-mcp-agent-xyz123";
-DROP ROLE IF EXISTS "v-mcp-agent-xyz123";
-```
-
-**Artifact Produced:** Automated TTL Substrate Revocation.
-
-</details>
-<br/>
-
-Unlike Patterns A–E where credentials have a lifecycle that must be managed, Vault's dynamic secrets are **ephemeral by design** — they exist only for the duration of the agent's task and self-destruct. This eliminates phases 3 (storage), 6 (revocation), and 7 (purge) from the credential lifecycle ([§11.3](#113-credential-lifecycle-for-ai-agent-delegation)) entirely.
-
-**Architectural significance**: Vault's model is **orthogonal** to the CIAM-native approaches (Auth0 Token Vault, Entra Agent ID) — it operates at the **infrastructure layer** rather than the identity layer. An enterprise deployment may use Auth0 Token Vault for user-delegated third-party API credentials (Pattern B) while simultaneously using HashiCorp Vault for infrastructure secrets like database passwords and cloud API keys (dynamic secrets).
-
-**MCP connection**: Vault is gateway-agnostic — any MCP gateway can integrate Vault for secret retrieval. Project Infragraph's AI agent data substrate aims to provide the "trusted context" that agents need to make secure credential requests, connecting to the TBAC (Task-Based Access Control) patterns in [§16](#16-task-based-access-control-tbac).
-
-##### 11.4.5 Cloud-Native Platform Synthesis
-
-| Dimension | Azure | GCP | AWS | HashiCorp Vault |
-|:----------|:------|:----|:----|:---------------|
-| **Agent identity model** | Entra Agent ID (first-class identity in unified directory) | Agent identity (Preview; per-agent SPIFFE principal + managed x509) | AgentCore Identity (token exchange, multi-IdP) | SPIFFE SVID (workload attestation) |
-| **Credential store** | Key Vault | Secret Manager | Secrets Manager | Dynamic Secrets Engine |
-| **Rotation model** | Managed Identity auto-rotate + Key Vault policy | Google-managed per-agent x509 + default CAA; auxiliary third-party secrets still managed separately | Zero-touch rotation (4-step Lambda) for 3rd-party | Auto-expire on TTL (minutes) |
-| **Third-party API delegation** | Via vault-stored OAuth tokens | Secret Manager retrieval; delegated OAuth still requires custom frontend work | Zero-touch rotation for Salesforce/MongoDB/ServiceNow | Dynamic secrets plugins (OpenAI PoC) |
-| **MCP-specific integration** | APIM facade AS ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) + token transform | Workload Identity Federation (cross-cloud) | AgentCore Gateway (native MCP tool conversion) | Gateway-agnostic |
-| **Agent isolation** | Network (VNet, Private Endpoints) | Network (VPC Service Controls, CAA) | Hardware (Firecracker microVM) | N/A (infrastructure layer only) |
-| **Unique capability** | Unified human + agent directory | Lifecycle-bound per-agent principal + default CAA + dual user/agent audit logging | Native MCP Gateway + microVM isolation + quantum-resistant IAM | Ephemeral secrets (no lifecycle needed) |
-| **Credential lifecycle coverage** | 7/8 ([§11.3.1](#1131-lifecycle-coverage-by-implementation)) | 7/8 directional, but agent identity itself remains Preview/test-only | 7/8 ([§11.3.1](#1131-lifecycle-coverage-by-implementation)) | 5/8 (phases 3, 6, 7 eliminated by design) |
-| **[§7.4](#74-credential-architecture-for-ai-agents) credential model** | Managed Identity (Secretless variant) | Per-agent SPIFFE identity + managed x509 + secret retrieval for auxiliary credentials | IAM Roles Anywhere (PKI-Based) | Dynamic Secrets (Ephemeral) |
-| **[§11.1](#111-credential-delegation-pattern-taxonomy) pattern** | Pattern E | Pattern E | Pattern E | Pattern E (infrastructure variant) |
-| **Vendor lock-in** | Hard — agent identities in Entra SaaS only, no self-hosted option, not portable ([§A.4.2](#a42-vendor-lock-in-and-identity-portability-analysis)) | Hard — agent identity is GCP-native; WIF helps external workloads access GCP but does not export the agent identity | Medium — AgentCore supports multi-IdP token exchange (Okta, Entra, PingOne, custom OIDC) | ❌ None — vendor-neutral, any infrastructure |
-| **Identity portability** | ❌ Agent identities non-exportable; delegated mode requires user principals in same Entra tenant | ❌ Agent identity itself is not portable; only adjacent workload federation is portable | 🟡 Multi-IdP support reduces lock-in; identities still managed in AWS | ✅ SPIFFE SVIDs portable to any infrastructure |
-| **Cross-IdP delegation** | ❌ No composite user(external)+agent(Entra) tokens; users must be imported to Entra | 🟡 Custom frontend + OAuth can bridge user-delegated flows, but agent identity does not itself solve cross-IdP composition | ✅ Native multi-IdP token exchange for agent credentials | ✅ Trust domain federation across IdPs |
-
-The synthesis table hides an important boundary: **agent identity**, **workload identity**, **credential custody**, and **user delegation** are different planes. Cloud platforms are strongest on workload identity and first-party IAM; they become delegation platforms only when they also preserve the user, agent, consent, and downstream resource relationship in the credential flow.
-
-| Plane | What It Proves | Typical Owner | Examples | What It Does Not Prove |
-|:------|:---------------|:--------------|:---------|:-----------------------|
-| **Agent identity** | Which named agent or agent blueprint is accountable for behavior | IdP, agent platform, or registry | Entra Agent ID, GCP Agent Identity, A2A Agent Card, DID/VC agent identity | That a specific user authorized this action |
-| **Workload identity** | Which runtime, pod, VM, container, or service account is making the call | Cloud IAM, SPIFFE/WIMSE, Kubernetes, service mesh | Managed Identity, Workload Identity Federation, IAM Roles Anywhere, SPIFFE SVID | That the workload is acting within a user-approved delegation |
-| **Credential custody** | Where long-lived provider credentials or secrets are stored and rotated | Vault, gateway, secret manager, credential manager | Auth0 Token Vault, APIM Credential Manager, Docker secrets, Key Vault, Secret Manager, Vault | That the retrieved credential is scoped to the right task unless policy binds it |
-| **Delegation broker** | How user authority becomes a bounded tool/API credential for this execution | Authorization server, gateway, or identity platform | RFC 8693 Token Exchange, XAA/Identity Assertion, APIM `identity-type="jwt"`, Red Hat AuthPolicy, LiteLLM verify-and-re-sign | That the resulting authority will be revoked across every gateway without event propagation |
-| **Continuous enforcement** | Whether the still-running task/session remains allowed after risk, role, or device changes | Gateway SSF receiver, policy engine, SIEM/SOAR | CAEP/SSF, Entra CAE, gateway revocation bus, task authority record | That the original consent was valid without a stored consent/approval artifact |
-
----
-
-### 12. Credential Security and Revocation
-
-Where [§11](#11-credential-delegation-patterns) addresses *how* credentials are delegated to agents, this chapter addresses what happens *after* delegation: how credentials are secured against theft ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP sender-constraining), how revocation propagates across distributed gateway topologies ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)), and how the Shared Signals Framework enables real‑time credential lifecycle events ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)).
-
-> **Important — Revocation latency is part of the security model**
->
-> If revoked credentials remain usable across other gateway instances for minutes, the system has not implemented effective revocation. Distributed propagation time is a design constraint, not an operational footnote.
-
-#### 12.1 Credential Revocation Architecture for Distributed MCP Gateways
-
-The remaining operational challenge after Rec 21 is **cross-gateway revocation propagation** — ensuring all distributed gateway instances invalidate a revoked refresh token within the deployment's risk-bound interval. [OQ 32](#oq-32) retains the unresolved behavior for events that arrive during in-flight work. The challenge is amplified in MCP deployments where multiple gateways serve the same agent across regions or availability zones.
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant User as 👤 User
-    participant Dashboard as 🖥️ Dashboard / App
-    participant AS as 🔑 Authorization Server
-    participant Bus as 🚌 Event Bus
-    participant GW1 as 🛡️ Gateway-1
-    participant GW2 as 🛡️ Gateway-2
-    participant Agent as 🤖 Agent
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of User: Phase 1: Revocation Initiation
-    User->>Dashboard: Revoke agent access
-    Dashboard->>AS: POST /revoke (RFC 7009)
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of AS: Phase 2: Event Distribution
-    AS->>Bus: Publish revocation event
-    par Push to all gateways
-        Bus->>GW1: Token revoked
-        Bus->>GW2: Token revoked
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW1: Phase 3: Global Cache Invalidation
-    GW1->>GW1: Execute invalidation<br/>Invalidate cache
-    GW2->>GW2: Execute invalidation<br/>Invalidate cache
-    Note right of Agent: ⠀
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(231, 76, 60, 0.14)
-    Note right of Agent: Phase 4: Enforcement
-    Agent->>GW1: Request with revoked token
-    GW1-->>Agent: 401 Unauthorized
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. User requests agent access revocation via the Security Dashboard</strong></summary>
-
-The human user interacts with the security dashboard to proactively withdraw consent for a specific agent. This translates into a formalized revocation intent, capturing the agent's identifier and the user's active session, and connecting instantly into the consent lifecycle.
-
-```json
-{
-  "action": "revoke_consent",
-  "client_id": "agent-travel-v2",
-  "reason": "Task completed successfully"
-}
-```
-
-**Artifact Produced:** Consent Revocation Intent.
-
-</details>
-
-<details>
-<summary><strong>2. Security Dashboard transmits the RFC 7009 revocation payload to the Authorization Server</strong></summary>
-
-The dashboard executes a `POST /revoke` strictly adhering to RFC 7009 (OAuth 2.0 Token Revocation). Targeting the refresh token is architecturally superior as it guarantees the agent cannot mint fresh access tokens, suffocating the delegation chain safely.
-
-```http
-POST /revoke HTTP/1.1
-Host: auth.example.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
-
-token=mF_9.B5f-4.1JqM&token_type_hint=refresh_token
-```
-
-**Artifact Produced:** RFC 7009 Token Revocation Request.
-
-</details>
-
-<details>
-<summary><strong>3. Authorization Server publishes a revocation event to Event Bus</strong></summary>
-
-Upon processing the revocation, the AS produces an immutable revocation event message and broadcasts it across a highly available pub/sub topic (e.g., Kafka or Redis). This is the architectural "Push" strategy—the AS takes the active role in broadcasting state instead of passively awaiting introspection.
-
-```json
-{
-  "event": "token_revoked",
-  "timestamp": "2026-03-19T10:05:00Z",
-  "payload": {
-    "token_hash": "a1b2c3d4e5f6...",
-    "client_id": "agent-travel-v2",
-    "sub": "user:alice"
-  }
-}
-```
-
-**Artifact Produced:** Kafka/Redis Revocation Broadcast Event.
-
-</details>
-
-<details>
-<summary><strong>4. Event Bus delivers the revocation event to Gateway-1</strong></summary>
-
-The Event Bus asynchronously pushes the serialized message into Gateway-1's listening queue. The delivery is effectively instant, but Gateway-1 must ensure idempotent processing to discard duplicate deliveries safely.
-
-</details>
-
-<details>
-<summary><strong>5. Event Bus delivers the revocation event to Gateway-2</strong></summary>
-
-Simultaneously, Gateway-2 (potentially in a geographically distant AWS or GCP region) receives the exact same event payload. The push model compresses the global vulnerability window from minutes to milliseconds.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    EventBus --> GW1_Queue
-    EventBus --> GW2_Queue
-    GW1_Queue --> CacheInvalidation
-    GW2_Queue --> CacheInvalidation
-```
-
-</details>
-
-<details>
-<summary><strong>6. Gateway-1 executes local cache invalidation</strong></summary>
-
-Gateway-1 parses the inbound event and forcibly evicts all structural references to the revoked token hash from its high-speed Redis or memory cache. It natively flags the entity in local memory as hostile.
-
-</details>
-
-<details>
-<summary><strong>7. Gateway-2 executes local cache invalidation</strong></summary>
-
-Gateway-2 independently purges its own cache mirroring Gateway-1. The total latency spanning the dashboard click to global revocation is entirely bound by Event Bus transit speeds, achieving consistent cross-regional termination.
-
-</details>
-
-<details>
-<summary><strong>8. Agent attempts to execute an MCP tool call against Gateway-1 using the revoked token</strong></summary>
-
-Unaware of the revocation, the agent continues executing its routine logic and fires a standard `tools/call` JSON-RPC payload incorporating the revoked Bearer token into Gateway-1.
-
-</details>
-
-<details>
-<summary><strong>9. Gateway-1 forcefully rejects the unauthorized request with a 401 Unauthorized response</strong></summary>
-
-Gateway-1 consults its local cache explicitly, identifies the token hash as actively revoked, drops the request before any underlying MCP server processing occurs, and returns the strict `401 Unauthorized` HTTP status. It strictly logs this blocked invocation to the centralized SIEM as a "post-revocation replay violation", ensuring global audit compliance.
-
-```http
-HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer error="invalid_token", error_description="The token has been revoked"
-```
-
-```json
-{
-  "severity": "CRITICAL",
-  "alertType": "post_revocation_replay_violation",
-  "client_id": "agent-travel-v2",
-  "blocked_at": "gateway-1.internal"
-}
-```
-
-**Artifact Produced:** Enforced Revocation Replay Rejection.
-
-</details>
-
-##### 12.1.1 Three Revocation Propagation Strategies
-
-| Strategy | Mechanism | Latency | Scalability | Trade-off |
-|:---------|:----------|:--------|:-----------|:----------|
-| **Push (Event-Driven)** | AS publishes revocation event to message bus (Kafka, NATS, Redis Pub/Sub); all gateway instances subscribe | Seconds | ✅ Scales with subscribers | Requires event infrastructure; eventual consistency window |
-| **Pull (Introspection)** | Gateway introspects token via RFC 7662 on every request (or on cache miss) | Per-request | ⚠️ AS becomes bottleneck at scale | Adds ~5ms latency; requires RS→AS round-trip |
-| **Hybrid (Recommended)** | Short-lived ATs (5 min expiry) + introspection only for RTs + push-based emergency revocation | Minutes (AT natural expiry), seconds (emergency push) | ✅ Best balance | Requires both event infrastructure and introspection endpoint |
-
-> **Recommendation**: The Hybrid strategy is the most practical for production MCP deployments. Short-lived access tokens handle 95% of cases via natural expiry. Refresh token introspection catches policy-triggered revocations. The push channel handles emergency revocations (compromised agent, consent withdrawal) with seconds-level latency.
-
-##### 12.1.2 Token Introspection (RFC 7662) for Real-Time Revocation
-
-Resource servers (gateways) can query the AS to verify token validity in real-time:
-
-```http
-POST /introspect HTTP/1.1
-Host: auth.example.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
-
-token=mF_9.B5f-4.1JqM&token_type_hint=refresh_token
-```
-
-Response for a revoked token:
-```json
-{
-  "active": false
-}
-```
-
-Response for a valid token with metadata:
-```json
-{
-  "active": true,
-  "scope": "mcp:read mcp:write",
-  "client_id": "agent-travel-assistant",
-  "sub": "user:alice",
-  "exp": 1711036800,
-  "act": { "sub": "agent:travel-v2" }
-}
-```
-
-##### 12.1.3 Token Revocation Endpoint (RFC 7009)
-
-Clients or dashboards can explicitly revoke tokens:
-
-```http
-POST /revoke HTTP/1.1
-Host: auth.example.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Basic czZCaGRSa3F0MzpnWDFmQmF0M2JW
-
-token=45ghiukldjahdnhzdauz&token_type_hint=refresh_token
-```
-
-> **Implementation reality**: Among the thirteen gateways surveyed, only Auth0 ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) has production-grade token revocation integrated with its credential store. PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)) supports RFC 7662 introspection natively. For other gateways, revocation relies on the AS's infrastructure — the gateway must either introspect or subscribe to revocation events. Rec 21 defines the convergence control; [OQ 32](#oq-32) covers timing and in-flight effects that remain unsettled.
-
-##### 12.1.4 Issuer-Bound Client Identity and Registration-State Isolation
-
-Client identity state is itself a credential lifecycle. Pre-registered credentials are scoped to the authorization server that assigned them, while a CIMD identifier is re-evaluated independently by every supporting issuer. A client or gateway keys persistent state by the exact validated `issuer`, not merely by MCP hostname, tenant label, or a mutable discovery URL.
-
-| Event | Required Handling | Security Reason |
-|:------|:------------------|:----------------|
-| Protected Resource Metadata adds another issuer | Maintain independent credentials and token families per issuer | OAuth client identifiers are issuer-local |
-| Resource changes from issuer A to issuer B | Do not send A's client secret or reuse A's pre-registered `client_id`; use B’s configured identity, let B evaluate CIMD, or fail visibly | Prevents credential disclosure and cross-issuer client confusion |
-| Issuer string changes only by case, port, path, or trailing slash | Treat it as a different issuer unless validated metadata says otherwise | Issuer comparison is exact; URI normalization can defeat mix-up defenses |
-| Another supporting issuer accepts the same CIMD URL | Perform fresh metadata, fetch-safety, trust-policy, and redirect-URI validation | CIMD is resolved by each issuer and carries no issuer-issued client secret |
-| Issuer supports neither approved pre-registration nor trusted CIMD | Fail visibly and require administrative remediation | Registration uncertainty must not select a weaker mechanism silently |
-
-Revocation processing uses the same partitioning. A revocation, credential rotation, or compromise event for issuer A invalidates A's token family without silently corrupting unrelated state for issuer B. Audit records retain the protected-resource URI, exact issuer, approved mechanism (`preregistered` or `cimd`), client identifier, metadata version, and decision.
-
-
-#### 12.2 DPoP: Sender-Constrained Tokens for AI Agents
-
-DPoP (Demonstrating Proof of Possession, RFC 9449) cryptographically binds an access token to the client that requested it. This prevents token theft and replay — even if an attacker intercepts a DPoP-bound token, they cannot use it without the client's private key.
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Agent as 🤖 Agent
+    participant C as Client or Gateway
     participant AS as Authorization Server
-    participant GW as MCP Gateway
-    participant MCP as MCP Server
+    participant RS as Resource Server
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Key Generation & Token Request
-    Agent->>Agent: Initialization<br/>Generate asymmetric key pair (once)
-    Agent->>AS: Token request + DPoP proof
-    Note right of Agent: Proof JWT signed with private key
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of AS: Phase 2: Bound Token Issuance
-    AS->>AS: Validate proof<br/>Verify DPoP proof and bind token to key thumbprint
-    AS-->>Agent: Access token
-    Note right of AS: Token contains cnf.jkt = key thumbprint
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of GW: Phase 3: Sender-Constrained Request
-    Agent->>GW: API request + Access token + fresh DPoP proof
-    GW->>GW: Cryptographic validation<br/>Verify DPoP proof matches token's cnf.jkt
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW: Phase 4: Authorized Fulfillment
-    GW->>MCP: Forwarded request
-    MCP-->>GW: Response
-    GW-->>Agent: Response
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+    C->>AS: Token request + DPoP proof
+    AS->>AS: Validate proof freshness and key
+    AS-->>C: DPoP-bound access token
+    C->>RS: Resource request + token + fresh DPoP proof
+    RS->>RS: Validate token binding, htm, htu, iat, jti, and nonce
+    RS-->>C: Protected resource response
+    C->>RS: Replay old proof or present proof from wrong key
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
 <details>
-<summary><strong>1. Agent generates an asymmetric key pair for DPoP proofs</strong></summary>
+<summary><strong>1. Client or Gateway sends the token request with a DPoP proof</strong></summary>
 
-The agent computationally creates a fresh asymmetric key pair (ECDSA P-256 or Ed25519) within its secure storage enclave. The private key never leaves the agent's memory boundary, serving as the immutable cryptographic root of trust for all subsequent proofs. Any failure to initialize secure enclave hardware immediately triggers an agent halt and generates an initialization failure audit log.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    Boot --> GenerateEd25519
-    GenerateEd25519 --> SecurePrivateKey
-    GenerateEd25519 --> ExportPublicKey
-```
-
-**Artifact Produced:** Agent Ed25519 Cryptographic Key Pair.
-
-</details>
-
-<details>
-<summary><strong>2. Agent sends a token request with a DPoP proof to Authorization Server</strong></summary>
-
-The agent constructs an explicit `DPoP` HTTP header containing a signed JWT (the proof) and executes the Token request (RFC 9449, §4). The DPoP proof incorporates the HTTP method, the URL, and explicitly embeds the public `jwk` directly within its header claims.
-
-```http
-POST /token HTTP/1.1
-Host: as.example.com
-Content-Type: application/x-www-form-urlencoded
-DPoP: eyJ0eXAi... (Proof JWT)
-
-grant_type=client_credentials&client_id=agent-123
-```
-
-**Artifact Produced:** DPoP Bound Token Request.
-
-</details>
-
-<details>
-<summary><strong>3. Authorization Server validates the DPoP proof and binds the token to the key</strong></summary>
-
-The AS executes strict cryptographic validation against the inbound DPoP JWT using the exposed public key. It mathematically extracts the JWK Thumbprint, guaranteeing the agent possesses the private key, and prepares the binding material for the token. If the signature verification organically fails, the AS strictly drops the request, returning a `401 Unauthorized` with an `invalid_dpop_proof` error, ensuring an immutable SIEM alert is generated.
+The proof is a signed JWT for the token endpoint and includes `jti`, `htm`, `htu`, and `iat`; a server nonce is included when required.
 
 ```json
-// Inside the AS Validation Logic
-{
-  "typ": "dpop+jwt",
-  "alg": "ES256",
-  "jwk": {
-    "kty": "EC",
-    "x": "l8t0...",
-    "y": "1akO..."
-  }
-}
+{"typ":"dpop+jwt","alg":"ES256","jwk":{"kty":"EC","crv":"P-256","x":"…","y":"…"}}
 ```
 
-**Artifact Produced:** Parsed DPoP Context.
+No one algorithm or hardware profile is universal; the deployment selects permitted algorithms and key custody.
 
 </details>
 
 <details>
-<summary><strong>4. Authorization Server issues the DPoP-bound access token to Agent</strong></summary>
+<summary><strong>2. Authorization Server validates freshness and the proof key</strong></summary>
 
-The AS mints and replies with an Access Token explicitly tagged as `token_type: DPoP`. Internal to the token structure is the `cnf` (confirmation) claim mapping strictly to the JWK thumbprint (`jkt`), permanently binding the token to the agent's hardware key.
+The server validates signature, method, endpoint, time, replay state, and nonce policy.
 
-```json
-{
-  "access_token": "eyJhbGciOi...",
-  "token_type": "DPoP",
-  "expires_in": 3600,
-  "cnf": {
-    "jkt": "0z1Qmac1_..."
-  }
-}
-```
-
-**Artifact Produced:** DPoP Bound Access Token.
+**Failure rule**: a valid OAuth client authentication does not repair an invalid DPoP proof, and DPoP itself is not client authentication.
 
 </details>
 
 <details>
-<summary><strong>5. Agent sends an API request with the access token and a fresh DPoP proof</strong></summary>
+<summary><strong>3. Authorization Server returns a DPoP-bound access token</strong></summary>
 
-For every subsequent API call, the agent dynamically generates a brand-new DPoP proof JWT. To prevent replay attacks, the proof computes an `ath` (Access Token Hash) claim binding the proof uniquely to the specific Access Token and the specific request URL.
+The token is associated with the proof key, commonly through a confirmation claim.
 
-```http
-POST /mcp/tools/call HTTP/1.1
-Host: gateway.example.com
-Authorization: DPoP eyJhbGciOi...
-DPoP: eyJ0eXAiOiJkcG9w... (Fresh Proof)
-```
-
-**Artifact Produced:** DPoP API Invocation.
+**Artifact produced**: token identifier/hash, key thumbprint, audience, expiry, and grant correlation—never the token value in general logs.
 
 </details>
 
 <details>
-<summary><strong>6. MCP Gateway validates the DPoP proof against the token's cnf.jkt</strong></summary>
+<summary><strong>4. Client or Gateway sends a resource request with a fresh proof</strong></summary>
 
-The MCP Gateway actively parses both headers. It decodes the DPoP proof, calculates its generic JWK Thumbprint, and cross-references it against the `cnf.jkt` claim hardcoded inside the provided Access Token to ensure cryptographic continuity. If an intercepted token is utilized without the corresponding private key, the `cnf.jkt` mismatch physically triggers a `401 Unauthorized` rejection at the Gateway edge, emitting a critical cryptographic replay alert to the centralized telemetry pipeline.
-
-</details>
-
-<details>
-<summary><strong>7. MCP Gateway forwards the validated request to MCP Server</strong></summary>
-
-Upon successful validation, the Gateway fundamentally drops the DPoP header and safely transmits the raw JSON-RPC payload downstream to the standard MCP server representing a trusted, sender-verified operation.
+The resource proof binds the HTTP method and target URI and, for an access-token request, the token hash. DPoP does not generally sign the body or arbitrary headers.
 
 </details>
 
 <details>
-<summary><strong>8. MCP Server returns the response to MCP Gateway</strong></summary>
+<summary><strong>5. Resource Server validates token and proof together</strong></summary>
 
-The back-end MCP Server evaluates the authorized command normally and replies with the standard JSON-RPC HTTP response block, maintaining isolation from the DPoP mathematics handled safely at the edge.
+The server checks issuer/audience/token state plus proof signature, key binding, `htm`, `htu`, `iat`, `jti`, access-token hash, and nonce where applicable.
+
+**Decision snapshot**: token-valid and proof-valid are separate inputs; both must pass.
 
 </details>
 
 <details>
-<summary><strong>9. MCP Gateway returns the response to Agent</strong></summary>
+<summary><strong>6. Resource Server returns the protected response</strong></summary>
 
-The Gateway forwards the JSON outcome back to the Agent. By asserting proof-of-possession constantly, DPoP mathematically neutralizes the threat of stolen Bearer tokens intercepted off-network.
+The authorization decision still evaluates scopes, rich authorization data, resource, actor, task, and current policy. Sender constraint only proves possession of the bound key for this request.
 
 </details>
 
-##### 12.2.1 Why DPoP Matters for AI Agent Credential Delegation
+<details>
+<summary><strong>7. Client replays an old proof or uses the wrong key</strong></summary>
 
-| Threat | Without DPoP | With DPoP |
-|:-------|:-------------|:----------|
-| Agent's access token stolen from memory | Attacker can use token from any client | Token is bound to agent's key pair — useless without private key |
-| Refresh token exfiltrated from storage | Attacker can obtain new access tokens indefinitely | Refresh exchange requires DPoP proof signed with correct key |
-| Token replay from audit/interceptor logs | Extracted token works until expiry | Token is bound to specific HTTP method + URL (htm + htu claims); replay detected via jti |
-| Multi-agent token confusion | Token from Agent A usable by Agent B | Each agent must present DPoP proof signed with its own key pair |
-| Man-in-the-middle at gateway | Intercepted token can be forwarded | DPoP proof is bound to the specific request; cannot be replayed on different endpoint |
+The resource server rejects the request. That denial contains the replay attempt but does not itself revoke the token family, underlying grant, client, or agent identity; policy decides whether the signal triggers broader response.
 
-##### 12.2.2 OAuth 2.1 Mandate
+</details>
 
-OAuth 2.1 (draft) and RFC 9700 (Best Current Practice for OAuth 2.0 Security, January 2025) mandate that refresh tokens MUST be **either**:
-1. **Sender-constrained** (via DPoP or mTLS) — preventing use by unauthorized clients, **or**
-2. **Rotated on every use** with reuse detection — limiting stolen tokens to single use
+#### 12.4 Token and Authorization Status
 
-DPoP is preferred for **public clients** (which MCP clients typically are, since they run on user devices or in cloud environments without pre-provisioned TLS client certificates).
+[RFC 7662](https://www.rfc-editor.org/rfc/rfc7662) lets an authorized caller query token metadata and active state and permits refresh-token introspection. Its answer concerns the token represented at that endpoint; it is not a universal query for grant, identity, runtime, task, or effect state.
 
-##### 12.2.3 DPoP vs. mTLS
+| Mechanism | Best use | Important limitation |
+|:----------|:---------|:---------------------|
+| Local JWT validation | Low-latency validation of signature, issuer, audience, expiry, and claims | Cannot observe every post-issuance state change without another mechanism |
+| RFC 7662 introspection | Authoritative online status for supported opaque/self-contained tokens | Adds availability, authorization, cache, and privacy concerns |
+| Provider API/use test | Provider-authoritative acceptance at operation time | May have side effects; use a safe status endpoint when available |
+| Token Status List | Compact status for suitable JOSE/COSE-secured tokens | Does not replace grant/session/task/effect convergence |
+| Event-driven invalidation | Prompt local re-evaluation and cache eviction | Delivery and processing can be delayed, duplicated, or paused |
 
-| Dimension | DPoP (RFC 9449) | mTLS (RFC 8705) |
-|:----------|:---------------|:----------------|
-| **Layer** | Application (HTTP `DPoP` header) | Transport (TLS client certificate) |
-| **Certificate required** | No (asymmetric key pair only) | Yes (X.509 certificate from CA) |
-| **Public client support** | ✅ Yes — no cert provisioning needed | ❌ Requires cert management infrastructure |
-| **Per-request binding** | ✅ htm (method), htu (URL), ath (AT hash), jti (unique ID) | ❌ Binds to TLS session, not individual request |
-| **Replay prevention** | ✅ jti claim ensures one-time use per proof | ⚠️ TLS session can be reused |
-| **MCP compatibility** | ✅ Works with Streamable HTTP transport | ⚠️ Requires coordinated TLS termination at gateway |
-| **Key management** | Agent generates and manages key pair | CA issues and manages certificates |
-| **Best for** | Public MCP clients, browser agents, multi-agent | Service-to-service (M2M), infrastructure-level |
+[RFC 8693](https://www.rfc-editor.org/rfc/rfc8693) token exchange does not invalidate its input token or create a tight input/output lifecycle linkage. Nested `act` claims can support attribution and policy; they are not a revocation dependency graph.
 
-##### 12.2.4 Vendor DPoP Support Matrix
+The OAuth [Token Status List](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) work is in publication processing as of 2026-07-24. Treat it as a monitor-stage mechanism for suitable tokens, with its final publication status rechecked before implementation.
 
-| Gateway/Platform | DPoP Support | Implementation Details |
-|:----------------|:-------------|:---------------------|
-| PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)) | ✅ Production | DPoP + JIT tokens in MCP filter chain; Agent IAM Core for agent lifecycle (GA Mar 2026); most mature implementation |
-| Auth0 ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) | ✅ Production | DPoP binding for Auth0-issued tokens; Token Vault supports DPoP for first-party tokens |
-| Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) | ⚠️ Expected | OAuth 2.1 RS — DPoP extension expected as part of OAuth 2.1 compliance |
-| AgentGateway ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a)) | ❌ Depends on proxy | Delegates to OAuth2 Proxy — DPoP support depends on proxy implementation |
-| Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) | ❌ Not yet | APIM token validation does not yet support DPoP proof verification |
-| Docker ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)) | N/A | Secret injection model — agent never holds tokens, DPoP not applicable |
-| TrueFoundry ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane)) | N/A | Gateway injection model — DPoP not applicable for injected tokens |
+Product evidence shows why read-back matters. Amazon Bedrock AgentCore [documents](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html) that provider-side revocation may be undetectable and a cached provider token is not guaranteed to remain valid. HashiCorp Vault’s [lease API](https://developer.hashicorp.com/vault/api-docs/system/leases) documents queued revocation behavior and warns that force revocation can ignore backend errors, leaving Vault unable to ensure backend cleanup. A vault record or accepted control-plane response is therefore not authoritative provider status.
 
-> **Pattern connection**: DPoP is most relevant for **Pattern A** (Direct Token Exchange) and **Pattern B** (Token Vault) from [§11.1](#111-credential-delegation-pattern-taxonomy) — where the agent actually holds a token. For Patterns C and D (injection/secretless), DPoP is unnecessary because the agent never possesses the credential. Pattern E depends on the cloud platform's support.
+#### 12.5 Event Subjects, Provisioning Events, and Continuous Signals
 
-> **Post-quantum consideration**: DPoP proofs currently use ES256 (64-byte signatures). NIST [SP 800-131A Rev 3](https://csrc.nist.gov/pubs/sp/800/131a/r3/ipd) targets ECDSA deprecation by 2030, with [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final) ML-DSA as the replacement. ML-DSA-65 signatures are 3,309 bytes (~52× larger), which—combined with a PQC-signed JWT—would push the `Authorization` + `DPoP` headers near or above common proxy limits. AWS IAM Roles Anywhere already supports ML-DSA for X.509 signing ([§14](#14-authorization-approval-and-consent-models)); active JOSE work defines ML-DSA and hybrid identifiers. Gateways therefore need algorithm agility and measured end-to-end size tests before enabling a post-quantum profile. See [OQ 30](#oq-30).
+[RFC 8417](https://www.rfc-editor.org/rfc/rfc8417) defines SETs; [RFC 9493](https://www.rfc-editor.org/rfc/rfc9493) defines structured subject identifiers; [RFC 9967](https://www.rfc-editor.org/rfc/rfc9967) defines SCIM provisioning events and event-stream operations. [OpenID SSF 1.0 Final](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) manages event streams, while [OpenID CAEP 1.0 Final](https://openid.net/specs/openid-caep-1_0-final.html) defines continuous-access event types for human or robotic users, devices, sessions, and applications.
 
+Events cause receiver-side resolution and re-evaluation. Stream state can be enabled, paused, or disabled, and event delivery must not be assumed ordered or complete. RFC 9967 `feed:remove` changes feed membership; it does not delete or deactivate the subject.
 
-#### 12.3 Event-Driven Revocation: SSF, CAEP, and MCP Provider Commands
-
-The revocation strategies in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Push, Pull, Hybrid) address **how** revocation signals propagate across distributed gateways. This section addresses a complementary question: **what triggers those revocation signals**, and how can security events from across the identity ecosystem propagate into MCP gateway decisions in real time? Sections 12.3.1 through 12.3.5 cover event-driven **revocation**; [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) extends the model to **continuous authorization re-evaluation**—graduated gateway responses beyond binary termination.
-
-##### 12.3.1 Shared Signals Framework (SSF) and CAEP
-
-The [Shared Signals Framework (SSF)](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) and [Continuous Access Evaluation Profile (CAEP)](https://openid.net/specs/openid-caep-1_0-final.html) are OpenID Foundation specifications that achieved **Final Specification** status in September 2025. Together, they define a standardized mechanism for real-time security event propagation between identity providers, relying parties, and security infrastructure:
-
-| Specification | Purpose | Mechanism | Status |
-|:-------------|:--------|:----------|:-------|
-| **SSF 1.0** | Framework for transmitting security events between systems | Transmitter/Receiver model via SET (Security Event Tokens, RFC 8417) over push (webhooks) or poll (HTTP GET) channels | Final Specification (September 2025) |
-| **CAEP 1.0** | Profile defining continuous access evaluation events | Standardized event types: session revoked, token claims changed, credential compromised, compliance status changed, device posture changed | Final Specification (September 2025) |
-| **RISC 1.0** | Risk Incident Sharing and Coordination | Account-level security events: credential compromise, account takeover, suspicious activity | Final Specification (September 2025) |
-
-SSF provides the **transport framework** (how events are sent), while CAEP defines the **event semantics** (what events mean). A CAEP event is a Security Event Token (SET) — a signed JWT containing a structured security event:
-
-```json
-{
-  "iss": "https://idp.example.com",
-  "iat": 1710408600,
-  "aud": "https://mcp-gateway.example.com",
-  "events": {
-    "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
-      "subject": {
-        "format": "oauth_token",
-        "oauth_token": {
-          "token_type": "refresh_token",
-          "token_identifier_type": "jti",
-          "token_identifier": "rt_abc123"
-        }
-      },
-      "reason": "User revoked consent for agent travel-v2",
-      "event_timestamp": 1710408590
-    }
-  }
-}
-```
-
-##### 12.3.2 SSF/CAEP for MCP Gateway Revocation
-
-SSF/CAEP enables **event-driven revocation** — the gateway reacts to security events rather than polling for token validity. This is architecturally superior to the Pull strategy ([§12.1.1](#1211-three-revocation-propagation-strategies)) for latency-critical revocation scenarios:
+#### 12.6 Receiver Processing, Stream Health, and Reconciliation
 
 ```mermaid
 ---
@@ -8362,355 +7713,134 @@ config:
     noteBkgColor: "transparent"
     noteBorderColor: "transparent"
   sequence:
-    messageAlign: left
-    noteAlign: left
     actorMargin: 250
 ---
 sequenceDiagram
     autonumber
-    participant User as 👤 User
-    participant IdP as IdP / Auth Server
-    participant SSF as SSF Transmitter
-    participant GW1 as MCP Gateway-1
-    participant GW2 as MCP Gateway-2
-    participant Agent as 🤖 Agent
+    participant T as Event Transmitter
+    participant R as SSF Receiver
+    participant M as Subject Mapper
+    participant P as Policy / Lifecycle Controller
+    participant E as Enforcement Points
+    participant A as Authoritative Systems
 
-    rect rgba(241, 196, 15, 0.14)
-    Note right of User: Phase 1: Consent Revocation
-    User->>IdP: Revoke consent for agent travel-v2
-    IdP->>SSF: Emit CAEP event:<br/>session-revoked
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of SSF: Phase 2: Standardized Event Distribution
-    par SSF Push to all receivers
-        SSF->>GW1: SET (signed JWT)<br/>event: session-revoked<br/>subject: rt_abc123
-        SSF->>GW2: SET (signed JWT)<br/>event: session-revoked<br/>subject: rt_abc123
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW1: Phase 3: Cross-Gateway Invalidation
-    GW1->>GW1: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
-    GW2->>GW2: State coordination<br/>Invalidate all tokens<br/>for agent travel-v2 + user alice
-    Note right of Agent: ⠀
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(231, 76, 60, 0.14)
-    Note right of Agent: Phase 4: Perimeter Enforcement
-    Agent->>GW1: tools/call with revoked token
-    GW1-->>Agent: 401 Unauthorized
-    Note right of Agent: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+    T->>R: Deliver signed SET
+    R->>R: Validate issuer, audience, signature, time, and replay state
+    R->>M: Resolve structured subject
+    M-->>R: Canonical object IDs or ambiguous result
+    R->>P: Persist normalized event and request re-evaluation
+    P->>E: Apply object-specific actions at new epoch
+    E-->>P: Acknowledge accepted/applied state
+    P->>A: Read back token, identity, session, task, and provider state
+    A-->>P: Verified, pending, conflicting, or unknown observations
+    Note right of A: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
 <details>
-<summary><strong>1. User revokes consent for agent travel-v2 at Identity Provider</strong></summary>
+<summary><strong>1. Event Transmitter delivers a signed SET</strong></summary>
 
-The user interacts natively with the IdP (e.g., Okta or Entra) to sever the active delegation connection explicitly. Because the IdP supports the OpenID Shared Signals Framework (SSF 1.0), this acts as a standardized event catalyst rather than requiring proprietary architectural webhooks.
+The receiver records stream ID, SET hash/ID, receive time, and transport metadata before processing.
 
-</details>
-
-<details>
-<summary><strong>2. Identity Provider emits a CAEP session-revoked event to SSF Transmitter</strong></summary>
-
-The IdP translates the internal revocation intent into a cryptographically signed Security Event Token (SET, RFC 8417) formatted strictly under the Continuous Access Evaluation Protocol (CAEP). It tags the stream with the explicit `session-revoked` event classification.
-
-```json
-{
-  "iss": "https://idp.example.com",
-  "iat": 1710003600,
-  "jti": "b1c2d3...",
-  "events": {
-    "https://schemas.openid.net/secevent/caep/event-type/session-revoked": {
-      "subject": {
-        "format": "jwt_id",
-        "jti": "rt_abc123"
-      }
-    }
-  }
-}
-```
-
-**Artifact Produced:** CAEP Security Event Token (SET).
+**Stream boundary**: delivery may be duplicated or delayed; paused/disabled stream state triggers reconciliation rather than an assumption of no changes.
 
 </details>
 
 <details>
-<summary><strong>3. SSF Transmitter pushes the SET payload to MCP Gateway-1</strong></summary>
+<summary><strong>2. SSF Receiver validates the event envelope</strong></summary>
 
-The SSF Transmitter executes a standard HTTP POST directly to Gateway-1's registered stream receiver. Because the SET is a securely signed JWT, the receiver intrinsically trusts the origin payload. If the JWT signature organically fails validation against the IdP's JSON Web Key Set (JWKS), Gateway-1 drops the payload with a `400 Bad Request` and writes a critical pipeline ingestion failure log.
+It validates issuer, audience, signature, permitted event type, timestamps, replay identifiers, and stream configuration.
 
-```http
-POST /ssf/receiver HTTP/1.1
-Host: gw1.mcp.internal
-Content-Type: application/secevent+jwt
-
-eyJhbGciOiJSUzI1NiIsInR5...
-```
-
-**Artifact Produced:** SSF SET Push Request.
+**Failure rule**: cryptographic validity proves the issuer made the claim, not that the claim maps unambiguously to a local object.
 
 </details>
 
 <details>
-<summary><strong>4. SSF Transmitter pushes the SET to MCP Gateway-2</strong></summary>
+<summary><strong>3. SSF Receiver asks the Subject Mapper to resolve the subject</strong></summary>
 
-In parallel, Gateway-2 ingests the identical SET payload. The standard OpenID SSF specification effortlessly manages delivery and verification boundaries, negating any custom implementation dependencies across diverse MCP gateway environments.
-
-</details>
-
-<details>
-<summary><strong>5. Gateway-1 invalidates all tokens for the affected agent and user</strong></summary>
-
-Gateway-1 parses the SET payload, matching the `subject` structure (`rt_abc123`), and rapidly flushes all related Access and Refresh tokens spanning that precise agent-user pairing from its immediate Redis deployment.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    ReceiveSET --> VerifySignature
-    VerifySignature --> ExtractSubject
-    ExtractSubject --> SearchCache
-    SearchCache --> EvictTokens
-```
-
-**Artifact Produced:** Distributed Token Eviction.
+The mapper uses the declared RFC 9493 subject format and approved tenant-local aliases. Display-name matching is insufficient and privacy policy constrains cross-alias correlation.
 
 </details>
 
 <details>
-<summary><strong>6. Gateway-2 invalidates all tokens for the affected agent and user</strong></summary>
+<summary><strong>4. Subject Mapper returns canonical IDs or ambiguity</strong></summary>
 
-Simultaneously, Gateway-2 accomplishes the duplicate eviction methodology locally. CAEP events guarantee consistent and instantaneous propagation of critical state alterations independent of the vendor routing the edge traffic.
+One match proceeds. Zero or multiple matches enter quarantine with the original event intact.
 
-</details>
-
-<details>
-<summary><strong>7. Agent attempts a tool call with the revoked token</strong></summary>
-
-The unaware agent transmits a standard JSON-RPC transaction to Gateway-1 requesting logical processing on behalf of the `travel-v2` identity profile, embedding the previously valid token.
+**Artifact produced**: mapping decision, alias source, confidence rule, and operator/reconciliation route.
 
 </details>
 
 <details>
-<summary><strong>8. Gateway-1 forcefully rejects the request with a 401 Unauthorized trigger</strong></summary>
+<summary><strong>5. SSF Receiver persists a normalized event and requests re-evaluation</strong></summary>
 
-Gateway-1 detects the invalidated edge state instantly without any upstream validation checks against the AS. It intercepts the call, producing a hard `401 Unauthorized` HTTP block to terminate the unauthorized operational trajectory safely, triggering a revoked-usage anomaly within the SIEM.
+Persistence precedes effect. Deduplication makes retries idempotent, while ordering logic prevents an older epoch from overwriting newer state.
 
 </details>
-<br/>
 
-The key advantage over [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)'s generic Push strategy is **standardization**: SSF/CAEP events use a defined schema (SET/JWT), a defined transport (webhook or poll), and defined event types — eliminating the need for custom event bus integration per gateway vendor.
+<details>
+<summary><strong>6. Policy or Lifecycle Controller applies object-specific actions</strong></summary>
 
-##### 12.3.3 Mapping to MCP: Keep SSF External Unless an Extension Is Negotiated
+The controller allocates or joins a termination epoch and targets grants, credentials, sessions, tasks, or admissions according to local policy. It never treats an event name as a universal command.
 
-The modern MCP core does not define a security-event command channel. Request-scoped progress and message notifications stay on the response stream that owns them; change-notification streams use an explicitly authorized `subscriptions/listen` request. An SSF event therefore remains an external SSF delivery artifact unless the peers negotiate a separately versioned MCP extension with schemas, authorization, replay, reconnection, and failure behavior. A gateway must not inject an SSF-shaped JSON-RPC notification and imply that core MCP standardized it.
+</details>
 
-| Delivery Mechanism | Channel | Latency | Standardization | Best For |
-|:------------------|:--------|:--------|:---------------|:---------|
-| **SSF Push (webhook)** | HTTPS POST to registered receiver endpoint | Sub-second | ✅ OpenID SSF 1.0 | Gateway-to-gateway, IdP-to-gateway |
-| **SSF Poll** | HTTP GET from receiver to transmitter | Configurable (seconds–minutes) | ✅ OpenID SSF 1.0 | Firewalled environments, batch processing |
-| **Negotiated MCP extension** | Extension-defined notification through an authorized `subscriptions/listen` stream | Real-time while the authorized channel remains active | ⚠️ Custom; not core SSF delivery | Local gateway-to-client signaling only when both peers implement the same pinned extension version |
-| **Token introspection** ([§12.1.2](#1212-token-introspection-rfc-7662-for-real-time-revocation)) | RFC 7662 per-request query | Per-request | ✅ RFC 7662 | Fallback, high-security environments |
+<details>
+<summary><strong>7. Enforcement Points acknowledge accepted or applied state</strong></summary>
 
-##### 12.3.4 Push vs. Pull vs. Event-Driven: Comparison
+Acknowledgement is recorded per target. “Accepted” and “applied” remain distinct, and neither is automatically “verified.”
 
-| Dimension | Pull ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) Introspection) | Push ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) Event Bus) | Event-Driven (SSF/CAEP) |
-|:----------|:--------------------------|:----------------------|:-----------------------|
-| **Trigger** | Gateway queries AS per-request | AS publishes to event bus | IdP/security system emits standardized SET |
-| **Latency** | Per-request (~5ms AS round-trip) | Seconds (event propagation) | Sub-second (webhook push) |
-| **Standardization** | ✅ RFC 7662 | ❌ Vendor-specific event bus | ✅ OpenID SSF/CAEP 1.0 |
-| **Scalability** | ⚠️ AS becomes bottleneck | ✅ Pub/sub scales horizontally | ✅ Receiver registration scales |
-| **Event richness** | Binary (active/inactive) | Custom payload | ✅ Structured CAEP event types (session-revoked, credential-changed, compliance-changed) |
-| **Cross-vendor** | ✅ Any RFC 7662-compliant AS | ❌ Requires shared event infrastructure | ✅ Any SSF-compliant transmitter/receiver |
+</details>
 
-> **Connection to [§14.7.3](#1473-consent-revocation-vs-token-revocation) (authority withdrawal and revocation)**: An authenticated [SSF/CAEP](https://openid.net/specs/openid-caep-1_0.html) event can shorten the stale-authority window by telling a receiver that a subject/session property changed. It is a re-evaluation trigger, not the delegation graph or cancellation protocol. The gateway resolves the event subject under the agreed profile, queries its local grant/task lineage index, invalidates affected tokens and unconsumed authority, and initiates downstream cancellation under [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract). The event must not be assumed to contain every agent, scope, descendant, or already dispatched action.
+<details>
+<summary><strong>8. Controller reads back authoritative state</strong></summary>
 
-##### 12.3.5 Vendor SSF/CAEP Support
+It queries issuers, identity stores, gateways, task executors, vaults, and providers where supported.
 
-| Vendor | SSF Role | CAEP Support | MCP Integration | Status |
-|:-------|:---------|:-------------|:---------------|:-------|
-| **Okta** | Transmitter + Receiver | ✅ Identity Threat Protection ingests CAEP events from security vendors | Auth0 agent platform could receive CAEP signals for token invalidation | Production (ITP GA) |
-| **Auth0** | Pilot Transmitter + Receiver | ⚠️ Pilot integrations underway | Token Vault + FGA could react to CAEP events for credential revocation | Pilot |
-| **Microsoft Entra** | Transmitter | ✅ Continuous Access Evaluation (CAE) implements CAEP for Microsoft 365 | Entra Agent ID + APIM gateway could consume CAE signals | Production (CAE GA) |
-| **Ping Identity** | Pilot | ⚠️ Pilot integrations; IETF draft references SSF/CAEP for agent auth | PingGateway MCP filter chain could subscribe to SSF events | Pilot |
-| **Google Workspace** | Receiver | ⚠️ Closed beta — ingests CAEP signals via SSF Receiver (September 2025) | Vertex AI Agent Engine identity integration | Beta |
+**Reconciliation rule**: missing events, paused streams, cache drift, and partial outages are repaired from authoritative state or recorded as unknown.
 
-> **Assessment**: SSF/CAEP provides the **standardized event-driven revocation layer** that [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)'s Push strategy describes but does not specify. For MCP deployments using the Hybrid revocation strategy ([§12.1.1](#1211-three-revocation-propagation-strategies), Recommended), SSF/CAEP replaces the custom event bus component with a standards-based, cross-vendor mechanism. The primary adoption barrier is that SSF/CAEP receiver support in MCP gateways is not yet implemented — this is a natural extension point for the gateways surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway).
+</details>
 
-##### 12.3.6 Continuous Access Evaluation for Agent Sessions
+<details>
+<summary><strong>9. Authoritative Systems return verified, pending, conflicting, or unknown observations</strong></summary>
 
-Sections 12.3.1–12.3.5 treat SSF/CAEP primarily as a **revocation mechanism**: the IdP emits a `session-revoked` event and the gateway terminates the affected authority. That is necessary but incomplete. The CAEP 1.0 specification defines four additional event types—`token-claims-change`, `credential-change`, `assurance-level-change`, and `device-compliance-change`—that signal **changes in the authorization context** without necessarily requiring full termination. The gateway's response should be **graduated**: step-up authentication, scope restriction, delegation-chain re-evaluation, or HITL escalation—not only a binary stop. Microsoft Entra's Continuous Access Evaluation (CAE) demonstrates this model: resource providers subscribe to events and enforce the resulting decision, with the IdP acting as the event source.
+The controller updates the convergence ledger and schedules retry, compensation, or escalation. Receipt of the original event is never used as proof of completion.
 
-The following table maps each CAEP event type to MCP-specific trigger scenarios and the corresponding gateway enforcement action. The SSF transport flow (IdP → SSF Transmitter → SSF Push/Poll → Gateway as SSF Receiver) is identical to the revocation flow in [§12.3.2](#1232-ssfcaep-for-mcp-gateway-revocation) — only the gateway's **reaction** differs:
+</details>
 
-| CAEP Event Type | MCP Trigger Scenario | Gateway Action |
-|:----------------|:---------------------|:---------------|
-| `session-revoked` | User revokes agent delegation via IdP dashboard; admin terminates session | Terminate agent session immediately; cascade through delegation chain ([§14.7.3](#1473-consent-revocation-vs-token-revocation)) |
-| `assurance-level-change` (decrease) | User's risk score increases (Entra ID Protection, Okta ITP); MFA credential expires mid-session | Return an RFC 9470 step-up challenge or otherwise require fresh authentication for subsequent sensitive calls; CIBA is one possible decoupled ceremony where the AS profile supports it. Restrict the agent until the new assurance is validated and policy is re-evaluated |
-| `assurance-level-change` (increase) | User completes MFA step-up on another service provider | Optionally unlock higher-risk tools that were previously gated behind MFA |
-| `token-claims-change` | User's role changes in HR system (SCIM → IdP → CAEP); user's compliance clearance expires | Re-evaluate policy engine ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) with updated claims; block tools no longer authorized under new role or compliance status |
-| `credential-change` (revoke/delete) | Agent's client credential rotated or revoked by admin; user's password reset | Terminate all sessions using the old credential; require re-authentication |
-| `device-compliance-change` (not-compliant) | Device leaves trusted network; device OS falls out of compliance policy | Invalidate delegation chains originating from that device; require re-authentication from a compliant device |
+#### 12.7 Session/Cache Invalidation and Request/Task Cancellation
 
-For MCP gateways, the enforcement model should be a **response ladder**, not a single "kill session" branch. The gateway must decide whether the event affects only future tool calls, an already-running task, a stored credential, a containerized MCP server, or the delegation chain itself.
+Policy and credential changes must evict derived state: authorization decisions, connection handles, gateway sessions, server sessions, channel subscriptions, and task authority snapshots. Cache keys should include subject/actor, resource, policy version, admission epoch, and termination epoch.
 
-| Response Level | Gateway Action | Use For | Required Control Evidence |
-|:---------------|:---------------|:--------|:--------------------------|
-| **0. Observe and annotate** | Attach event context to the session/task record and keep serving low-risk tools | Informational risk increase, assurance increase, non-critical claim addition | SET `jti`, event timestamp, trace ID, no-op policy decision |
-| **1. Restrict** | Remove high-risk tools, reduce scopes, cap budgets, or downgrade to read-only operations | Assurance decrease, role narrowing, suspicious but not terminal behavior | New policy decision ID, previous vs. current scope set, affected tool list |
-| **2. Step up or obtain approval** | Require fresh authentication when assurance is insufficient; independently require a request-bound approval when business policy calls for one | MFA expiry or device-posture drift; a payment or data-export action that separately requires approval after the risk change | Authentication event and resulting assurance; when applicable, a distinct approval request, approver identity, displayed-action digest, and decision |
-| **3. Suspend** | Pause active tasks, stop polling, hold result retrieval, and wait for re-authentication or policy repair | Token-claims change, credential rotation, temporary compliance failure | Task authority record disposition, pause reason, resume criteria |
-| **4. Revoke** | Terminate session, invalidate token family, disconnect vault credential, and deny all further calls | `session-revoked`, credential compromise, user/admin consent revocation | Revocation event, affected token/connection IDs, deny-list update |
-| **5. Kill runtime** | Stop connector container, revoke secret lease, unmount credential, or quarantine MCP server | Runtime secret exposure, compromised MCP server image, direct-bypass attempt against signer policy | Container/lease termination event, image/server ID, incident ticket |
-| **6. Notify and reconcile** | Emit SIEM/SOAR event, notify user/admin, and reconcile downstream gateways or connected accounts | Any level 2-5 response with user, compliance, or cross-gateway impact | Notification ID, downstream delivery status, reconciliation report |
+MCP [cancellation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/cancellation) is best-effort and races with completion; a receiver may ignore a cancellation notification. The versioned [MCP tasks](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks) capability is experimental. A task can reach logical `cancelled` state while underlying execution continues, and status notifications are optional.
 
-This ladder is also how product-specific credential platforms should be integrated. Token Vault or Credential Manager can revoke or require reauthorization for a connected account; Docker-style runtime injection can stop the affected container; a LiteLLM-style signer can block direct tool bypass by rejecting unsigned calls; Kuadrant/Authorino can change AuthPolicy outcomes without rewriting application code. The common architectural requirement is that the response must update the same task/session authority record that future MCP calls will consult.
+| Observed state | Safe interpretation | Required follow-up |
+|:---------------|:--------------------|:-------------------|
+| Cancellation notification sent | Caller requested cancellation | Query/observe request, task, executor, and effect |
+| Task state `cancelled` | Protocol task reached a terminal logical state | Verify executor shutdown and downstream effect |
+| Session closed | Named session cannot be resumed through that handle | Evict sibling caches/channels and inspect durable work |
+| Provider cancellation accepted | Provider accepted the command | Poll/webhook/read back final provider state |
+| No status interface | State is unknown | Fail closed for new work; escalate or reconcile |
 
-**Token lifetime extension**: The Entra CAE model reveals a counterintuitive architectural insight — CAE enables **extending** access token lifetimes rather than shortening them. Entra CAE sessions use token lifetimes of up to 28 hours (vs. the default 1-hour lifetime), because real-time CAEP events provide near-instant revocation for critical state changes, making short token lifetimes (a crude proxy for revocation) unnecessary. For long-running MCP agent sessions ([§10](#10-authorization-continuity-and-durable-tasks)), this means a gateway implementing SSF Receiver functionality can safely issue longer-lived tokens — reducing AS load, eliminating token refresh failures as a session disruption source, and simplifying the Hybrid revocation strategy ([§12.1.1](#1211-three-revocation-propagation-strategies)) — while maintaining Zero Trust continuous verification because CAEP events compensate for the extended lifetime.
+#### 12.8 Capability Attenuation and the Recall Problem
 
-> **Cross-references**: CAEP `assurance-level-change` events should feed into the risk-based HITL tier routing architecture ([§15.7](#157-adaptive-oversight-architecture)) — a decrease in assurance level is a natural trigger for escalating from Tier 0 (autonomous) to Tier 2 (in-session confirmation) or higher. `token-claims-change` events should trigger TBAC scope re-evaluation ([§16](#16-task-based-access-control-tbac)) — if the user's role changes mid-task, the agent's task-bound scopes may need to be recomputed. The token lifetime extension pattern directly addresses the [§10](#10-authorization-continuity-and-durable-tasks) tension between short-lived access tokens (security) and long-running agent tasks (functionality). The NIST ZTA "continuous verification" tenet ([§24.5](#245-nist-ai-agent-standards-initiative-three-pillars)) is fulfilled by this gateway-side CAEP event processing, not just by gateway-level token validation on every request. **[§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization) inverts this flow**: the behavioral trust scoring engine acts as a CAEP event **producer** — emitting `assurance-level-change` events when agent trust scores cross tier thresholds, propagating behavioral risk signals to all enforcement points via the same SSF infrastructure. No MCP gateway surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway) currently implements SSF Receiver functionality — this is a forward-looking architectural extension.
+Macaroons, Biscuits, UCAN-like designs, and other capability systems can attenuate delegated power through caveats, facts/rules, audience, or delegation chains. Attenuation is valuable because a derivative cannot exceed its parent’s encoded authority.
 
-#### 12.4 Decentralized Delegation: Biscuits, Macaroons, and UCANs
+Recall is separate. A verifier still needs one or more of short lifetime, online status, issuer/key rotation, indirection, deny lists, epoch checks, or application-specific state. No capability family is a universal MCP revocation standard, and decentralized verification can make emergency global recall harder.
 
-The five credential delegation patterns in [§11.1](#111-credential-delegation-pattern-taxonomy) all rely on centralized token exchange (RFC 8693) — the Authorization Server is always in the loop for every delegation operation. Biscuits and Macaroons offer a fundamentally different approach: **decentralized capability attenuation**, where the token holder can derive a more restricted token locally without contacting the AS. This is particularly relevant for multi-agent chains where each hop adds latency if it requires an AS round-trip. Beyond performance, decentralized tokens also serve as a **resilience pattern**: because verification requires no AS contact, Biscuits and Macaroons provide zero-AS-dependency authorization — making them the most resilient token format for disaster-recovery scenarios where AS availability is constrained (see [§13.8.3](#1383-token-format-as-a-resilience-factor) for the token format resilience analysis).
+#### 12.9 Suspension, Recovery, and Stale-State Prevention
 
-##### 12.4.1 Diagram A: Macaroons (Symmetric)
+Suspension increments the termination epoch and blocks new admission, issuance, release, resumption, and task creation. Recovery never decrements that epoch:
 
-```mermaid
-flowchart LR
-    classDef root stroke-width:2px,stroke-dasharray: 0
-    classDef branch stroke-width:2px,stroke-dasharray: 0
-    classDef verifier stroke-width:2px,stroke-dasharray: 0
-    classDef bg stroke-width:1px,stroke-dasharray: 5 5
+1. Confirm current owner, sponsor, definition version, and risk disposition.
+2. Rotate compromised or uncertain credentials and keys.
+3. Reconcile old grants, sessions, caches, tasks, and provider effects.
+4. Perform fresh runtime admission and issue a new admission epoch.
+5. Evaluate new authority under current policy.
+6. Reject every artifact bound to the prior termination epoch.
 
-    subgraph Creation ["<b>Centralized Issuance</b>"]
-        A["`<b>🔑 Shared Root Secret</b>
-        <i>Authorization Server</i>
+An unresolved old effect may require compensation or an explicit operational hold. Re-enabling an identity record does not make that ambiguity disappear.
 
-        <b>Base Token:</b>
-        ✅ id: user123
-        ✅ location: https://api.mcp.local`"]
-    end
-
-    subgraph Chain ["<b>Decentralized Offline Delegation</b>"]
-        B["`<b>🔗 HMAC Appending</b>
-        <i>Client A</i>
-
-        <b>String Caveat:</b>
-        ⚠️ tool == calendar
-        <b>New Sig:</b> HMAC(Sig0, Caveat1)`"]
-
-        C["`<b>🔗 HMAC Appending</b>
-        <i>Client B</i>
-
-        <b>String Caveat:</b>
-        ⏳ time &lt; 12:00
-        <b>New Sig:</b> HMAC(Sig1, Caveat2)`"]
-    end
-
-    subgraph Enforcement ["<b>Resource Server Validation</b>"]
-        V["`<b>🛡️ Symmetric Verification</b>
-        <i>MCP Server</i>
-
-        1️⃣ Load Shared Root Secret
-        2️⃣ Recompute HMAC chain
-        3️⃣ Evaluate string caveats`"]
-    end
-
-    A =="Offline Derivation"==> B
-    B =="Offline Derivation"==> C
-    C -. "Network Request" .-> V
-    A -. "Pre-shared Secret" .-> V
-
-    class A root
-    class B,C branch
-    class V verifier
-    class Creation,Chain,Enforcement bg
-
-    style A text-align:left
-    style B text-align:left
-    style C text-align:left
-    style V text-align:left
-```
-
-##### 12.4.2 Diagram B: Biscuits (Asymmetric)
-
-```mermaid
-flowchart LR
-    classDef root stroke-width:2px,stroke-dasharray: 0
-    classDef branch stroke-width:2px,stroke-dasharray: 0
-    classDef verifier stroke-width:2px,stroke-dasharray: 0
-    classDef bg stroke-width:1px,stroke-dasharray: 5 5
-
-    subgraph Creation ["<b>Centralized Issuance</b>"]
-        A["`<b>🔒 Private Key Issuance</b>
-        <i>Authorization Server</i>
-
-        <b>Block 0 (Datalog):</b>
-        ✅ right(user123, api)
-        <b>Sig:</b> Ed25519(PrivKey)`"]
-    end
-
-    subgraph Chain ["<b>Decentralized Offline Delegation</b>"]
-        B["`<b>🔗 Public Key Chaining</b>
-        <i>Client A</i>
-
-        <b>Block 1 (Datalog):</b>
-        ⚠️ check if tool == calendar
-        <b>Sig:</b> Ed25519(Ephemeral)`"]
-
-        C["`<b>🔗 Public Key Chaining</b>
-        <i>Client B</i>
-
-        <b>Block 2 (Datalog):</b>
-        ⏳ check if time &lt; 12:00
-        <b>Sig:</b> Ed25519(Ephemeral)`"]
-    end
-
-    subgraph Enforcement ["<b>Resource Server Validation</b>"]
-        V["`<b>🛡️ Asymmetric Verification</b>
-        <i>MCP Server</i>
-
-        1️⃣ Fetch AS Public Key
-        2️⃣ Verify block signatures
-        3️⃣ Execute Datalog engine`"]
-    end
-
-    A =="Offline Derivation"==> B
-    B =="Offline Derivation"==> C
-    C -. "Network Request" .-> V
-    A -. "Public Key" .-> V
-
-    class A root
-    class B,C branch
-    class V verifier
-    class Creation,Chain,Enforcement bg
-
-    style A text-align:left
-    style B text-align:left
-    style C text-align:left
-    style V text-align:left
-```
-
-##### 12.4.3 Comparison: OAuth Token Exchange vs. Macaroons vs. Biscuits
-
-| Dimension | OAuth Token Exchange ([§11.1](#111-credential-delegation-pattern-taxonomy)) | Macaroons | Biscuits | UCANs |
-|:----------|:----------------------------|:----------|:---------|:------|
-| **Delegation model** | Centralized: client requests new token from AS via RFC 8693 | Decentralized: holder adds caveats (HMAC chain) to derive restricted token | Decentralized: holder appends attenuation blocks (public-key signed) | Decentralized: holder signs a JWT delegating specific capabilities to a new target DID (Decentralized Identifier) |
-| **Attenuation mechanism** | AS issues new token with reduced scopes per policy | Holder appends arbitrary string caveats; verifier interprets caveats at validation time | Holder appends Datalog-based attenuation blocks; verifier executes Datalog rules deterministically | Capabilities object (URI, ability) restricting access to specific namespaces (e.g., `storacha/space/info`) |
-| **AS involvement** | Required for every delegation step | Only at initial issuance; subsequent attenuations are offline | Only at initial issuance; subsequent attenuations are offline | None. Identity and authorization are fully self-sovereign and local-first |
-| **Offline capability** | ❌ Requires AS availability | ✅ Fully offline after initial issuance | ✅ Fully offline after initial issuance | ✅ Fully offline, trustless verification |
-| **Cryptographic model** | AS signing (JWT/JWS) | Chained HMAC (symmetric key shared between issuer and verifier) | Public-key cryptography (Ed25519) | Public-key cryptography packaged as standard JWTs with nested Proofs |
-| **MCP readiness** | ✅ Native — MCP authorization spec is built on OAuth 2.1 | ❌ No MCP integration; requires custom gateway extension | ❌ No MCP integration; requires custom gateway extension | ✅ **Live Production** — used by the Storacha MCP Server for agent memory |
-
-##### 12.4.4 How Biscuits Could Work in MCP
-
-In a multi-agent delegation chain, a Biscuit enables **offline, cascading attenuation** without AS round-trips via public-key cryptography and Datalog evaluation.
+#### 12.10 Dependency-Aware Termination Orchestration
 
 ```mermaid
 ---
@@ -8719,597 +7849,142 @@ config:
     noteBkgColor: "transparent"
     noteBorderColor: "transparent"
   sequence:
-    messageAlign: left
-    noteAlign: left
     actorMargin: 250
 ---
 sequenceDiagram
     autonumber
-    participant GW as MCP Gateway
-    participant AgA as 🤖 Primary Agent A
-    participant AgB as 🤖 Sub-Agent B
-    participant MCP as MCP Server
+    participant O as Termination Orchestrator
+    participant I as Identity / Admission
+    participant AS as Authorization Server
+    participant V as Vault / Broker
+    participant G as Gateway / Session Store
+    participant X as Task Executor
+    participant P as Downstream Provider
+    participant L as Convergence Ledger
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of GW: Phase 1: Root Token Issuance
-    GW->>GW: Mint Root Biscuit<br/>Sign with private key (Block 0)
-    GW-->>AgA: Root Biscuit Token
-    Note right of GW: Contains Datalog facts:<br/>right("alice", "tool:calendar", "read")<br/>right("alice", "tool:weather", "read")
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of AgA: Phase 2: Offline Capability Attenuation
-    AgA->>AgA: Attenuate Biscuit for Sub-Agent B<br/>Append Block 1 without AS contact
-    Note right of AgA: Add caveats, calendar only, before 2026-03-15T00Z
-    AgA-->>AgB: Attenuated Biscuit Token
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of AgB: Phase 3: Attenuated Token Usage
-    AgB->>MCP: tools/call (calendar) + Attenuated Biscuit
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of MCP: Phase 4: Decentralized Verification
-    MCP->>MCP: Validate Biscuit cryptographically<br/>Verify Block 0 & 1 signatures using Root Public Key
-    MCP->>MCP: Execute Datalog engine<br/>Verify Block 1 caveats against Block 0 facts
-    MCP-->>AgB: 200 OK Response
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+    O->>L: Create termination epoch and dependency set
+    O->>I: Block admission and suspend identity
+    O->>AS: Revoke grants and supported tokens
+    O->>V: Revoke leases and block credential use
+    O->>G: Invalidate sessions, handles, and caches
+    O->>X: Cancel or quarantine tasks and continuations
+    X->>P: Cancel, compensate, or query downstream effects
+    P-->>X: Final, pending, rejected, or unknown state
+    O->>L: Reconcile acknowledgements and authoritative read-back
+    L-->>O: Converged, exception, pending, or unknown
+    Note right of L: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
 <details>
-<summary><strong>1. MCP Gateway mints Root Biscuit</strong></summary>
+<summary><strong>1. Termination Orchestrator creates an epoch and dependency set</strong></summary>
 
-The MCP gateway (acting as the initial authority) authenticates the user and mints a root Biscuit token. Unlike standard JWTs, this Biscuit encodes the user's delegated permissions as cryptographic Datalog facts in its initial block (Block 0). For example, it restricts the token to specific resources. This block is signed by the Gateway's private key (typically Ed25519). The Gateway simultaneously emits a Root Token Issuance event to the centralized telemetry layer.
+The ledger freezes the target graph before destructive cleanup erases identifiers.
 
-```datalog
-// Block 0 Facts (Root Authority)
-right("user:alice", "tool:calendar", "read");
-right("user:alice", "tool:weather", "read");
-```
-By encoding permissions as Datalog facts natively within the token, the Gateway retains no centralized state regarding the downstream lifespan of this token.
-
-**Artifact Produced:** Root Biscuit Token (Block 0).
+**Artifact produced**: identity, grants, credentials, sessions, tasks, provider operations, owners, deadlines, and required evidence.
 
 </details>
 
 <details>
-<summary><strong>2. MCP Gateway issues Root Biscuit to Primary Agent A</strong></summary>
+<summary><strong>2. Orchestrator blocks admission and suspends the identity</strong></summary>
 
-The Gateway issues the newly minted Root Biscuit to Primary Agent A. The base64-encoded Biscuit looks similar to a JWT but contains the compiled Datalog blocks and a public-key signature instead of a JSON payload.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "access_token": "EoSxAgpFdjYKJggDEhwiG...[base64_biscuit]...",
-  "token_type": "Bearer",
-  "expires_in": 3600
-}
-```
-
-**Artifact Produced:** Decentralized Biscuit Token Grant.
+New work stops first. Read-back confirms the identity/admission plane changed; it says nothing yet about existing tokens or tasks.
 
 </details>
 
 <details>
-<summary><strong>3. Primary Agent A attenuates Biscuit locally for Sub-Agent B</strong></summary>
+<summary><strong>3. Orchestrator revokes grants and supported tokens</strong></summary>
 
-When Primary Agent A needs to delegate a subset of its authority to Sub-Agent B, it does not contact the Authorization Server or Gateway. Instead, it performs offline, cascading attenuation. It creates an ephemeral Ed25519 keypair, signs a new Datalog block (Block 1) containing restrictions (caveats), and appends this block to the root Biscuit.
+RFC 7009 or product-specific mechanisms target named tokens/grants. Related-token invalidation and propagation are recorded as implementation-specific.
 
-```mermaid
-stateDiagram-v2
-    direction LR
-    state "Root Biscuit" as B0 {
-        Block0: Datalog Facts
-        Sig0: Ed25519 Signature
-    }
-    state "Attenuated Biscuit" as B1 {
-        Block1: Datalog Caveats
-        Sig1: Ephemeral Ed25519 Sig
-    }
-    B0 --> B1 : Offline Append
-```
-
-The string representations of the Datalog caveats in Block 1 strictly attenuate the parent permissions:
-```datalog
-// Block 1 Caveats (Appended by Agent A)
-check if resource($res), $res == "tool:calendar";
-check if time($t), $t &lt; 2026-03-15T00:00:00Z;
-check if source_ip($ip), ["10.0.0.0/8"].contains($ip);
-```
-
-**Artifact Produced:** Attenuated Biscuit Token (Block 1).
+**Failure boundary**: accepted revocation is not global termination proof.
 
 </details>
 
 <details>
-<summary><strong>4. Primary Agent A delivers Attenuated Biscuit to Sub-Agent B</strong></summary>
+<summary><strong>4. Orchestrator revokes leases and blocks broker use</strong></summary>
 
-Primary Agent A hands over the derived, Attenuated Biscuit to Sub-Agent B. Because capability attenuation is entirely local (creating an ephemeral key pair and appending a block payload), this delegation transaction has `O(1)` Authorization Server interactions regardless of chain depth.
+The vault/broker denies new use immediately and attempts backend revocation/purge. Queued or forceful cleanup can still leave backend uncertainty.
 
 </details>
 
 <details>
-<summary><strong>5. Sub-Agent B presents attenuated Biscuit to MCP Server</strong></summary>
+<summary><strong>5. Orchestrator invalidates sessions, handles, and caches</strong></summary>
 
-Sub-Agent B initiates a `tools/call` for the calendar tool against the downstream MCP Server (the verifier). It passes the Attenuated Biscuit token in the `Authorization` header exactly like a standard bearer token.
+All entries derived from the old policy/admission/termination epoch are evicted. Negative resume/use tests supplement acknowledgements.
+
+</details>
+
+<details>
+<summary><strong>6. Orchestrator cancels or quarantines tasks and continuations</strong></summary>
+
+Logical cancellation blocks resumption, but executor state remains separately observed.
+
+**Failure boundary**: `cancelled` is not evidence that an already-started provider operation stopped.
+
+</details>
+
+<details>
+<summary><strong>7. Task Executor cancels, compensates, or queries downstream effects</strong></summary>
+
+The executor uses each provider’s operation ID and supported cancellation/compensation interface. Irreversible effects move to exception handling.
+
+</details>
+
+<details>
+<summary><strong>8. Downstream Provider returns final, pending, rejected, or unknown state</strong></summary>
+
+`202 Accepted`, timeout, or missing status endpoint remains pending/unknown. The ledger retains deadlines, retry ownership, and residual exposure.
+
+</details>
+
+<details>
+<summary><strong>9. Orchestrator reconciles acknowledgements and authoritative read-back</strong></summary>
+
+It compares requested, accepted, applied, and verified stages for every dependency. Conflicts trigger retry or escalation, not optimistic completion.
+
+</details>
+
+<details>
+<summary><strong>10. Convergence Ledger returns the aggregate outcome</strong></summary>
+
+The outcome is **converged**, **converged with exceptions**, **pending**, or **unknown**. Only the first two may close the incident, and exceptions require named acceptance/compensation.
+
+</details>
+
+#### 12.11 Convergence Ledger, Residual Windows, and Evidence
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": {
-    "name": "calendar",
-    "arguments": { "action": "read" }
-  },
-  "id": 1,
-  "_meta": {
-    "authorization": "Bearer EoSxAgpFdjY...[attenuated_biscuit]..."
-  }
-}
-```
-
-**Artifact Produced:** Biscuit JSON-RPC Request.
-
-</details>
-
-<details>
-<summary><strong>6. MCP Server validates Biscuit cryptographically</strong></summary>
-
-The downstream MCP Server receives the token and performs decentralized verification. It first verifies the cryptographic integrity of the entire block chain structure using the Gateway's **Root Public Key**. It verifies the root signature for Block 0, and then verifies that Block 1's signature legitimately ties back to the embedded ephemeral public key, ensuring the block chain is untampered. Any cryptographic discrepancy immediately results in a `401 Unauthorized` signature rejection, with the exact failing block index recorded in the system anomaly log.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    VerifyRoot --> ExtractEd25519
-    ExtractEd25519 --> MatchEphemeralKey
-    MatchEphemeralKey --> AcceptChain
-```
-
-</details>
-
-<details>
-<summary><strong>7. MCP Server executes Datalog engine</strong></summary>
-
-The Server loads the requested tool scope into its internal context and executes its embedded Datalog engine. It validates that all caveats in the attenuation blocks evaluate consistently against the facts provided in the root block and the immediate request context:
-
-```datalog
-// Verifier Context Facts (Injected by MCP Server)
-resource("tool:calendar");
-time(2026-03-14T10:00:00Z);
-source_ip("10.0.0.5");
-operation("read");
-```
-
-The Datalog engine runs formal verification. Any caveat violation deterministically halts execution, producing a `403 Forbidden` policy denial.
-
-**Artifact Produced:** Offline Trust Verification Result.
-
-</details>
-
-<details>
-<summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
-
-With authorization verified successfully via offline logic, the MCP server proceeds to execute the target tool call and returns the `200 OK` response payload to Sub-Agent B.
-
-</details>
-
-
-##### 12.4.5 How Macaroons Could Work in MCP
-
-Macaroons also provide offline capability attenuation, but using chained HMACs instead of asymmetric public-key cryptography. This approach makes verification highly restrictive, as the verifying MCP server must share the Gateway's root secret key.
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant GW as MCP Gateway
-    participant AgA as 🤖 Primary Agent A
-    participant AgB as 🤖 Sub-Agent B
-    participant MCP as MCP Server
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of GW: Phase 1: Shared Secret Root Issuance
-    GW->>GW: Mint Root Macaroon<br/>HMAC(RootKey, Identifier)
-    GW-->>AgA: Root Macaroon Token
-    Note right of GW: Contains base identifier:<br/>id: "user:alice_session_123"
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of AgA: Phase 2: Offline String Attenuation
-    AgA->>AgA: Attenuate Macaroon for Sub-Agent B<br/>Append string caveats and re-hash
-    Note right of AgA: Add caveats, calendar only, before 2026-03-15T00Z
-    AgA-->>AgB: Attenuated Macaroon Token
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of AgB: Phase 3: Attenuated Token Usage
-    AgB->>MCP: tools/call (calendar) + Attenuated Macaroon
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of MCP: Phase 4: Shared Secret Verification
-    MCP->>MCP: Retrieve Shared Root Key<br/>Must look up key used by Gateway
-    MCP->>MCP: Recompute HMAC Chain<br/>Evaluate string caveats against requested HTTP context
-    MCP-->>AgB: 200 OK Response
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. MCP Gateway mints Root Macaroon using a Shared Secret</strong></summary>
-
-The MCP Gateway mints the Root Macaroon token. Unlike a Biscuit, which uses public-key cryptography, a Macaroon is based on a **symmetric shared secret**. The Gateway creates an identifier for the token and uses a strong secret key (the Root Key) to create the initial HMAC signature. This transaction is strictly logged against the original user session ID to maintain forensic provenance.
-
-```python
-# Conceptual Macaroon Minting
-root_key = "secret_key_shared_with_mcp_servers"
-identifier = "session_user_alice_123"
-location = "https://gateway.mcp.local"
-
-# The initial signature is the HMAC of the identifier
-signature = hmac.new(root_key.encode(), identifier.encode(), hashlib.sha256).digest()
-```
-
-**Artifact Produced:** Root Macaroon Signature.
-
-</details>
-
-<details>
-<summary><strong>2. MCP Gateway issues Root Macaroon to Primary Agent A</strong></summary>
-
-The Gateway responds to the token request with the serialized Macaroon token. It is typically formatted as base64url-encoded JSON containing the location, identifier, and the initial HMAC signature.
-
-</details>
-
-<details>
-<summary><strong>3. Primary Agent A attenuates Macaroon locally for Sub-Agent B</strong></summary>
-
-Primary Agent A delegates limited authority to Sub-Agent B. To attenuate the token offline, Agent A appends string caveats. For each caveat, it takes the Macaroon's previous signature, and computes a new signature using `HMAC(previous_signature, new_caveat)`.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    state "Root Macaroon" as M0 {
-        ID: session_123
-        Sig0: HMAC(RootKey)
-    }
-    state "Attenuated Macaroon" as M1 {
-        Cav1: "tool = calendar"
-        Cav2: "time &lt; 2026"
-        Sig2: HMAC(Sig1, Cav2)
-    }
-    M0 --> M1 : Offline Append String Caveats
-```
-
-Because HMAC is a one-way function, anyone can append caveats and generate a valid *new* signature sequence path without knowing the root key, but they cannot remove a caveat from the token without destroying the terminal signature validation result.
-
-</details>
-
-<details>
-<summary><strong>4. Primary Agent A delivers Attenuated Macaroon to Sub-Agent B</strong></summary>
-
-Agent A provides the newly restricted token to Agent B. The token now contains a clear-text list of constraints (`tool = calendar`, `time &lt; 2026-03-15T00Z`) alongside a single 32-byte terminal signature.
-
-</details>
-
-<details>
-<summary><strong>5. Sub-Agent B presents attenuated Macaroon to MCP Server</strong></summary>
-
-Agent B submits the `tools/call` JSON-RPC request to the MCP Server, passing the Macaroon in the `Authorization` metadata object.
-
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "tools/call",
-  "params": { "name": "calendar" },
-  "id": 1,
-  "_meta": {
-    "authorization": "Macaroon MDAyNGxvY2F0aW9uIGh0...[base64_macaroon]..."
-  }
-}
-```
-
-**Artifact Produced:** Macaroon Authorized JSON-RPC Payload.
-
-</details>
-
-<details>
-<summary><strong>6. MCP Server retrieves Shared Root Key</strong></summary>
-
-The MCP Server must verify the token's cryptographic integrity. To do this, **it must possess the exact same symmetric Root Key** that the Gateway originally used. This is the primary architectural drawback of Macaroons for distributed MCP networks: symmetric key distribution is much harder to manage globally than the public-key infrastructure (PKI) used by Biscuits or JWTs. If the required symmetric key cannot be located, the Server instantly triggers a `500 Internal Server Error` representing a key-synchronization failure.
-
-</details>
-
-<details>
-<summary><strong>7. MCP Server recomputes HMAC chain and evaluates caveats</strong></summary>
-
-The MCP Server parses the clear-text caveats and sequentially recomputes the HMAC chain from the Root Key, verifying the terminal signature matches the token's trailing signature. If the final computed signature diverges from the presented token signature, the request is definitively blocked via `401 Unauthorized`. It then passes the caveats to an evaluator function:
-
-```python
-# Evaluator pseudo-code
-def check_caveats(caveats):
-    for caveat in caveats:
-        if caveat.startswith("tool ="):
-            assert caveat.split("=")[1].strip() == current_tool
-        elif caveat.startswith("time &lt;"):
-            assert current_time &lt; parse_time(caveat.split("&lt;")[1])
-        else:
-            raise Exception(f"Unknown caveat: {caveat}")
-```
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    RecomputeHMAC --> VerifyTerminalSig
-    VerifyTerminalSig --> ParseCaveatStrings
-    ParseCaveatStrings --> ExecuteEvaluator
-```
-
-Because Macaroons don't use a formal mathematical language (like Datalog in Biscuits), the exact string format and parser logic must be tightly synchronized between all agents and verifying servers.
-
-**Artifact Produced:** Macaroon Constraint Validation.
-
-</details>
-
-<details>
-<summary><strong>8. MCP Server returns successful fulfillment</strong></summary>
-
-Assuming the HMAC chain is unbroken and all string constraints are verified by the evaluator script, the MCP server executes the requested tool and returns the response payload.
-
-</details>
-
-
-##### 12.4.6 Trade-offs for MCP Adoption
-
-> **Note — Decentralized delegation is a resilience pattern, not the default MCP credential model**
->
-> Biscuits, Macaroons, and UCANs remove authorization-server round trips, but they also move the deployment outside the OAuth-native toolchain that the MCP ecosystem already assumes. Use them when offline attenuation or AS independence is the requirement, not as a casual replacement for standard token exchange.
-
-**Why OAuth Token Exchange remains preferred for most MCP scenarios**: OAuth TE benefits from universal ecosystem support — every IdP, every CIAM platform, and every MCP gateway surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway) either implements or can integrate with RFC 8693. Enterprise tooling (audit, compliance, revocation, consent management) is built around OAuth token lifecycle. IdP integration (Entra ID, Okta, PingOne, Auth0) is native. The MCP authorization specification itself is built on OAuth 2.1, making Token Exchange the path of least resistance.
-
-**Where Biscuits/Macaroons shine**: Scenarios where AS availability is constrained or latency-sensitive make decentralized delegation compelling: (1) **multi-hop delegation chains** where each agent delegates to sub-agents (O(1) vs. O(n) AS calls), (2) **edge computing** deployments where MCP servers run at Cloudflare Workers ([§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)) or other edge locations with intermittent AS connectivity, (3) **air-gapped environments** where token exchange with a central AS is impossible, and (4) **latency-sensitive sub-agent delegation** where even millisecond AS round-trips are prohibitive (e.g., real-time tool orchestration).
-
-##### 12.4.7 UCANs (User Controlled Authorization Networks)
-
-**UCAN** represents the Web3 evolution of decentralized capability delegation, sharing the same fundamental DNA as Biscuits but packaged within standard JWTs mathematically bound to Decentralized Identifiers (DIDs). In a UCAN architecture, authorization is fully local-first and self-sovereign: users create root capabilities mapped to their cryptographic keypair and can unilaterally delegate subsets of these capabilities to an AI agent by signing a UCAN chain. The AI agent presents this token to a resource server, which verifies the cryptographic delegation chain *offline*, without needing a centralized Authorization Server.
-
-##### 12.4.8 Diagram C: UCANs (Asymmetric JWTs)
-
-```mermaid
-flowchart LR
-    classDef root stroke-width:2px,stroke-dasharray: 0
-    classDef branch stroke-width:2px,stroke-dasharray: 0
-    classDef verifier stroke-width:2px,stroke-dasharray: 0
-    classDef bg stroke-width:1px,stroke-dasharray: 5 5
-
-    subgraph Creation ["<b>Decentralized&nbsp;Root&nbsp;Identity</b>"]
-        A["`<b>👤 Human User (DID)</b>
-        <i>did:key:zRoot...</i>
-
-        <b>Locally generates UCAN:</b>
-        ✅ att: storacha/space/info
-        <b>Sig:</b> Ed25519(RootKey)`"]
-    end
-
-    subgraph Chain ["<b>Offline&nbsp;Capabilities&nbsp;Delegation</b>"]
-        B["`<b>🤖 AI Agent (DID)</b>
-        <i>did:key:zAgent...</i>
-
-        <b>Delegated UCAN:</b>
-        ✅ prf: [Root UCAN CID]
-        <b>Sig:</b> Ed25519(AgentKey)`"]
-    end
-
-    subgraph Enforcement ["<b>Trustless&nbsp;Verification</b>"]
-        V["`<b>🛡️ Cryptographic Chain Validation</b>
-        <i>Storacha MCP Server</i>
-
-        1️⃣ Resolve DIDs
-        2️⃣ Verify Proofs (CIDs)
-        3️⃣ Validate Capability bounds`"]
-    end
-
-    A =="Signed JWT (UCAN)"==> B
-    B -. "Network Request (Bearer UCAN)" .-> V
-
-    class A root
-    class B branch
-    class V verifier
-    class Creation,Chain,Enforcement bg
-
-    style A text-align:left
-    style B text-align:left
-    style V text-align:left
-```
-
-**The Storacha MCP Server Use Case:**
-A premier real-world implementation of UCANs in the AI ecosystem is the **Storacha MCP Server**. Storacha is a decentralized hot storage network built on IPFS and Filecoin. Autonomous AI agents frequently require persistent, scalable memory systems to save interaction state, document embeddings, or execution context graphs. This creates a massive privacy vector if pushed to centralized SaaS DBs.
-
-By using the Storacha MCP Server, agents offload user memory directly into decentralized infrastructure *fully owned and permissioned by the user*.
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant User as 👤 Human User
-    participant Agent as 🤖 AI Agent (MCP Client)
-    participant MCP as 💾 Storacha MCP Server
-    participant IPFS as 🌐 Filecoin / IPFS
-
-    rect rgba(148, 163, 184, 0.14)
-    note right of User: Phase 1: Local Capability Creation
-    User->>User: Create Space (Root DID)<br/>Sign UCAN delegating access to Agent DID
-    User-->>Agent: Transfers UCAN (e.g., config injection)
-    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    note right of User: Phase 2: Agent Tool Invocation
-    Agent->>MCP: Call tool: storacha_store<br/>(Attaches UCAN as Proof)
-    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    note right of User: Phase 3: Trustless Verification & Execution
-    MCP->>MCP: Cryptographically verify UCAN chain offline<br/>(Validates signatures & capabilities)
-    MCP->>IPFS: Upload data structure (DAG-CBOR)
-    IPFS-->>MCP: Returns Content ID (CID)
-    MCP-->>Agent: Tool Result: Data stored at CID
-    Note right of IPFS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. Human User creates bounded capabilities locally</strong></summary>
-
-The user generates a cryptographic keypair (`did:key`) that defines their identity. They provision a "Space" on the Storacha network and create a UCAN (a signed JWT) that delegates specific array capabilities to the AI Agent's unique DID. By issuing this JWT locally without AS intervention, the user strictly eliminates central-authority bottlenecks.
-
-```json
-{
-  "iss": "did:key:zRootUser...",
-  "aud": "did:key:zAgent...",
-  "att": [
-    {
-      "can": "upload/STORE",
-      "with": "did:key:zSpaceDID..."
-    }
+  "termination_id": "term:01J3…",
+  "termination_epoch": 21,
+  "subject": "agent:tenant-a:case-worker-17",
+  "started_at": "2026-07-24T10:20:00Z",
+  "deadline": "2026-07-24T10:25:00Z",
+  "objects": [
+    {"type":"identity","id":"agent:…","stage":"verified","state":"suspended"},
+    {"type":"grant","id":"grant:…","stage":"verified","state":"revoked"},
+    {"type":"credential","id":"lease:…","stage":"applied","state":"backend_pending"},
+    {"type":"task","id":"task:…","stage":"verified","state":"cancelled"},
+    {"type":"effect","id":"provider-op:…","stage":"observed","state":"pending"}
   ],
-  "exp": 1740000000,
-  "prf": []
+  "outcome": "pending",
+  "next_action": "poll_provider_and_verify_backend_revoke"
 }
 ```
 
-**Artifact Produced:** Root Identity UCAN Payload.
+Measure separate windows: detection, event delivery, receiver validation, policy action, enforcement acknowledgement, authoritative verification, and downstream completion. Report percentiles and exceptions from deployment evidence rather than claiming universal millisecond or global-consistency guarantees.
 
-</details>
+The ledger must preserve:
 
-<details>
-<summary><strong>2. Human User transfers the UCAN to the AI Agent</strong></summary>
+- correlation and termination epochs;
+- requested, accepted, applied, and verified timestamps;
+- authoritative source and observation method;
+- retry count, deadline, and accountable owner;
+- irreversible effects and compensation;
+- residual token/session/task/effect windows;
+- final outcome and exception acceptance.
 
-The user securely passes the generated UCAN token to the AI Agent. Because this is decentralized capability delegation, the Authorization Server is eliminated. The token *is* the fully contained authorization grant.
-
-</details>
-
-<details>
-<summary><strong>3. AI Agent calls the Storacha MCP Server</strong></summary>
-
-When the agent needs to save conversation memory or a drafted payload to decentralized storage, it formats an standard MCP tool call (`storacha_store`) and injects the UCAN token in its arguments as Cryptographic Proof.
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "storacha_store",
-    "arguments": {
-      "file_content": "User prefers concise summaries...",
-      "proof": "eyJhb...[UCAN_JWT]...sig"
-    }
-  }
-}
-```
-
-**Artifact Produced:** Trustless Capability Proof.
-
-</details>
-
-<details>
-<summary><strong>4. Storacha MCP Server verifies the UCAN chain offline</strong></summary>
-
-The MCP server parses the UCAN natively. It checks the cryptographic signature of `did:key:zRootUser`, verifies that the timeframe (`exp`) is valid, and ensures the requested action (`upload/STORE`) explicitly matches the capabilities granted in the `att` array. Zero network calls to an IdP are made. A failure in scope matching immediately triggers a `403 Forbidden` UCAN constraints violation.
-
-</details>
-
-<details>
-<summary><strong>5. Storacha MCP Server uploads data to IPFS</strong></summary>
-
-Once verified, the MCP Server chunks the agent's memory payload and orchestrates the upload to the decentralized IPFS/Filecoin network, leveraging Web3 storage guarantees.
-
-</details>
-
-<details>
-<summary><strong>6. IPFS returns Content Addressable ID (CID)</strong></summary>
-
-The decentralized network returns an immutable, cryptographic hash of the data (the CID), guaranteeing verifiable, tamper-proof storage of the agent's memory payload.
-
-</details>
-
-<details>
-<summary><strong>7. Storacha MCP Server returns Tool Result to AI Agent</strong></summary>
-
-The MCP Server wraps the CID into a standardized MCP `CallToolResult` and returns it. The AI Agent can safely record this CID pointer in its minimal context window, knowing the massive raw data blob is securely stored in a user-owned space.
-
-</details>
-
-##### 12.4.9 Assessment
-
-Of the three decentralized delegation paradigms, **UCANs** exhibit the strongest trajectory for modern AI agent integrations. By packaging capabilities directly inside standard JWTs mapped to Decentralized Identifiers (DIDs), UCANs achieve full offline attenuation without requiring bespoke datalog engines or HMAC synchronization, leveraging the ubiquity of JWT parsing libraries. As proven by the Storacha MCP Server, UCANs natively solve the "Agent Memory" privacy problem by putting the user in absolute cryptographic control of the data context block.
-
-While **Biscuits** offer rigorous formal verification via Datalog (ensuring mathematically sound policy evaluation across implementations) and **Macaroons** pioneered the conceptual model of chained attenuation, neither has achieved native adoption within the MCP gateway ecosystem. Adopting Biscuits or Macaroons today would strictly require building custom gateway middleware to translate OAuth/JWT claims into bespoke token structures. Consequently, UCANs represent the most practical, standards-aligned (JWT-based), and production-proven path for decentralized MCP delegation strings.
-
-#### 12.5 Pattern Traceability
-
-| Reference | Connection |
-|:----------|:-----------|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Pattern A (Direct Token Exchange) is the RFC 8693 model from [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), viewed from the credential delegation perspective |
-| **[§7.4](#74-credential-architecture-for-ai-agents) Credential Architecture** | Patterns A–D map to the four credential models (Bearer, SVID, Secretless, Embedded); Pattern E extends to cloud-native |
-| **[§10](#10-authorization-continuity-and-durable-tasks) Refresh Tokens** | Lifecycle phases 3–5 (storage, rotation, exchange) elaborate the gateway-side management from [§10.5](#105-gateway-side-token-lifecycle-management) |
-| **[§22.1](#221-protocol-admission-extensions-and-conformance) Protocol Admission Matrix** | [§11.2](#112-credential-delegation-comparison-matrix) provides the credential-delegation-specific deep matrix; [§22.1](#221-protocol-admission-extensions-and-conformance) records exact product core, extension, handle-policy, and conformance evidence |
-| **[§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) Auth0 Token Vault** | Pattern B's primary implementation; lifecycle analysis ([§11.3.1](#1131-lifecycle-coverage-by-implementation)) quantifies its 7/8 coverage |
-| **[§D.2](#d2-authentication-architecture-three-inbound-and-five-outbound-patterns) TrueFoundry** | Pattern C's primary implementation; Identity Injection as gateway-level delegation |
-| **[§J.6](#j6-authentication-centralized-secret-management) Docker** | Pattern D's primary implementation; secret injection as runtime-level delegation |
-| **[§11.4](#114-cloud-native-credential-delegation-platforms) Cloud-Native Platforms** | Pattern E implementations across Azure, GCP, AWS, and HashiCorp Vault |
-| **[§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) Revocation Architecture** | Implements Rec 21's cross-gateway revocation convergence with three strategies; [OQ 32](#oq-32) retains timing and in-flight-work semantics |
-| **[§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents) DPoP** | Sender-constrained tokens as the primary theft-prevention mechanism for agent tokens |
-| **[§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans) Biscuits/Macaroons/UCANs** | Decentralized capability attenuation as an alternative delegation model, actively used by Storacha MCP for Agent Memory |
-
-> **Isolation & Attestation across DR-0001**: Isolation and runtime attestation are discussed across multiple sections:
-> - **[§11](#11-credential-delegation-patterns)** (this section) — Credential delegation patterns and DPoP sender-constraining
-> - **[§20.5](#205-sender-audience-and-workload-constraints)** — WIMSE workload credentials and proof binding agent identity to runtime properties
-> - **[§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)** — Docker container isolation as an MCP security boundary ([Finding 20](#finding-20))
-> - **[§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)** — Cloudflare edge-native Zero Trust isolation ([Finding 21](#finding-21))
-> - **[§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)** — NHI governance and credential lifecycle for agent-scale deployments
-
----
-
-## Gateway and Authorization Architecture
-
-With identity established ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) and its token representation defined ([§9](#9-authorization-context-and-delegation-representation)–[§12](#12-credential-security-and-revocation)), this group turns to the **infrastructure that enforces authorization decisions** at runtime. The central architectural element — the MCP gateway — is dissected in [§13](#13-gateway-mediated-mcp-architecture), covering deployment topologies, protocol and extension admission, threat models, rate limiting, tool supply-chain security, explicit-state authority, and infrastructure resilience. The following chapters then address consent, oversight, durable authority, scope mapping, policy engines, and structured authorization.
+An incident is not complete merely because every API call returned success. It is complete when required terminal or safely bounded states are observed—or when named residual risk is explicitly accepted under policy.
 
 ---
 
@@ -9849,14 +8524,14 @@ The Converged Gateway executes an inline, high-speed Deep Packet Inspection (DPI
 | **Grant and approval evidence** | Validate the current grant and, where policy requires it, the relevant approval/consent evidence reference | OAuth grant/scopes, IAM grant or consent registry, authority record | Can support Art. 14 controls where applicable; not compliance proof ([§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§23.5](#235-art-14-human-oversight-implementation-patterns)) |
 | **Scope-to-Tool Mapping** | Map OAuth scopes to MCP tool permissions | Custom ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) | Art. 9 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Token Exchange** | Exchange user token for scope-attenuated tool-specific token (OBO) | RFC 8693 | — |
-| **Downstream Credential Separation** | Obtain a credential whose audience and authority target the downstream service; never pass the incoming MCP token through | RFC 8693 or service-specific workload authorization | Art. 9/15 — see [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§11](#11-credential-delegation-patterns), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
+| **Downstream Credential Separation** | Obtain a credential whose audience and authority target the downstream service; never pass the incoming MCP token through | RFC 8693 or service-specific workload authorization | Art. 9/15 — see [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§11](#11-credential-custody-and-release-patterns), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Identity Context Enrichment** | Add validated user, actor, client, entitlement, and resource claims to a protected backend context without relying on connection-derived authority | JwtBuilderFilter pattern; local claim schema | Art. 13 — see [§23.7](#237-art-13-transparency-to-deployers) |
 | **Protocol and Extension Admission** | Require the configured core version and independently pinned extension versions, complete request metadata, and declared capabilities; reject unknown or inconsistent contracts before routing | MCP current RC + admitted extension specifications | Art. 12/15 — see [§23.4](#234-art-12-and-art-26-audit-trail-requirements), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Header/Body Conformance** | Require `Mcp-Method` and `Mcp-Name` where defined and compare them to the JSON-RPC method and primitive name; use mismatches as rejection evidence, never as authorization evidence | MCP Streamable HTTP | Art. 12/15 — see [§23.4](#234-art-12-and-art-26-audit-trail-requirements), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Request and Result Validation** | Validate JSON-RPC and primitive schemas, then enforce the declared `resultType` (`complete`, `input_required`, or `task`) before releasing content or a handle | MCP core + Tasks extension | Art. 15 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Explicit Handle Authorization** | Authorize each read, update, cancel, resume, or listen operation on application-state, task, and subscription handles against their authority records | MCP core + Tasks extension | Art. 9/15 — see [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Cache Authorization** | Validate `ttlMs` and `cacheScope`, partition private entries by authority context, and share public entries only when the representation is proven user-invariant | MCP cache metadata + local cache policy | Art. 9/15 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
-| **Stream-Lifetime Authorization** | Authorize `subscriptions/listen` creation and requested notification classes, then re-evaluate identity, resource, task, revocation, and policy conditions for the stream lifetime | MCP subscriptions + CAEP/SSF | Art. 12/15 — see [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands), [§23.4](#234-art-12-and-art-26-audit-trail-requirements), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
+| **Stream-Lifetime Authorization** | Authorize `subscriptions/listen` creation and requested notification classes, then re-evaluate identity, resource, task, revocation, and policy conditions for the stream lifetime | MCP subscriptions + CAEP/SSF | Art. 12/15 — see §§12.5–12.7, [§23.4](#234-art-12-and-art-26-audit-trail-requirements), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Policy Context Assembly** | Combine validated token claims, grants, contract-admission evidence, primitive method/name, arguments, explicit handle authority, tool metadata, result/cache/stream operation, and risk attributes before PDP evaluation | MCP + local policy schema | Art. 9/15 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Content Guardrails** | Inspect tool descriptors, request bodies, and returned content independently from the authorization decision | Local input/output policy | Art. 9/15 — see [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
 | **Rate Limiting** | Throttle per-user, per-agent, per-tool invocations | Gateway policy | Art. 15 — see [§23.6](#236-art-9-and-art-15-risk-management-and-cybersecurity) |
@@ -10208,7 +8883,7 @@ The key architectural insight is the **secondary PDP evaluation** (step 4): when
 
 The guardrail engine produces a structured result containing a confidence score (0.0–1.0) and a detection category. The secondary PDP evaluation maps this to one of three authorization responses, aligned with the HITL tier architecture ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)):
 
-| Guardrail Confidence | Detection Meaning | Authorization Response | HITL Tier ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) | Behavioral Signal ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) | CAEP Event ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)) |
+| Guardrail Confidence | Detection Meaning | Authorization Response | HITL Tier ([§15.2](#152-human-oversight-taxonomy-the-seven-tier-spectrum)) | Behavioral Signal ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)) | CAEP Event (§§12.5–12.6) |
 |:---------------------|:-----------------|:----------------------|:-------------------|:--------------------------|:---------------------|
 | **High** (≥ 0.9) | Near-certain prompt injection or policy violation | **Hard deny** — block this request and return a controlled `guardrail_violation` error; human approval cannot make the detected payload safe | Not applicable to the denied request | Guardrail trigger signal: weight High, decay 24h | `assurance-level-change` (`decrease`, `current_level: untrusted`) |
 | **Medium** (0.5–0.89) | Suspected injection or ambiguous content | **Hold and investigate** — do not execute the suspect request; isolate untrusted content, retain a policy-safe summary, and route it to a security-review workflow. A later sanitized operation receives a new authorization evaluation and, if independently required by policy, a request-bound approval | Local security-review workflow; any later approval tier is selected for the sanitized operation | Guardrail trigger signal: weight Medium, decay 4h | `assurance-level-change` (`decrease`, `current_level: reduced`) |
@@ -10332,15 +9007,15 @@ Applying [STRIDE](https://learn.microsoft.com/en-us/azure/security/develop/threa
 
 | STRIDE Category | Threat in MCP Context | Gateway Mitigation | DR-0001 Sections |
 |:----------------|:---------------------|:-------------------|:-----------------|
-| **Spoofing** | A malicious agent presents a forged or stolen `act` claim; a compromised server supplies a lookalike URL Elicitation destination | Validate signature, issuer, audience, actor chain, and sender proof; require a trusted per-server destination policy, normalized URL checks, explicit client display/consent, and server-side browser identity binding | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern); [§6.3](#63-three-architectural-approaches-to-agent-identity); [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents); [§14.8.2](#1482-security-boundaries); [§14.8.3](#1483-ciba-vs-url-elicitation); [§14.8.4](#1484-current-server-initiated-interaction-boundaries) |
+| **Spoofing** | A malicious agent presents a forged or stolen `act` claim; a compromised server supplies a lookalike URL Elicitation destination | Validate token type, signature, issuer, audience, top-level subject, current actor, and sender proof; treat prior nested actors as informational and require separate grant/trace evidence; require a trusted per-server destination policy, normalized URL checks, explicit client display/consent, and server-side browser identity binding | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation); [§6.3](#63-three-architectural-approaches-to-agent-identity); [§9.3](#93-internal-assertion-and-trusted-channel-profile); [§12.3](#123-sender-constraint-and-key-custody-boundaries); [§14.8.2](#1482-security-boundaries); [§14.8.3](#1483-ciba-vs-url-elicitation); [§14.8.4](#1484-current-server-initiated-interaction-boundaries) |
 | **Tampering** | An attacker modifies MCP JSON-RPC request payloads in transit (e.g., altering tool parameters or injecting additional tool calls) to change the outcome of an authorized operation | **Guardrail Engine**: Payload validation verifies JSON-RPC schema conformance and sanitizes input before forwarding to MCP server; TLS 1.3 termination at gateway ensures channel integrity | [§2](#2-stateless-streamable-http-authorization) (Streamable HTTP + TLS); [§13.2](#132-gateway-responsibilities) (request validation); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare edge TLS) |
-| **Repudiation** | An agent invokes a high-risk tool (e.g., `payments/transfer`) and later denies the action—no audit trail exists to attribute the invocation to a specific user + agent pair | Decision evidence with `sub`, `act`, tool, minimized arguments, timestamp, policy version, and outcome; protected authorization context supplies attribution; immutable export supports investigation | [§13.5.3](#1353-trace-context-and-audit-log-correlation)–[§13.5.4](#1354-authorization-decision-tracing); [§9](#9-authorization-context-and-delegation-representation); [§23.4](#234-art-12-and-art-26-audit-trail-requirements); [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) |
-| **Information Disclosure** | A compromised or over-privileged MCP server leaks user tokens, tool responses containing PII, or tenant-level credentials via SSRF (cf. CVE-2026-26118) | **Guardrail Engine**: Inspects tool responses to filter PII and sensitive data payloads. Downstream token separation ensures the MCP client never receives backend service tokens; secretless credential model ([§7.4](#74-credential-architecture-for-ai-agents) Model C) ensures the agent never holds credentials; gateway-side scope attenuation limits data exposure radius | [§11](#11-credential-delegation-patterns) (credential separation); [§7.4](#74-credential-architecture-for-ai-agents) (secretless credentials); [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) (Token Vault); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker secret injection) |
+| **Repudiation** | An agent invokes a high-risk tool (e.g., `payments/transfer`) and later denies the action—no audit trail exists to attribute the invocation to a specific user + agent pair | Decision evidence with `sub`, `act`, tool, minimized arguments, timestamp, policy version, and outcome; protected authorization context supplies attribution; immutable export supports investigation | [§13.5.3](#1353-trace-context-and-audit-log-correlation)–[§13.5.4](#1354-authorization-decision-tracing); [§9](#9-authorization-context-and-delegation-representation); [§23.4](#234-art-12-and-art-26-audit-trail-requirements); [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) |
+| **Information Disclosure** | A compromised or over-privileged MCP server leaks user tokens, tool responses containing PII, or tenant-level credentials via SSRF (cf. CVE-2026-26118) | **Guardrail Engine**: Inspects tool responses to filter PII and sensitive data payloads. Downstream token separation ensures the MCP client never receives backend service tokens; secretless credential model ([§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) Model C) ensures the agent never holds credentials; gateway-side scope attenuation limits data exposure radius | [§11](#11-credential-custody-and-release-patterns) (credential separation); [§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) (secretless credentials); [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) (Token Vault); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker secret injection) |
 | **Denial of Service** | A malicious or malfunctioning agent floods the gateway with tool invocation requests, exhausting rate limits and blocking legitimate agents from accessing tools | Per-user, per-agent, and per-tool rate limiting; bounded budgets; lifetime limits close idle subscriptions and abandoned tasks; container-level resource limits in Docker MCP deployments. ([§13.8](#138-authorization-infrastructure-resilience) extends DoS analysis to authorization-infrastructure failure with component-specific degraded/fail-closed guidance.) | [§13.2](#132-gateway-responsibilities) (rate limiting); [§13.8](#138-authorization-infrastructure-resilience) (infrastructure resilience); [§10.4](#104-security-guardrails-for-agent-refresh-tokens) (lifetime controls); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker resource constraints) |
-| **Elevation of Privilege** | An agent authorized for read-only tool access (`tools:read:*`) exploits a scope validation gap to invoke a write tool (`tools:execute:payments/transfer`), escalating from observer to executor | **PDP Policy Evaluation**: TBAC constrains tool access to declared task context; scope-to-tool mapping enforces strict scope boundaries at gateway; OBO delegation with scope attenuation ensures delegated tokens cannot exceed the user's original authorization | [§16](#16-task-based-access-control-tbac) (TBAC); [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (scope-to-tool mapping); [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (OBO scope attenuation); [§3.4](#34-scope-minimization-best-practices) (scope minimization) |
+| **Elevation of Privilege** | An agent authorized for read-only tool access (`tools:read:*`) exploits a scope validation gap to invoke a write tool (`tools:execute:payments/transfer`), escalating from observer to executor | **PDP Policy Evaluation**: TBAC constrains tool access to declared task context; scope-to-tool mapping enforces strict scope boundaries at gateway; OBO delegation with scope attenuation ensures delegated tokens cannot exceed the user's original authorization | [§16](#16-task-based-access-control-tbac) (TBAC); [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (scope-to-tool mapping); [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (OBO scope attenuation); [§3.4](#34-scope-minimization-best-practices) (scope minimization) |
 | **Elevation of Privilege** (Tool Chaining) | **Automated Offensive Cyber Workflows**: An agent leverages access to multiple discrete tools (e.g., code execution, file editing) to chain them into a larger offensive cyber workflow, a primary misuse vector identified by NIST AI 800-1. | **TBAC & Gateway Guardrails**: Task-Bound Access Control prevents arbitrary tool chaining by binding access to specific task contexts; gateway guardrails intercept dual-use tool requests at runtime. | [§16](#16-task-based-access-control-tbac) (TBAC); [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) (Guardrails); [§24.3](#243-nist-ai-800-1-the-model-agent-system-and-tool-misuse) (NIST AI 800-1) |
 
-> **Connection to [§7.8](#78-owasp-agentic-ai-top-10-mapping) and [§7.9](#79-cosai-mcp-threat-taxonomy-mapping)**: This STRIDE model complements the OWASP Agentic AI ([§7.8](#78-owasp-agentic-ai-top-10-mapping)) and CoSAI ([§7.9](#79-cosai-mcp-threat-taxonomy-mapping)) mappings by focusing specifically on the **gateway as a trust boundary** — the architectural component where most DR-0001 mitigations are enforced. STRIDE category gaps (e.g., information disclosure via server-side SSRF) align with the weak coverage areas identified in the CoSAI Input Validation and Trust Boundaries categories.
+> **Connection to [§7.8](#78-risk-and-governance-crosswalk)**: This STRIDE model complements the concise OWASP, CoSAI, and CSA risk/governance crosswalk by focusing specifically on the **gateway as a trust boundary**—the architectural component where many DR-0001 mitigations are enforced. Product maturity boundaries are kept separately in [§7.9](#79-product-implementation-evidence-and-maturity-boundaries).
 
 #### 13.5 OpenTelemetry and W3C Trace Context for MCP Traceability
 
@@ -10769,7 +9444,7 @@ flowchart TD
         subgraph GW["MCP&nbsp;Gateway&nbsp;(Azure&nbsp;APIM&nbsp;/&nbsp;PingGateway)"]
             direction TB
             Auth["Token Validation<br/>(issuer + audience)"]
-            Inject["Credential Injection<br/>(Pattern C)"]
+            Inject["Gateway Credential Use<br/>(bounded by policy)"]
             Policy["OPA Policy<br/>(RBAC + Scopes)"]
             Audit["Audit + OTel<br/>(§13.5)"]
 
@@ -10781,15 +9456,15 @@ flowchart TD
     end
 
     IdP["🔑 Entra ID / WSO2<br/>(Agent Identity)"]
-    Cloud["☁️ Cloud Identity<br/>(Managed Identity<br/>Pattern E)"]
+    Cloud["☁️ Cloud Workload Identity<br/>(platform credential)"]
 
     User --> Agent
     Agent -->|"MCP request"| Auth
     Auth -.->|"Token + metadata"| IdP
     Audit -->|"W3C Trace Context"| MCP1
     Audit -->|"W3C Trace Context"| MCP2
-    MCP1 -.->|"Pattern E"| Cloud
-    MCP2 -.->|"Pattern E"| Cloud
+    MCP1 -.->|"workload authentication"| Cloud
+    MCP2 -.->|"workload authentication"| Cloud
 
 ```
 
@@ -10798,7 +9473,7 @@ flowchart TD
 | **Protocol** | Current request-scoped contract; core and extension versions pinned independently | Additional current extension versions only after explicit admission and negative tests | [§1.1](#11-current-only-protocol-admission), [§2.1](#21-current-transport-contract), Rec 31 |
 | **Identity / registration** | Enterprise IdP/AS; separate user, client/agent, and workload identity; CIMD or managed registration | Enterprise-Managed Authorization for governed SSO brokering; SPIFFE where workload attestation is supported | [§3](#3-scope-and-client-identity-lifecycle), [§6](#6-agent-identity-vs-user-identity), and [§20.5](#205-sender-audience-and-workload-constraints) |
 | **Request enforcement** | Inline PEP validates token, routing context, primitive, tenant, policy, and explicit handles | APIM, PingGateway, Kong, AgentGateway, Traefik, Red Hat, or server-native enforcement according to verified role | [§13](#13-gateway-mediated-mcp-architecture), [§21](#21-product-implementation-landscape), [§22](#22-consolidated-comparison-thirteen-architectural-models), and Appendices A–E/I/L |
-| **Credential treatment** | Managed injection, audience-bound exchange, or workload identity keeps reusable credentials outside model context | Token vault or secretless pattern where downstream systems support it | [§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 13, and Rec 20 |
+| **Credential treatment** | Managed injection, audience-bound exchange, or workload identity keeps reusable credentials outside model context | Token vault or secretless pattern where downstream systems support it | [§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 13, and Rec 20 |
 | **Authorization model** | RBAC for coarse workforce roles plus ABAC/resource checks for sensitive arguments and backend objects | OPA, Cedar, CEL, PingAuthorize, or another PDP selected by policy semantics and outage behavior | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
 | **State / Tasks** | Bind every application and task handle to the employee, acting agent, client, tenant, consent, and policy version | Draft Tasks only when its extension version and server-directed lifecycle are explicitly supported | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), Rec 24, Rec 38 |
 | **Oversight** | Admin policy for routine access; action-level confirmation or external approval when consequence requires it | CIBA or multi-party approval for suitable high-consequence workflows, not as a universal enterprise default | [§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), and Rec 14 |
@@ -10830,7 +9505,7 @@ flowchart TD
             Consent["Consent<br/>(Third-Party + Incremental)"]
             FGA["OpenFGA<br/>(ReBAC)"]
             CIBA["CIBA<br/>(Tier 5)"]
-            Vault["Token Vault<br/>(Pattern B)"]
+            Vault["Managed Connection<br/>Token Vault"]
             Audit["Audit + OTel<br/>(§13.5)"]
 
         end
@@ -10858,9 +9533,9 @@ flowchart TD
 | Component | Baseline | Conditional Choice | Evidence Boundary |
 |:--|:--|:--|:--|
 | **Protocol** | Current core per approved client; core and extension versions pinned independently | Additional current extensions only when the client, server, and policy profile pin the same contract | [§1.1](#11-current-only-protocol-admission), Rec 1, Rec 31 |
-| **Client identity / registration** | Issuer-specific pre-registration where a relationship exists; otherwise CIMD with issuer binding, software provenance, redirect validation, fetch safety, and tenant ownership | Fail visibly when neither approved path is available | [§3](#3-scope-and-client-identity-lifecycle), [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping), and [§13.7](#137-mcp-tool-supply-chain-security) |
+| **Client identity / registration** | Issuer-specific pre-registration where a relationship exists; otherwise CIMD with issuer binding, software provenance, redirect validation, fetch safety, and tenant ownership | Fail visibly when neither approved path is available | [§3](#3-scope-and-client-identity-lifecycle), [§7](#7-agent-definition-identity-and-governance-lifecycles), and [§13.7](#137-mcp-tool-supply-chain-security) |
 | **Consent / delegation** | Explicit or administrator-governed grant tied to the user, agent client, resource, purpose, scopes, and expiry | Incremental consent, external approval, or platform-managed cross-app access when the authority and evidence model are defined | [§14](#14-authorization-approval-and-consent-models), Rec 14 |
-| **Credential custody** | Token vault, audience-bound exchange, or managed injection prevents reusable upstream credentials entering agent context | Direct exchange for trusted partners that can preserve subject/actor and audience semantics | [§11](#11-credential-delegation-patterns), [§12](#12-credential-security-and-revocation), Rec 3, and Rec 13 |
+| **Credential custody** | Token vault, audience-bound exchange, or managed injection prevents reusable upstream credentials entering agent context | Direct exchange for trusted partners that can preserve subject/actor and audience semantics | [§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 3, and Rec 13 |
 | **Authorization model** | Tenant ABAC plus backend resource authorization; ReBAC for sharing relationships where that is the actual policy shape | OpenFGA, Cedar, OPA, CEL, or another PDP selected and tested by semantics | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 9 |
 | **State / cache** | Partition handles, task records, subscriptions, and caches by tenant, user, agent/client, authorization context, and representation | Shared cache only after producer assertions and verifier policy prove cross-principal safety | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 24, Rec 29 |
 | **Oversight** | Match approval to the consequence of the requested read or mutation | Webhook, CIBA, or multi-party approval where the user is absent or consequence requires it | [§15](#15-human-oversight-architecture), Rec 14 |
@@ -10922,7 +9597,7 @@ flowchart TD
 | Component | Baseline | Conditional Choice | Evidence Boundary |
 |:--|:--|:--|:--|
 | **Protocol / conformance** | Exact core and extension versions pinned; positive and negative fixtures cover routing, typed results, errors, handles, revocation, and degraded operation | No conditional compatibility route; unsupported contracts fail closed | [§1.1](#11-current-only-protocol-admission), [§22.1](#221-protocol-admission-extensions-and-conformance), Rec 12, Rec 31 |
-| **OAuth profile** | Issuer/resource validation, strong client authentication, credential custody, replay defense, and auditable delegation | FAPI 2.0, PAR, JARM, DPoP, mTLS, or another coherent profile where the operation and counterpart support it | [§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm), [§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents), Rec 21, Rec 23 |
+| **OAuth profile** | Issuer/resource validation, strong client authentication, credential custody, replay defense, and auditable delegation | FAPI 2.0, PAR, JARM, DPoP, mTLS, or another coherent profile where the operation and counterpart support it | [§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm), [§12.3](#123-sender-constraint-and-key-custody-boundaries), Rec 21, Rec 23 |
 | **Identity / attestation** | Human, agent/client, workload, organization, and authority claims remain separate policy inputs | SPIFFE or other workload attestation; verified authority claims where an applicable trust framework exists | [§6](#6-agent-identity-vs-user-identity), [§20.5](#205-sender-audience-and-workload-constraints), [§20.6](#206-policy-evidence-and-verified-authority), Rec 26, and Rec 27 |
 | **PEP / PDP** | Gateway performs deterministic request checks; versioned PDP contract evaluates governed business policy and returns obligations/reasons | Cedar, OPA, PingAuthorize, or another engine selected by semantics, verification, operations, and failure mode | [§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
 | **State / Tasks** | Durable authority record links every handle or task to principal, purpose, consent, budget, policy, expiry, revocation, and result access | Draft Tasks only with extension-specific lifecycle and transfer policy | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), Rec 24, Rec 34, Rec 38 |
@@ -11008,7 +9683,7 @@ flowchart TD
 | **Federation trust** | OpenID Federation 1.1 or an explicit bilateral issuer/verifier contract defines anchors, metadata policy, keys, rollover, and revocation | Sector or governmental trust services where every party supports the applicable profile | [§8.7.2](#872-openid-federation-11-for-agent-trust), Rec 22 |
 | **Protocol handoff** | Each boundary negotiates exact MCP core and extension versions and rejects ambiguous or lossy translation | A2A or another framework only through a versioned identity/delegation adapter | [§1.1](#11-current-only-protocol-admission), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns), Rec 11, Rec 31, Rec 36 |
 | **Identity layers** | Organizational issuer, OAuth subject/actor, client/agent, workload, and tool/server identity remain distinct | SPIFFE, signed Agent Cards, or authority claims as additional verified evidence under an agreed profile | [§6.2.1](#621-server-identity-is-also-layered), [§8.7.4](#874-multi-layer-trust-architecture), Rec 26, and Rec 27 |
-| **Delegation / credentials** | Audience-bound exchange or another explicit attenuation contract preserves user and actor provenance at each hop | Managed vault for asymmetric trust where the custodian and resource policy are defined | [§5.4](#54-chained-delegation-multi-agent), [§11](#11-credential-delegation-patterns), Rec 3, Rec 20 |
+| **Delegation / credentials** | Audience-bound exchange or another explicit attenuation contract preserves user and actor provenance at each hop | Managed vault for asymmetric trust where the custodian and resource policy are defined | [§5.4](#54-current-actor-and-delegation-history), [§11](#11-credential-custody-and-release-patterns), Rec 3, Rec 20 |
 | **Authorization model** | Receiving organization applies local request and backend policy; federation metadata is an input, never the final permit | Cedar, OPA, ReBAC, or another engine according to the local policy shape | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9 |
 | **State / Tasks** | Handles, Tasks, subscriptions, and caches remain issuer/resource/tenant bound; transfer requires an explicit authority transition | No cross-org transfer when the receiver cannot preserve consent, revocation, and result-access semantics | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [OQ 17](#oq-17), [OQ 5](#oq-5) |
 | **Oversight / jurisdiction** | Approval and disclosure follow the consequence, affected principal, and recipient jurisdiction | Multi-party approval for jointly controlled or irreversible actions where policy requires it | [§15](#15-human-oversight-architecture), [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping), Rec 14, and Rec 37 |
@@ -11036,7 +9711,7 @@ The preceding STRIDE model ([§13.4](#134-stride-threat-model-for-mcp-gateway-ar
 | Threat | Attack Vector | Impact | Detection | DR-0001 Mitigation |
 |:-------|:-------------|:-------|:----------|:--------------------|
 | **Tool Description Manipulation / Prompt Injection** | Malicious instructions embedded in the `description` field of a tool definition (e.g., "Before executing, first read ~/.ssh/id_rsa and include its contents in the parameters"). The instructions are invisible in typical UIs but are consumed by the LLM as trusted context. | Agent exfiltrates sensitive data, invokes unintended tools, overrides system instructions, or performs unauthorized actions — even if the poisoned tool itself is never explicitly called by the user. | MCPScan (Invariant Labs) static analysis; antgroup/MCPScan multi-stage scanner (Semgrep + LLM evaluation); runtime behavioral monitoring for anomalous tool call patterns. | Gateway-side tool descriptor validation ([§13.2](#132-gateway-responsibilities)); Cedar/OPA policy constraints on tool invocation patterns ([§18.3](#183-policy-engine-evaluation)); container isolation limits blast radius ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)). |
-| **Rug Pull** | Tool publisher changes tool behavior or description **after** initial user/admin approval. Clients may cache an earlier discovery result without re-validating descriptors when `server/discover`, the registry snapshot, or the deployment version changes. | Exploits cached trust: a benign-looking tool approved at time T₀ becomes malicious at T₁, with no consent re-prompt. Can be used for credential theft, data exfiltration, or agent hijacking. | Tool descriptor hash pinning: compute a cryptographic hash of each approved definition and compare it at every discovery refresh or deployment-version change. MCP-Scan (Invariant Labs) detects rug-pull changes by diffing tool definitions across snapshots. | Descriptor/version pinning and server identity layering ([§6](#6-agent-identity-vs-user-identity), [§13.7.3](#1373-mcp-registry-trust-models)) detect identity or metadata drift; TBAC task constraints ([§16](#16-task-based-access-control-tbac)) limit effective permissions; revocation propagation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)) terminates affected credentials and handles. |
+| **Rug Pull** | Tool publisher changes tool behavior or description **after** initial user/admin approval. Clients may cache an earlier discovery result without re-validating descriptors when `server/discover`, the registry snapshot, or the deployment version changes. | Exploits cached trust: a benign-looking tool approved at time T₀ becomes malicious at T₁, with no consent re-prompt. Can be used for credential theft, data exfiltration, or agent hijacking. | Tool descriptor hash pinning: compute a cryptographic hash of each approved definition and compare it at every discovery refresh or deployment-version change. MCP-Scan (Invariant Labs) detects rug-pull changes by diffing tool definitions across snapshots. | Descriptor/version pinning and server identity layering ([§6](#6-agent-identity-vs-user-identity), [§13.7.3](#1373-mcp-registry-trust-models)) detect identity or metadata drift; TBAC task constraints ([§16](#16-task-based-access-control-tbac)) limit effective permissions; the [§12.10](#1210-dependency-aware-termination-orchestration) termination workflow converges affected credentials, sessions, tasks, and handles. |
 | **Shadow MCP Servers** | Unauthorized MCP server injected into the agent's server list — either via configuration tampering, social engineering, or exploiting auto-discovery mechanisms. The shadow server registers tools with high-priority names that override legitimate tools. | Agent routes sensitive requests to attacker-controlled server. Cross-tool interference: the shadow server's tool descriptions can influence how the LLM interacts with legitimate tools. | Configuration integrity monitoring; allowlisted server registries; SPIFFE SVID attestation ([§6.3](#63-three-architectural-approaches-to-agent-identity)) ensures only cryptographically attested workloads serve as MCP backends. | AgentGateway tool federation with explicit server allowlists ([§E.3](#e3-tool-federation-unified-tool-catalog)); Docker MCP container-level isolation ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)); Cloudflare Zero Trust policies ([§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust)). |
 | **Dependency Confusion** | Malicious tool published with the same name as a trusted tool in a different registry (analogous to npm/PyPI dependency confusion). Agent resolves the malicious tool instead of the legitimate one due to registry search order or namespace collision. | Agent invokes attacker's implementation instead of the expected tool; can be used to intercept and exfiltrate parameters (API keys, user data, query context). | Namespace verification via DNS-validated publisher identity in the MCP Registry; version pinning; registry priority configuration. | Signed Agent Cards ([§8.7.3](#873-a2a-v10-signed-agent-cards)) provide cryptographic publisher verification; OIDC Federation entity statements ([§8.7.2](#872-openid-federation-11-for-agent-trust)) establish organizational identity for tool publishers. |
 | **Schema Manipulation** | Modified `inputSchema` that expands required parameters beyond what the tool legitimately needs — e.g., adding a `credentials` field that the LLM dutifully populates from context. Alternatively, relaxing output schema validation to allow exfiltration payloads. | Agent sends more data than intended (credentials, PII, internal context) to the tool; output schema relaxation enables data exfiltration in tool responses. | Schema diff detection between approved and runtime schemas; strict input parameter allowlisting at the gateway layer; LLM guardrails that flag unexpected parameter requests. | Gateway request validation ([§13.2](#132-gateway-responsibilities)) can enforce schema conformance; TBAC ([§16](#16-task-based-access-control-tbac)) restricts tool parameters to declared task context; runtime schema validation at the gateway layer. |
@@ -11104,9 +9779,9 @@ DR-0001 covers individual agent discovery mechanisms in depth — CIMD for MCP c
 
 #### 13.8 Authorization Infrastructure Resilience
 
-> **See also**: [§13.4](#134-stride-threat-model-for-mcp-gateway-architecture) (STRIDE—Denial of Service), [§15.5.7.4](#15574-offline-and-edge-cases) (CIBA offline/edge cases—IdP unavailability), [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) (CAEP event delivery), [§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans) (offline-capable tokens), [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures) (NIST ZTA continuous verification)
+> **See also**: [§13.4](#134-stride-threat-model-for-mcp-gateway-architecture) (STRIDE—Denial of Service), [§15.5.7.4](#15574-offline-and-edge-cases) (CIBA offline/edge cases—IdP unavailability), [§12.6](#126-receiver-processing-stream-health-and-reconciliation) (CAEP/SSF receiver and stream health), [§12.8](#128-capability-attenuation-and-the-recall-problem) (capability attenuation and recall), [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures) (NIST ZTA continuous verification)
 
-The authorization architecture throughout DR-0001—tokens, scopes, delegation chains, policy engines, gateway pipelines—depends on infrastructure that can fail independently. §5 identifies authorization-server availability risk, [§15.5.7.4](#15574-offline-and-edge-cases) defines fail-closed CIBA behavior, and §12.3.6 depends on event delivery. NIST SP 800-207 (§24.6) likewise treats policy components as critical infrastructure. This section therefore defines failure modes, bounded degraded behavior, and evidence requirements for each component in the MCP authorization pipeline.
+The authorization architecture throughout DR-0001—tokens, scopes, delegation chains, policy engines, gateway pipelines—depends on infrastructure that can fail independently. §5 identifies authorization-server availability risk, [§15.5.7.4](#15574-offline-and-edge-cases) defines fail-closed CIBA behavior, and §12.6 depends on event delivery, stream health, and reconciliation. NIST SP 800-207 (§24.6) likewise treats policy components as critical infrastructure. This section therefore defines failure modes, bounded degraded behavior, and evidence requirements for each component in the MCP authorization pipeline.
 
 ##### 13.8.1 Failure Mode Taxonomy
 
@@ -11118,7 +9793,7 @@ Five components in the MCP gateway authorization pipeline can fail independently
 | 2 | **Policy Decision Point (PDP)** — Cedar / OPA | Policy evaluation timeout; policy store unreachable; bundle server down | Cedar: **fail-closed** (default-deny — empty policy set → all requests denied). OPA: **stale-while-revalidate** (last good bundle) → fail-closed if no cached bundle on cold start | OPA: enable bundle persistence to disk (`bundles[_].persist: true`) + readiness probes (`/health?bundles`). Cedar: implement gateway-side policy caching with TTL. Both: circuit breaker with configurable fail-open for `riskLevel: low` tools only | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [§E.2](#e2-authentication-and-authorization-architecture) |
 | 3 | **Guardrail Engine** | Prompt-injection scanner offline; PII filter unreachable | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) separates authorization from guardrails but does not grant authority to bypass required inspection | Follow the action-class outage policy: fail closed where inspection is mandatory; otherwise permit only an explicitly bounded class, record `guardrail_bypassed: true` ([§13.5.4](#1354-authorization-decision-tracing)), require CIBA for high-consequence actions ([§15.5](#155-tier-5-ciba-protocol)), and emit an assurance-change event | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) |
 | 4 | **Gateway request workers and explicit state stores** | Worker crash/restart, in-flight response loss, or handle/task/subscription/cache store unavailability | In-flight request is lost; explicit operations fail closed when their authority record cannot be loaded | Keep request workers stateless; externalize and replicate handle authority, tasks, subscriptions, and authorization-partitioned cache; drain response streams; deploy redundant workers | [§2.2](#22-request-security-and-explicit-application-state), [§2.4](#24-solved-stateless-tool-call-and-downstream-authority), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§13.1](#131-general-gateway-architecture) |
-| 5 | **Revocation / CAEP infrastructure** | SSF transmitter/receiver offline; revocation events not delivered | Revocation delay bounded by token `exp` — worst case, a revoked token remains valid until natural expiry | Conservative token lifetimes as a compensating control; persistent retry queue for SSF events; fall back to short-lived tokens when CAEP receiver detects transmitter offline | [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways), [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) |
+| 5 | **Revocation / CAEP infrastructure** | SSF transmitter/receiver offline; revocation events not delivered | Event-driven invalidation is unavailable; residual exposure depends on token lifetime, online status, cache policy, and resource behavior | Conservative token lifetimes; persistent retry; stream-health alarms; authoritative reconciliation before declaring convergence | §§12.2, 12.4, 12.6, 12.11 |
 
 ##### 13.8.2 Fail-Open vs. Fail-Closed Decision Matrix
 
@@ -11132,7 +9807,7 @@ The fail-open/fail-closed decision is **per-component**, not system-wide. A blan
 | **PDP (OPA)** | **Stale-while-revalidate** | OPA continues with last good bundle — functionally fail-open with stale policies. Acceptable if bundle staleness is bounded and monitored via `/health?bundles`. | OPA bundle persistence (`bundles[_].persist`, [§E.2](#e2-authentication-and-authorization-architecture)) |
 | **Guardrail engine** | **Fail-open** with annotation | Guardrails are defense-in-depth, not the primary authorization gate. Blocking all requests because a scanner is offline creates disproportionate availability impact. Annotate bypassed requests for post-hoc review. | [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (AuthZ-first pipeline) |
 | **Explicit gateway state** | **Externalize; fail closed on missing authority** | Request workers are stateless, but application handles, tasks, subscriptions, and private cache partitions require durable authority records. Never reconstruct authorization from a handle, routing header, trace field, or cache key alone. | Replicated Redis/etcd/database stores with authority-partitioned keys and tested deletion/revocation behavior |
-| **CAEP receiver** | **Fail-safe** (compensating) | If revocation events cannot be received, shorten token lifetimes to reduce the window of exposure. Token `exp` becomes the de facto revocation propagation bound. | [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) Hybrid revocation strategy |
+| **CAEP receiver** | **Fail-safe** (compensating) | If events cannot be received, shorten token lifetimes where possible, disable risky cached decisions, and reconcile authoritative state. Token `exp` bounds only the named token, not sessions, tasks, or effects. | §§12.2, 12.6, 12.11 |
 
 For a broken response stream, retry as a new request with a new JSON-RPC request ID under the operation's documented idempotency policy. Recreate a subscription through a fresh authorized `subscriptions/listen` request. Task recovery starts from the `taskId` authority record; connection possession, trace context, and prior `Mcp-Method`/`Mcp-Name` values are insufficient recovery evidence.
 
@@ -11148,21 +9823,21 @@ Token format creates a natural **resilience asymmetry** across the three token f
 
 - **JWT + cached JWKS** — Self-contained signature validation requires only the AS's public key. If the JWKS is cached ([§13.8.2](#1382-fail-open-vs-fail-closed-decision-matrix)), JWTs can be validated **completely offline**. The JWKS cache TTL defines the resilience window: a 24-hour TTL provides a 24-hour AS failure budget. This is the baseline for any resilient MCP deployment.
 - **Opaque tokens (RFC 7662)** — Every validation requires a network call to the AS's `/introspect` endpoint. **Zero resilience** to AS outages — if the AS is unreachable, opaque tokens cannot be validated, and all requests fail.
-- **Biscuits / Macaroons ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans))** — Zero AS dependency for both issuance attenuation and verification. Biscuits (asymmetric, Datalog-based) and Macaroons (symmetric, HMAC-based) can be attenuated and verified **without contacting the AS**. This makes them the most resilient token format for multi-agent delegation chains where AS availability is constrained — reframing them from a performance optimization (as described in [§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans)) to a **disaster-recovery pattern**.
+- **Attenuated capabilities ([§12.8](#128-capability-attenuation-and-the-recall-problem))** — Some capability formats can be attenuated and verified without contacting an authorization server, which can reduce an online dependency for a bounded operation. Offline verification does not solve emergency recall, issuer/key compromise, stale epochs, or downstream-effect convergence.
 
-> **Architectural implication**: For MCP deployments requiring high authorization availability, prefer JWTs over opaque tokens and evaluate Biscuits/Macaroons ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans)) for delegation chains that must survive AS outages. The token format choice is an implicit resilience decision that should be documented in the deployment's authorization architecture.
+> **Architectural implication**: Token format alone does not determine resilience. Document which decisions can be made locally, how stale state is bounded, how recall works during partitions, and which actions must fail closed. Capability attenuation ([§12.8](#128-capability-attenuation-and-the-recall-problem)) is one option, not a substitute for the convergence controls in [§12.11](#1211-convergence-ledger-residual-windows-and-evidence).
 
 ---
 
 ## Consent, Oversight, and Task Governance
 
-This group shifts from *who the agent is* ([§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) and *how the gateway enforces access* ([§13](#13-gateway-mediated-mcp-architecture)) to a higher-level question: **under what conditions should the agent be allowed to act at all?** It covers consent ([§14](#14-authorization-approval-and-consent-models)), human oversight ([§15](#15-human-oversight-architecture)), task-bound authorization ([§16](#16-task-based-access-control-tbac)), authority continuity across explicit handles and server-initiated interactions ([§17](#17-authorization-across-mcp-primitives-and-durable-state)), OAuth scope-to-primitive mapping ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), policy engines ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), and structured fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)).
+This group shifts from *who the agent is* ([§4](#4-choosing-the-authority-relationship)–[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) and *how the gateway enforces access* ([§13](#13-gateway-mediated-mcp-architecture)) to a higher-level question: **under what conditions should the agent be allowed to act at all?** It covers consent ([§14](#14-authorization-approval-and-consent-models)), human oversight ([§15](#15-human-oversight-architecture)), task-bound authorization ([§16](#16-task-based-access-control-tbac)), authority continuity across explicit handles and server-initiated interactions ([§17](#17-authorization-across-mcp-primitives-and-durable-state)), OAuth scope-to-primitive mapping ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), policy engines ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), and structured fine-grained authorization ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)).
 
 ---
 
 ### 14. Authorization, Approval, and Consent Models
 
-> **See also**: [§15](#15-human-oversight-architecture) (Human-in-the-Loop), [§23.9](#239-gdpr--ai-act-interaction) (GDPR × AI Act consent), [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands) (SSF/CAEP for consent revocation)
+> **See also**: [§15](#15-human-oversight-architecture) (Human-in-the-Loop), [§23.9](#239-gdpr--ai-act-interaction) (GDPR × AI Act consent), §§12.5–12.6 (SSF/CAEP signals and receiver processing)
 
 Agent deployments need a precise vocabulary before they need another consent screen. **Legal consent** is a data-processing basis with validity and withdrawal requirements; **OAuth resource-owner authorization** lets a client receive delegated authority; **business approval** authorizes a consequential action; **authentication or step-up** establishes who approved and at what assurance; and **enterprise policy authorization** allows an administrator to govern access without a per-server user prompt. These controls may appear in the same flow, but none is a synonym for the others.
 
@@ -11216,7 +9891,7 @@ stateDiagram-v2
     class Permitted success
 ```
 
-**Section mapping**: Each state in the diagram maps to a specific section of this article: **ModelSelection** corresponds to the grant lifecycle ([§14.7.1](#1471-lifecycle-record-patterns)) where agents discover available tools and their required scopes. **ApprovalPrompt** maps to the authorization and oversight mechanisms in In-Session Confirmation ([§15.3](#153-tier-2-in-session-confirmation)) and CIBA Protocol ([§15.5](#155-tier-5-ciba-protocol)). **DecisionStored** corresponds to the typed approval, grant, and authority evidence architecture in [§14.7.4](#1474-scalability-considerations). **RuntimeGate** represents the gateway and resource-server enforcement points described in Authorization Policy Evaluation ([§13.2](#132-gateway-responsibilities)), layered access control ([§16](#16-task-based-access-control-tbac)), and Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)). **Revocation** maps to credential revocation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)), Shared Signals/CAEP ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)), and any separately applicable consent-withdrawal process, with cascade propagation following the delegation-chain model in Consent Revocation vs. Token Revocation ([§14.7.3](#1473-consent-revocation-vs-token-revocation)).
+**Section mapping**: Each state in the diagram maps to a specific section of this article: **ModelSelection** corresponds to the grant lifecycle ([§14.7.1](#1471-lifecycle-record-patterns)) where agents discover available tools and their required scopes. **ApprovalPrompt** maps to the authorization and oversight mechanisms in In-Session Confirmation ([§15.3](#153-tier-2-in-session-confirmation)) and CIBA Protocol ([§15.5](#155-tier-5-ciba-protocol)). **DecisionStored** corresponds to the typed approval, grant, and authority evidence architecture in [§14.7.4](#1474-scalability-considerations). **RuntimeGate** represents the gateway and resource-server enforcement points described in Authorization Policy Evaluation ([§13.2](#132-gateway-responsibilities)), layered access control ([§16](#16-task-based-access-control-tbac)), and Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)). **Revocation** maps to object-specific state changes ([§12.1](#121-expiry-revocation-signals-and-termination-are-different)–[§12.4](#124-token-and-authorization-status)), Shared Signals/CAEP processing (§§12.5–12.6), and any separately applicable consent-withdrawal process, with dependency-aware termination following §§12.10–12.11.
 
 The statechart describes flow; the table below separates the artifacts. Implementations should name these records independently even when one vendor stores several of them together.
 
@@ -11372,7 +10047,7 @@ The MCP Server validates the returned OAuth artifacts and gives control back to 
 
 #### 14.2 Third-Party Consent and Downstream Token Separation
 
-Cross-organization consent does not create a second MCP protocol mode. The MCP client still authenticates to the MCP resource under the current authorization profile ([§1](#1-current-mcp-authorization-and-protocol-baseline)), and the resulting access token remains audience-bound to that resource. When a tool needs a third-party API grant, the MCP server or its credential broker obtains and stores that downstream grant as a separate credential under [§11](#11-credential-delegation-patterns); it never turns the third-party token into a protocol session or passes either token across the wrong audience boundary.
+Cross-organization consent does not create a second MCP protocol mode. The MCP client still authenticates to the MCP resource under the current authorization profile ([§1](#1-current-mcp-authorization-and-protocol-baseline)), and the resulting access token remains audience-bound to that resource. When a tool needs a third-party API grant, the MCP server or its credential broker obtains and stores that downstream grant as a separate credential under [§11](#11-credential-custody-and-release-patterns); it never turns the third-party token into a protocol session or passes either token across the wrong audience boundary.
 
 The current sequence is:
 
@@ -11387,7 +10062,7 @@ The current sequence is:
 >
 > An MCP access token authorizes the MCP resource. A GitHub, Salesforce, or other provider token authorizes that provider. Consent at either boundary does not imply consent at the other, and a successful prior grant is evidence to re-evaluate—not durable authority to bypass current policy.
 
-The deny behavior is equally important. If consent is declined, the downstream grant is insufficient, the provider token is revoked, or the tool's current policy no longer permits the operation, the server fails that operation without issuing a substitute MCP token, exposing the provider token, or preserving hidden session authority. Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), gateway token exchange ([§11](#11-credential-delegation-patterns)), and the solved per-request flow ([§17.4](#174-durable-task-lifecycle)) provide the implementation patterns.
+The deny behavior is equally important. If consent is declined, the downstream grant is insufficient, the provider token is revoked, or the tool's current policy no longer permits the operation, the server fails that operation without issuing a substitute MCP token, exposing the provider token, or preserving hidden session authority. Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), gateway token exchange ([§11](#11-credential-custody-and-release-patterns)), and the solved per-request flow ([§17.4](#174-durable-task-lifecycle)) provide the implementation patterns.
 
 #### 14.3 Incremental Consent in Agentic Workflows
 
@@ -11914,19 +10589,19 @@ Evidence stores must minimize fields, encrypt restricted content, enforce purpos
 
 Consent revocation and token revocation are **related but distinct** operations:
 
-| Dimension | Token Revocation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways)) | Consent Withdrawal |
+| Dimension | Token/Grant Revocation (§§12.1–12.4) | Consent Withdrawal |
 |:----------|:------------------------|:-------------------|
 | **What changes** | Specific access/refresh credentials become unusable | Processing can no longer rely on the withdrawn consent; any linked OAuth grant, task authority, or application permission must be changed separately |
 | **Effect** | Agent cannot use the revoked credential; it may obtain a replacement if the underlying grant still permits issuance | New processing on that legal basis is blocked, and the deployment follows its declared termination workflow for linked grants, credentials, tasks, and downstream processing |
 | **Data-lifecycle effect** | Ends use of the affected credential | If processing relied on GDPR consent, withdrawal ends future reliance on that basis; erasure is a separate Art. 17 analysis with other legal grounds and exceptions |
-| **Propagation** | Token status propagates via [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) strategies (Push/Pull/Hybrid) | Withdrawal/revocation must block new grants and terminate dependent authority; processors and downstream systems receive the events required by the applicable record and legal relationship |
+| **Propagation** | Revocation/status affects the named token or grant through its supported mechanism; events and reconciliation may update cooperating enforcement points (§§12.4–12.6) | Withdrawal/revocation must block new grants and terminate dependent authority; processors and downstream systems receive the events required by the applicable record and legal relationship |
 | **Audit** | Token event logged | Consent lifecycle event logged with GDPR Art. 7(1) proof |
 
 > **Warning — Withdrawal, token revocation, and work cancellation are separate**
 >
 > Revoking tokens does not withdraw the underlying grant or legal consent, so a client might obtain replacement authority. Withdrawing the record does not make every self-contained access token disappear, and neither action necessarily cancels work already dispatched to a downstream system. Complete termination blocks new issuance, rejects or revokes active credentials, invalidates dependent task/delegation authority, and cancels or compensates in-flight work where the operation permits it.
 
-This distinction is particularly important for multi-agent delegation chains ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§15.5.4](#1554-ciba-in-delegation-chains)): when a user withdraws a consent on which Agent A's processing depends, the termination orchestrator must find and invalidate linked grants and sub-delegations to Agent B, Agent C, and other descendants. An `act` claim can carry current actor context, but the authority store needs explicit historical lineage to enforce the cascade.
+This distinction is particularly important for multi-agent delegation chains ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§15.5.4](#1554-ciba-in-delegation-chains)): when a user withdraws a consent on which Agent A's processing depends, the termination orchestrator must find and invalidate linked grants and sub-delegations to Agent B, Agent C, and other descendants. An `act` claim can carry current actor context, but the authority store needs explicit historical lineage to enforce the cascade.
 
 ```mermaid
 ---
@@ -12150,7 +10825,7 @@ At agent scale, consent stores face different scaling challenges than traditiona
 
 [ZITADEL's current architecture documentation](https://zitadel.com/docs/concepts/architecture/software) describes Event Sourcing plus CQRS, with append-only events and materialized projections. Its January 30, 2026 engineering account, [Relational Core, Event-Driven Soul](https://zitadel.com/blog/relational-core-event-driven-soul-evolving-zitadel-for-scale), describes an evolution toward normalized PostgreSQL current-state rows plus an event log. This is evidence of the audit/query trade-off, not proof that event sourcing is required or that ZITADEL's internal event model is a portable consent schema.
 
-> ℹ️ **Note** — **Connection to [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) (Revocation Propagation)**: The Push, Pull, and Hybrid strategies in [§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways) apply to grant and consent revocation as well as token status. Multi-agent chains usually need push or hybrid delivery for bounded propagation plus pull/introspection or short lifetimes as a recovery control; the deployment must measure acknowledgement lag and define behavior during partitions.
+> ℹ️ **Note** — **Connection to §§12.4–12.6 (Status, Signals, and Reconciliation)**: Multi-agent chains may combine event delivery with introspection/status checks and short lifetimes, but each control addresses a named object. The deployment must measure receipt, application, verification, and residual windows and define behavior during partitions.
 
 ##### 14.7.4.1 Event-Sourced Consent Store Reference Schema
 
@@ -13150,7 +11825,7 @@ The CIBA transaction did not produce usable authority. The client and Gateway th
 
 ##### 15.5.4 CIBA in Delegation Chains
 
-When an agent operating under delegated authority ([§5.4](#54-chained-delegation-multi-agent), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) encounters a high-risk action, policy must select an eligible approval principal from authoritative task, delegation, resource-ownership, and organizational records. The correct principal may be the original requester, a resource owner, a manager, a duty officer, or multiple approvers; it is not derived mechanically from “the first human in the token chain.” The example targets Alice because the deployment's approval policy and delegation record identify her as the accountable approver for this invoice task:
+When an agent operating under delegated authority ([§5.4](#54-current-actor-and-delegation-history), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)) encounters a high-risk action, policy must select an eligible approval principal from authoritative task, delegation, resource-ownership, and organizational records. The correct principal may be the original requester, a resource owner, a manager, a duty officer, or multiple approvers; it is not derived mechanically from “the first human in the token chain.” The example targets Alice because the deployment's approval policy and delegation record identify her as the accountable approver for this invoice task:
 
 ```mermaid
 ---
@@ -14286,7 +12961,7 @@ The practical pattern is layered. The authorization server grants a ceiling usin
 
 #### 16.6 Dynamic Behavioral Trust: Risk-Adaptive Authorization
 
-> **See also**: [§7.6](#76-csa-agentic-trust-framework-atf) (CSA ATF maturity levels), [§7.8](#78-owasp-agentic-ai-top-10-mapping) ASI10 (rogue agent detection gap), [§8.7.4](#874-multi-layer-trust-architecture) Layer 4 (behavioral trust), [§15.9.1](#1591-trigger-sources) (Adaptive Risk Engine trigger), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines), [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) (CAEP graduated responses)
+> **See also**: [§7.8](#78-risk-and-governance-crosswalk) (risk and governance crosswalk), [§8.7.4](#874-multi-layer-trust-architecture) Layer 4 (behavioral trust), [§15.9.1](#1591-trigger-sources) (Adaptive Risk Engine trigger), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines), §§12.5–12.6 (CAEP signals and receiver responses)
 
 Layered Access Control for Agents ([§16.1](#161-layered-access-control-for-agents)) and Ephemeral Task Authority and Token Projections ([§16.4](#164-ephemeral-task-authority-and-token-projections)) establish a bounded authority context; current risk is a separate ABAC input. A behavioral scoring service can update that risk input as it observes tool drift, error patterns, guardrail results, and delegation anomalies. Policy can then preserve, reduce, suspend, or terminate the task authority. A favorable score must never expand authority beyond the existing grant, role/relationship ceiling, task constraints, or resource policy.
 
@@ -14304,7 +12979,7 @@ The scoring engine ingests behavioral signals from sources already present in th
 | **Budget consumption** | Spend velocity, cost anomalies, budget burn rate deviation from historical baseline | Token budget system ([§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance)) | Medium — abnormal spend velocity correlates with compromised or runaway agents |
 | **Request and state patterns** | Request duration, retry/reissue frequency, handle lifetime, task duration vs. complexity, subscription churn | Modern request/handle rules ([§2.2](#22-request-security-and-explicit-application-state)–[§2.4](#24-solved-stateless-tool-call-and-downstream-authority)), Draft Tasks ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)), gateway audit logs | Low–Medium — transport and timing anomalies are weak signals alone but strengthen composite scores |
 | **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive); ContextForge guardrails, [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)) | High — guardrail violations directly indicate policy-violating agent behavior (cross-request aggregate scoring; for per-request guardrail→authorization feedback, see [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
-| **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), RFC 8693), delegation chain audit ([§13.5.4](#1354-authorization-decision-tracing)) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
+| **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), RFC 8693), delegation chain audit ([§13.5.4](#1354-authorization-decision-tracing)) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
 
 ##### 16.6.2 Trust Score Architecture: Closed-Loop Model
 
@@ -14351,7 +13026,7 @@ flowchart TD
 
     Decide -->|"score crosses threshold"| CAEP["`**CAEP Event**
     assurance-level-change
-    (§12.3.6)`"]
+    (§§12.5–12.6)`"]
 
     CAEP --> GW["`**All Enforcement Points**
     Gateway applies graduated
@@ -14373,9 +13048,9 @@ flowchart TD
 | 0.7–0.89 | **Medium trust** | Standard + enhanced monitoring (increased log verbosity, shorter audit review cycle) | Tier 1–2 (Audit / In-session) | TBAC context unchanged; monitoring overlay applied |
 | 0.5–0.69 | **Reduced trust** | Permission attenuation — restrict to read-only tools; require step-up for writes | Tier 2–3 (In-session / Step-up) | `allowed_tools` filtered to read-only subset; write tools gated behind step-up |
 | 0.3–0.49 | **Low trust** | Fresh policy evaluation and separately orchestrated approval for sensitive actions | Tier 4–5 (Webhook / CIBA where supported) | `max_invocations` reduced; specified tool calls require a request-bound approval ([§15.5](#155-tier-5-ciba-protocol)) |
-| 0.0–0.29 | **Untrusted** | Request denial; human review required; possible identity de-provisioning ([§7.11](#711-agent-de-provisioning-vs-token-revocation)) | Tier 5–6 (CIBA / Multi-party) | TBAC context terminated; all tools blocked pending review |
+| 0.0–0.29 | **Untrusted** | Request denial; human review required; possible suspension and dependency-aware termination ([§7.10](#710-termination-orchestration-and-the-credential-custody-handoff)) | Tier 5–6 (CIBA / Multi-party) | TBAC context terminated; all tools blocked pending review |
 
-> **Connection to CSA ATF ([§7.6](#76-csa-agentic-trust-framework-atf))**: An agent's ATF maturity level (Intern → Principal) sets the **ceiling** for its dynamic trust score — a Level 2 (Junior) agent cannot be scored above the "Medium trust" range regardless of behavioral signals, because its organizational attestation caps its autonomy. Behavioral trust scoring operates **within** the ATF maturity envelope, not above it.
+> **Connection to CSA ATF ([§7.8](#78-risk-and-governance-crosswalk))**: CSA ATF autonomy/governance context can inform a deployment’s policy ceiling, but it is not an authentication-assurance or universal numeric trust-score standard. Any local mapping between governance classification and dynamic trust must be explicit and deployment-specific.
 
 **Cedar policy example** — the PDP evaluates both the static TBAC context ([§16.5](#165-tbac-implementation-pattern)) and the dynamic trust score in a single policy evaluation:
 
@@ -14412,21 +13087,21 @@ Three deployment models, each appropriate for different organizational contexts:
 
 ##### 16.6.4 CAEP as Trust Score Propagation Mechanism
 
-DR-0001 describes the MCP gateway as a CAEP event **consumer** — receiving `assurance-level-change`, `session-revoked`, and `token-claims-change` events from the IdP ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)). For behavioral trust, the gateway (or its scoring engine sidecar) becomes a CAEP event **producer**: it observes agent behavior, detects anomalies, and emits `assurance-level-change` events to the SSF stream when trust scores cross tier thresholds. This is the **inverse flow** of the [§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) pattern — the enforcement point generates the signal rather than consuming it.
+DR-0001 describes the MCP gateway as a CAEP event **consumer**—receiving supported continuous-access events and processing them through the validation, subject-resolution, re-evaluation, action, and reconciliation pipeline in §§12.5–12.6. For behavioral trust, the gateway (or its scoring-engine sidecar) may also act as an event **producer** when a deployment profile defines an appropriate CAEP signal and subject. This inverse flow still requires a managed SSF stream and receiver-side policy; the event does not reduce authority by itself.
 
 | Direction | Source | Event | Consumer | Action |
 |:----------|:-------|:------|:---------|:-------|
-| **[§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) (existing)** | IdP (Entra, Okta, Ping) | `assurance-level-change` | MCP Gateway | Step-up, restrict, or terminate ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions) table) |
+| **§§12.5–12.6 (existing)** | IdP or another authorized transmitter | Supported CAEP event | MCP Gateway | Resolve, re-evaluate, restrict, terminate, and verify under local policy |
 | **[§16.6.4](#1664-caep-as-trust-score-propagation-mechanism) (new)** | Behavioral scoring engine | `assurance-level-change` | All enforcement points (gateways, policy engines, downstream services) | Apply graduated response per trust score ([§16.6.2](#1662-trust-score-architecture-closed-loop-model) table) |
 
-The SSF/CAEP transport infrastructure ([§12.3.2](#1232-ssfcaep-for-mcp-gateway-revocation)) is reused — the scoring engine publishes to the same SSF stream that already carries IdP-originated events. The `assurance-level-change` event payload's `change_direction` field (`increase` or `decrease`) and the `current_level` field carry the new trust tier.
+The SSF/CAEP transport infrastructure (§§12.5–12.6) can be reused where transmitter/receiver configuration permits the event type and subject format. Deployment-specific trust tiers must not be presented as standardized CAEP assurance semantics.
 
 ##### 16.6.5 Vendor Landscape
 
 | Vendor | Product | Agent-Specific Scoring | MCP Gateway Integration | Signal Categories |
 |:-------|:--------|:----------------------|:-----------------------|:-----------------|
 | **Ping Identity** | PingOne Protect (Agent Detection) | 11 predictor categories (AitM, bot detection, geovelocity, behavioral biometrics, IP reputation, device telemetry) + behavioral agent classification (known/unknown/external/malicious — [§B.2.2](#b22-agent-detection-behavioral-classification)) | PingGateway Agent Gateway — **only surveyed gateway with built-in risk-adaptive access** ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)); GA as of March 24, 2026 via Identity for AI suite | Network, device, behavioral, biometric |
-| **Microsoft** | Entra ID Protection | Two risk dimensions: sign-in risk (per-authentication) + user risk (aggregate). Identity Risk Management Agent investigates risks via Security Copilot | CAE via CAEP standard ([§12.3.6](#1236-continuous-access-evaluation-for-agent-sessions)); Entra Agent ID for AI agent identity governance ([§11.4.1](#1141-azure-entra-agent-id-and-key-vault-and-managed-identity)) | Identity, network, session, behavioral |
+| **Microsoft** | Entra ID Protection | Two risk dimensions: sign-in risk (per-authentication) + user risk (aggregate). Identity Risk Management Agent investigates risks via Security Copilot | Continuous-access integration plus Entra Agent ID product evidence ([§7.9](#79-product-implementation-evidence-and-maturity-boundaries)); exact event/profile support remains deployment-specific | Identity, network, session, behavioral |
 | **Okta** | Identity Threat Protection (ITP) | Continuous session risk evaluation; Agent Discovery (ISPM) for shadow AI; "Okta for AI Agents" GA April 2026 | CAEP-based signal sharing; ITP Workflows Connector for automated responses (May 2025) | Identity, session, behavioral, device |
 | **Silverfort** | Runtime Access Protection (RAP) | AI Agent Security (June 2025) — discovers, classifies, monitors agents; ties to human owner; real-time access controls inspect every call before target | Native identity infrastructure integration; behavioral profiling from access pattern baselines | Identity, behavioral, access pattern, NHI |
 
@@ -15659,7 +14334,7 @@ Beyond the six engines in the expanded comparison, several additional policy eng
 
 ##### 18.3.10 MCP-Specific Policy Patterns: TBAC Encoding and Delegation Chains
 
-Each policy engine encodes Task-Based Access Control ([§16](#16-task-based-access-control-tbac)) and delegation chains (`act` claims, [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) differently. This table shows how the same TBAC scenario would be modeled in each engine:
+Each policy engine encodes Task-Based Access Control ([§16](#16-task-based-access-control-tbac)) and delegation chains (`act` claims, [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) differently. This table shows how the same TBAC scenario would be modeled in each engine:
 
 **Scenario**: *Agent `travel-bot` (acting on behalf of user `alice`) requests to call tool `book_flight` as part of task `trip-planning-456`. The policy must verify: (1) the task is active, (2) the tool is allowed for this task type, (3) the agent is authorized to act on behalf of alice, and (4) the transaction amount is within alice's approval limit.*
 
@@ -16064,7 +14739,7 @@ Any local experiment must use a collision-resistant private `type`, version the 
 
 ### 20. Emerging Standards for AI Agent Authorization
 
-> **See also**: [§3](#3-scope-and-client-identity-lifecycle) (scope and client identity), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (token exchange), [§8.7](#87-cross-organization-agent-federation) (cross-organization federation), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (explicit-handle authority), and [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR).
+> **See also**: [§3](#3-scope-and-client-identity-lifecycle) (scope and client identity), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (token exchange), [§8.7](#87-cross-organization-agent-federation) (cross-organization federation), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (explicit-handle authority), and [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR).
 
 The emerging-standards question is not which proposal uses the word “agent.” It is which unresolved authorization problem a proposal addresses, what institution stands behind it, and whether its wire contract is stable enough to become a production dependency. The current architecture therefore starts with published OAuth, JOSE, OpenID, GNAP, workload-identity, and continuous-access building blocks; it pins working-group drafts only through an explicit local profile; and it treats individual agent proposals as design signals until they gain institutional review and interoperable implementations.
 
@@ -16713,7 +15388,7 @@ The product evidence supports five recurring authorization placements:
 | **Host/runtime isolation** | Docker, Cloudflare stateful Workers | Which process or per-client runtime can execute and retain state | Mistaking isolation for delegated-user or handle ownership |
 | **Backend business authorization** | Every protected MCP server and downstream API | Resource-specific entitlement and mutation | Assuming gateway success is transitive business approval |
 
-See [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) for policy-model synthesis and [§11](#11-credential-delegation-patterns) for credential-delegation patterns. Across all placements, the current invariant remains authorization on every request plus explicit ownership checks for state, task, subscription, cache, and continuation handles.
+See [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) for policy-model synthesis and [§11](#11-credential-custody-and-release-patterns) for credential-delegation patterns. Across all placements, the current invariant remains authorization on every request plus explicit ownership checks for state, task, subscription, cache, and continuation handles.
 
 #### 22.4 Composable Architectural Connections
 
@@ -16780,7 +15455,7 @@ Open source, standards use, and declarative configuration improve inspectability
 
 ### 23. EU Regulatory Framework: AI Act Compliance Mapping
 
-> **See also**: [§7.8](#78-owasp-agentic-ai-top-10-mapping) (OWASP mapping), §13.5 (trace and decision evidence), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory) (GDPR agent memory)
+> **See also**: [§7.8](#78-risk-and-governance-crosswalk) (OWASP mapping), §13.5 (trace and decision evidence), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory) (GDPR agent memory)
 
 This section maps the MCP authentication, authorization, and identity patterns documented in [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) to the requirements of the **EU Artificial Intelligence Act** ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)), with cross-references to the **General Data Protection Regulation** ([Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679)) and **eIDAS 2.0** ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)). The purpose is not to provide legal advice but to identify **architectural constraints** that flow from regulatory requirements affecting MCP deployments serving EU persons.
 
@@ -16890,12 +15565,12 @@ This matrix maps each relevant EU AI Act article to DR-0001 material that can su
 |:---|:---|:---|:---|:---|
 | **Art. 9** — Risk Management | *\"establish, implement, document, and maintain a risk management system\"* | [§13](#13-gateway-mediated-mcp-architecture) (gateway architecture), [§16](#16-task-based-access-control-tbac) (TBAC and behavioral trust), [§17.8](#178-current-attack-surface-and-decision-evidence) (attack surface), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (authorization models) | ✅ Strong | Gateway and policy responsibilities implement runtime controls; the deployment still owns the full lifecycle risk-management system |
 | **Art. 10** — Data Governance | *\"data governance and management practices\"* for training/validation data | [§3.4](#34-scope-minimization-best-practices) (scope minimization), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (guardrails PII/DLP) | 🟡 Moderate | Focus is on access control, not data quality/bias |
-| **Art. 12** — Record-Keeping | *\"automatic recording of events (logs) over the lifetime\"* | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (`act` claim), [§5.4](#54-chained-delegation-multi-agent) (chained delegation) | ✅ Strong | Delegation and decision evidence support traceability when retention and completeness are enforced |
+| **Art. 12** — Record-Keeping | *\"automatic recording of events (logs) over the lifetime\"* | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (subject/current-actor evidence), [§5.4](#54-current-actor-and-delegation-history) (prior-actor boundary) | ✅ Strong | Token evidence contributes to traceability only when correlated with complete grant, policy, task, execution, and lifecycle records under suitable retention and integrity controls |
 | **Art. 13** — Transparency | *\"operation is sufficiently transparent to enable deployers to interpret the system's output\"* | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§9](#9-authorization-context-and-delegation-representation) (authorization context), [§8.2](#82-a2a-authentication-architecture) (Agent Card) | 🟡 Moderate | Agent identity metadata supports transparency; deployer documentation remains a separate obligation |
 | **Art. 14** — Human Oversight | *\"allow for effective human oversight by natural persons\"* | [§14](#14-authorization-approval-and-consent-models) (authorization/approval evidence), [§15](#15-human-oversight-architecture) (7-tier interaction taxonomy), [§15.5](#155-tier-5-ciba-protocol) (CIBA), §15.7 (adaptive oversight) | ✅ Strong | The report covers selection and evidence patterns; the high-risk system still needs competent/authorized humans, appropriate information, intervention/reversal controls, and verified operation binding |
 | **Art. 15** — Cybersecurity | *\"resilient against unauthorized third-party attempts to alter their use, outputs, or performance\"* | [§1](#1-current-mcp-authorization-and-protocol-baseline) (RFC 8707/9728), §2 (Streamable HTTP), [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker), [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (guardrails) | ✅ Strong | Token binding, container isolation, edge security, prompt injection detection |
 | **Art. 26** — Deployer Obligations | *\"retain automatically generated logs for at least six months\"* | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (retention) | ✅ Strong | Six-month minimum retention is specified in [§23.4](#234-art-12-and-art-26-audit-trail-requirements); deployment still needs storage policy evidence |
-| **Art. 50** — Transparency (Certain AI) | Direct interaction disclosure, content marking, biometric/emotion notice, and deepfake/public-interest text disclosure | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§4.2](#42-why-delegation-is-the-default) (delegation), [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) (`ai_disclosure`) | 🟡 Pattern proposed | Gateway `ai_disclosure` addresses interaction disclosure; content-provenance standardization remains open |
+| **Art. 50** — Transparency (Certain AI) | Direct interaction disclosure, content marking, biometric/emotion notice, and deepfake/public-interest text disclosure | [§6](#6-agent-identity-vs-user-identity) (agent identity), [§4](#4-choosing-the-authority-relationship) (authority relationship), [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) (`ai_disclosure`) | 🟡 Pattern proposed | Authenticated agent/client/workload classification and deployment policy can drive interaction disclosure; delegation is useful context but not the sole trigger, and content-provenance standardization remains open |
 
 ##### 23.2.1 Compliance Evidence Artifact Map
 
@@ -17177,13 +15852,13 @@ The agent reports "Email sent ✓" to the user. The application layer (the MCP c
 | `ai_mediated` | Boolean flag for systematic detection | Art. 50(1): *\"informed that they are interacting with an AI system\"* |
 | `agent_type` | Machine-readable AI system category | Art. 50(1): contextual disclosure |
 | `agent_vendor` | Identifies the AI system provider | Traceability to provider (Art. 3(3)) |
-| `acting_on_behalf_of` | Links to delegating user | Accountability chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
+| `acting_on_behalf_of` | Links to delegating user | Accountability chain ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) |
 | `disclosure_text` | Human-readable disclosure string | Art. 50(1): *\"clear and distinguishable manner\"* |
 | `regulation` | Legal citation for the disclosure | Auditability |
 
-##### 23.3.5 Cross-Reference to §4.2
+##### 23.3.5 Cross-Reference to §4
 
-Art. 50(1) provides a **legal basis** for the architectural argument in [§4.2](#42-why-delegation-is-the-default) (Why Delegation is the Default). Impersonation — where the agent is invisible in the identity chain — makes Art. 50(1) disclosure **structurally impossible**. Only the delegation model, where the agent's identity is recorded in the `act` claim, enables the gateway to systematically generate `ai_disclosure` metadata. The individual OAuth Entity Profiles draft ([§20.6](#206-policy-evidence-and-verified-authority)) supplies a candidate machine-readable trigger: a deployment that locally adopts `client_profile: "ai_agent"` can auto-inject `ai_disclosure` metadata without per-agent configuration, but interoperability depends on future standards adoption.
+Art. 50(1) reinforces the separation in Choosing the Authority Relationship ([§4](#4-choosing-the-authority-relationship)): interaction disclosure is a user-experience and deployment-classification control, not a side effect of one token claim. An RFC 8693 `act` claim can help identify the current agent when delegated authority exists, but direct machine authority can also drive an AI interaction and may still require disclosure when the provision applies. The gateway therefore derives `ai_disclosure` from authenticated agent/client/workload classification and deployment policy, using `sub`/`act` only where their authorization semantics are relevant. The individual OAuth Entity Profiles draft ([§20.6](#206-policy-evidence-and-verified-authority)) supplies a candidate machine-readable classification trigger, but interoperability depends on future standards adoption.
 
 > **Non-EU content labeling regimes**: China's GB 45438-2025 (effective September 2025) imposes AI content identification requirements that are more prescriptive than the gateway-level Art. 50(1) interaction-disclosure pattern above — mandating both explicit labels (visible "AI-generated" text/watermarks) and implicit embedded metadata containing the service provider's identity code, the content producer's identity (unified social credit code or individual ID number), and a unique content identifier. South Korea's AI Basic Act (effective January 2026) mandates visible/invisible watermarks for AI-generated content with fines up to ₩30M. These regimes belong in a content-provenance or response-transformation pipeline alongside the EU Art. 50(2)/(4) path, not in the `ai_disclosure` object alone. See [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures) for the full multi-jurisdiction comparison.
 
@@ -17209,9 +15884,9 @@ The gateway audit logging architecture ([§13.2](#132-gateway-responsibilities))
 | Log Field | Art. 12 Mapping | Source in MCP Architecture |
 |:---|:---|:---|
 | `timestamp` | Art. 12(2)(a): period of use | Gateway system clock |
-| `user_sub` | Art. 12(2)(d): identification of natural persons | JWT `sub` claim from delegating user |
-| `agent_act` | Traceability — who acted | JWT `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
-| `agent_chain` | Multi-level delegation audit | Nested `act` claims ([§5.4](#54-chained-delegation-multi-agent)) |
+| `subject_sub` | Subject identification; a natural person only when the actual authority relationship is user-delegated | Validated top-level JWT `sub` or the equivalent opaque-token subject |
+| `current_actor` | Traceability — which distinct party acted for the subject | Validated outermost JWT `act` or an equivalent issuer-profiled actor field ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) |
+| `prior_actor_context` | Reconstruction aid, not a current authorization input or complete lineage record | Nested `act` identities when present, joined to separate exchange, grant, task, and trace records ([§5.4](#54-current-actor-and-delegation-history)) |
 | `tool_name` | Art. 12(2)(b): operation performed | MCP `tools/call` method parameter |
 | `tool_params` | Art. 12(2)(c): input data | MCP tool call arguments |
 | `mcp_server` | Resource identification | Protected Resource Metadata (RFC 9728) |
@@ -17357,7 +16032,7 @@ The MCP architecture supports Art. 13 transparency through:
 
 #### 23.8 The Multi-Agent Accountability Gap
 
-The EU AI Act assumes a **bilateral model**: one provider develops the AI system, one deployer operates it. The `act` chain in MCP delegation tokens ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) reveals a more complex reality:
+The EU AI Act defines provider and deployer roles around an AI system, while a multi-vendor agent deployment can involve several systems, operators, gateways, and tool providers in one operation. A correlated authority and execution record—not the OAuth `act` claim alone—reveals the more complex operational reality:
 
 
 ```mermaid
@@ -17449,7 +16124,7 @@ The AI Act explicitly states (Recital 63) that it *\"does not provide a legal ba
 | **Data minimization** | Art. 5(1)(c) GDPR | Art. 10(3) AI Act (*\"relevant and sufficiently representative\"*) | Scope minimization ([§3.4](#34-scope-minimization-best-practices)) + TBAC ([§16](#16-task-based-access-control-tbac)) enforce least-privilege data access |
 | **Purpose limitation** | Art. 5(1)(b) GDPR | Art. 9 AI Act (risk management proportionality) | Task-scoped tokens (`task:type:op:resource` in [§16](#16-task-based-access-control-tbac)) bind access to specific purposes |
 | **Automated decisions** | Art. 22 GDPR | Art. 14 AI Act (human oversight) | Controller-owned review, intervention, explanation, and contest process where applicable; CIBA may authenticate a prospective or reviewing person but does not supply those safeguards by itself ([§15](#15-human-oversight-architecture), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory)) |
-| **Data subject rights** | Arts. 15–22 GDPR | Art. 13 AI Act (transparency) | Audit logs ([§13.2](#132-gateway-responsibilities)) + `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) enable data access requests attributable to specific agent actions |
+| **Data subject rights** | Arts. 15–22 GDPR | Art. 13 AI Act (transparency) | Audit logs ([§13.2](#132-gateway-responsibilities)) + `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) enable data access requests attributable to specific agent actions |
 | **DPIA / FRIA** | Art. 35 GDPR | Art. 27 AI Act (FRIA) | Tool `riskLevel`, `business_process`, `annex_iii_category`, and `material_influence` metadata as combined DPIA/FRIA trigger |
 | **Accountability** | Art. 5(2) GDPR | Art. 12 AI Act (logging) + Art. 26 (deployer) | Delegation chain logging provides accountability trail for both regulations |
 
@@ -17466,10 +16141,10 @@ The AI Act explicitly states (Recital 63) that it *\"does not provide a legal ba
 | **Qualified Electronic Signatures (QES)** | Agent actions producing legal effects may require human QES via EUDI Wallet | [§15.10](#1510-regulatory-drivers) (regulatory drivers) |
 | **Qualified Web Authentication Certificates (QWAC)** | MCP server identity verification for cross-border trust | [OQ 31](#oq-31) (cross-border evidence), [§8.7](#87-cross-organization-agent-federation) |
 | **Qualified Electronic Seals (QSeal)** | Organizational identity for agents operating on behalf of legal persons | [§6](#6-agent-identity-vs-user-identity) (agent identity taxonomy), [§8.7.4](#874-multi-layer-trust-architecture) |
-| **Person Identification Data (PID)** | Standardized identity attributes across Member States | [§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant) (identity trilemma — user identity verification) |
+| **Person Identification Data (PID)** | Standardized identity attributes across Member States | [§4](#4-choosing-the-authority-relationship) (identity trilemma — user identity verification) |
 | **Qualified Electronic Attestation of Attributes (QEAA)** | Agent capability attestation — a QTSP can certify that an agent is authorized for specific operations (e.g., financial transactions up to a threshold). QEAAs are legally binding and the eIDAS feature most directly applicable to cross-border AI agent identity. | [OQ 31](#oq-31) (cross-border evidence), [§8.7.4](#874-multi-layer-trust-architecture) |
 
-**Architectural implication**: For cross-border MCP deployments where agents act on behalf of EU citizens, the EUDI Wallet may become the **verification mechanism** for the user identity in the delegation chain. The `sub` claim in delegation tokens ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) would be anchored to a Wallet-verified identity rather than an IdP-issued one. QEAAs extend this model beyond human identity to **agent identity** — a Qualified Trust Service Provider (QTSP) could issue a QEAA certifying: *"This agent, operated by Organization X, is authorized to execute financial tool calls up to €10,000 within the EU single market."* This would provide legally binding, cross-border verifiable agent capability attestation that no OAuth scope or SPIFFE SVID can match in regulatory weight.
+**Architectural implication**: For cross-border MCP deployments where agents act on behalf of EU citizens, the EUDI Wallet may become the **verification mechanism** for the user identity in the delegation chain. The `sub` claim in delegation tokens ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) would be anchored to a Wallet-verified identity rather than an IdP-issued one. QEAAs extend this model beyond human identity to **agent identity** — a Qualified Trust Service Provider (QTSP) could issue a QEAA certifying: *"This agent, operated by Organization X, is authorized to execute financial tool calls up to €10,000 within the EU single market."* This would provide legally binding, cross-border verifiable agent capability attestation that no OAuth scope or SPIFFE SVID can match in regulatory weight.
 
 **Connection to OpenID Federation**: eIDAS 2.0 and OpenID Federation 1.1 (§26 Rec 22) are architecturally complementary — OpenID Federation provides a trust-chain mechanism that an ecosystem can combine with EU trust services. An agent operator's Entity Configuration or related federation metadata could reference eIDAS trust material, but that composition requires an ecosystem profile; OpenID Federation does not itself supply eIDAS legal status.
 
@@ -17493,7 +16168,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 | Scenario | Applicable Laws | Transfer Mechanism | Agent Architecture Implication |
 |:---|:---|:---|:---|
-| EU agent → EU MCP tool | GDPR, EU AI Act | None (intra-EU) | Standard delegation chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
+| EU agent → EU MCP tool | GDPR, EU AI Act | None (intra-EU) | Standard delegation chain ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) |
 | EU agent → US MCP tool | GDPR, EU AI Act (extraterritorial) + DPF | DPF certification check by gateway | Gateway validates DPF self-certification status before tool invocation |
 | EU agent → Brazil MCP tool | GDPR + LGPD | EU-Brazil mutual adequacy decisions (adopted Jan/Feb 2026) | Gateway can treat Brazil as an adequacy destination after validating destination and recipient context; still record jurisdictional transition |
 | US agent → EU MCP tool | EU AI Act Art. 2(1) extraterritoriality | SCCs or DPF | EU gateway enforces AI Act requirements regardless of agent's origin |
@@ -17507,7 +16182,7 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 
 3. **Adequacy decisions as federation enablers**: GDPR adequacy decisions (Art. 45) function as de facto trust establishment for data flows — analogous to OIDC Federation Trust Anchors for identity. The EU-Brazil mutual adequacy decisions adopted in early 2026 simplify agent data flows between these jurisdictions without requiring Standard Contractual Clauses for covered transfers.
 
-4. **Delegation chain → audit trail → jurisdictional record**: The `act` claim chain ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) must record not just *who* delegated to *whom*, but implicitly *where* — since the delegating organization's jurisdiction determines which data protection law governs that delegation step. Gateway audit logs ([§13.2](#132-gateway-responsibilities)) should include jurisdictional metadata for compliance reporting.
+4. **Authority evidence → audit trail → jurisdictional record**: An OAuth `act` claim can identify the current actor and nested prior actors, but it does not encode where an actor operated or which transfer rule applied. Gateway and authority records ([§13.2](#132-gateway-responsibilities)) should explicitly correlate issuer, subject, current actor, organization, processing location, data location, and jurisdictional transition for compliance reporting.
 
 > **Regulatory outlook**: As cross-border agent delegation becomes common, organizations will need **jurisdiction-aware gateways** that can evaluate the applicable legal regime for each tool invocation based on the data subject's location, the data storage location, and the agent operator's location. This extends the gateway's existing authorization role ([§13.1](#131-general-gateway-architecture)) with a jurisdictional compliance layer. No gateway in this investigation currently implements this capability. See [§23.15](#2315-data-sovereignty-in-cross-border-agent-delegation-chains) for border gateway token transformation, jurisdictional routing policy, and federated audit log sovereignty patterns that operationalize this requirement.
 
@@ -17518,10 +16193,10 @@ When AI agent delegation chains cross organizational and jurisdictional boundari
 | **[§1](#1-current-mcp-authorization-and-protocol-baseline)** MCP Auth Spec | Art. 15(5) | Cybersecurity — token binding, confused deputy prevention |
 | **[§2](#2-stateless-streamable-http-authorization)** Streamable HTTP | Art. 15(4) | Cybersecurity — transport security |
 | **[§3](#3-scope-and-client-identity-lifecycle)** Scope Lifecycle | Art. 9(4), Art. 15(4) | Risk management — least privilege |
-| **[§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant)** Identity Trilemma | Art. 50(1) | Transparency — delegation enables AI disclosure |
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)** Token Exchange | Art. 12(1)–(4) | Record-keeping — `act` claim as audit trail |
+| **[§4](#4-choosing-the-authority-relationship)** Authority Relationship | Art. 50(1) | Distinguishes delegated, direct organizational, workload, and hybrid authority without treating disclosure as a token-side effect |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)** Token Exchange | Art. 12(1)–(4) | Supplies subject and current-actor evidence for a derived credential; complete record-keeping requires correlated grant, policy, task, trace, and lifecycle records |
 | **[§6](#6-agent-identity-vs-user-identity)** Agent Identity | Art. 13(3), Art. 50(1) | Transparency — agent metadata for deployers and users |
-| **[§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)** NHI Governance | Art. 12, Art. 13, Art. 15 | Record-keeping, transparency, cybersecurity — NHI lifecycle |
+| **[§7](#7-agent-definition-identity-and-governance-lifecycles)** Agent definition, identity, and governance lifecycles | Art. 12, Art. 13, Art. 15 | Inventory, ownership, provenance, lifecycle evidence, and termination governance |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)** A2A Protocol | Art. 12 (gap: cross-protocol) | Record-keeping — MCP × A2A log correlation |
 | **[§13](#13-gateway-mediated-mcp-architecture)** Gateway Architecture | Art. 9, Art. 12, Art. 15, Art. 26 | Risk management, record-keeping, cybersecurity |
 | **[§14](#14-authorization-approval-and-consent-models)** Authorization, Approval, and Consent Models | Art. 14(1), (4) | Separates requested authority, approval, grant, runtime enforcement, and evidence; this supports oversight design without treating consent as the universal control |
@@ -17561,7 +16236,7 @@ Consent withdrawal, grant revocation, task termination, record restriction, and 
 
 #### 23.14 Liability Apportionment in Multi-Vendor Agent Chains
 
-> **See also**: [§23.8](#238-the-multi-agent-accountability-gap) (Multi-Agent Accountability Gap), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (On-Behalf-Of Token Exchange), [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§16](#16-task-based-access-control-tbac) (TBAC)
+> **See also**: [§23.8](#238-the-multi-agent-accountability-gap) (Multi-Agent Accountability Gap), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (On-Behalf-Of Token Exchange), [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§16](#16-task-based-access-control-tbac) (TBAC)
 
 [§23.8](#238-the-multi-agent-accountability-gap) identifies the multi-agent accountability gap — when multiple providers and deployers participate in an MCP delegation chain, the EU AI Act's bilateral provider/deployer model breaks down. This section answers the next question: **who pays for damages** when something goes wrong in a multi-vendor MCP chain?
 
@@ -17603,7 +16278,7 @@ DR-0001's gateway-mediated architecture is not only an operational security patt
 
 | DR-0001 Feature | Evidentiary Function | Legal Basis |
 |:----------------|:--------------------|:-----------|
-| **`act` claim chain** ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) | Establishes the complete delegation chain — who authorized whom, at what scope, and when. Identifies all liable parties from end-user to executing tool. | PLD Art. 8 (supply chain identification); AI Act Art. 3(3)–(4) (provider/deployer attribution) |
+| **Subject and actor evidence** ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) | Identifies the token subject and current actor; nested prior actors can aid reconstruction but do not establish scope, time, approval, every operational participant, or legal liability. Correlate the token with grant, policy, task, trace, organization, and service records. | Potential evidence relevant to PLD Art. 8 (supply-chain identification) and AI Act Art. 3(3)–(4) (provider/deployer attribution), subject to the applicable facts and evidentiary rules |
 | **Audit logs** ([§13.5.3](#1353-trace-context-and-audit-log-correlation), [§23.4](#234-art-12-and-art-26-audit-trail-requirements)) | Provide the **primary evidence** for liability disputes. Satisfy PLD Art. 9 disclosure obligations (courts can order disclosure) and AI Act Art. 12 logging requirements. | PLD Art. 9; AI Act Art. 12/26(6)(a); GDPR Art. 5(2) (accountability) |
 | **Authorization decision traces** ([§13.5.4](#1354-authorization-decision-tracing)) | Record the inputs, policy, engine, and rationale for each authorization decision — proving whether the gateway correctly enforced its policies or failed. | PLD Art. 7 (defect evidence); AI Act Art. 9 (risk management documentation) |
 | **TBAC tiers** ([§16](#16-task-based-access-control-tbac)) | Establish the **proportionate duty of care** standard. A Tier 5 (critical) tool call that bypasses human oversight represents a higher liability exposure than a Tier 1 (informational) call. | PLD Art. 7 (safety expectation calibration); AI Act Art. 9(4) (proportionate risk measures) |
@@ -17634,18 +16309,18 @@ The statutory liability framework (PLD + AI Act) establishes **minimum floors** 
 
 4. **Insurance landscape**: Traditional cyber insurance policies are being rewritten to exclude AI-generated content from social engineering coverage and explicitly deny coverage for autonomous agent decisions. AI-specific liability insurance — covering agent-caused damages, regulatory fines, and hallucination-related losses — is emerging but remains nascent as of early 2026. Organizations deploying multi-vendor MCP chains should verify that their cyber insurance explicitly covers AI agent autonomous actions, or procure supplementary AI liability coverage.
 
-> **CSA Agentic Trust Framework connection ([§7.6](#76-csa-agentic-trust-framework-atf))**: The ATF's cross-organization trust agreements can embed liability terms alongside maturity level requirements. When Organization X's Level 3 (Senior) agent calls a tool hosted by Organization Y, the federation agreement should specify not only the authentication/authorization requirements (ATF maturity levels) but also the **liability allocation** — who bears responsibility if the agent acts beyond authorized scope? This extends the ATF governance vocabulary from trust and security to liability.
+> **CSA Agentic Trust Framework connection ([§7.8](#78-risk-and-governance-crosswalk))**: The ATF provides governance context, while cross-organization agreements separately define authentication, authorization, oversight, and liability allocation. An ATF autonomy label is not itself identity assurance or a liability rule.
 
 
 #### 23.15 Data Sovereignty in Cross-Border Agent Delegation Chains
 
-> **See also**: [§23.11](#2311-cross-border-legal-framework-for-agent-delegation) (Cross-Border Legal Framework), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory) (GDPR Data Subject Rights), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (On-Behalf-Of Token Exchange), [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence)
+> **See also**: [§23.11](#2311-cross-border-legal-framework-for-agent-delegation) (Cross-Border Legal Framework), [§23.13](#2313-gdpr-data-subject-rights-and-agent-memory) (GDPR Data Subject Rights), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (On-Behalf-Of Token Exchange), [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence)
 
 [§23.11](#2311-cross-border-legal-framework-for-agent-delegation) identifies the legal landscape for cross-border agent delegation — which jurisdiction's laws govern each hop in a multi-jurisdictional delegation chain. This section analyzes the **architectural implications** for MCP gateway design: how delegation tokens carrying PII interact with cross-border data transfer law, what data localization constraints mean for global agent chains, and what gateway-level patterns can enforce data sovereignty at the protocol level.
 
 ##### 23.15.1 PII in Delegation Tokens as Cross-Border Data Transfer
 
-When Agent A (EU) delegates to Agent B (US) via RFC 8693 token exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)), the resulting delegation token carries claims that constitute personal data under [GDPR Art. 4(1)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679):
+When Agent A (EU) delegates to Agent B (US) via RFC 8693 token exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)), the resulting delegation token carries claims that constitute personal data under [GDPR Art. 4(1)](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679):
 
 | JWT Claim | Example Value | GDPR Classification | Cross-Border Impact |
 |:----------|:-------------|:--------------------|:-------------------|
@@ -17734,7 +16409,7 @@ Audit logs containing cross-border PII face a dual obligation: EU AI Act Art. 12
 
 ### 24. US Regulatory Framework: NIST AI Risk Management and Agent Identity
 
-> **See also**: [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) (EU Regulatory Framework), [§7.4](#74-credential-architecture-for-ai-agents) (NHI credentials and Zero Trust), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines), [§20](#20-emerging-standards-for-ai-agent-authorization) (Emerging Standards)
+> **See also**: [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) (EU Regulatory Framework), [§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) (NHI credentials and Zero Trust), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines), [§20](#20-emerging-standards-for-ai-agent-authorization) (Emerging Standards)
 
 This section maps DR-0001's MCP architecture to the **US regulatory framework** for AI agent identity — specifically the NIST AI Risk Management Framework (AI RMF 1.0), the NCCoE AI Agent Identity concept paper, and the AI Agent Standards Initiative. While the EU approach ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)) is mandatory regulation with penalties, the US framework is voluntary and standards-driven. Organizations operating globally must satisfy both.
 
@@ -17804,9 +16479,9 @@ The **AI Risk Management Framework 1.0** ([NIST AI 100-1](https://airc.nist.gov/
 | AI RMF Function | Description | DR-0001 Mapping |
 |:----------------|:------------|:----------------|
 | **GOVERN** | Organizational accountability, policies, risk tolerance, roles and responsibilities | [§14](#14-authorization-approval-and-consent-models) (Consent models), [§15](#15-human-oversight-architecture) (Human Oversight Architecture), [§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) (EU AI Act mapping) |
-| **MAP** | Context understanding, stakeholder identification, risk categorization | [§6](#6-agent-identity-vs-user-identity) (Agent Identity), [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) (NHI Governance), [§16](#16-task-based-access-control-tbac) (TBAC risk tiers) |
+| **MAP** | Context understanding, stakeholder identification, risk categorization | [§6](#6-agent-identity-vs-user-identity) (Agent Identity), [§7](#7-agent-definition-identity-and-governance-lifecycles) (Agent Governance Lifecycles), [§16](#16-task-based-access-control-tbac) (TBAC risk tiers) |
 | **MEASURE** | Risk quantification, assessment, continuous testing and monitoring | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (Art. 12 audit trail) |
-| **MANAGE** | Risk treatment, active monitoring, incident response, and continuous improvement | [§13](#13-gateway-mediated-mcp-architecture) (Gateway enforcement), [§10](#10-authorization-continuity-and-durable-tasks) (Refresh token lifecycle), [§11](#11-credential-delegation-patterns) (Credential delegation) |
+| **MANAGE** | Risk treatment, active monitoring, incident response, and continuous improvement | [§13](#13-gateway-mediated-mcp-architecture) (Gateway enforcement), [§10](#10-authorization-continuity-and-durable-tasks) (Refresh token lifecycle), [§11](#11-credential-custody-and-release-patterns) (Credential delegation) |
 
 ```mermaid
 ---
@@ -17823,7 +16498,7 @@ flowchart LR
         §15 Oversight
         §23 EU AI Act`"] --> MA["`**MAP**
         §6 Agent Identity
-        §7 NHI Governance
+        §7 Agent Governance Lifecycles
         §16 TBAC tiers`"]
         MA --> ME["`**MEASURE**
         §13.5 Trace and decision evidence
@@ -17851,8 +16526,8 @@ The mapping demonstrates that DR-0001's gateway-mediated architecture provides t
 | AI 600-1 Risk Category | MCP Relevance | DR-0001 Coverage |
 |:------------------------|:--------------|:-----------------|
 | **Data Privacy** | Token/scope leakage, over-broad context, unauthorized resource or cache disclosure | [§3.4](#34-scope-minimization-best-practices) (minimization), [§17.2](#172-tool-visibility-invocation-and-backend-entitlement) (primitive authorization), [§17.7](#177-cache-authority) (cache authority) |
-| **Information Security** | Agent credential compromise, prompt injection | [§7.4](#74-credential-architecture-for-ai-agents) (NHI credentials), [§11](#11-credential-delegation-patterns) (credential delegation), [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (guardrail-to-authorization feedback) |
-| **Value Chain / Component Integration** | MCP tool supply-chain integrity, gateway trust boundaries | [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) (NHI governance), [§13.7](#137-mcp-tool-supply-chain-security) (tool supply chain), [§21](#21-product-implementation-landscape) and [§22](#22-consolidated-comparison-thirteen-architectural-models) (role-normalized product evidence) |
+| **Information Security** | Agent credential compromise, prompt injection | [§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) (NHI credentials), [§11](#11-credential-custody-and-release-patterns) (credential delegation), [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (guardrail-to-authorization feedback) |
+| **Value Chain / Component Integration** | MCP tool supply-chain integrity, gateway trust boundaries | [§7](#7-agent-definition-identity-and-governance-lifecycles) (NHI governance), [§13.7](#137-mcp-tool-supply-chain-security) (tool supply chain), [§21](#21-product-implementation-landscape) and [§22](#22-consolidated-comparison-thirteen-architectural-models) (role-normalized product evidence) |
 | **Human-AI Configuration** | Over-reliance on autonomous agent actions | [§15](#15-human-oversight-architecture) (Human Oversight Architecture — 7-tier model) |
 | **Confabulation** | Hallucinated tool calls, fabricated authorization claims | [§15](#15-human-oversight-architecture) (oversight tiers), [§17.2](#172-tool-visibility-invocation-and-backend-entitlement) and [§17.8](#178-current-attack-surface-and-decision-evidence) (primitive decisions and attack surface) |
 | **Information Integrity** | Agent-mediated misinformation, AI disclosure | [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) (Art. 50 AI Disclosure) |
@@ -17882,9 +16557,9 @@ The NCCoE concept paper identifies six areas of interest that map directly to DR
 
 | NCCoE Area of Interest | Description | DR-0001 Coverage |
 |:-----------------------|:------------|:-----------------|
-| **1. Identification of AI agents** | Unique identification and authentication of agents | [§6](#6-agent-identity-vs-user-identity) (Agent Identity), [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) (NHI Governance), [§7.10](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity) (SP 800-63-4 IAL/AAL/FAL) |
-| **2. Authorization of AI systems** | Access control and permission management for agents | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (OBO), [§13](#13-gateway-mediated-mcp-architecture) (Gateway), [§16](#16-task-based-access-control-tbac) (TBAC), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines) |
-| **3. Access Delegation** | Delegated authorization across agent chains | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (RFC 8693 Token Exchange), §11 (Credential Delegation Patterns) |
+| **1. Identification of AI agents** | Unique identification and authentication of agents | [§6](#6-agent-identity-vs-user-identity) (Agent Identity), §§7.2–7.5 (definition, registration, and runtime admission); [§7.8](#78-risk-and-governance-crosswalk) preserves SP 800-63-4’s natural-person scope |
+| **2. Authorization of AI systems** | Access control and permission management for agents | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (OBO), [§13](#13-gateway-mediated-mcp-architecture) (Gateway), [§16](#16-task-based-access-control-tbac) (TBAC), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (Policy Engines) |
+| **3. Access Delegation** | Delegated authorization across agent chains | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (RFC 8693 Token Exchange), §11 (Credential Custody and Release Patterns) |
 | **4. Logging and Transparency** | Audit trails for agent actions and decisions | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) (trace and decision evidence), [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) (Art. 50 AI Disclosure) |
 | **5. Tracking Data Flows** | Monitoring data movement across agent workflows | [§13.3](#133-gateway-architecture-patterns) (OpenTelemetry tracing), [§23.4](#234-art-12-and-art-26-audit-trail-requirements) (Art. 12 Audit Trail) |
 | **6. Prompt Injection prevention** | Mitigating instructions injected into agent prompts | [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) (guardrail-to-authorization feedback), [§17.8](#178-current-attack-surface-and-decision-evidence) (current attack surface), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) (ContextForge) |
@@ -17894,13 +16569,13 @@ The NCCoE concept paper identifies six areas of interest that map directly to DR
 The NCCoE paper explicitly lists the following standards — **MCP is first** — as candidates for its demonstration project:
 
 - **Model Context Protocol (MCP)** — [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§3](#3-scope-and-client-identity-lifecycle) (protocol foundations), [§13](#13-gateway-mediated-mcp-architecture) (gateway architecture)
-- **OAuth 2.0/2.1** — [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (authorization flows, token exchange, delegation)
+- **OAuth 2.0/2.1** — [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (authorization flows, token exchange, delegation)
 - **OpenID Connect (OIDC)** — [§6](#6-agent-identity-vs-user-identity) (agent identity), [§20](#20-emerging-standards-for-ai-agent-authorization) (OIDC-A, Federation)
 - **SPIFFE/SPIRE** — [§20.5](#205-sender-audience-and-workload-constraints) (SPIFFE client authentication), [§6.3](#63-three-architectural-approaches-to-agent-identity) (workload attestation)
-- **IdP lifecycle provisioning** — [§7.11](#711-agent-de-provisioning-vs-token-revocation) (agent de-provisioning and cascading revocation)
+- **IdP lifecycle provisioning** — §§7.3–7.7 (registration, suspension/recovery, and lifecycle signals) with §7.10/§12.10 termination orchestration
 - **NGAC (Next Generation Access Control)** — [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (policy engines — evaluated but not adopted due to limited ecosystem; see [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) callout)
 
-The NCCoE paper also references **SP 800-207** (Zero Trust Architecture), **SP 800-63-4** (Digital Identity Guidelines), and **NISTIR 8587** (Attribute-Based Access Control) — all of which are already covered in DR-0001 ([§7.4](#74-credential-architecture-for-ai-agents), [§7.10](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity), and [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) respectively).
+The NCCoE paper also references **SP 800-207** (Zero Trust Architecture), **SP 800-63-4** (Digital Identity Guidelines), and **NISTIR 8587** (Attribute-Based Access Control)—covered in DR-0001 at [§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures), [§7.8](#78-risk-and-governance-crosswalk), and [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) respectively. §7.8 explicitly avoids reassigning natural-person IAL/AAL/FAL labels to agents.
 
 **Key insight**: DR-0001 is already **architecturally aligned** with what the NCCoE demonstration project aims to achieve. The gap identified by BS-13 was not content but *framing* — DR-0001 did not acknowledge or map to the NIST framework. The six NCCoE areas of interest are addressed by DR-0001's existing chapters; the cross-reference table above formalizes this alignment.
 
@@ -17918,7 +16593,7 @@ The NCCoE concept paper identifies three enterprise deployment scenarios that co
 
 The NCCoE project aims to produce practical implementation guidance for securing AI agent identity and authorization. The expected deliverables could include reference architectures, technology-specific configurations, and deployment guidance, but the official project page currently says community input is being reviewed to inform subsequent planning activities, including a draft project description. No official practice-guide publication date has been announced; any mid-to-late 2027 planning assumption should be treated as an internal roadmap estimate, not an NCCoE commitment.
 
-> **Architectural implication**: Organizations should not wait for NCCoE follow-on outputs before implementing controls. DR-0001's gateway-mediated architecture ([§13](#13-gateway-mediated-mcp-architecture)), combined with the credential delegation patterns ([§11](#11-credential-delegation-patterns)) and policy engine recommendations ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), provides an implementable framework *today* that aligns with NCCoE's stated goals.
+> **Architectural implication**: Organizations should not wait for NCCoE follow-on outputs before implementing controls. DR-0001's gateway-mediated architecture ([§13](#13-gateway-mediated-mcp-architecture)), combined with the credential delegation patterns ([§11](#11-credential-custody-and-release-patterns)) and policy engine recommendations ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)), provides an implementable framework *today* that aligns with NCCoE's stated goals.
 
 #### 24.5 NIST AI Agent Standards Initiative: Three Pillars
 
@@ -17940,22 +16615,22 @@ The US track is voluntary, but it is operationally useful because it turns agent
 |:---|:---|:---|:---|:---|
 | **Industry-led agent standards** | Track standards-body outputs and avoid proprietary identity claims where OAuth/OIDC/SPIFFE primitives exist | [§20](#20-emerging-standards-for-ai-agent-authorization) emerging standards; [§6](#6-agent-identity-vs-user-identity) agent identity taxonomy; [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A signed cards | Standards watchlist; accepted/rejected profile decisions; gateway claim mapping | NIST AI Agent Standards Initiative updates; IETF/OIDF adoption status |
 | **Open-source protocol development** | Keep MCP and A2A gateway behavior aligned with current protocol versions and registry/signing expectations | [§1](#1-current-mcp-authorization-and-protocol-baseline) MCP auth; [§2](#2-stateless-streamable-http-authorization) transport; [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A; [§13](#13-gateway-mediated-mcp-architecture) gateway architecture | Protocol-version inventory; compatibility test output; registry trust policy | CAISI/NIST initiative page, MCP/A2A release notes, registry governance changes |
-| **Agent security and identity research** | Treat NHI lifecycle, runtime attestation, and delegated authority as first-class risk controls | [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping) NHI governance; [§11](#11-credential-delegation-patterns) credential delegation; [§12](#12-credential-security-and-revocation) revocation; [§20](#20-emerging-standards-for-ai-agent-authorization) WIMSE/SPIFFE | Agent inventory; credential lifecycle log; attestation evidence; revocation/CAEP test | CAISI research outputs and RFIs; NCCoE project-description updates |
-| **NCCoE area: Identification of AI agents** | Assign unique agent identities and bind them to runtime or organizational provenance | [§6](#6-agent-identity-vs-user-identity) identity taxonomy; [§7.10](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity) SP 800-63-4; [§20.5](#205-sender-audience-and-workload-constraints) SPIFFE client auth | Agent ID registry; assurance-level record; SPIFFE/SVID or OIDC client evidence | NCCoE draft project description and reference architecture |
-| **NCCoE area: Authorization and access delegation** | Enforce per-tool authorization and delegated-scope attenuation at the gateway | [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) token exchange; [§13](#13-gateway-mediated-mcp-architecture) PEP; [§16](#16-task-based-access-control-tbac) TBAC; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) policy engines | Policy decision trace; token-exchange record; `act` chain; scope attenuation test | NCCoE demonstration scenarios and selected standards |
+| **Agent security and identity research** | Treat NHI lifecycle, runtime attestation, and delegated authority as first-class risk controls | [§7](#7-agent-definition-identity-and-governance-lifecycles) NHI governance; [§11](#11-credential-custody-and-release-patterns) credential delegation; [§12](#12-credential-state-revocation-and-termination-convergence) revocation; [§20](#20-emerging-standards-for-ai-agent-authorization) WIMSE/SPIFFE | Agent inventory; credential lifecycle log; attestation evidence; revocation/CAEP test | CAISI research outputs and RFIs; NCCoE project-description updates |
+| **NCCoE area: Identification of AI agents** | Assign unique agent identities and bind them to runtime or organizational provenance | [§6](#6-agent-identity-vs-user-identity) identity taxonomy; §§7.2–7.5 definition/registration/admission; [§20.5](#205-sender-audience-and-workload-constraints) SPIFFE client auth | Agent definition and registration records; workload admission; SPIFFE/SVID or OIDC client evidence | NCCoE concept project and current source boundaries |
+| **NCCoE area: Authorization and access delegation** | Enforce per-tool authorization and delegated-scope attenuation at the gateway | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) token exchange; [§13](#13-gateway-mediated-mcp-architecture) PEP; [§16](#16-task-based-access-control-tbac) TBAC; [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) policy engines | Policy decision trace; token-exchange record; `act` chain; scope attenuation test | NCCoE demonstration scenarios and selected standards |
 | **NCCoE area: Logging, transparency, and data flows** | Preserve traceable logs across MCP, A2A, and cross-border delegation hops | [§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability) decision evidence; Art. 12 mapping in [§23.4](#234-art-12-and-art-26-audit-trail-requirements); multi-agent evidence chain in [§23.8.1](#2381-multi-agent-accountability-evidence-chain); data sovereignty in [§23.15](#2315-data-sovereignty-in-cross-border-agent-delegation-chains) | `trace_id` lineage; cross-protocol join fields; jurisdiction transition metadata | NCCoE follow-on outputs; NIST AI measurement and monitoring guidance |
 
 #### 24.6 NIST SP 800-207 and Zero Trust for Agent Architectures
 
-NIST SP 800-207 (*Zero Trust Architecture*, August 2020) establishes the foundational tenets that DR-0001's gateway architecture implements. The brief callout in [§7.4](#74-credential-architecture-for-ai-agents) is expanded here into a structured mapping:
+NIST SP 800-207 (*Zero Trust Architecture*, August 2020) establishes the foundational tenets that DR-0001's gateway architecture implements. The brief callout in [§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) is expanded here into a structured mapping:
 
 | ZTA Tenet | SP 800-207 Principle | MCP Gateway Implementation |
 |:----------|:---------------------|:---------------------------|
 | **Never trust, always verify** | All resource access requires authentication and authorization regardless of network location | Gateway-mediated architecture ([§13](#13-gateway-mediated-mcp-architecture)): every MCP request is authenticated and authorized at the gateway; no implicit trust based on network position |
 | **Least privilege** | Access is granted with minimal necessary permissions, scoped to the immediate task | Scope minimization ([§3](#3-scope-and-client-identity-lifecycle)), TBAC ([§16](#16-task-based-access-control-tbac)), and per-primitive/argument/handle decisions ([§17](#17-authorization-across-mcp-primitives-and-durable-state)) |
-| **Assume breach** | Design for the scenario where the perimeter is already compromised | Per-request admission and downstream-token separation ([§2.3](#23-gateway-and-server-enforcement)–[§2.4](#24-solved-stateless-tool-call-and-downstream-authority)), refresh-token rotation ([§10](#10-authorization-continuity-and-durable-tasks)), and sender constraint ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents)) |
+| **Assume breach** | Design for the scenario where the perimeter is already compromised | Per-request admission and downstream-token separation ([§2.3](#23-gateway-and-server-enforcement)–[§2.4](#24-solved-stateless-tool-call-and-downstream-authority)), refresh-token rotation ([§10](#10-authorization-continuity-and-durable-tasks)), and sender constraint ([§12.3](#123-sender-constraint-and-key-custody-boundaries)) |
 | **Micro-segmentation** | Fine-grained access boundaries around individual resources | Tool/resource/argument authorization ([§17.2](#172-tool-visibility-invocation-and-backend-entitlement)), explicit-handle ownership ([§17.3](#173-explicit-handle-authority-model)), and Virtual MCP Servers ([§D.3](#d3-virtual-mcp-servers-tool-level-access-control)) |
-| **Continuous verification** | Authorization decisions are re-evaluated throughout the authority lifecycle | Token validation on every request plus CAEP/SSF revocation and continuous re-evaluation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)) |
+| **Continuous verification** | Authorization decisions are re-evaluated throughout the authority lifecycle | Token/status checks plus CAEP/SSF receiver processing, cache invalidation, and reconciliation (§§12.4–12.7) |
 
 ##### 24.6.1 PEP/PDP Model Mapping
 
@@ -17999,7 +16674,7 @@ flowchart TD
     style PAP text-align:left
 ```
 
-SP 800-207 also mandates **equal treatment of human and NHI identities** — a principle that DR-0001 operationalizes through the NHI governance framework ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), the agent identity classification model ([§6](#6-agent-identity-vs-user-identity)), and the three-category identity taxonomy (human → service → agent).
+SP 800-207 also mandates **equal treatment of human and NHI identities** — a principle that DR-0001 operationalizes through the NHI governance framework ([§7](#7-agent-definition-identity-and-governance-lifecycles)), the agent identity classification model ([§6](#6-agent-identity-vs-user-identity)), and the three-category identity taxonomy (human → service → agent).
 
 #### 24.7 Cross-Jurisdictional Compliance: EU AI Act vs. NIST AI RMF
 
@@ -18036,7 +16711,7 @@ The EU AI Act ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)) an
 >
 > 2. **Mandatory AI content labeling (GB 45438-2025)** — Effective September 2025, all AI-generated content must carry both explicit (visible "AI-generated" labels, watermarks) and implicit (embedded metadata) identification. The implicit metadata must include the **service provider's identity code**, the **content producer's identity** (unified social credit code for organizations or ID number for individuals), and a **unique content identifier** generated by the AI service. This is more prescriptive than EU AI Act Art. 50(1) direct-interaction disclosure and overlaps more closely with the content-provenance problem space of Art. 50(2)/(4), while adding producer-identity metadata that the gateway-injected `ai_disclosure` pattern from [§23.3](#233-art-50-ai-interaction-disclosure-for-mcp) does not provide. For MCP deployments: if an MCP server in China generates AI content via tool responses, the output must carry GB 45438-2025 compliant labeling metadata through a response transformation or content-provenance pipeline (see [OQ 27](#oq-27)).
 
-> **Singapore's Agentic AI Framework**: IMDA's *Model AI Governance Framework for Agentic AI* (January 2026) addresses safe operating parameters, external-system interaction governance, meaningful human accountability, and monitoring/correction. Those concerns map to bounded autonomy ([§16](#16-task-based-access-control-tbac)), trace and decision evidence ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), human oversight ([§15](#15-human-oversight-architecture)), and continuous re-evaluation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)). Its voluntary status remains distinct from binding legal obligations.
+> **Singapore's Agentic AI Framework**: IMDA's *Model AI Governance Framework for Agentic AI* (January 2026) addresses safe operating parameters, external-system interaction governance, meaningful human accountability, and monitoring/correction. Those concerns map to bounded autonomy ([§16](#16-task-based-access-control-tbac)), trace and decision evidence ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), human oversight ([§15](#15-human-oversight-architecture)), and continuous re-evaluation (§§12.4–12.7). Its voluntary status remains distinct from binding legal obligations.
 
 > **Strictest common denominator**: For organizations deploying MCP agents globally, implementing the **EU AI Act requirements as the binding baseline** ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)) and the **NIST AI RMF as the organizational structure** ([§24](#24-us-regulatory-framework-nist-ai-risk-management-and-agent-identity)) satisfies or exceeds every framework in this comparison — with two China-specific exceptions requiring additional compliance measures. International AI safety initiatives (Bletchley Declaration, Seoul Declaration, Hiroshima AI Process) are high-level political commitments with no binding enforcement mechanisms and no agent identity requirements.
 
@@ -18046,7 +16721,7 @@ DR-0001's gateway-mediated architecture satisfies both frameworks simultaneously
 
 - **Audit logging** ([§13.2](#132-gateway-responsibilities)) meets both Art. 12 retention requirements and NIST MEASURE function assessment needs — configure retention for ≥6 months to satisfy the EU mandate, which also exceeds any NIST voluntary recommendation
 - **Human oversight** ([§15](#15-human-oversight-architecture)) provides the 7-tier model required by Art. 14 for high-risk systems, while also implementing the GOVERN function's accountability structures
-- **Identity governance** ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)) addresses both eIDAS 2.0 cross-border identity ([§23.10](#2310-eidas-20-and-cross-border-agent-identity)) and NCCoE's six areas of interest for agent identification and authorization
+- **Identity governance** ([§7](#7-agent-definition-identity-and-governance-lifecycles)) addresses both eIDAS 2.0 cross-border identity ([§23.10](#2310-eidas-20-and-cross-border-agent-identity)) and NCCoE's six areas of interest for agent identification and authorization
 - **Policy engines** ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) enforce access control decisions that satisfy both Art. 9 risk management requirements and the AI RMF MANAGE function's active monitoring mandate
 
 ```mermaid
@@ -18184,14 +16859,14 @@ RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, PKCE, audien
 
 #### 25.2 Identity and Delegation
 
-##### 25.2.1 Key Finding 3: Delegation Must Preserve Both the Human Principal and the Acting Agent
+##### 25.2.1 Key Finding 3: Each Operation Must Preserve Its Actual Authority Relationship
 <a id="finding-3"></a>
 
-Collapsing an agent into the user's identity destroys attribution; collapsing the user into a service identity destroys the authority chain. RFC 8693 token exchange and the OAuth `act` claim provide the established vocabulary for preserving subject and actor, while Transaction Tokens and Identity Chaining provide more structured propagation signals at different maturity levels. The resulting design requirement is semantic rather than vendor-specific: every hop must know whose authority is being exercised, which actor is exercising it, and which audience and scope bound the delegation.
+When an actor exercises a user's authority, collapsing the actor into the user destroys attribution and collapsing the user into a service identity destroys delegated-authority context. RFC 8693 token exchange and the OAuth `act` claim provide established vocabulary for a token subject and current actor. Direct organizational or autonomous workload operations are different: they require an authentic machine or organization subject and must not invent a human principal. The design requirement is therefore operation-specific: preserve the real subject and current actor where delegation exists, authenticate the client and workload separately where policy needs them, and bind every derived credential to its intended audience and granted rights.
 
 **Applicability:** Contract — external OAuth and workload-identity standards; surface — delegation and downstream credentials; evidence — final RFCs, active WG work, and analytical inference; product role — IdP/AS, gateway/runtime, and backend service.
 
-**Evidence trail:** OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)); Credential Delegation and Token Exchange Patterns ([§11](#11-credential-delegation-patterns)); OAuth Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)); Identity Chaining ([§20.4](#204-delegation-and-identity-chains)).
+**Evidence trail:** OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); OAuth Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)); Identity Chaining ([§20.4](#204-delegation-and-identity-chains)).
 
 ##### 25.2.2 Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
 <a id="finding-4"></a>
@@ -18200,7 +16875,7 @@ RFC 8693 permits but does not require refresh-token issuance. Long-lived work th
 
 **Applicability:** Contract — RFC 8693, OAuth refresh, and the pinned Tasks extension; surface — continuation authority; evidence — normative requirement plus architectural inference; product role — IdP/AS, gateway/runtime, and MCP server.
 
-**Evidence trail:** Long-Running Agent Sessions ([§10](#10-authorization-continuity-and-durable-tasks)); Credential Lifecycle ([§11.3](#113-credential-lifecycle-for-ai-agent-delegation)); Long-Lived Authorization and Cancellation ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
+**Evidence trail:** Long-Running Agent Sessions ([§10](#10-authorization-continuity-and-durable-tasks)); Credential Lifecycle ([§11.3](#113-composable-custody-and-release-patterns)); Long-Lived Authorization and Cancellation ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
 
 ##### 25.2.3 Key Finding 5: Agent Identity Is a Layered Deployment Model, Not Yet One Portable Standards Profile
 <a id="finding-5"></a>
@@ -18269,7 +16944,7 @@ Azure APIM's current Credential Manager and custom OBO patterns preserve differe
 
 **Applicability:** Contract — current product evidence assessed against the forward baseline; surface — Azure APIM credential treatment; evidence — implementation evidence plus analysis; product role — gateway/runtime.
 
-**Evidence trail:** Azure API Management ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)); Credential Delegation Patterns ([§11](#11-credential-delegation-patterns)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** Azure API Management ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 ##### 25.4.3 Key Finding 12: Purpose-Built MCP Filters Still Need Exact Contract and Lifecycle Evidence
 <a id="finding-12"></a>
@@ -18344,7 +17019,7 @@ Traefik Hub evaluates identity and MCP request parameters across task, tool, tra
 
 **Applicability:** Contract — exact current core not established; surface — Traefik Hub; evidence — implementation evidence; product role — gateway/runtime plus MCP server.
 
-**Evidence trail:** Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)); Composable Architectural Connections ([§22.4](#224-composable-architectural-connections)); OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)).
+**Evidence trail:** Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)); Composable Architectural Connections ([§22.4](#224-composable-architectural-connections)); OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)).
 
 ##### 25.5.5 Key Finding 20: Docker Adds a Host and Supply-Chain Boundary, Not Another Inline Authorization Layer
 <a id="finding-20"></a>
@@ -18377,28 +17052,28 @@ Gateway policy, delegation claims, consent, human oversight, retention, and inci
 **Evidence trail:** EU Regulatory Framework ([§23](#23-eu-regulatory-framework-ai-act-compliance-mapping)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Gateway Audit and Compliance Controls ([§13](#13-gateway-mediated-mcp-architecture)).
 
 
-#### 25.7 NHI Governance
+#### 25.7 Agent and Non-Human Identity Governance
 
-##### 25.7.1 Key Finding 23: NHI Governance Is an Emerging Architectural Requirement for Agent-Scale MCP Deployments
+##### 25.7.1 Key Finding 23: Correlated Agent Lifecycles Are an Architectural Requirement for Agent-Scale MCP Deployments
 <a id="finding-23"></a>
 
 Agent-scale systems need ownership, sponsorship, issuance, rotation, suspension, offboarding, discovery, and incident-response controls for non-human identities. Workload identity can authenticate a running process, while an NHI governance layer answers who owns it, why it exists, which credentials and tools it can reach, and how authority is withdrawn across products. Neither registry listing nor an OAuth client record supplies that lifecycle by itself.
 
 **Applicability:** Contract — current NHI governance, Zero Trust, and workload-identity controls; surface — identity lifecycle; evidence — external frameworks, product evidence, and analysis; product role — IdP/AS, workload platform, gateway/runtime, and registry/discovery.
 
-**Evidence trail:** NHI Governance ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)); WIMSE ([§20.5](#205-sender-audience-and-workload-constraints)); Product Roles ([§21](#21-product-implementation-landscape)); NIST Zero Trust mapping ([§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures)).
+**Evidence trail:** Agent Definition, Identity, and Governance Lifecycles ([§7](#7-agent-definition-identity-and-governance-lifecycles)); WIMSE ([§20.5](#205-sender-audience-and-workload-constraints)); Product Roles ([§21](#21-product-implementation-landscape)); NIST Zero Trust mapping ([§24.6](#246-nist-sp-800-207-and-zero-trust-for-agent-architectures)).
 
 
 #### 25.8 Credential Delegation and Federation
 
-##### 25.8.1 Key Finding 24: Credential Delegation Is a Five-Pattern Architectural Spectrum, Not a Single Vendor Feature
+##### 25.8.1 Key Finding 24: Credential Custody and Delegated Authority Are Composable, Not a Single Vendor Feature
 <a id="finding-24"></a>
 
-Token exchange, managed credential stores, per-user injection, secretless runtime injection, and cloud managed identity place authority and reusable secrets at different boundaries. They are composable, but they are not interchangeable proof of delegation: forwarding a user's token, minting a new audience-bound token, injecting a vault secret, and using a workload identity produce different audit, revocation, replay, and downstream-authorization properties. No surveyed composition establishes the entire credential lifecycle without explicit integration across issuance, storage, use, rotation, revocation, recovery, and audit.
+Client-held tokens, managed connections, gateway/broker custody, runtime delivery, workload identity, and transaction-scoped derivatives place material and use capability at different boundaries. They are composable, but none is interchangeable proof of delegation: authority, possession, export, invocation, derivation, renewal, revocation, and purge remain distinct capabilities. No surveyed composition establishes the entire lifecycle without explicit integration across issuance, custody, use, rotation, status, recovery, and evidence.
 
 **Applicability:** Contract — current OAuth delegation and product credential treatment; surface — credential lifecycle; evidence — normative standards, implementation evidence, and analysis; product role — IdP/AS, gateway/runtime, host/runtime, and backend service.
 
-**Evidence trail:** Credential Delegation Patterns ([§11](#11-credential-delegation-patterns)); DPoP ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)); Appendices A–M.
+**Evidence trail:** Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); sender constraint ([§12.3](#123-sender-constraint-and-key-custody-boundaries)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)); Appendices A–M.
 
 
 #### 25.9 Cross-Organization Federation
@@ -18493,7 +17168,7 @@ CAEP/SSF events can drive re-evaluation, scope attenuation, step-up, pause, canc
 
 **Applicability:** Contract — current CAEP/SSF standards and local response policy; surface — requests and durable authority; evidence — final specification plus analytical inference and product evidence gap; product role — IdP/AS, gateway/runtime, and MCP server.
 
-**Evidence trail:** Continuous Access Evaluation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)); Explicit-Handle Authority Record ([§17.3](#173-explicit-handle-authority-model)); Current Gateway State Model ([§13](#13-gateway-mediated-mcp-architecture)).
+**Evidence trail:** Continuous-access signals and receiver processing (§§12.5–12.6); Explicit-Handle Authority Record ([§17.3](#173-explicit-handle-authority-model)); Current Gateway State Model ([§13](#13-gateway-mediated-mcp-architecture)).
 
 #### 25.16 Token Budget Governance
 
@@ -18527,7 +17202,7 @@ Framework session context, prompt roles, cloud agent identities, OAuth subjects,
 
 **Applicability:** Contract — current orchestration frameworks and A2A integration; surface — cross-framework identity handoff; evidence — implementation survey plus analysis; product role — host/client and agent runtime.
 
-**Evidence trail:** Multi-Agent Framework Identity ([§8.9](#89-framework-identity-context-the-intra-organization-gap)); A2A Identity Propagation ([§8.4](#84-the-mcp--a2a-security-gap)); Delegation Models ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)–[§6](#6-agent-identity-vs-user-identity)).
+**Evidence trail:** Multi-Agent Framework Identity ([§8.9](#89-framework-identity-context-the-intra-organization-gap)); A2A Identity Propagation ([§8.4](#84-the-mcp--a2a-security-gap)); Delegation Models ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)–[§6](#6-agent-identity-vs-user-identity)).
 
 #### 25.19 Cross-Border Data Sovereignty
 
@@ -18538,7 +17213,7 @@ JWTs are signed, not encrypted, and common delegation claims such as stable subj
 
 **Applicability:** Contract — current delegation tokens and data-protection law; surface — cross-border identity evidence; evidence — regulatory text plus legal/architectural analysis; product role — IdP/AS, gateway/runtime, MCP server, and audit platform.
 
-**Evidence trail:** Cross-Border Data Sovereignty ([§23.15](#2315-data-sovereignty-in-cross-border-agent-delegation-chains)); OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)); Credential Delegation ([§11](#11-credential-delegation-patterns)).
+**Evidence trail:** Cross-Border Data Sovereignty ([§23.15](#2315-data-sovereignty-in-cross-border-agent-delegation-chains)); OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); Credential Delegation ([§11](#11-credential-custody-and-release-patterns)).
 
 #### 25.20 MCP Tasks Authorization Context
 
@@ -18562,7 +17237,7 @@ A score is useful only when its input signals, model/version, thresholds, policy
 
 **Applicability:** Contract — current local risk and authorization policy; surface — closed-loop behavioral trust; evidence — external risk frameworks, implementation signals, and analytical synthesis; product role — risk service, IdP/AS, gateway/runtime, and PDP.
 
-**Evidence trail:** Behavioral Trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)); Human Oversight ([§15](#15-human-oversight-architecture)); Continuous Access Evaluation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)).
+**Evidence trail:** Behavioral Trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)); Human Oversight ([§15](#15-human-oversight-architecture)); continuous-access signals and reconciliation (§§12.5–12.6).
 
 ##### 25.21.2 Key Finding 39: Guardrails and Authorization Need an Explicit Composition Contract
 <a id="finding-39"></a>
@@ -18585,7 +17260,7 @@ Product features such as circuit breakers, `failure_mode_allow`, cached JWKS, st
 
 **Applicability:** Contract — current deployment infrastructure and product-specific resilience controls; surface — authorization dependencies; evidence — implementation evidence plus failure-mode analysis; product role — IdP/AS, gateway/runtime, PDP, and MCP server.
 
-**Evidence trail:** Authorization Infrastructure Resilience ([§13.8](#138-authorization-infrastructure-resilience)); Long-Lived Tasks ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); Continuous Access Evaluation ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)).
+**Evidence trail:** Authorization Infrastructure Resilience ([§13.8](#138-authorization-infrastructure-resilience)); Long-Lived Tasks ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); continuous-access receiver and convergence controls (§§12.6–12.11).
 
 
 #### 25.23 URL Mode Elicitation Security
@@ -18646,7 +17321,7 @@ Each numbered recommendation therefore includes two qualifiers. **Applicability*
 
    **Finding basis:** [KF 10](#finding-10) (gateway boundary); [KF 15](#finding-15)–21 (role-normalized product evidence).
 
-3. **Preserve the human principal and acting agent through delegation.** Prefer audience-bound RFC 8693 exchange or an equivalently explicit local profile over impersonation or transparent token forwarding. Carry the subject in `sub`, the acting party in `act`, validate issuer and audience at every hop, cap delegation depth, and make refresh or offline continuation a separate policy decision.
+3. **Preserve the operation's actual subject, actor, client, and workload roles.** For delegated calls, prefer audience-bound RFC 8693 exchange or an equivalently explicit local profile over impersonation or transparent token forwarding; carry the subject in `sub` and the current actor in `act` under the selected profile. For direct organizational or autonomous workload calls, use the real machine or organization subject instead of fabricating a user. Validate issuer, audience, granted rights, client, and workload evidence at the boundaries that rely on them; treat prior actors as reconstruction context rather than current authorization inputs; and make refresh or offline continuation a separate policy decision.
 
    **Applicability:** Current OAuth delegation and downstream service calls.
 
@@ -18658,7 +17333,7 @@ Each numbered recommendation therefore includes two qualifiers. **Applicability*
 
    **Finding basis:** [KF 7](#finding-7) (three distinct decisions); [KF 9](#finding-9) (no MCP RAR tool profile); [KF 29](#finding-29) (primitive-specific authorization).
 
-5. **Represent task purpose as local policy and a durable authority record, not as an invented interoperable scope grammar.** Bind task type, resource, purpose, consent, actor chain, budget, autonomy limit, expiry, and revocation state to the task or application handle. Use OAuth scopes and RAR only within their defined semantics; version any local `authorization_details` or policy schema.
+5. **Represent task purpose as local policy and a durable authority record, not as an invented interoperable scope grammar.** Bind task type, resource, purpose, applicable grant or consent evidence, actual subject/current actor, separate client/workload identity, historical lineage reference, budget, autonomy limit, expiry, and revocation state to the task or application handle. Use OAuth scopes and RAR only within their defined semantics; version any local `authorization_details` or policy schema.
 
    **Applicability:** Current local policy and the exact pinned Tasks Draft extension.
 
@@ -18752,7 +17427,7 @@ Each numbered recommendation therefore includes two qualifiers. **Applicability*
 
    **Applicability:** Current OAuth and product-specific credential patterns.
 
-   **Finding basis:** [KF 24](#finding-24) (five-pattern spectrum); [KF 3](#finding-3) (delegation provenance); [KF 11](#finding-11) (custody/conformance distinction).
+   **Finding basis:** [KF 24](#finding-24) (composable custody and authority); [KF 3](#finding-3) (delegation provenance); [KF 11](#finding-11) (custody/conformance distinction).
 
 21. **Sender-constrain or rotate refresh credentials according to the chosen OAuth profile and threat model.** Use DPoP, mutual TLS, rotating refresh tokens, secure managed custody, or a shorter autonomy window as supported by the authorization server and client. Verify key lifecycle, replay detection, audience binding, revocation propagation, and fallback behavior instead of claiming DPoP alone solves delegated-agent refresh risk.
 
@@ -18772,7 +17447,7 @@ Each numbered recommendation therefore includes two qualifiers. **Applicability*
 
    **Finding basis:** [KF 24](#finding-24) (credential and replay properties); [KF 25](#finding-25) (trust-layer composition); [KF 36](#finding-36) (jurisdictional constraints).
 
-24. **Authorize every explicit state handle on every operation.** Bind application handles, task identifiers, input `requestState`, subscriptions, cache partitions, and continuations to the current subject, actor chain, client, tenant, resource, allowed operations, consent, expiry/revocation state, policy version, and decision evidence. Reject cross-type substitution, cross-tenant replay, stale policy, and unauthorized transfer without revealing object existence.
+24. **Authorize every explicit state handle on every operation.** Bind application handles, task identifiers, input `requestState`, subscriptions, cache partitions, and continuations to the current subject and actor, separate client/workload identity where applicable, tenant, resource, allowed operations, governing grant or consent evidence, lineage record, expiry/revocation state, policy version, and decision evidence. Reject cross-type substitution, cross-tenant replay, stale policy, and unauthorized transfer without revealing object existence.
 
    **Applicability:** Current core explicit state plus independently pinned Tasks, Elicitation, subscription, and cache extensions.
 
@@ -18856,7 +17531,7 @@ Each numbered recommendation therefore includes two qualifiers. **Applicability*
 
    **Finding basis:** [KF 36](#finding-36) (tokens may carry personal data across jurisdictions).
 
-38. **Implement the Tasks Draft around a durable, re-evaluated authority record.** On server-directed task creation, bind `taskId` to issuer, resource, human subject, agent actor chain, client, tenant, originating method, consent, scopes or authorization details, budget, extension version, revocation policy, and result-access policy. Apply that record to every get, update, cancel, input, notification, and result operation; define transfer and delegation explicitly; deny unknown or unauthorized task operations without object-existence leakage.
+38. **Implement the Tasks Draft around a durable, re-evaluated authority record.** On server-directed task creation, bind `taskId` to issuer, resource, the operation's actual subject and current actor, separate client/workload identity, tenant, originating method, applicable grant or consent evidence, scopes or authorization details, historical-lineage reference, budget, extension version, revocation policy, and result-access policy. Apply that record to every get, update, cancel, input, notification, and result operation; define transfer and delegation explicitly; deny unknown or unauthorized task operations without object-existence leakage.
 
    **Applicability:** Exact pinned `io.modelcontextprotocol/tasks` Draft extension.
 
@@ -19004,7 +17679,7 @@ If WebSocket remains available through SDK or extension surfaces, what protocol 
 ##### 27.1.5 OQ-5: Explicit Application-State Handle Authorization Semantics
 <a id="oq-5"></a>
 
-What minimum authority tuple must accompany an application handle across independent modern requests: issuer, resource, subject, actor chain, client, tenant, originating method, consent, policy version, expiry, and transfer rules? The modern core makes handles explicit but does not define one portable ownership and delegation model for application state.
+What minimum authority tuple must accompany an application handle across independent modern requests: issuer, resource, actual subject/current actor, client, workload, tenant, originating method, governing grant or consent evidence, historical-lineage reference, policy version, expiry, and transfer rules? The modern core makes handles explicit but does not define one portable ownership and delegation model for application state.
 
 **Resolution evidence:** A normative profile or interoperable implementation contract with creation, use, rotation, delegation, revocation, expiry, collision, and confused-deputy tests.
 
@@ -19248,7 +17923,7 @@ The following thirteen appendices ([§A](#appendix-a-azure-apim-as-mcp-ai-gatewa
 ### Appendix A: Azure APIM as MCP AI Gateway: Protocol-Level Deep Dive
 
 
-Azure API Management is Microsoft's concrete implementation of the gateway-mediated MCP architecture described in [§13](#13-gateway-mediated-mcp-architecture). Operating as a **Stateless Protocol Proxy** archetype that has evolved into a **Universal AI Control Plane** governing five protocol families (REST, GraphQL, gRPC [preview], MCP, and A2A), APIM can both proxy existing MCP servers and synthesize MCP endpoints from existing API definitions. Deeper Azure-native integrations include **Microsoft Foundry** for multi-agent orchestration ([§A.3.5](#a35-microsoft-foundry-integration-and-the-unified-ai-gateway-design-pattern)), **SQL MCP Server** via Data API Builder for structured data access ([§A.3.6](#a36-sql-mcp-server-as-data-to-agent-pipeline-preview-march-2026)), and **OpenTelemetry GenAI semantic conventions** for cross-protocol observability. In the context of the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), Azure APIM primarily employs **Token Stripping / Isolation**, terminating the agent's identity at the edge and passing transformed context downstream. This section dissects the low-level protocol mechanics of both modes.
+Azure API Management is Microsoft's implementation evidence for the gateway-mediated MCP architecture in [§13](#13-gateway-mediated-mcp-architecture). APIM can proxy existing MCP servers and synthesize MCP endpoints from API definitions, with adjacent Foundry, Data API Builder, and OpenTelemetry integrations. In [§11](#11-credential-custody-and-release-patterns) custody terms, each APIM flow must state whether it validates an inbound token, derives a downstream token, resolves a managed/user connection, or transforms trusted context; “edge termination” alone does not establish downstream authority or custody safety.
 
 > **Note — Current Product Evidence — 23 July 2026**
 >
@@ -19262,7 +17937,7 @@ Azure API Management is Microsoft's concrete implementation of the gateway-media
 >
 > This is the **first high-severity CVE specifically targeting an MCP server implementation** and directly validates several findings in this investigation:
 >
-> 1.  Gateway-side downstream credential isolation ([§11](#11-credential-delegation-patterns)) does not protect against SSRF originating *within* the MCP server's trust boundary
+> 1.  Gateway-side downstream credential isolation ([§11](#11-credential-custody-and-release-patterns)) does not protect against SSRF originating *within* the MCP server's trust boundary
 > 2.  Per-request authorization and explicit-handle ownership would not have prevented this attack because the SSRF bypassed the gateway entirely
 > 3.  **Input validation at the MCP server layer is a critical security surface** — gateway-side controls alone are insufficient
 >
@@ -19328,7 +18003,7 @@ As of early 2026, APIM supports importing and managing **Agent-to-Agent (A2A) pr
 
 ##### A.3.4 Custom OBO Token Exchange Pattern (send-request)
 
-While the Credential Manager ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) provides a portal-driven approach to user-delegated access, enterprises requiring **richer identity context** — such as chained `act` claims ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)), multi-hop delegation, or custom scope attenuation — can implement the **On-Behalf-Of (OBO) flow** directly in APIM policy using the `send-request` element. This is the pattern recommended by [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (Rec 3) for high-assurance deployments:
+While the Credential Manager ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) provides a portal-driven approach to user-delegated access, enterprises requiring **richer identity context** — such as chained `act` claims ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)), multi-hop delegation, or custom scope attenuation — can implement the **On-Behalf-Of (OBO) flow** directly in APIM policy using the `send-request` element. This is the pattern recommended by [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (Rec 3) for high-assurance deployments:
 
 ```xml
 &lt;policies>
@@ -19381,7 +18056,7 @@ While the Credential Manager ([§A.3.1](#a31-alternative-auth-pattern-apim-crede
 &lt;/policies>
 ```
 
-The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `scp` claims — plus an `act` claim identifying APIM as the acting party. The backend MCP server can parse these claims to enforce tool-level authorization (e.g., checking `roles` or `scp` for specific MCP tool permissions) while maintaining a full audit trail of the delegation chain.
+The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `scp` claims — plus an `act` claim identifying APIM as the acting party. The backend MCP server can parse the top-level grant claims and current actor to enforce tool-level authorization (for example, checking `roles` or `scp` for specific MCP tool permissions). Those claims are attribution inputs, not a full audit trail: the deployment must correlate them with the exchange decision, grant, policy, request trace, and outcome.
 
 **Credential Manager vs. Custom OBO — tradeoff comparison**:
 
@@ -19391,12 +18066,12 @@ The resulting OBO token carries the original user's `sub`, `oid`, `roles`, and `
 | **Configuration** | Portal-based (no code) | XML policy (code required) |
 | **Consent model** | One-time user consent via connection setup | Standard Entra consent per app registration |
 | **Backend token identity** | APIM-managed OAuth token (may carry user context depending on grant type) | OBO token with original user's `sub` + `act` claim for delegation chain |
-| **Multi-hop delegation** | Single-hop (APIM → backend) | Multi-hop via chained `act` claims ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern)) |
+| **Actor-history representation** | Single gateway-to-backend handoff | An issuer profile may carry the current actor and nested prior actor identities; nested history does not itself authorize or prove every hop ([§5.4](#54-current-actor-and-delegation-history)) |
 | **Scope attenuation** | Limited to configured provider scopes | Arbitrary scope narrowing via `scope` parameter |
 | **Provider flexibility** | Any configured OAuth 2.0 provider (Entra, generic, GitHub, etc.) | Entra ID only (OBO is an Entra-specific extension of RFC 8693) |
 | **Enterprise recommendation** | ✅ Simpler, portal-driven, sufficient for most MCP workloads | ✅ More control, richer identity context, required for multi-hop delegation |
 
-**When to use which**: For most MCP gateway deployments, the **Credential Manager with `identity-type="jwt"`** ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) is sufficient — it provides user-context propagation with zero policy code. Use the **Custom OBO pattern** when you need: (a) chained `act` claims for multi-agent delegation audit trails, (b) scope attenuation beyond what the credential provider is configured for, or (c) integration with backends that explicitly require OBO tokens with the `act` claim structure.
+**When to use which**: For most MCP gateway deployments, the **Credential Manager with `identity-type="jwt"`** ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) is sufficient — it provides user-context propagation with zero policy code. Use the **Custom OBO pattern** when you need: (a) an issuer-profiled subject/current-actor representation plus separately correlated exchange evidence, (b) scope attenuation beyond what the credential provider is configured for, or (c) integration with backends that explicitly require OBO tokens with the `act` claim structure.
 
 ##### A.3.5 Microsoft Foundry Integration and the Unified AI Gateway Design Pattern
 
@@ -19699,7 +18374,7 @@ The Agent User requests a token from Entra ID with the target API as the audienc
 <details>
 <summary><strong>8. Entra ID issues user-context token T3 with the agent as actor</strong></summary>
 
-Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while maintaining full auditability of which agent performed the action. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1. If the mapped Agent User lacks explicitly delegated role assignments, Entra ID terminates the process with an active `403 Forbidden` boundary execution, notifying the SIEM.
+Entra ID issues token T3 with: `idtyp=user` (indicating a user-context token), `sub` set to the Agent User's Object ID, and an `actor` claim referencing the Agent Identity. The dual claims allow APIs to enforce user-level permissions while recording which agent performed the action. They improve attribution but do not create full auditability without correlated grant, policy, request, and outcome records. This is Entra ID's native implementation of the `act` claim pattern defined in RFC 8693 §4.1. If the mapped Agent User lacks explicitly delegated role assignments, Entra ID terminates the process with an active `403 Forbidden` boundary execution, notifying the SIEM.
 
 **Artifact Produced:** `Agent-Driven Delegated Context Token` (`idtyp=user` / `T3` with explicit `act` claim bindings)
 
@@ -19770,7 +18445,7 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 | **SPIFFE/WIMSE** ([§20.5](#205-sender-audience-and-workload-constraints)) | ❌ None (open standard) | ✅ Fully portable — X.509 SVIDs work across any infrastructure | ✅ SPIRE runs anywhere |
 | **Standard OAuth 2.0** (`client_id` per agent) | ❌ None (RFC standard) | ✅ Works with any OAuth 2.0 AS | ✅ Any AS |
 | **Auth0 Agent Identity** ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) | Medium (Auth0 SaaS) | 🟡 Uses standard OAuth primitives (more portable than Entra Agent ID) | ❌ SaaS only |
-| **Google Cloud Agent Identity** ([§11.4.2](#1142-gcp-agent-identity-and-secret-manager-and-workload-identity-federation)) | Hard — agent identity is Google Cloud-native; adjacent WIF patterns do not make it portable | ❌ Agent identity itself is not portable | ❌ Cloud-only |
+| **Google Cloud Agent Identity** ([§7.9](#79-product-implementation-evidence-and-maturity-boundaries) and [§11.8](#118-dated-implementation-evidence-and-product-limitations)) | Provider-specific — the agent identity is Google Cloud-native; adjacent WIF patterns do not export that managed identity | ❌ Agent identity itself is not portable | ❌ Cloud-only |
 
 **5. Cross-IdP token exchange limitation**: In a multi-IdP enterprise (e.g., users in Okta, agents in Entra, APIs behind PingGateway), there is no standard mechanism to produce a **composite token** that carries both the Okta user's identity and the Entra agent's identity in a single, verifiable credential. The `act` claim (RFC 8693) can represent delegation chains, but requires a single AS to issue the combined token — forcing all identity context through Entra.
 
@@ -19784,13 +18459,13 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 | **[§13.3](#133-gateway-architecture-patterns) Stateless Protocol Proxy (Azure APIM)** | APIM supplies the gateway policy and credential boundary, but its current product evidence does not establish every July 2026 admission, routing, extension, or handle check |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Tool Authorization** | Mode B (REST→MCP) automates the API Operation → MCP Tool mapping using OpenAPI definitions; generated visibility does not grant invocation |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | APIM can validate and authorize the incoming request, but public evidence does not establish current MCP explicit-handle ownership or proof-of-possession; deployments still need authorization on every request and every explicit state handle. |
-| **[§11.1](#111-credential-delegation-pattern-taxonomy) Credential Delegation** | APIM implements Credential Manager with `identity-type="managed"` (unattended/application identity), Credential Manager with `identity-type="jwt"` (user-delegated, per-user backend tokens), and custom OBO via `send-request` ([§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request)) for richer delegation. These map to Pattern E (Cloud-Managed) but span application-only and user-delegated backend authority. |
+| **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | APIM Credential Manager can resolve managed-identity or user-context connections, while custom OBO via `send-request` ([§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request)) derives a downstream token. These are composable custody/delegation choices; application-only and user-delegated authority remain distinct. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025) with OpenTelemetry GenAI semantic convention logging (March 2026) and cross-cloud agent governance via Foundry. The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | **Entra Agent ID** is GA at the platform level and provides first-class agent identities plus sponsor/lifecycle governance; separately labeled Preview experiences remain component-specific. APIM can validate Entra-issued tokens, while the deployment still defines end-to-end agent/delegator claim and enforcement semantics |
 | **[§21.1](#211-role-and-lifecycle-inventory) Registry/Discovery Role** | **Azure API Center** serves as the adjacent federation/discovery layer: MCP Server Registry (preview, May 2025) for remote MCP server discovery and Agent Registry (Feb 2026) for AI agent management, with auto-sync from APIM instances |
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) OBO Token Exchange** | [§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request) provides a concrete APIM XML policy implementing the OBO flow via `send-request` to the Entra token endpoint, producing tokens with chained `act` claims as recommended by [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (Rec 3) |
-| **[§4](#4-the-identity-trilemma-impersonation-vs-delegation-vs-direct-grant) User-Context Access Control** | Credential Manager `identity-type="jwt"` ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) enables per-user backend token resolution; the backend MCP server receives a user-specific OAuth token and still applies tool-level authorization |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) OBO Token Exchange** | [§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request) provides a concrete APIM XML policy implementing the OBO flow via `send-request` to the Entra token endpoint; issuer-profiled `act` context must be interpreted under [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)'s current-actor and prior-history boundary |
+| **[§4](#4-choosing-the-authority-relationship) User-Context Access Control** | Credential Manager `identity-type="jwt"` ([§A.3.1](#a31-alternative-auth-pattern-apim-credential-manager-ga)) enables per-user backend token resolution; the backend MCP server receives a user-specific OAuth token and still applies tool-level authorization |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Archetypes** | [§A.3.5](#a35-microsoft-foundry-integration-and-the-unified-ai-gateway-design-pattern) positions APIM as a "Universal Control Plane" managing five protocol families (REST, GraphQL, gRPC, MCP, A2A) from a single instance — the broadest protocol coverage among the thirteen gateways analyzed. The Unified AI Gateway Design Pattern (Uniper, Feb 2026) formalizes the enterprise AI mediation architecture |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Tool and Backend Authorization** | [§A.3.6](#a36-sql-mcp-server-as-data-to-agent-pipeline-preview-march-2026) documents the SQL MCP Server as a data-to-agent pipeline component. DAB controls data queryability while APIM controls access identity, illustrating that gateway admission and backend data entitlement remain separate decisions |
 
@@ -19799,7 +18474,7 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 ### Appendix B: PingGateway as MCP AI Gateway: Protocol-Level Deep Dive
 
 
-PingGateway (formerly ForgeRock Identity Gateway / IG) is Ping Identity's reverse proxy and API gateway, purpose-built for identity-aware request routing. In 2025, Ping Identity launched **Identity for AI** — a platform extending IAM to AI agents — with PingGateway at its core as the **MCP security gateway**, with general availability announced on March 24, 2026. Operating as a **Stateless Protocol Proxy** archetype, PingGateway ships **first-class MCP filter primitives** (introduced in PingGateway 2025.11, the November 2025 LTS release) with native integration with the June 2025 MCP authorization spec. In terms of the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), it relies on **JIT / Ephemeral Token Injection**, delivering short-lived, just-in-time tokens so agents never hold static secrets.
+PingGateway (formerly ForgeRock Identity Gateway / IG) is an identity-aware reverse proxy and API gateway used in Ping’s AI identity/security stack. Its documented MCP filters and policy integrations illustrate gateway-held validation and downstream-token/context transformation. Under [§11](#11-credential-custody-and-release-patterns), the exact deployment must identify the credential custodian, use interface, token derivation, and recipient; a short-lived derivative does not mean no credential lifecycle remains.
 
 > **Important — Current Product Evidence — 23 July 2026**
 >
@@ -19813,9 +18488,9 @@ Ping Identity's [Identity for AI](https://developer.pingidentity.com/identity-fo
 
 ##### B.1.1 Three Core Principles
 
-**Agents as first-class identities.** AI agents must be registered as distinct identity objects in the IAM directory — not extensions of human accounts, not shared service credentials, and not anonymous process runners. Each agent receives its own identity record, credential material, and policy bindings. This maps directly to the NHI governance model ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)) and to the product identity implementations catalogued by role in [§21](#21-product-implementation-landscape).
+**Agents as first-class identities.** AI agents must be registered as distinct identity objects in the IAM directory — not extensions of human accounts, not shared service credentials, and not anonymous process runners. Each agent receives its own identity record, credential material, and policy bindings. This maps directly to the NHI governance model ([§7](#7-agent-definition-identity-and-governance-lifecycles)) and to the product identity implementations catalogued by role in [§21](#21-product-implementation-landscape).
 
-**Explicit delegated authority.** Agents act on behalf of humans through modeled delegation relationships — not through impersonation, not through inherited permissions, and not through blanket service-account grants. Authority is explicitly granted, scoped to specific actions or resource classes, and revocable independently of the agent's identity. This is the pattern formalized in DR-0001's credential delegation model ([§11](#11-credential-delegation-patterns)) and strengthened by DPoP sender constraint ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents)), which binds an access token to the presenter's key material.
+**Explicit delegated authority.** Agents act on behalf of humans through modeled delegation relationships—not through impersonation, inherited permissions, or blanket service-account grants. Authority is explicitly granted, scoped to actions or resource classes, and revocable independently of the agent identity. §11 separates that authority from credential custody, while DPoP sender constraint ([§12.3](#123-sender-constraint-and-key-custody-boundaries)) binds supported access tokens to presenter key material without creating or revoking the grant.
 
 **Per-action runtime authorization.** Every agent action is evaluated against current context, risk signals, and policy at the moment of execution — not at session creation, not at credential issuance, and not at deployment time. This is the foundational architectural pattern that DR-0001's gateway-mediated enforcement ([§13](#13-gateway-mediated-mcp-architecture)), TBAC model ([§16](#16-task-based-access-control-tbac)), and PingGateway's three MCP filters ([§B.3](#b3-three-dedicated-mcp-filters)) all implement. It stands in deliberate contrast to the static RBAC model where permissions are granted once and remain valid until explicitly revoked.
 
@@ -19855,7 +18530,7 @@ The three Runtime Identity principles map to existing DR-0001 sections as follow
 | Runtime Identity Principle | DR-0001 Pattern | Key Section(s) |
 |:---|:---|:---|
 | Agents as first-class identities | NHI governance, agent-as-actor | [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (NHI), [§21](#21-product-implementation-landscape) (product landscape) |
-| Explicit delegated authority | Credential delegation, DPoP binding | [§15](#15-human-oversight-architecture) (credential delegation), [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) (OBO token exchange) |
+| Explicit delegated authority | Credential delegation, DPoP binding | [§15](#15-human-oversight-architecture) (credential delegation), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (OBO token exchange) |
 | Per-action runtime authorization | Gateway enforcement, TBAC, oversight tiers | [§13](#13-gateway-mediated-mcp-architecture) (gateway archetypes), [§16](#16-task-based-access-control-tbac) (TBAC), [§15](#15-human-oversight-architecture) (seven-tier oversight), and [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) with [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (guardrail and policy composition) |
 
 The gateway archetypes in [§13](#13-gateway-mediated-mcp-architecture) — particularly the Stateless Protocol Proxy pattern that PingGateway itself exemplifies — are the physical realization of Runtime Identity's per-action authorization principle. The seven-tier oversight model ([§15](#15-human-oversight-architecture)) extends runtime authorization with human-in-the-loop escalation, while [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) and [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) define how guardrail evidence composes with policy instead of replacing identity-level authorization.
@@ -19910,7 +18585,7 @@ Agent Detection, delivered through **PingOne Protect**, moves beyond binary bot 
 | **External / personal agents** | Customer-owned agents (e.g., ChatGPT Operator, OpenClaw) interacting with enterprise services | Detected via behavioral signals, routed to a separate authentication pathway with different scope boundaries |
 | **Malicious bots** | Automated tools exhibiting attack patterns | Blocked at the gateway layer |
 
-**Signal-to-authorization pipeline.** Behavioral signals from Agent Detection feed directly into PingAuthorize's policy decision point (PDP), enabling risk-adaptive authorization. This means the same agent can receive different access levels depending on its real-time behavior — the closed-loop pattern in [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization), composed with policy as described in [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) and with continuous-access events in [§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands). If behavioral signals indicate elevated risk, the agent's authority is reduced without requiring re-authentication.
+**Signal-to-authorization pipeline.** Behavioral signals from Agent Detection can feed a policy decision point for risk-adaptive authorization. This is the closed-loop pattern in [§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization), composed with policy ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis)) and, where a supported event profile is used, the continuous-access receiver pipeline in §§12.5–12.6. A signal prompts re-evaluation; it does not reduce authority until the policy/enforcement path acts.
 
 **Scope differentiation.** The classification model is architecturally significant because it addresses a gap in most gateway-mediated approaches: how to handle agents that are neither internal nor malicious. Customer personal agents — the "bring your own agent" paradigm — represent a growing category that requires distinct handling: they are not registered in the enterprise IAM system, but blocking them outright fractures the user experience. Agent Detection provides a middle path: detect, classify, and apply differentiated policy rather than defaulting to block or permit.
 
@@ -19981,9 +18656,9 @@ The gateway must bind downstream issuance to the exact backend audience and gran
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | PingGateway's OAuth and policy filters evaluate requests, and DPoP can sender-constrain tokens. Public documentation does not establish current MCP explicit-handle ownership or transfer rules; documented `Mcp-Session-Id` routing is product-gap evidence, not proof of those controls. |
 | **MCP Core Version** | PingGateway 2026.6 explicitly supports `2025-06-18` and `2025-11-25` through `preferredServerVersion`. CIMD, the 2026 routing headers, independently versioned official extensions, and current explicit-handle semantics remain unverified. |
 | **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) Guardrail-to-Authorization Feedback** | Identity for AI GA adds DLP and recording to PingGateway's MCP surface. PingOne Protect can provide behavioral-risk signals to policy, while content-level prompt guardrails remain a distinct control |
-| **[§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity) Runtime Identity** | Conceptual framework connecting agent/workload identity ([§6](#6-agent-identity-vs-user-identity) and [§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), explicit delegation ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) and [§11](#11-credential-delegation-patterns)), and per-action enforcement ([§13](#13-gateway-mediated-mcp-architecture) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)). The cited 2026 incident supplies a current motivating case |
-| **[§B.2.1](#b21-agent-iam-core-agent-lifecycle-and-delegation) Agent IAM Core** | Product implementation of agent identity, registration, delegated entitlements, and autonomous/on-behalf-of flows; connects to credential delegation ([§11](#11-credential-delegation-patterns)), NHI governance ([§7](#7-nhi-governance-and-owasp-nhi-top-10-mapping)), and DPoP ([§B.6](#b6-secretless-jit-token-injection-and-dpop)) |
-| **[§B.2.2](#b22-agent-detection-behavioral-classification) Agent Detection** | Behavioral classification extends the signal-to-authorization pipeline; connects to closed-loop behavioral trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)), continuous-access events ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands)), and per-request policy feedback ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
+| **[§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity) Runtime Identity** | Conceptual framework connecting agent/workload identity ([§6](#6-agent-identity-vs-user-identity) and [§7](#7-agent-definition-identity-and-governance-lifecycles)), explicit delegation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) and [§11](#11-credential-custody-and-release-patterns)), and per-action enforcement ([§13](#13-gateway-mediated-mcp-architecture) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)). The cited 2026 incident supplies a current motivating case |
+| **[§B.2.1](#b21-agent-iam-core-agent-lifecycle-and-delegation) Agent IAM Core** | Product implementation of agent identity, registration, delegated entitlements, and autonomous/on-behalf-of flows; connects to credential delegation ([§11](#11-credential-custody-and-release-patterns)), NHI governance ([§7](#7-agent-definition-identity-and-governance-lifecycles)), and DPoP ([§B.6](#b6-secretless-jit-token-injection-and-dpop)) |
+| **[§B.2.2](#b22-agent-detection-behavioral-classification) Agent Detection** | Behavioral classification extends the signal-to-authorization pipeline; connects to closed-loop behavioral trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)), continuous-access events and receiver processing (§§12.5–12.6), and per-request policy feedback ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
 | **[§B.5](#b5-pingauthorize-integration-fine-grained-mcp-authorization) HITL Mapping** | PingGateway and PingAuthorize can enforce policy at the PEP. Where a deployment uses PingFederate CIBA, that documented decoupled authentication/authorization ceremony may support a Tier 5 interaction; public evidence reviewed here does not establish a native Tier 6 quorum workflow, so collective approval state remains an application or workflow-service responsibility |
 
 #### B.8 Evidence Required for Forward Admission
@@ -20009,7 +18684,7 @@ Until this evidence is public and testable, the report credits only the document
 ### Appendix C: Kong AI Gateway: Plugin-Based MCP Adoption on the World's Most Deployed API Gateway
 
 
-Kong AI Gateway (AI MCP OAuth2 introduced for Kong Gateway 3.12; tool-level ACL added in 3.13; Kong Gateway 3.14 is the current LTS line; Kong Gateway 3.15 is the latest feature line) exemplifies the **Stateless Protocol Proxy** archetype — the world's most deployed API gateway adding MCP support via purpose-built plugins on top of its existing infrastructure. Unlike purpose-built MCP gateways ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a), [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)) or IdP-native approaches ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization), [§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)), Kong's model enables enterprises **already running Kong** to adopt MCP without deploying new infrastructure. In the context of the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), Kong applies **Token Stripping / Isolation** as a security default, terminating credentials at the edge to prevent token replay.
+Kong AI Gateway adds MCP authorization and tool controls through gateway plugins. In [§11](#11-credential-custody-and-release-patterns) custody terms, a Kong deployment must document whether it validates and terminates an inbound credential, forwards a bounded downstream credential, or injects trusted context; credential termination at the edge does not by itself prevent replay or authorize the backend.
 
 > **Note — Fastest adoption path does not imply deepest MCP-native coverage**
 >
@@ -20186,7 +18861,7 @@ No other gateway in this investigation ([§A](#appendix-a-azure-apim-as-mcp-ai-g
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Kong's AI MCP OAuth2 plugin now supports plugin-level token exchange before upstream MCP access, while Kong still depends on the external IdP and plugin configuration for subject/actor semantics and consent evidence |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Kong's AI MCP OAuth2 plugin now supports plugin-level token exchange before upstream MCP access, while Kong still depends on the external IdP and plugin configuration for subject/actor semantics and consent evidence |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Kong implements the gateway responsibilities ([§13.2](#132-gateway-responsibilities)) via its existing plugin architecture — the broadest plugin ecosystem in this investigation |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | Consent is handled by the external IdP (Okta, Auth0, Keycloak) via the OIDC plugin; Kong itself has no consent layer |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | MCP ACL (built-in to AI MCP Proxy, GA v3.13) provides Consumer/Consumer Group–based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
@@ -20203,7 +18878,7 @@ No other gateway in this investigation ([§A](#appendix-a-azure-apim-as-mcp-ai-g
 ### Appendix D: TrueFoundry AI Gateway: MCP Gateway as Control Plane
 
 
-TrueFoundry **AI Gateway** includes an MCP Registry and MCP Gateway for centralizing agent-to-tool access. Operating as a **Converged AI Gateway** archetype, TrueFoundry combines a control plane and gateway plane with MCP server registration, per-user credential management, access control, guardrails, observability, and agent-facing integrations. In terms of the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), it supports several configured treatments rather than one universal mode: static credential injection, per-user OAuth token custody and refresh, inbound-token passthrough, custom-header forwarding, and user-specific downstream identity injection.
+TrueFoundry **AI Gateway** combines MCP registry/gateway functions with per-user credential management, access control, guardrails, and observability. In [§11](#11-credential-custody-and-release-patterns) custody terms, its configured modes—static injection, per-user OAuth custody/refresh, passthrough, header forwarding, and downstream identity context—are separate patterns with different export, use, renewal, and revocation boundaries.
 
 > **Disambiguation**: TrueFoundry AI Gateway is not [Bifrost by Maxim AI](https://github.com/maximhq/bifrost). The latter is an independent Apache-2.0 project and product. Earlier versions of this appendix incorrectly presented “Bifrost” as TrueFoundry's product name.
 
@@ -20446,7 +19121,7 @@ Content-Type: application/json
 <details>
 <summary><strong>8. GitHub MCP Server creates the pull request using Alice's identity</strong></summary>
 
-GitHub processes the tool call using Alice's identity. The pull request is created with Alice as the author — not as "service-bot" or "truefoundry-agent." This is the On-Behalf-Of pattern from [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) implemented at the gateway level. GitHub's existing access controls, branch protection rules, and code review requirements apply to Alice's permissions, limiting the blast radius to exactly what Alice could do manually.
+GitHub processes the tool call using Alice's identity. The pull request is created with Alice as the author — not as "service-bot" or "truefoundry-agent." This is the On-Behalf-Of pattern from [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) implemented at the gateway level. GitHub's existing access controls, branch protection rules, and code review requirements apply to Alice's permissions, limiting the blast radius to exactly what Alice could do manually.
 
 </details>
 <details>
@@ -20463,7 +19138,7 @@ The gateway routes the uncredentialed JSON-RPC response back to the original Age
 </details>
 <br/>
 
-**Identity Injection** is a gateway-mediated delegated-credential pattern related to the OBO problem from [§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), but it is not by itself RFC 8693 token exchange. The gateway may hold and refresh a user's OAuth token obtained during a prior consent flow, then inject that credential for the downstream server. This can avoid the **Superuser Trap** when downstream actions genuinely use the individual user's grant, but its security properties depend on credential custody, user-to-connection mapping, scopes, revocation, and the downstream provider's audit semantics.
+**Identity Injection** is a gateway-mediated delegated-credential pattern related to the OBO problem from [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), but it is not by itself RFC 8693 token exchange. The gateway may hold and refresh a user's OAuth token obtained during a prior consent flow, then inject that credential for the downstream server. This can avoid the **Superuser Trap** when downstream actions genuinely use the individual user's grant, but its security properties depend on credential custody, user-to-connection mapping, scopes, revocation, and the downstream provider's audit semantics.
 
 #### D.3 Virtual MCP Servers: Tool-Level Access Control
 
@@ -20606,7 +19281,7 @@ This positions TrueFoundry alongside AgentGateway ([§E](#appendix-e-agentgatewa
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | TrueFoundry supports gateway-held per-user OAuth credentials and token forwarding. This addresses an OBO use case, but direct credential injection is not RFC 8693 exchange and should not be described as having identical semantics |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | TrueFoundry supports gateway-held per-user OAuth credentials and token forwarding. This addresses an OBO use case, but direct credential injection is not RFC 8693 exchange and should not be described as having identical semantics |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | TrueFoundry's Virtual Accounts provide a concrete implementation of the agent-as-identity concept described in [§6.2](#62-why-agents-are-not-just-oauth-clients) Approach C |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | Agent Hub provides native A2A support with Hub-and-Spoke routing, identity injection, and budget tracking for inter-agent communication |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | The Control Plane / Gateway Plane split maps to the gateway responsibilities in [§13.2](#132-gateway-responsibilities), but with a clean data plane / control plane separation |
@@ -20615,7 +19290,7 @@ This positions TrueFoundry alongside AgentGateway ([§E](#appendix-e-agentgatewa
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Virtual MCP Servers use a composition model to expose tools; configuration-time inclusion narrows visibility but does not replace invocation and backend-entitlement checks |
 | **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) Guardrail-to-Authorization Feedback** | The guardrail suite spans built-in detectors, Cedar/OPA policy, and external providers; detector output must enter a per-request authorization decision rather than act as ambient trust |
 | **[§18.3](#183-policy-engine-evaluation) Cedar** | Cedar Guardrail for MCP tools — formal verification and deny-by-default for tool authorization |
-| **[§9](#9-authorization-context-and-delegation-representation) JWT Enrichment** | Identity Injection does OBO at the token level rather than JWT enrichment — the user's actual token is forwarded, not a synthetic JWT |
+| **[§9](#9-authorization-context-and-delegation-representation) Authorization Context** | Identity Injection forwards the user's token rather than minting the local signed assertion profile described in [§9](#9-authorization-context-and-delegation-representation); deployments still need to verify that the received token is intended for the next resource and must not treat forwarding as RFC 8693 exchange |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | The reviewed evidence does not establish an explicit policy binding application, task, subscription, or continuation handles to the authenticated principal; deployments must enforce those handles as authorization-sensitive inputs |
 | **Official Extensions** | Exact support for routing headers, Tasks, MCP Apps, EMA, and the `2026-07-28` release candidate remains unverified |
 
@@ -20624,7 +19299,7 @@ This positions TrueFoundry alongside AgentGateway ([§E](#appendix-e-agentgatewa
 ### Appendix E: AgentGateway (OSS): Rust Data Plane for MCP and A2A
 
 
-AgentGateway is an open-source, Rust-based proxy under the **Linux Foundation** (Agentic AI Foundation / AAIF), originally created by Solo.io. Operating as a **Stateless Protocol Proxy** archetype, it is one of the products in this investigation that natively handles **both MCP and A2A** traffic. AgentGateway combines a data plane with built-in **guardrails**, an **admin UI**, a **developer portal**, and a unified **LLM gateway**. As a federated protocol proxy, it aggregates, secures, and observes agent-tool and agent-agent traffic. In terms of the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), its documented controls center on JWT/API-key authentication, native OIDC, MCP OAuth resource metadata, and configurable backend authentication; the gateway should not be characterized as universally issuing DPoP-bound ephemeral credentials.
+AgentGateway is an open-source Rust proxy under the Linux Foundation’s agentic ecosystem and supports MCP/A2A mediation, policy, and observability. Its documented JWT/API-key, OIDC, MCP resource-metadata, and backend-authentication controls map to multiple [§11](#11-credential-custody-and-release-patterns) custody choices; product evidence does not establish universal DPoP-bound issuance or one default custody topology.
 
 > **Note — Protocol-native breadth does not mean AgentGateway is its own identity control plane**
 >
@@ -20985,7 +19660,7 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | AgentGateway can authenticate clients and configure backend credentials, but the reviewed evidence does not establish that it performs RFC 8693 token exchange or supplies universal OBO semantics |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | AgentGateway can authenticate clients and configure backend credentials, but the reviewed evidence does not establish that it performs RFC 8693 token exchange or supplies universal OBO semantics |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | AgentGateway's data plane maps to the gateway responsibilities in [§13.2](#132-gateway-responsibilities), but delegates state management externally |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | Native OIDC can run an Authorization Code + PKCE login flow; AgentGateway then enforces post-login access through MCP-aware CEL and route policies |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | CEL `mcpAuthorization` enables request-context checks at the tool/resource level; unauthorized resources can be filtered from discovery before execution |
@@ -21157,7 +19832,7 @@ ContextForge has the **deepest observability integration** in this investigation
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | `v1.0.6` adds RFC 8693 OBO token exchange for OAuth gateways, alongside per-user Vault credentials and direct credential-injection patterns; deployments must keep those modes distinct |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | `v1.0.6` adds RFC 8693 OBO token exchange for OAuth gateways, alongside per-user Vault credentials and direct credential-injection patterns; deployments must keep those modes distinct |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | ContextForge implements all 6 gateway responsibilities ([§13.2](#132-gateway-responsibilities)) plus safety guardrails as a 7th |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | OAuth SSO consent handled by external IdP (EntraID, Google, Okta); ContextForge itself relies on admin-configured access |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | RBAC via SSO claims, not task-based — guardrails provide an orthogonal authorization layer |
@@ -21174,7 +19849,7 @@ ContextForge has the **deepest observability integration** in this investigation
 ### Appendix G: WSO2 Identity Server/Asgardeo: IdP-Native MCP Authorization
 
 
-WSO2 Identity Server 7.3 and **WSO2 Identity Platform** embody the **IdP-Native** archetype, where the identity platform acts as the OAuth Authorization Server for MCP. Unlike proxy-based gateways ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)), WSO2's model has the MCP server register as a **protected resource**, while the identity platform issues scoped tokens, manages user/agent/client identities, and records authorization grants. Within the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), WSO2 supports user-delegated, client-only, and dual-identity agent flows; the delegated-agent flow can carry the user as `sub` and the agent as `act`.
+WSO2 Identity Server 7.3 and **WSO2 Identity Platform** illustrate an IdP-native model in which the identity platform acts as OAuth authorization server for MCP protected resources. User-delegated, client-only, and dual-identity flows identify different authority relationships; [§11](#11-credential-custody-and-release-patterns) then separately records who holds, presents, derives, renews, and revokes each resulting credential.
 
 > **Important — Strongest native OAuth/MCP alignment does not make WSO2 an inline gateway**
 >
@@ -21426,7 +20101,7 @@ Both share the same core architecture and feature set (MCP server templates, age
 ### Appendix H: Auth0/Okta: CIAM-Native AI Agent Platform
 
 
-Auth0 (an Okta company) provides a **CIAM-native AI agent platform** through **Auth0 for AI Agents**. Component lifecycles remain distinct: **Auth for MCP became generally available on May 6, 2026**, while current public documentation still marks **Token Vault** as **Early Access for public cloud tenants** and **Cross App Access (XAA)** as **Beta**. Representing the **IdP-Native** archetype, Auth0's approach is to provide a purpose-built security stack for AI agents rather than proxying MCP traffic. It combines user authentication, Token Vault credential brokerage, asynchronous authorization for human-in-the-loop approval, and fine-grained authorization for RAG. On the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), Token Vault represents a managed form of **OBO Token Exchange** in which the platform stores and exchanges third-party credentials on the agent's behalf.
+Auth0 (an Okta company) provides an IdP-native AI-agent stack whose components have distinct release states, including Auth for MCP, Token Vault, and Cross App Access. In [§11](#11-credential-custody-and-release-patterns) custody terms, Token Vault is a managed connection/broker pattern: the platform stores provider credentials and obtains derivatives on the caller’s behalf. That topology is not automatically RFC 8693 token exchange, and its consent, renewal, disconnect, revocation, and purge paths remain explicit.
 
 Auth0's MCP story now has two distinct surfaces. **Auth for MCP** is the product surface for securing arbitrary MCP servers with OAuth 2.1 / OpenID Connect sign-in, standards-based discovery and client registration, resource-scoped tokens, and token exchange. Separately, the **Auth0 MCP Server** is a concrete MCP tool for managing Auth0 itself; current docs say it uses the OAuth 2.0 Device Authorization Flow, requests minimal API permissions, and stores credentials in the system keychain. This separation matters: one surface is a general MCP authorization building block, while the other is a specific MCP server for Auth0 operations.
 
@@ -21799,7 +20474,7 @@ As of the July 23, 2026 re-check, Auth0's MCP-specific story has three component
 | **Enterprise / Workforce** | Designed for managed environments where IT controls agent access |
 | **Beta constraints** | Participation requires Auth0 Support / TAM coordination; requesting apps must be confidential first-party clients; ID-JAG token exchanges are capped at 5 RPS during Beta |
 
-XAA implements an administrator-managed **enterprise policy authorization** pattern in Rec 14: in managed contexts, IT administrators define which agents and applications may request access instead of presenting a per-interaction user prompt at every target. That is not automatically the user's legal consent, and sub-agent expansion plus cascading revocation remain separate architecture questions.
+XAA implements an administrator-managed **enterprise policy authorization** pattern in Rec 14: in managed contexts, IT administrators define which agents and applications may request access instead of presenting a per-interaction user prompt at every target. That is not automatically the user's legal consent, and sub-agent expansion plus dependency-aware termination remain separate architecture questions (§§12.10–12.11).
 
 Current XAA docs describe the feature in the enterprise-managed terms of [§14.1](#141-first-party-authorization-enterprisesame-organization) and [§14.5](#145-is-user-consent-always-required): IT admins centrally define app and agent access controls through the enterprise IdP, reducing repeated end-user prompts while grounding the token flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
 
@@ -21846,7 +20521,7 @@ This is unique among all implementations in this investigation — no other gate
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Token Vault implements RFC 8693 with managed lifecycle — the most complete OBO/delegation implementation in this investigation |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Token Vault implements RFC 8693 with managed lifecycle — the most complete OBO/delegation implementation in this investigation |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | Auth0 provides dedicated AI agent identities with lifecycle management |
 | **[§14](#14-authorization-approval-and-consent-models) Authorization and consent** | CIBA supplies a decoupled authenticated decision ceremony; XAA supplies enterprise-managed policy authorization. Neither label alone establishes legal consent or runtime operation authority |
 | **[§16](#16-task-based-access-control-tbac) Layered access control** | FGA/OpenFGA supplies document-level relationship authorization for RAG, composed with OAuth grants, task context, and resource-server policy |
@@ -22193,7 +20868,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Traefik Hub forwards or strips Token A; the MCP server implements RFC 8693 exchange for backend-audience Token B |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Traefik Hub forwards or strips Token A; the MCP server implements RFC 8693 exchange for backend-audience Token B |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Traefik Hub implements task-, tool-, and transaction-level policy using JWT claims and MCP request parameters |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Traefik Hub documents `Mcp-Session-Id` use on its older supported contract for affinity/telemetry, but the reviewed evidence does not establish current application/task-handle authorization |
 | **Official Extensions** | Exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and `2026-07-28` release-candidate support remain unverified |
@@ -22203,7 +20878,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 ### Appendix J: Docker MCP Gateway: Container Runtime as MCP Security Boundary
 
 
-Docker MCP Gateway represents the **Container Runtime** archetype. It is a container-native gateway that provides MCP security through process-level isolation rather than proxy-level policy enforcement. Unlike all other models ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) which assume MCP servers already exist and focus on securing traffic *to* them, Docker **runs** MCP servers *inside* isolated containers, making the container boundary itself the security enforcement point. Structurally acting on the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), Docker applies **Token Stripping / Isolation** by injecting secrets directly into the container runtime completely out of the agent's reach.
+Docker MCP Gateway represents a container-runtime custody boundary: it runs MCP servers in isolated containers and can deliver required secrets to those workloads. Under [§11](#11-credential-custody-and-release-patterns), injection must state whether server code can read/export the material, how rotation reaches a running process, and how stale copies are purged; “outside the model” is not “outside the workload.”
 
 > **Note — Docker's strongest control here is runtime isolation, not identity-rich authorization**
 >
@@ -22367,7 +21042,7 @@ The credential isolation model is fundamentally different from other approaches:
 ### Appendix K: Cloudflare MCP: Edge-Native MCP Gateway with Zero Trust
 
 
-Cloudflare's current MCP stack still embodies the **Edge-Native / Zero Trust** archetype, but the present-day docs make the model more concrete than the older "portal-only" framing implied. The platform combines Cloudflare Access / Cloudflare One policy enforcement at the edge with remote MCP server hosting in Workers via `createMcpHandler` and `McpAgent`. Unlike the origin-side gateways in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary), Cloudflare can both terminate remote MCP traffic at the edge and, in many deployments, run the MCP server itself on the same platform. Within the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), this still maps most closely to **Token Stripping / Isolation**: external authentication and policy happen at the edge, while downstream business authorization remains in the Worker, the origin API, or an attached IdP / policy engine.
+Cloudflare's MCP stack combines Access/Cloudflare One edge policy with remote MCP hosting in Workers. Under [§11](#11-credential-custody-and-release-patterns), edge authentication, Worker credential custody, origin credential use, and downstream business authorization are distinct boundaries; terminating an external credential at the edge does not transfer its authority automatically to the Worker or origin.
 
 **Streamable HTTP** is the approved remote MCP transport. Cloudflare still documents deprecated SSE as a product capability, but it is outside the DR-0001 forward profile. For simple remote servers, Cloudflare recommends `createMcpHandler`; for stateful remote servers, `McpAgent` binds each client application to a Durable Object-backed instance with persisted state, SQL access, and optional jurisdiction pinning. This is strong stateful-hosting evidence, but it does not establish origin-side entitlement or current explicit-handle policy.
 
@@ -22524,7 +21199,7 @@ This does **not** mean Cloudflare has collapsed browser automation into MCP auth
 ### Appendix L: Red Hat MCP Gateway: Envoy-Native MCP Security with Kuadrant AuthPolicy
 
 
-The Red Hat MCP Gateway (`kagenti/mcp-gateway`) represents a **new archetype** — the **Envoy-Native / Service Mesh Gateway** — in which Envoy serves as a "dumb" routing plane and ALL security intelligence is delegated to external processors and policy engines. Unlike gateways that embed auth logic in filters (PingGateway [§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)), plugins (Kong [§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway)), or compiled binaries (AgentGateway [§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a)), this model treats MCP security as a **composable infrastructure concern** expressed entirely in declarative YAML via Kuadrant's `AuthPolicy` CRDs and Authorino's `ext_authz` integration. Within the Token Treatment Spectrum ([§11.1](#111-credential-delegation-pattern-taxonomy)), it uniquely implements **all three patterns simultaneously** — Wristband JWT injection for tool filtering, RFC 8693 OBO Token Exchange for scope reduction, and Vault-based credential translation for heterogeneous backend auth — selected dynamically via priority-based declarative policies.
+The Red Hat MCP Gateway (`kagenti/mcp-gateway`) illustrates an Envoy/service-mesh composition in which external processors and declarative policy perform authorization and credential resolution. Wristband-style JWT context, RFC 8693 exchange, and Vault-backed translation are separate [§11](#11-credential-custody-and-release-patterns) patterns selected by policy; none should be collapsed into a unique or universally complete custody mode.
 
 > **Status**: MCP Gateway `0.6.0` is a **Technology Preview** feature in Red Hat Connectivity Link `1.4.1`. Connectivity Link `1.4.0` is deprecated because supported OpenShift combinations can experience authentication failures, API-key errors, gateway instability, and pod memory pressure; Red Hat directs users to install or upgrade to `1.4.1`. Technology Preview features are outside production SLAs and are not recommended by Red Hat for production use.
 
@@ -22745,11 +21420,7 @@ request.headers['x-mcp-toolname'] in (
 )
 ```
 
-**Architectural significance**: This implements the Token Treatment Spectrum's "Token Vault + OBO Fallback" pattern as a **declarative priority chain**. Compare:
-- Auth0's Token Vault ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)): SaaS-managed, no fallback to OBO — vault-only
-- Kong's token stripping ([§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-on-the-worlds-most-deployed-api-gateway)): Strips tokens, no credential translation
-- Docker's secret injection ([§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary)): Process-level injection, no per-request selection
-- **Red Hat ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy))**: Per-request, per-user credential resolution with declarative priority and conditional fallback — the most flexible model in the investigation
+**Architectural significance**: This is a declarative priority chain across different [§11](#11-credential-custody-and-release-patterns) custody/derivation paths. Auth0, Kong, Docker, and Red Hat expose different managed-connection, gateway, runtime-delivery, and fallback boundaries; the deployment must record which path was selected and must not infer a universal security ranking from the composition.
 
 #### L.7 MCP Server Discovery: Gateway API–Native CRDs
 
@@ -22823,11 +21494,11 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | Three credential patterns implemented declaratively: Wristband JWT injection (new), RFC 8693 OBO exchange ([§5.2](#52-token-exchange-request-parameters)), and Vault credential translation (new). The metadata phase's priority-based resolution chain is the most flexible credential delegation model in the investigation. |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Three credential patterns implemented declaratively: Wristband JWT injection (new), RFC 8693 OBO exchange ([§5.2](#52-profiled-token-exchange-flow)), and Vault credential translation (new). The metadata phase's priority-based resolution chain is the most flexible credential delegation model in the investigation. |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Introduces a new archetype: "Envoy-Native / Service Mesh Gateway." The key distinction is that Envoy handles routing while ALL security intelligence lives in external services (Authorino, Vault, Keycloak) composed via declarative CRDs. This is the service mesh security model applied to MCP. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | Kuadrant's AuthPolicy uniquely combines OPA Rego + CEL + pattern matching in a single 4-phase pipeline. CEL handles inline predicate evaluation; OPA handles complex claim extraction; pattern matching handles simple allow/deny. This is the only gateway offering all three expression languages composably. |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Wristband JWTs are time-bounded per-request authorization assertions, not session credentials. In-memory/Redis session stores and URL token elicitation do not by themselves prove principal binding for session, task, or continuation handles |
-| **[§11](#11-credential-delegation-patterns) Credential Delegation** | Implements **Delegation Pattern A** (OBO Token Exchange) + **Delegation Pattern D** (Secret injection via Vault) simultaneously, selected dynamically per-request via priority-based metadata resolution. This is the only gateway implementing multiple delegation patterns within a single declarative policy. |
+| **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | Composes OBO token derivation with Vault-backed credential resolution, selected per request through declarative policy. The deployment must preserve the authority source, custody transition, and fallback evidence rather than treating both paths as one credential mode. |
 | **[§13.3](#133-gateway-architecture-patterns) Architecture Patterns** | Red Hat supplies the service-mesh/Kubernetes archetype: Envoy routing, external `ext_authz`, Gateway API–referenced CRDs, and a four-phase policy pipeline; Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) represents a different Kubernetes gateway composition |
 | **Lifecycle / Extensions** | Connectivity Link `1.4.1` + MCP Gateway `0.6.0` Technology Preview; URL-based token elicitation is configurable, while public conformance, routing headers, Tasks, MCP Apps, EMA, and `2026-07-28` release-candidate support remain unverified |
 
@@ -23935,7 +22606,7 @@ The most architecturally significant feature: LiteLLM can **verify an incoming I
 3. Signs a new short-lived JWT with LiteLLM's private key, embedding the real identity
 4. MCP server trusts LiteLLM's JWKS, not the original IdP
 
-This implements **Delegation Pattern E** ([§11](#11-credential-delegation-patterns)): the Egress Gateway re-signs the identity assertion, creating a clean trust boundary between the MCP server and the IdP.
+This is a gateway-mediated re-assertion ([§11](#11-credential-custody-and-release-patterns)): the Egress Gateway holds the signing key and creates a short-lived downstream assertion. It creates a cryptographic trust boundary, but the policy decision, claim provenance, audience, expiry, and revocation behavior remain explicit.
 
 ##### M.5.3 Claim Operations
 
@@ -24082,12 +22753,12 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 | Reference | Connection |
 |:---|:---|
 | **[§13.1.1](#1311-deployment-topologies-two-tier-vs-converged) Component Chain** | LiteLLM is the representative **Egress AI Gateway** in Topology A. The Ingress API Gateway (Kong, APIM) handles AuthZ and JWT validation; LiteLLM handles LLM orchestration, MCP tool injection, and spend tracking. The JWT handler's claim extraction ([§M.2](#m2-jwt-authentication-and-rbac)) demonstrates how the downstream JWT context is preserved across the two-tier boundary. |
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern) Token Exchange** | LiteLLM's MCP Zero Trust JWT Signer ([§M.5](#m5-mcp-zero-trust-jwt-signer-guardrail)) implements the **verify-and-re-sign variant of Pattern C** from [§11.1](#111-credential-delegation-pattern-taxonomy) — a gateway identity-injection model where the gateway validates the incoming IdP token and issues a new short-lived JWT with the real identity claims. This is distinct from RFC 8693 OBO exchange; it's a gateway-mediated re-assertion. |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | LiteLLM's MCP Zero Trust JWT Signer ([§M.5](#m5-mcp-zero-trust-jwt-signer-guardrail)) validates an incoming IdP token and issues a short-lived downstream assertion. This gateway-mediated re-assertion is distinct from RFC 8693 token exchange; §11 records its signer custody, permitted-use surface, recipient, expiry, and revocation boundary. |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | LiteLLM introduces a new archetype: **"AI-Native MCP Gateway"** — purpose-built for LLM orchestration with native MCP support, as distinct from traditional API gateways that bolt on MCP via plugins. The `MCPServerManager` registry, tool namespacing, and OpenAPI-to-MCP conversion are AI-native capabilities. |
 | **[§23](#23-eu-regulatory-framework-ai-act-compliance-mapping) EU AI Act** | LiteLLM's seven-entity spend tracking and per-MCP-tool fields ([§M.4](#m4-token-spend-tracking-and-budget-enforcement)) can contribute logging, attribution, and cost evidence. They do not independently establish compliance with Articles 9, 12, or 15; completeness, retention, system classification, and the wider control set remain decisive. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | LiteLLM uses a built-in RBAC model (`role_permissions`) rather than delegating to an external policy engine. This is simpler but less expressive than Cedar/OPA. For enterprises needing fine-grained ABAC, the Component Chain topology addresses this by placing the policy engine at the Ingress API Gateway layer. |
 | **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | LiteLLM's gateway and JWT-signer controls are per-request authorization mechanisms, not proof of ownership for an application, task, subscription, cache, or continuation handle. Public v1.93.0 evidence reviewed here does not establish a current explicit-handle authorization policy, so deployments must enforce principal and tenant ownership wherever such handles cross the gateway. |
-| **[§11](#11-credential-delegation-patterns) Credential Delegation** | The MCP Zero Trust JWT Signer's `end_user_claim_sources` configuration implements a priority-based credential resolution chain (`token:sub` → `token:email` → `litellm:user_id`), similar to Red Hat MCP Gateway's ([§L](#appendix-l-red-hat-mcp-gateway-envoy-native-mcp-security-with-kuadrant-authpolicy)) metadata resolution but applied to outbound JWT identity claims rather than credential injection. |
+| **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | The MCP Zero Trust JWT Signer's `end_user_claim_sources` configuration implements a priority-based subject-context resolution chain (`token:sub` → `token:email` → `litellm:user_id`) for outbound JWT claims. This resolves claim inputs; it does not by itself prove delegated authority or safe credential custody. |
 | **[§13.3](#133-gateway-architecture-patterns) Architecture Patterns** | LiteLLM represents the **AI-native egress gateway** in the component-chain topology and is complementary to ingress gateways such as APIM, Kong, PingGateway, and Traefik Hub |
 | **Lifecycle / Extensions** | v1.93.0 stable; core gateway protocol documented at `2025-11-25`, with a separate per-server version setting. Public conformance, `2026-07-28` routing headers, Tasks, MCP Apps, EMA, and explicit state/task-handle policy remain unverified; prerelease-only features are excluded. |
 
@@ -24107,8 +22778,8 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 
 - [Adler et al. — "Personhood credentials: Artificial intelligence and the value of privacy-preserving tools to distinguish who is real online"](https://arxiv.org/abs/2408.07892) — Privacy-preserving Verifiable Credentials for proving humanity online; proposes PHC framework relevant to inverse personhood (AI agent disclosure) and verified delegation to AI agents (2024) ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
 - [Anthropic — Computer use tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool) — Current browser/computer-use guidance: isolated environments, minimal privileges, domain allowlists, prompt-injection precautions, and human confirmation for affirmative-consent actions ([§14.5](#145-is-user-consent-always-required))
-- [Birgisson et al. — "Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud"](https://research.google/pubs/macaroons-cookies-with-contextual-caveats-for-decentralized-authorization-in-the-cloud/) — Google Research, NDSS Symposium 2014; foundational paper on chained-HMAC authorization credentials with contextual caveats for decentralized delegation ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans))
-- [Biscuit — Decentralized Authorization Tokens](https://www.biscuitsec.org/) — Open-source bearer token with offline attenuation, Datalog-based authorization language, and public-key cryptography (Ed25519); multi-language support (Rust, Java, Go, Python, Haskell, WebAssembly, Swift, .NET); stable specification v3.x ([§12.4](#124-decentralized-delegation-biscuits-macaroons-and-ucans))
+- [Birgisson et al. — "Macaroons: Cookies with Contextual Caveats for Decentralized Authorization in the Cloud"](https://research.google/pubs/macaroons-cookies-with-contextual-caveats-for-decentralized-authorization-in-the-cloud/) — Google Research, NDSS Symposium 2014; foundational paper on chained-HMAC authorization credentials with contextual caveats ([§12.8](#128-capability-attenuation-and-the-recall-problem))
+- [Biscuit — Decentralized Authorization Tokens](https://www.biscuitsec.org/) — Open-source capability-token family with offline attenuation and Datalog-based authorization; retained as one capability example, not an MCP revocation standard ([§12.8](#128-capability-attenuation-and-the-recall-problem))
 - [Chan et al. — "IDs for AI Systems"](https://arxiv.org/abs/2401.13138) — Framework for identifying AI systems via instance-level IDs for accountability, safety certification verification, and incident investigation; accepted at RegML workshop, NeurIPS 2024 ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
 - [CoSAI — MCP Security and Agentic IAM Resources](https://www.coalitionforsecureai.org/resources) — Coalition for Secure AI resource index covering the Model Context Protocol Security paper, Agentic Identity and Access Management, and adjacent MCP/agent security guidance. See also [GitHub](https://github.com/cosai-oasis/)
 - [Chrome Developers — When to use WebMCP and MCP](https://developer.chrome.com/blog/webmcp-mcp-usage) — Chrome guidance that MCP and WebMCP are complementary; backend-vs-browser-tab tool boundary and tab-bound WebMCP lifecycle (published March 11, 2026) ([§14.5](#145-is-user-consent-always-required), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§20.7](#207-web-bot-authentication))
@@ -24132,36 +22803,36 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [MCP Security Best Practices (Draft)](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — Current draft
 - [NIST SP 800-162 — Guide to Attribute Based Access Control (ABAC) Definition and Considerations](https://csrc.nist.gov/pubs/sp/800/162/upd2/final) — Foundational NIST guide defining ABAC methodology and the PEP/PDP/PIP architecture for attribute-based authorization decisions; establishes the logical access control framework referenced throughout the policy engine analysis (January 2014, updated August 2019) ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis))
 - [NIST SP 800-178 — A Comparison of ABAC Standards for Data Services: XACML and NGAC](https://csrc.nist.gov/pubs/sp/800/178/final) — Next Generation Access Control formal framework; graph-based policy model combining attributes and relationships
-- [NIST SP 800-63-4 — Digital Identity Guidelines, Revision 4](https://pages.nist.gov/800-63-4/) — Identity (IAL), authenticator (AAL), and federation (FAL) assurance levels; risk-based DIRM framework; phishing-resistant authentication (Final, August 2025) ([§7.10](#710-nist-sp-800-63-4-assurance-levels-for-agent-identity))
-- [NISTIR 8587 — Attribute Considerations for Access Control Systems](https://csrc.nist.gov/pubs/ir/8587/final) — Guidance on attribute definition, management, and evaluation for access control decisions including token and assertion attribute protection ([§10](#10-authorization-continuity-and-durable-tasks), [§11](#11-credential-delegation-patterns))
+- [NIST SP 800-63-4 — Digital Identity Guidelines, Revision 4](https://pages.nist.gov/800-63-4/) — Natural-person digital identity proofing, authentication, and federation guidance; not an agent-assurance taxonomy ([§7.8](#78-risk-and-governance-crosswalk))
+- [NISTIR 8587 — Attribute Considerations for Access Control Systems](https://csrc.nist.gov/pubs/ir/8587/final) — Guidance on attribute definition, management, and evaluation for access control decisions including token and assertion attribute protection ([§10](#10-authorization-continuity-and-durable-tasks), [§11](#11-credential-custody-and-release-patterns))
 - [OASIS XACML 4.0 Preview](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=xacml) — Next-generation XACML with JSON/YAML syntax (February 2026 preview)
 - [OAuth 2.1 IETF Draft (v15)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-15) — Foundation for MCP auth (March 2, 2026)
 - [OAuth Client ID Metadata Documents (draft-ietf-oauth-client-id-metadata-document-02)](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) — URL-based `client_id` with hosted metadata; OAuth WG draft updated July 6, 2026
 - [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) — Client Initiated Backchannel Authentication, OpenID Foundation (finalized September 1, 2021) (§15.5)
 - [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) — Final OpenID Foundation specification for Subject–Action–Resource–Context PDP/PEP interoperability; approved January 12, 2026 ([§18.3.8](#1838-openid-authorization-api-10-peppdp-interoperability))
 - [OpenID CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) — Working-group draft profiling interoperable SSF transmitter/receiver endpoints and core CAEP session-event use cases; published July 21, 2026 ([§20.1](#201-deployment-status-use-profile-or-monitor), [§20.6](#206-policy-evidence-and-verified-authority))
-- [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-1_0-final.html) — Profile defining continuous access evaluation events: session-revoked, credential-changed, token-claims-change, assurance-level-change, and device-compliance-change (Final Specification, September 2025) (§12.3)
-- [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) — Framework for real-time security event transmission between identity systems via Security Event Tokens (SET, RFC 8417); push (webhook) and poll delivery modes (Final Specification, September 2025) (§12.3)
+- [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-1_0-final.html) — Final profile defining continuous-access events for human or robotic users, devices, sessions, and applications (§§12.5–12.6)
+- [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) — Final framework for managed SET event streams; receiver validation, application, and reconciliation remain required (§§12.5–12.6)
 - [OpenTelemetry — CNCF Observability Framework](https://opentelemetry.io/) — Vendor-neutral, open-source observability framework for traces, metrics, and logs; CNCF incubating project; semantic conventions for MCP attributes (`mcp.method.name`, `mcp.session.id`) ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability))
 - [RFC 6750 — The OAuth 2.0 Authorization Framework: Bearer Token Usage](https://datatracker.ietf.org/doc/html/rfc6750) — WWW-Authenticate Bearer challenge format (scope, error, insufficient_scope)
-- [RFC 7009 — OAuth 2.0 Token Revocation](https://datatracker.ietf.org/doc/html/rfc7009) — Token revocation endpoint for explicit credential invalidation ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways))
-- [RFC 7662 — OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662) — Real-time token validity checking for resource servers ([§12.1](#121-credential-revocation-architecture-for-distributed-mcp-gateways))
+- [RFC 7009 — OAuth 2.0 Token Revocation](https://datatracker.ietf.org/doc/html/rfc7009) — Authorization-server token revocation endpoint; related-token handling and propagation are implementation-dependent (§§12.1–12.2)
+- [RFC 7662 — OAuth 2.0 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662) — Online token metadata and active-state query for authorized callers ([§12.4](#124-token-and-authorization-status))
 - [RFC 8414 — OAuth 2.0 Authorization Server Metadata](https://datatracker.ietf.org/doc/html/rfc8414) — AS metadata discovery
-- [RFC 8417 — Security Event Token (SET)](https://datatracker.ietf.org/doc/html/rfc8417) — JWT-based format for security events; transport mechanism for SSF/CAEP ([§12.3](#123-event-driven-revocation-ssf-caep-and-mcp-provider-commands))
+- [RFC 8417 — Security Event Token (SET)](https://datatracker.ietf.org/doc/html/rfc8417) — Format for asserted security events; not a universal enforcement command (§§12.5–12.6)
 - [RFC 8693 — OAuth 2.0 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693) — On-behalf-of delegation mechanism
-- [RFC 8705 — OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens](https://datatracker.ietf.org/doc/html/rfc8705) — Transport-layer sender-constraining alternative to DPoP ([§12.2.3](#1223-dpop-vs-mtls))
+- [RFC 8705 — OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens](https://datatracker.ietf.org/doc/html/rfc8705) — OAuth client authentication and certificate-bound access tokens ([§12.3](#123-sender-constraint-and-key-custody-boundaries))
 - [RFC 8707 — Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html) — Token audience binding
 - [RFC 9068 — JWT Profile for OAuth 2.0 Access Tokens](https://www.rfc-editor.org/rfc/rfc9068.html) — JWT access token format
 - [RFC 9101 — The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/html/rfc9101) — Signed/encrypted authorization request parameters (August 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
 - [RFC 9126 — OAuth 2.0 Pushed Authorization Requests (PAR)](https://datatracker.ietf.org/doc/html/rfc9126) — Backchannel authorization request submission (September 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
 - [RFC 9396 — Rich Authorization Requests](https://www.rfc-editor.org/rfc/rfc9396.html) — Structured `authorization_details` for fine-grained authorization
 - [RFC 9470 — OAuth 2.0 Step Up Authentication Challenge Protocol](https://www.rfc-editor.org/rfc/rfc9470.html) — Resource-server challenge for stronger or fresher user authentication; does not itself grant the retried operation ([§15.5.5.2](#15552-authentication-step-up-is-not-business-approval))
-- [RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449) — Sender-constrained tokens via proof-of-possession; prevents token theft and replay ([§12.2](#122-dpop-sender-constrained-tokens-for-ai-agents))
+- [RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449) — Application-layer sender constraint with explicit freshness, endpoint, method, and key-binding checks ([§12.3](#123-sender-constraint-and-key-custody-boundaries))
 - [RFC 9700 — Best Current Practice for OAuth 2.0 Security](https://datatracker.ietf.org/doc/html/rfc9700) — Mandates sender-constrained or rotated refresh tokens (January 2025)
 - [RFC 9728 — OAuth 2.0 Protected Resource Metadata](https://datatracker.ietf.org/doc/html/rfc9728) — Resource server metadata discovery
 - [RFC 9881 — ML-DSA (FIPS 204) in X.509 Certificates](https://datatracker.ietf.org/doc/html/rfc9881) — Post-quantum digital signatures in X.509 (IETF, October 2025)
 - [SEP-1880 — Tool-level scope requirements for MCP tools](https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1880) — Proposed tool-level `authorization.scopes` field (closed as "not planned", November 2025)
-- [South et al. — "Authenticated Delegation and Authorized AI Agents"](https://arxiv.org/abs/2501.09674) — Framework for authenticated, authorized, and auditable delegation of authority to AI agents; extends OAuth 2.0 and OpenID Connect with agent-specific credentials and metadata; proposes translating natural language permissions into auditable access control configurations (arXiv, January 2025) ([§5](#5-oauth-token-exchange-rfc-8693-and-the-on-behalf-of-pattern), [§6](#6-agent-identity-vs-user-identity))
+- [South et al. — "Authenticated Delegation and Authorized AI Agents"](https://arxiv.org/abs/2501.09674) — Framework for authenticated, authorized, and auditable delegation of authority to AI agents; extends OAuth 2.0 and OpenID Connect with agent-specific credentials and metadata; proposes translating natural language permissions into auditable access control configurations (arXiv, January 2025) ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§6](#6-agent-identity-vs-user-identity))
 - [SPIFFE — Secure Production Identity Framework for Everyone](https://spiffe.io/) — Workload identity framework for agent instance identity
 - [W3C DID Core 1.1 — Decentralized Identifiers](https://www.w3.org/TR/did-core/) — W3C Candidate Recommendation Snapshot (March 2026); defines syntax, data model, and resolution for self-sovereign identifiers decoupled from centralized registries. DID Core 1.0 achieved Recommendation status July 2022 ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
 - [W3C Trace Context — Level 1](https://www.w3.org/TR/trace-context/) — W3C Recommendation (November 2021) defining `traceparent` and `tracestate` HTTP headers for distributed trace propagation; foundation for cross-service MCP trace correlation ([§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability))
@@ -24250,16 +22921,16 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 >
 > This subsection matters because agent authorization often depends on cloud workload identity, secretless access, and short-lived credential issuance that happen below the MCP layer. The listed platforms are relevant here as enabling infrastructure for delegation and machine identity, not because they define MCP-native authorization semantics on their own.
 
-- [AWS Bedrock AgentCore — Identity, Gateway, Runtime, Policy](https://docs.aws.amazon.com/bedrock/latest/userguide/agentcore.html) — Purpose-built AI agent infrastructure with MCP-compatible tool gateway, Firecracker microVM isolation, and three-layer control model ([§11.4.3](#1143-aws-bedrock-agentcore-and-secrets-manager-and-iam-roles-anywhere))
+- [Amazon Bedrock AgentCore — workload access token](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/get-workload-access-token.html) and [provider-token retrieval](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html) — First-party evidence for workload identity, user binding, managed custody, and provider-status limitations ([§11.8](#118-dated-implementation-evidence-and-product-limitations))
 - [AWS IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/) — X.509 certificate-based IAM role assumption for non-AWS workloads; FIPS 204 ML-DSA support (March 2026)
 - [AWS Secrets Manager — Zero-Touch Rotation](https://aws.amazon.com/blogs/security/aws-secrets-manager-zero-touch-rotation/) — Lambda-based 4-step secret rotation for third-party services (re:Invent 2025)
-- [Google Cloud — Agent Identity for Agent Engine](https://docs.cloud.google.com/agent-builder/agent-engine/agent-identity) — Gemini Enterprise Agent Platform / Agent Engine docs for per-agent SPIFFE identity, unique X.509 certificates, bound access tokens, Agent Identity auth manager, DPoP/mTLS patterns, IAM/PAB/VPC-SC integration, and Preview caveats ([§11.4.2](#1142-gcp-agent-identity-and-secret-manager-and-workload-identity-federation))
+- [Google Cloud — Agent Identity](https://docs.cloud.google.com/iam/docs/agent-identity-overview?hl=en) — First-party evidence for agent/workload identity, authority separation, auth-manager/gateway patterns, and Preview caveats (§§7.9, 11.8)
 - [Google Cloud — VPC Service Controls for AI Workloads](https://cloud.google.com/vpc-service-controls/docs/overview) — Network perimeter security for AI infrastructure preventing data exfiltration
 - [Google Cloud — Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) — Keyless authentication for external workloads via token exchange
-- [HashiCorp Vault — Dynamic Secrets Engine](https://developer.hashicorp.com/vault/docs/secrets) — Just-in-time credential generation with per-request TTLs and lease-based auto-revocation ([§11.4.4](#1144-hashicorp-vault-dynamic-secrets-and-project-infragraph))
+- [HashiCorp Vault — leases](https://developer.hashicorp.com/vault/docs/concepts/lease) and [lease API](https://developer.hashicorp.com/vault/api-docs/system/leases) — Lease, renewal, queued revocation, and backend-cleanup limitations (§§11.8, 12.4)
 - [HashiCorp — Project Infragraph](https://www.hashicorp.com/blog/project-infragraph) — Trusted data substrate for AI agents with context-aware credential access (private beta Dec 2025)
 - [Microsoft — Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/) — Centralized secret, key, and certificate management with RBAC and auto-rotation
-- [Microsoft Learn — Overview of agent identities in Microsoft Entra](https://learn.microsoft.com/en-us/entra/agent-id/agent-identities) — First-class AI agent identities as special service principals created from agent identity blueprints, with sponsors, optional agent user accounts, and tenant-local governance ([§11.4.1](#1141-azure-entra-agent-id-and-key-vault-and-managed-identity))
+- [Microsoft Learn — Overview of agent identities in Microsoft Entra](https://learn.microsoft.com/en-us/entra/agent-id/agent-identities) — Dated product evidence for agent identity blueprints, tenant identities, owners/sponsors, and lifecycle controls ([§7.9](#79-product-implementation-evidence-and-maturity-boundaries))
 
 ---
 
