@@ -1702,6 +1702,11 @@ img {
   font-size: var(--doc-code-size);
 }
 
+.doc-article :not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .code-block,
 .doc-article pre {
   overflow-x: auto;

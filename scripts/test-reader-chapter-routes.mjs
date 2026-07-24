@@ -16,7 +16,9 @@ const GROUP_CHAPTER_ID = 'protocol-foundations';
 const FIRST_CHAPTER_ID = '1-mcp-authorization-spec-evolution';
 const SECOND_CHAPTER_ID = '2-mcp-over-streamable-http-transport-layer-auth-implications';
 const THIRD_CHAPTER_ID = '3-mcp-scope-lifecycle-discovery-selection-and-challenge';
-const SECOND_HEADING_ID = '21-transport-evolution';
+const CONSENT_CHAPTER_ID = '14-user-consent-models-first-party-vs-third-party';
+const SECOND_HEADING_ID = '21-transport-generations-and-compatibility';
+const SECOND_HEADING_LABEL = '2.1 Transport Generations and Compatibility';
 const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '12-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '11-same-device-remote-presentation';
@@ -32,8 +34,8 @@ const DR2_ARF_CHAPTER_ID = '7-identifier-and-trust-model-x509-dids-and-the-walle
 const DR2_ARF_HEADING_ID = '72-the-arf-mandate-x509-for-the-core-dids-optional-for-non-qualified-eaas';
 const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-selection';
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
-const DR1_LABEL_TARGET_CHAPTER_ID = '26-findings';
-const DR1_LABEL_TARGET_HEADING_ID = 'finding-26';
+const DR1_LABEL_TARGET_CHAPTER_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
+const DR1_LABEL_TARGET_HEADING_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
 const DR6_SLUG = 'DR-0006-modern-low-level-programming-languages';
 const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
 const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
@@ -114,6 +116,72 @@ async function assertInitialChapterRoute(page) {
     chapterId: FIRST_CHAPTER_ID,
     headingId: FIRST_CHAPTER_ID,
   }, { timeout: 20_000 });
+}
+
+async function assertNarrowInlineCodeDoesNotOverflow(page) {
+  const viewport = page.viewportSize();
+  const cases = [
+    {
+      chapterId: FIRST_CHAPTER_ID,
+      codeText: '_meta["io.modelcontextprotocol/serverInfo"]',
+    },
+    {
+      chapterId: THIRD_CHAPTER_ID,
+      codeText: 'authorization_response_iss_parameter_supported: true',
+    },
+    {
+      chapterId: CONSENT_CHAPTER_ID,
+      codeText: '_meta.io.modelcontextprotocol/clientCapabilities',
+    },
+  ];
+
+  try {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const testCase of cases) {
+      const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${testCase.chapterId}`;
+      console.log(`[chapter routes smoke] checking narrow inline-code wrapping: ${url}`);
+      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(({ slug, chapterId }) => (
+        window.location.pathname === `/${slug}/${chapterId}` &&
+        Boolean(document.querySelector('.chapter-article')) &&
+        !document.querySelector('.chapter-loading-card')
+      ), {
+        slug: DOC_SLUG,
+        chapterId: testCase.chapterId,
+      }, { timeout: 20_000 });
+
+      const snapshot = await page.evaluate((codeText) => {
+        const code = [...document.querySelectorAll('.chapter-article :not(pre) > code')]
+          .find((node) => node.textContent?.includes(codeText));
+        const box = code?.getBoundingClientRect();
+        const style = code ? getComputedStyle(code) : null;
+        return {
+          codeFound: Boolean(code),
+          codeRight: box?.right ?? null,
+          documentWidth: document.documentElement.scrollWidth,
+          bodyWidth: document.body.scrollWidth,
+          viewportWidth: window.innerWidth,
+          overflowWrap: style?.overflowWrap ?? '',
+          wordBreak: style?.wordBreak ?? '',
+        };
+      }, testCase.codeText);
+
+      if (
+        !snapshot.codeFound ||
+        snapshot.codeRight > snapshot.viewportWidth + 1 ||
+        snapshot.documentWidth > snapshot.viewportWidth + 1 ||
+        snapshot.bodyWidth > snapshot.viewportWidth + 1 ||
+        snapshot.overflowWrap !== 'anywhere' ||
+        snapshot.wordBreak !== 'break-word'
+      ) {
+        throw new Error(`narrow inline code overflow regression: ${JSON.stringify({ testCase, snapshot })}`);
+      }
+    }
+  } finally {
+    if (viewport) {
+      await page.setViewportSize(viewport);
+    }
+  }
 }
 
 async function assertGroupHeadingRoute(page) {
@@ -497,21 +565,24 @@ async function assertLayoutWidthRespectsExplicitNavResize(page) {
 async function assertOutlineHashNavigation(page) {
   console.log('[chapter routes smoke] checking in-chapter outline navigation');
 
-  await page.locator('button.chapter-outline-link').filter({ hasText: '2.1 Transport Evolution' }).click();
+  await page.locator('button.chapter-outline-link').filter({ hasText: SECOND_HEADING_LABEL }).click();
 
-  await page.waitForFunction((headingId) => {
+  await page.waitForFunction(({ headingId, headingLabel }) => {
     const target = document.getElementById(headingId);
     const activeHeading = document.querySelector('.chapter-outline-link.is-active');
     const top = target?.getBoundingClientRect().top ?? null;
     return (
       window.location.hash === `#${headingId}` &&
       Boolean(activeHeading) &&
-      activeHeading.textContent?.includes('2.1 Transport Evolution') &&
+      activeHeading.textContent?.includes(headingLabel) &&
       top != null &&
       top >= 0 &&
       top <= 180
     );
-  }, SECOND_HEADING_ID, { timeout: 20_000 });
+  }, {
+    headingId: SECOND_HEADING_ID,
+    headingLabel: SECOND_HEADING_LABEL,
+  }, { timeout: 20_000 });
 }
 
 async function assertBottomPager(page) {
@@ -2070,6 +2141,7 @@ async function main() {
     await assertMermaidZoomControlsAndPersistence(page);
     await assertMermaidForeignObjectLabelsNotClipped(page);
     await assertMermaidClusterLabelsDoNotOverlapNodes(page);
+    await assertNarrowInlineCodeDoesNotOverflow(page);
 
     console.log('[chapter routes smoke] all chapter-route checks passed');
   } finally {
