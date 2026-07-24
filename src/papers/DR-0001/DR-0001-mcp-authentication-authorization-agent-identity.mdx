@@ -4583,10 +4583,21 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
+:::note[Correlation identifiers do not carry delegated authority]
+This cross-protocol flow contains several identifiers with different jobs:
+
+- A2A `taskId` and `contextId` locate delegated work and conversation context.
+- An MCP JSON-RPC `id` correlates one MCP request and response.
+- Distributed trace identifiers correlate telemetry across participating systems.
+- A delegated credential or authority record carries the subject, actor, audience, resource, purpose, constraints, and grant evidence that authorization policy evaluates.
+
+Mapping the first three identifiers can preserve traceability, but none proves that Agent B is authorized to exercise the originating user's authority.
+:::
+
 <details>
 <summary><strong>1. End User instructs Agent A with a compound request</strong></summary>
 
-The user issues a natural language instruction: *"Book me a flight and hotel"*. Agent A serves as the primary orchestrator. Under standard OAuth 2.1 RFC 8693 token exchange mechanisms (§5), Agent A possesses an active access token where the user is formally defined as the subject and Agent A is recorded as the active delegated acting party.
+The user issues a natural language instruction: *"Book me a flight and hotel"*. Agent A serves as the primary orchestrator. In this deployment's RFC 8693 profile (§5), Agent A holds an access token in which the user is the subject and Agent A is represented as the current actor.
 
 ```json
 {
@@ -4598,21 +4609,25 @@ The user issues a natural language instruction: *"Book me a flight and hotel"*. 
 }
 ```
 
-**Artifact Produced:** Human-delegated Access Token.
-
 </details>
 <details>
 <summary><strong>2. Agent A processes the request and identifies the flight sub-task</strong></summary>
 
-Agent A structurally decomposes the user's natural language prompt. It determines it possesses the explicit internal capability to independently process the flight search, but must definitively delegate the hotel logistics to a specialized external Agent B.
+Agent A decomposes the compound request and compares each sub-task with its locally available capabilities. It can route the flight search to its MCP tool boundary, while the hotel search requires a separately authorized A2A delegation to Agent B.
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-    ParseGoal --> EvalCapabilities: "Flight & Hotel"
-    EvalCapabilities --> RouteLocal: CAN handle flights
-    EvalCapabilities --> RouteA2A: CANNOT handle hotels
+    direction TB
+    [*] --> ParseGoal
+    ParseGoal --> EvaluateFlight: flight sub-task
+    ParseGoal --> EvaluateHotel: hotel sub-task
+    EvaluateFlight --> RouteLocalMCP: local capability exists
+    EvaluateHotel --> BuildA2ARequest: external capability required
+    RouteLocalMCP --> [*]
+    BuildA2ARequest --> [*]
 ```
+
+Capability routing decides where work might execute; it does not grant Agent B the user's authority or authorize Agent B's later tool choice.
 
 </details>
 <details>
@@ -4640,13 +4655,11 @@ Content-Type: application/json
 }
 ```
 
-**Artifact Produced:** MCP Tool Request.
-
 </details>
 <details>
 <summary><strong>4. Gateway forwards the flight search to the MCP Tool</strong></summary>
 
-The gateway explicitly validates the token signature, verifies the `flights:search` permission scope, and strictly logs the transaction referencing both the human `sub` and the machine `act.sub`. The enterprise audit trail maintains perfect, continuous attribution.
+The gateway validates the token according to its issuer profile, verifies the `flights:search` permission and the specific tool arguments, and records local decision evidence referencing the human `sub` and machine `act.sub`. That preserves attribution inside this MCP trust boundary; it does not yet produce an end-to-end audit chain across the later A2A delegation.
 
 </details>
 <details>
@@ -4670,13 +4683,11 @@ The core MCP Tool completes the database execution and returns the flight JSON m
 }
 ```
 
-**Artifact Produced:** Tool Execution Result Matrix.
-
 </details>
 <details>
 <summary><strong>6. Agent A delegates hotel search to Agent B via A2A</strong></summary>
 
-Agent A initiates an Agent-to-Agent (A2A) protocol exchange to offload the unsupported sub-task. It transmits the context over HTTP. **Crucially, this is where the identity chain fractures.** Agent A authenticates to Agent B using *its own machine credential*, fundamentally stripping away the original human user's context.
+Agent A initiates an Agent-to-Agent (A2A) exchange to offload the unsupported sub-task. In this deliberately incomplete composition, Agent A authenticates with its own machine credential and supplies task correlation, but it does not supply verifiable evidence of the original user's grant or the limits on downstream tool use. This is where authority continuity breaks.
 
 ```http
 POST /agent-b/tasks HTTP/1.1
@@ -4697,11 +4708,29 @@ Content-Type: application/json
 <details>
 <summary><strong>7. Agent B attempts to call the hotel search tool via MCP — but whose identity?</strong></summary>
 
-Agent B compiles the sub-task and prepares to invoke the `search_hotels` tool. However, Agent B faces a critical identity void: it possesses Agent A's machine identity, but absolutely zero cryptographic proof of the originating human user (`user-traveler-001`).
+Agent B prepares to invoke the `search_hotels` tool. It can authenticate as Agent B and may be able to show that Agent A sent the A2A task, but it lacks verifiable evidence that `user-traveler-001` authorized this downstream resource, tool, purpose, and operation.
 
-When it transmits `POST /mcp`, its authorization context lacks the required actor/delegation evidence linking the request to the upstream subject and grant. The gateway's Policy Decision Point cannot determine whether Agent B received authority for this resource, tool, purpose, and operation. It therefore rejects the request and records a `403 Forbidden` decision with a non-sensitive reason such as `delegation_context_missing`.
+The complete failing exchange makes the boundary visible:
 
 ```http
+POST /mcp HTTP/1.1
+Host: gateway.internal.corp
+Authorization: Bearer eyJhbGci...&lt;agent-b-machine-token>
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: search_hotels
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "search_hotels",
+    "arguments": { "near": "SFO airport" }
+  }
+}
+
 HTTP/1.1 403 Forbidden
 Content-Type: application/problem+json
 
@@ -4714,7 +4743,9 @@ Content-Type: application/problem+json
 }
 ```
 
-**Artifact Produced:** `403 Forbidden` Security Validation Failure Event.
+The gateway cannot derive user-delegated authority from `task-hotel-1122`, `ctx-9988`, or Agent B's machine token. It therefore fails closed and records a decision event with a safe reason such as `delegation_context_missing`.
+
+**Artifact Produced:** Denial decision correlated to the A2A task and rejected MCP request.
 
 </details>
 
@@ -5133,6 +5164,17 @@ sequenceDiagram
     Note right of Tool: ⠀
 ```
 
+:::note[Issuer trust and request authority are separate]
+The flow produces several artifacts that must not be collapsed:
+
+- The **Protected Resource Metadata document** tells the client where authorization applies and which authorization servers the resource recognizes.
+- The **Entity Configuration and validated trust-chain result** establish admissible issuer metadata and inherited federation policy.
+- The **runtime access token and sender proof** carry request-time OAuth authority and proof-of-possession evidence.
+- The **local policy decision** determines whether this particular MCP primitive, tool, arguments, tenant, and resource may execute.
+
+A valid federation chain admits an issuer into the relying party's trust policy; it does not authorize an arbitrary token or tool call from that issuer.
+:::
+
 <details>
 <summary><strong>1. Agent A discovers Org Y's MCP tool via Agent Card or well-known endpoint</strong></summary>
 
@@ -5142,8 +5184,6 @@ Agent A (operating under Org X) discovers Org Y's MCP tool by fetching its Agent
 GET /.well-known/oauth-protected-resource HTTP/1.1
 Host: mcp-gateway.orgy.example.com
 ```
-
-**Artifact Produced:** Well-Known Discovery Request.
 
 </details>
 <details>
@@ -5173,8 +5213,6 @@ GET /.well-known/openid-federation HTTP/1.1
 Host: auth.orgx.example.com
 Accept: application/entity-statement+jwt
 ```
-
-**Artifact Produced:** Entity Configuration JWT.
 
 </details>
 <details>
@@ -5206,7 +5244,22 @@ The response carries Org X's signed entity statement, including its federation i
 
 Org Y's gateway now checks whether Org X's issuer belongs to an accepted federation path. Depending on deployment, this means validating subordinate statements directly or consuming a federation resolve endpoint output anchored in a locally trusted superior.
 
-**Artifact Produced:** Federation Validation Request.
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> ValidateLeaf
+    ValidateLeaf --> RejectIssuer: signature or expiry invalid
+    ValidateLeaf --> FollowAuthorityHints: leaf valid
+    FollowAuthorityHints --> ValidateStatements
+    ValidateStatements --> RejectIssuer: chain invalid
+    ValidateStatements --> ApplyMetadataPolicy: anchor reached
+    ApplyMetadataPolicy --> RejectIssuer: policy constraint fails
+    ApplyMetadataPolicy --> AcceptIssuer: all constraints pass
+    RejectIssuer --> [*]
+    AcceptIssuer --> [*]
+```
+
+This local validation path must pin acceptable anchors, algorithms, policy operators, statement lifetimes, and key-rollover behavior. Merely reaching a recognizable superior URL is not a valid trust-chain result.
 
 </details>
 <details>
@@ -5222,15 +5275,13 @@ If the chain validates, Org Y learns more than "Org X exists." It learns that Or
 
 Only after the issuer-trust question is solved does the runtime authorization mechanism matter. Agent A obtains the cross-domain token from Org X's Authorization Server through an ordinary OAuth flow, Identity Chaining (§20.4), or the enterprise ID-JAG / Enterprise-Managed Authorization composition discussed in §1.3.2 and §20.4. OpenID Federation is intentionally not the token-minting step.
 
-**Artifact Produced:** Runtime Authorization Request.
-
 </details>
 <details>
 <summary><strong>8. Org X's Authorization Server returns the access token to Agent A</strong></summary>
 
 The Authorization Server issues the runtime credential that the agent will present to Org Y. At this point the token is only useful because Org Y has already established that Org X is a trusted issuer in the relevant federation context.
 
-**Artifact Produced:** Cross-Domain Access Token.
+**Artifact Produced:** Cross-domain access token issued through the selected OAuth profile.
 
 </details>
 <details>
@@ -5256,16 +5307,16 @@ Content-Type: application/json
 }
 ```
 
-**Artifact Produced:** Foreign MCP Tool Request.
-
 </details>
 <details>
 <summary><strong>10. Org Y's Gateway validates issuer admissibility, token semantics, and local policy</strong></summary>
 
 Org Y now performs two distinct checks that were blurred together in many early agent-federation writeups:
 
-- **Federation check** — Is `auth.orgx.example.com` a trusted issuer in this ecosystem, with acceptable metadata and inherited policy?
-- **OAuth/MCP check** — Does this specific token have the right audience, scope, sender-constraining proof, and local policy outcome for `flights/book`?
+> **Two independent authorization gates**
+>
+> - **Federation gate:** Is `auth.orgx.example.com` an admissible issuer under the selected anchor, validated metadata, and inherited policy?
+> - **OAuth/MCP gate:** Does this specific token satisfy issuer, audience, scope, time, sender-proof, client, tool, argument, tenant, and local-policy requirements for `flights/book`?
 
 Federation answers the *issuer admissibility* question. OAuth token validation answers the *this request is authorized* question.
 
@@ -5275,15 +5326,13 @@ Federation answers the *issuer admissibility* question. OAuth token validation a
 
 Once both checks pass, the gateway turns the validated external request into an internal tool invocation under Org Y's local control plane.
 
-**Artifact Produced:** Internal MCP Tool Invocation.
+The gateway preserves the canonical operation and decision context over an authenticated internal channel while withholding foreign token material and federation-resolution internals that the tool does not need. This prevents successful issuer admission from becoming ambient authority inside Org Y's service network.
 
 </details>
 <details>
 <summary><strong>12. The MCP tool returns its result to Org Y's Gateway</strong></summary>
 
 The internal tool executes and returns the application result to the gateway, which remains responsible for enforcing the final response policy.
-
-**Artifact Produced:** Tool Execution Result.
 
 </details>
 <details>
@@ -5304,7 +5353,7 @@ After the internal tool returns, the gateway sends the response back to Agent A 
 }
 ```
 
-**Artifact Produced:** Compliant Cross-Organizational Trace Log.
+**Artifact Produced:** Cross-organizational authorization and execution audit event.
 
 </details>
 
@@ -5418,7 +5467,7 @@ Rather than instantly rejecting the alien token, Org Y's gateway dynamically tra
 <details>
 <summary><strong>3. Trust Anchor confirms the trust chain is valid</strong></summary>
 
-The shared Trust Anchor (e.g., the root European Digital Identity authority) definitively confirms the cryptographic chain is unbroken. This provides unquestionable proof that Org X is a legitimate, compliant member of the wider federation ecosystem, thereby dynamically establishing the foundational Layer 1 trust baseline without any bilateral human intervention.
+The shared Trust Anchor confirms that the resolved chain terminates at the selected anchor and satisfies the relying party's federation policy. This establishes provenance for Org X's signed metadata under that trust framework; it does **not** prove blanket legal compliance, authorize the requested MCP operation, or remove the need to validate the token and local policy in the remaining steps.
 
 </details>
 <details>
@@ -11253,8 +11302,6 @@ Location: https://login.internal.corp/oauth2/authorize
   &scope=internal:read
 ```
 
-**Artifact Produced:** HTTP 302 Native IdP Redirect.
-
 </details>
 <details>
 <summary><strong>3. Organization Identity Provider authenticates the user via SSO</strong></summary>
@@ -11382,7 +11429,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. Agent attempts a tool call with its current minimal-scope token</strong></summary>
 
-Operating under the principle of least privilege (§3), the agent awakens with an identity token containing only baseline analytical scopes (`profile`, `tools:list`). When its reasoning loop unexpectedly dictates that it must email a result to a coworker, it naively attempts to invoke the `send_email` tool using its restrictive token.
+Operating under the principle of least privilege (§3), the agent holds an access token containing only baseline scopes (`profile`, `tools:list`). When the workflow reaches an email action, it attempts to invoke the `send_email` tool with that deliberately restricted token, allowing the resource boundary to reject an authority increase that was never granted.
 
 ```http
 POST /mcp HTTP/1.1
@@ -11409,7 +11456,7 @@ Content-Type: application/json
 <details>
 <summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
 
-The gateway's Policy Decision Point instantly flags the scope mismatch. It explicitly formally rejects the attempt using the standardized RFC 6750 mechanism, triggering an OpenTelemetry alert and precisely informing the agent which scope is missing.
+The gateway maps `send_email` to its required permission, detects that the presented token lacks `emails:send`, and rejects the operation through the RFC 6750 challenge mechanism. The response gives the client a machine-readable authorization signal without granting the missing scope or leaking broader policy detail; the denial is correlated with the gateway's decision record and telemetry.
 
 ```http
 HTTP/1.1 403 Forbidden
@@ -11706,7 +11753,7 @@ The MCP Server executes the authorized `system/health_check` tool and returns th
 
 The gateway returns the result and records decision evidence appropriate to the deployment's audit system. The evidence identifies the machine principal and policy decision without claiming that every SIEM backend is immutable.
 
-**Artifact Produced:** Immutable SIEM Ledger Event.
+**Artifact Produced:** Machine-principal tool-execution audit event.
 
 ```json
 {
@@ -12035,7 +12082,7 @@ Agent C's dependent authority is marked revoked. The cascade is complete only af
 <details>
 <summary><strong>10. Consent Store logs the consent_revoked event to the Audit Log</strong></summary>
 
-The system flushes the primary explicit user action to the SIEM/immutable storage container.
+The system writes the primary explicit user action to its protected audit store or SIEM pipeline.
 
 ```json
 {
@@ -12198,77 +12245,59 @@ sequenceDiagram
     end
 ```
 
+:::note[Keep the three state carriers separate]
+This flow uses three independent correlation and security mechanisms:
+
+- **MCP `requestState`** is opaque continuation data that the client echoes when it retries the paused `tools/call`.
+- **Server-local `handoff_id`** correlates the authenticated browser ceremony with the paused MCP operation.
+- **Provider-facing OAuth `state` plus PKCE** protects the third-party redirect, callback, and authorization-code exchange.
+
+None substitutes for explicit browser-opening approval, browser authentication, or fresh tool authorization at retry time.
+:::
+
 <details><summary><strong>1. MCP Client sends the originating tool call to the MCP Server</strong></summary>
 
-The client sends `tools/call` with per-request elicitation capability metadata. The server may rely on that capability for continuation mechanics, but it still authorizes the tool call under the ordinary MCP resource-server boundary.
+The client sends `tools/call` with per-request elicitation capability metadata under `_meta.io.modelcontextprotocol/clientCapabilities`. The server may rely on that capability for continuation mechanics, but it still authorizes the tool call under the ordinary MCP resource-server boundary.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.example.com
+Authorization: Bearer eyJ...
+MCP-Protocol-Version: 2026-07-28
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/call",
+  "params": {
+    "name": "import_repository",
+    "arguments": {
+      "repository": "octocat/example"
+    }
+  },
+  "_meta": {
+    "io.modelcontextprotocol/protocolVersion": "DRAFT-2026-v1",
+    "io.modelcontextprotocol/clientCapabilities": {
+      "elicitation": {
+        "url": {}
+      }
+    }
+  }
+}
+```
+
+The capability is request-scoped: it tells the server that this client can mediate URL-mode elicitation for request `41`. It is not standing permission to launch a browser, connect an account, or execute a different tool.
 
 </details>
 <details><summary><strong>2. MCP Server returns an input-required result to the MCP Client</strong></summary>
 
 The server returns `resultType: "input_required"`, a keyed URL-mode request, and opaque `requestState`. This response pauses the originating operation without creating a protocol session or proving that the external interaction will succeed.
 
-**Artifact Produced:** Input-required continuation state.
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
 
-</details>
-<details><summary><strong>3. MCP Client presents the server message and URL to the User</strong></summary>
-
-The client shows the requesting server, explanatory message, and complete destination URL before launching anything. This makes the external trust boundary visible and keeps the model from silently following a server-supplied link.
-
-</details>
-<details><summary><strong>4. User authorizes the MCP Client to open the browser handoff</strong></summary>
-
-The user explicitly accepts the handoff in the client UI. Acceptance authorizes navigation only; it is not evidence that authentication, payment, or third-party consent completed.
-
-</details>
-<details><summary><strong>5. MCP Client opens the approved URL in the external Browser</strong></summary>
-
-The client launches the browser only after consent and does not proxy credentials or page content through the model context. The browser becomes the interaction surface while the MCP request remains paused.
-
-</details>
-<details><summary><strong>6. External Browser authenticates the User at the MCP Server endpoint</strong></summary>
-
-The browser reaches the server-owned connection endpoint and authenticates the user through the appropriate web security controls. This creates browser-side identity evidence that must still be correlated with the MCP authorization subject.
-
-</details>
-<details><summary><strong>7. MCP Server binds the browser identity to the MCP authorization subject</strong></summary>
-
-The server compares the authenticated browser identity with the subject and tenant that initiated the MCP call. A mismatch must fail closed so another signed-in browser user cannot complete or redirect the paused operation.
-
-**Artifact Produced:** Bound browser-to-MCP subject record.
-
-</details>
-<details><summary><strong>8. MCP Server initiates the sensitive interaction with the Third-Party Service</strong></summary>
-
-The server conducts the third-party OAuth, payment, or credential ceremony outside the MCP client. This keeps sensitive material out of JSON-RPC while preserving the server's responsibility for state, redirect, and CSRF protections.
-
-</details>
-<details><summary><strong>9. Third-Party Service returns completion evidence to the MCP Server</strong></summary>
-
-The third party sends a callback or equivalent completion signal to the server. The server validates that evidence against the browser flow and the paused MCP operation before recording any usable outcome.
-
-**Artifact Produced:** Validated external-interaction completion evidence.
-
-</details>
-<details><summary><strong>10. MCP Client retries the original tool call with the MCP Server</strong></summary>
-
-After the user returns, the client sends a new JSON-RPC request ID for the original method, includes the keyed `inputResponses`, and echoes the opaque `requestState`. This retry is the protocol continuation; no completion notification is assumed.
-
-</details>
-<details><summary><strong>11. MCP Server returns a completed result when the external interaction is ready</strong></summary>
-
-If the stored browser and third-party evidence satisfies the paused operation, the server returns `resultType: "complete"`. The completion is bound to the retried request and the validated continuation state.
-
-</details>
-<details><summary><strong>12. MCP Server returns another input-required result when work remains</strong></summary>
-
-If the interaction is incomplete or more user input is necessary, the server issues another input-required result instead of fabricating success. The client can repeat the same explicit handoff and retry ceremony or let the user cancel.
-
-</details>
-<br/>
-
-The client advertises supported elicitation modes on every request through `_meta.io.modelcontextprotocol/clientCapabilities`. The server may return:
-
-```json
 {
   "jsonrpc": "2.0",
   "id": 41,
@@ -12289,9 +12318,119 @@ The client advertises supported elicitation modes on every request through `_met
 }
 ```
 
-After the user accepts or declines, the client retries the same operation with a different JSON-RPC ID:
+The `connect_account` key gives the later response a stable slot, while `requestState` remains server-defined continuation data. The client echoes it but does not parse it, convert it into ambient session authority, or expose it as proof of completion.
 
-```json
+**Artifact Produced:** Input-required continuation state.
+
+</details>
+<details><summary><strong>3. MCP Client presents the server message and URL to the User</strong></summary>
+
+The client shows the requesting server, explanatory message, and complete destination URL before launching anything. This makes the external trust boundary visible and keeps the model from silently following a server-supplied link.
+
+**Illustrative client handoff surface**
+
+> **Browser handoff request**
+>
+> **Requesting server:** `mcp.example.com`<br/>
+> **Reason:** Connect your account to continue<br/>
+> **Destination:** `https://mcp.example.com/connect`<br/>
+> **Available actions:** **Open browser** · **Cancel**
+
+The server identity and destination host need to be visually distinguishable from the explanatory text. A model-generated paraphrase is not a substitute for rendering the actual destination the client will open.
+
+</details>
+<details><summary><strong>4. User authorizes the MCP Client to open the browser handoff</strong></summary>
+
+The user explicitly accepts the handoff in the client UI. Acceptance authorizes navigation only; it is not evidence that authentication, payment, or third-party consent completed.
+
+The client records the disposition against the keyed `connect_account` request so a later retry can say whether the handoff was accepted, declined, or cancelled. That local decision must not be promoted into an OAuth grant, payment confirmation, or successful account-link record.
+
+</details>
+<details><summary><strong>5. MCP Client opens the approved URL in the external Browser</strong></summary>
+
+The client launches the browser only after consent and does not proxy credentials or page content through the model context. The browser becomes the interaction surface while the MCP request remains paused.
+
+The navigation target is the exact URL shown in Step 3. Redirects, cookies, credentials, and page content remain in the browser security context; the MCP client retains only its local handoff decision and the continuation data needed for a later retry.
+
+</details>
+<details><summary><strong>6. External Browser authenticates the User at the MCP Server endpoint</strong></summary>
+
+The browser reaches the server-owned connection endpoint and authenticates the user through the appropriate web security controls. This creates browser-side identity evidence that must still be correlated with the MCP authorization subject.
+
+The server can use a short-lived, single-use handoff handle at this endpoint to locate the paused operation. The following is a deployment-local browser exchange, not an MCP wire message:
+
+```http
+GET /connect/hnd_7f2c HTTP/1.1
+Host: mcp.example.com
+Accept: text/html
+
+HTTP/1.1 302 Found
+Location: /login?continue=/connect/resume
+Set-Cookie: mcp_handoff=bs_9a81...; Secure; HttpOnly; SameSite=Lax
+Cache-Control: no-store
+Referrer-Policy: no-referrer
+```
+
+The URL handle should be high-entropy, short-lived, and single-use. Redeeming it establishes a protected browser-side correlation session; it does not reveal `requestState` and is not a bearer substitute for either the user's browser authentication or the MCP caller's access token.
+
+</details>
+<details><summary><strong>7. MCP Server binds the browser identity to the MCP authorization subject</strong></summary>
+
+The server compares the authenticated browser identity with the subject and tenant that initiated the MCP call. A mismatch must fail closed so another signed-in browser user cannot complete or redirect the paused operation.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> LoadPending
+    LoadPending --> RejectExpired: expired or already used
+    LoadPending --> CompareSubject: pending and live
+    CompareSubject --> RejectMismatch: browser subject differs
+    CompareSubject --> CompareTenant: subjects match
+    CompareTenant --> RejectMismatch: tenant differs
+    CompareTenant --> BindSubjects: tenant matches
+    BindSubjects --> [*]: status = subject_bound
+    RejectExpired --> [*]
+    RejectMismatch --> [*]
+```
+
+The persisted server-side record contains the `handoff_id`, originating request and action digest, MCP subject, browser subject, tenant, status, and expiry. It is not an MCP wire object: it makes the comparison and lifecycle explicit without storing browser credentials in the protocol transcript.
+
+**Artifact Produced:** Bound browser-to-MCP subject record.
+
+</details>
+<details><summary><strong>8. MCP Server initiates the sensitive interaction with the Third-Party Service</strong></summary>
+
+The server conducts the third-party OAuth, payment, or credential ceremony outside the MCP client. This keeps sensitive material out of JSON-RPC while preserving the server's responsibility for state, redirect, and CSRF protections.
+
+For an OAuth connection, the server generates provider-facing `state` and PKCE material, sends the browser to the third party, and keeps any resulting refresh or access credential in server-side custody. Neither the provider credential nor the browser page is returned to the model as an elicitation response.
+
+</details>
+<details><summary><strong>9. Third-Party Service returns completion evidence to the MCP Server</strong></summary>
+
+The third party sends a callback or equivalent completion signal to the server. The server validates that evidence against the browser flow and the paused MCP operation before recording any usable outcome.
+
+```http
+GET /connect/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=QnJvd3NlckhhbmRvZmY HTTP/1.1
+Host: mcp.example.com
+Cookie: mcp_handoff=bs_9a81...
+```
+
+The server validates the provider `state`, exchanges the code using its stored PKCE verifier, and matches the browser session to the handoff, subject, tenant, expiry, and one-time-use status. It then stores correlation and outcome evidence—such as `handoff_id`, provider, hashed provider state, browser subject, completion time, and status—rather than the raw authorization code or provider token. A failed check leaves the operation incomplete and produces a denial event instead.
+
+**Artifact Produced:** Validated external-interaction completion evidence.
+
+</details>
+<details><summary><strong>10. MCP Client retries the original tool call with the MCP Server</strong></summary>
+
+After the user returns, the client sends a new JSON-RPC request ID for the original method, includes the keyed `inputResponses`, and echoes the opaque `requestState`. This retry is the protocol continuation; no completion notification is assumed.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.example.com
+Authorization: Bearer eyJ...
+MCP-Protocol-Version: 2026-07-28
+Content-Type: application/json
+
 {
   "jsonrpc": "2.0",
   "id": 42,
@@ -12319,7 +12458,48 @@ After the user accepts or declines, the client retries the same operation with a
 }
 ```
 
-`accept` means that the user accepted the handoff; it does **not** prove the browser interaction succeeded. On retry, the server checks its stored completion record or the echoed `requestState` and either completes the operation or asks for more input. Clients therefore need an explicit manual retry/cancel affordance rather than waiting for a completion notification.
+The client reconstructs the original arguments from trusted application state instead of replaying mutable model text. The new request ID distinguishes the retry from request `41`; the keyed response and echoed state let the server correlate it with the paused operation.
+
+</details>
+<details><summary><strong>11. MCP Server returns a completed result when the external interaction is ready</strong></summary>
+
+If the stored browser and third-party evidence satisfies the paused operation, the server returns `resultType: "complete"`. The completion is bound to the retried request and the validated continuation state.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": {
+    "resultType": "complete",
+    "content": [
+      {
+        "type": "text",
+        "text": "Repository import started for octocat/example."
+      }
+    ]
+  }
+}
+```
+
+The server still re-authorizes the tool and arguments at retry time. Successful account connection satisfies one prerequisite; it does not bypass current token, resource, tenant, tool, argument, or policy checks.
+
+</details>
+<details><summary><strong>12. MCP Server returns another input-required result when work remains</strong></summary>
+
+If the interaction is incomplete or more user input is necessary, the server issues another input-required result instead of fabricating success. The client can repeat the same explicit handoff and retry ceremony or let the user cancel.
+
+> **What changes from Step 2**
+>
+> - The response correlates to retry request `42`, not originating request `41`.
+> - The server issues a new opaque `requestState` because its continuation state has advanced.
+> - The new or resumed URL requires another explicit display-and-accept decision.
+
+The renewed result carries a new continuation state because the server's state machine has advanced. The client again displays the full destination and requires an explicit user choice; a previous navigation decision is not standing approval for every subsequent URL.
+
+</details>
+<br/>
+
+The payloads above are illustrative views of the current continuation contract. `accept` means that the user accepted the handoff; it does **not** prove the browser interaction succeeded. On retry, the server checks its stored completion record and the echoed `requestState`, then either completes the operation or asks for more input. Clients therefore need an explicit manual retry/cancel affordance rather than waiting for a completion notification.
 
 :::important[Retry and task input are different continuations]
 Before a task exists, an `input_required` result continues by retrying the original request with a new request ID, `inputResponses`, and `requestState`. After a Tasks-extension task exists, required input is delivered through `tasks/update` against the authorized `taskId` (§10.6). A client must not retry the task-creating request as a substitute for updating an existing task.
@@ -13019,6 +13199,16 @@ sequenceDiagram
     end
 ```
 
+:::note[Five bindings participate in the approval]
+This flow uses related but non-interchangeable artifacts:
+
+- The **delegated access token** identifies Alice as subject and Agent B/Agent A as the current and prior actors under the deployment's actor-chain profile.
+- The **pending-operation ID and request digest** bind approval to deletion of `inv-9001` under a pinned policy and expiry.
+- The CIBA **`auth_req_id`** correlates the backchannel authentication transaction and token-result retrieval.
+- The **`binding_message`** is a short cross-device visual cue; it is not a digest or signature over the invoice operation.
+- The **CIBA token result and approval evidence** record the authorization outcome, while the gateway still revalidates the exact operation before execution.
+:::
+
 <details>
 <summary><strong>1. User Alice requests Agent A to process her invoices</strong></summary>
 
@@ -13069,6 +13259,26 @@ The API Gateway intercepts the `DELETE` request and inspects the token. The inte
 
 The Gateway creates a bounded pending-operation record containing a canonical request digest, idempotency key, expiry, task and delegation identifiers, and the selected approval-policy version. It blocks execution while the authorization result is pending and emits a minimal operational event.
 
+```json
+{
+  "pending_operation_id": "po_inv_9001_01",
+  "request_digest": "sha256:54be…",
+  "subject": "alice",
+  "current_actor": "agent-B",
+  "delegation_chain": ["agent-A", "agent-B"],
+  "resource": "invoice:inv-9001",
+  "action": "delete",
+  "idempotency_key": "del-inv-9001-7b19",
+  "approval_policy_version": "invoice-critical-v4",
+  "status": "awaiting_ciba",
+  "expires_at": "2026-07-24T14:12:00Z"
+}
+```
+
+This is a deployment-local server record, not a CIBA or MCP wire object. It is the stable comparison target for the later approval and execution gates.
+
+**Artifact Produced:** Pending exact-operation and approval-policy record.
+
 </details>
 <details>
 <summary><strong>5. Gateway sends a CIBA authentication request to the IdP targeting Alice</strong></summary>
@@ -13086,13 +13296,25 @@ login_hint_token=eyJhbGciOiJFUzI1NiIs...
 ```
 The security invariant is that the approval target comes from trusted policy and lineage, the OP renders the protected invoice context, and the later execution must match the pending-operation digest. This example's policy selects Alice; another deployment may require a different or additional approver.
 
-**Artifact Produced:** OIDC CIBA Authentication Request ID.
-
 </details>
 <details>
 <summary><strong>6. IdP sends a push notification to Alice's authentication device</strong></summary>
 
 Alice receives an OP-mediated authentication interaction containing the invoice identifier, operation, material consequence, acting-agent chain, expiry, and the short visual cue. The display distinguishes this approval from the earlier general “process invoices” request.
+
+**Illustrative protected approval surface**
+
+> **Delete invoice?**
+>
+> **Invoice:** `INV-9001`<br/>
+> **Operation:** Permanently delete the invoice record<br/>
+> **Requested through:** Agent A → Agent B<br/>
+> **Approval policy:** Critical invoice operation<br/>
+> **Expires:** 14:12 UTC<br/>
+> **Matching code:** `Q7M4`<br/>
+> **Available actions:** **Approve deletion** · **Deny**
+
+The OP must derive the displayed operation from protected server-side context associated with the pending record. Model-authored text or the four-character matching code is not a substitute for the exact invoice and consequence.
 
 </details>
 <details>
@@ -13102,12 +13324,21 @@ Alice reviews the context, authenticates with the OP-selected method, and approv
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-    HumanReview --> UserAuthn: Authenticate as required
-    UserAuthn --> IdP: Authorization decision
-    IdP --> EmitToken: CIBA grant success
+    direction TB
+    [*] --> LoadPending
+    LoadPending --> RejectExpired: expired or terminal
+    LoadPending --> VerifyApprover: pending and live
+    VerifyApprover --> RejectMismatch: authenticated subject not eligible
+    VerifyApprover --> CompareDisplayDigest: approver matches
+    CompareDisplayDigest --> RejectMismatch: protected context differs
+    CompareDisplayDigest --> RecordApproval: exact operation matches
+    RecordApproval --> CompleteCIBA: authenticated approval
+    RejectExpired --> [*]
+    RejectMismatch --> [*]
+    CompleteCIBA --> [*]
 ```
-The OP and approval service record the authenticated decision, displayed-content reference, request digest, achieved authentication context, and timestamps under the evidence controls in §14.7.1.1. This supports reconstruction; it does not make the event non-repudiable by label alone.
+
+The OP and approval service record the authenticated decision, displayed-content reference, request digest, achieved authentication context, and timestamps under the evidence controls in §14.7.1.1. Expiry, approver mismatch, or protected-context mismatch fails closed instead of producing a successful CIBA result. The record supports reconstruction; it does not make the event non-repudiable by label alone.
 
 </details>
 <details>
@@ -13131,6 +13362,16 @@ The OP returns the CIBA token result. The access token includes only the granted
 
 The Gateway retrieves the pending operation, re-canonicalizes the current request, and compares its digest, subject, actor, client, audience, resource, scope, expiry, and one-time execution state with the approved record. Only an exact match is forwarded under the new token and idempotency key.
 
+> **Exact-operation execution gate**
+>
+> - **Subject and approver:** authenticated Alice matches the policy-selected eligible approver.
+> - **Actor chain:** current Agent B and upstream Agent A match the pending delegation record.
+> - **Operation:** `delete invoice:inv-9001` hashes to the approved request digest.
+> - **Credential:** issuer, audience, client, scope, and expiry satisfy the execution profile.
+> - **Lifecycle:** the pending record is approved, unexpired, and not previously consumed.
+
+Any mismatch terminates or rejects the pending record; the gateway does not silently generate a new approval target from the changed request.
+
 </details>
 <details>
 <summary><strong>10. Alice denies the deletion on her authentication device (deny path)</strong></summary>
@@ -13150,7 +13391,7 @@ The OP completes the CIBA transaction with `access_denied`; the approval service
 }
 ```
 
-**Artifact Produced:** Explicit `access_denied` Audit Rejection Trail.
+**Artifact Produced:** Terminal denial outcome correlated to the pending operation.
 
 </details>
 <details>
@@ -13167,8 +13408,6 @@ Content-Type: application/json
   "message": "The selected approver rejected this destructive operation."
 }
 ```
-
-**Artifact Produced:** 403 Forbidden Gateway Telemetry Signal.
 
 </details>
 <details>
@@ -15958,9 +16197,47 @@ sequenceDiagram
     Note right of Service: ⠀
 ```
 
+:::note[Five bindings, five different decisions]
+The transaction path correlates several values that serve different boundaries:
+
+- The **external access token or source-grant reference** establishes incoming OAuth authority at the edge.
+- The **canonical operation digest** binds every later decision to the exact MCP primitive, tool, arguments, resource, and tenant.
+- The **policy decision ID and obligations** record application authorization and constrain credential issuance and result release.
+- The **transaction ID** correlates one bounded service-graph execution and its idempotent effects.
+- The **transaction credential** carries short-lived authority for one internal audience inside the trust domain.
+
+No identifier substitutes for another: a valid external token does not authorize an internal audience, and a valid transaction credential does not bypass the service's local resource decision.
+:::
+
 <details><summary><strong>1. Agent Client sends the externally authorized tool call to the MCP Edge</strong></summary>
 
 The request carries the external access token and the exact MCP operation. Arrival at the edge establishes no internal-service authority and triggers both token and application checks.
+
+```http
+POST /mcp HTTP/1.1
+Host: edge.example.com
+Authorization: Bearer eyJhbGci...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: ledger/post_entry
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 73,
+  "method": "tools/call",
+  "params": {
+    "name": "ledger/post_entry",
+    "arguments": {
+      "account": "acct-481",
+      "amount": "125.00",
+      "currency": "EUR"
+    }
+  }
+}
+```
+
+The edge retains a digest of the canonical operation for later decision and transaction correlation; it does not treat the bearer token or JSON-RPC request ID as that correlation record.
 
 </details>
 <details><summary><strong>2. MCP Edge validates the external token</strong></summary>
@@ -15972,30 +16249,137 @@ The edge verifies signature or introspection, issuer, audience, time, client, an
 
 The edge supplies the normalized subject, actor, primitive, arguments, tenant, and explicit handles. This separates token validity from permission to perform the requested effect.
 
+```json
+{
+  "subject": "user-123",
+  "actor": "agent-ledger-7",
+  "action": "tools/call:ledger/post_entry",
+  "resource": "acct-481",
+  "context": {
+    "tenant": "acme",
+    "operation_digest": "sha256:4b72…",
+    "external_grant_hash": "sha256:18c0…"
+  }
+}
+```
+
+Only normalized, policy-relevant fields cross this boundary. Raw prompts, access-token values, and unrelated conversation context stay out of the decision payload.
+
 </details>
 <details><summary><strong>4. Policy Engine permits the operation with obligations</strong></summary>
 
 The policy engine returns the permit, obligations, and decision identifier. These constraints become inputs to transaction-credential issuance and later result release.
+
+```json
+{
+  "decision": true,
+  "decision_id": "dec-9018",
+  "obligations": {
+    "internal_audience": "urn:service:ledger",
+    "max_transaction_lifetime_seconds": 60,
+    "redact_result_fields": ["internal_risk_score"]
+  }
+}
+```
+
+**Artifact Produced:** Versioned application authorization decision and enforceable obligations.
 
 </details>
 <details><summary><strong>5. MCP Edge requests a bounded credential from the Transaction Token Service</strong></summary>
 
 The request names the exact internal audience, transaction, workload, and granted operation. The external token is evidence for exchange, not a credential to forward.
 
+The following is an illustrative deployment-local issuance contract, not the revision-pinned wire syntax of `draft-ietf-oauth-transaction-tokens-09`:
+
+```http
+POST /transaction-credentials HTTP/1.1
+Host: tts.internal.acme
+Authorization: Bearer eyJ...&lt;edge-workload-credential>
+Idempotency-Key: txn-7b19
+Content-Type: application/json
+
+{
+  "source_grant_ref": "sha256:18c0…",
+  "transaction_id": "txn-7b19",
+  "requesting_workload": "spiffe://acme/edge/mcp-01",
+  "audience": "urn:service:ledger",
+  "operation_digest": "sha256:4b72…",
+  "policy_decision_id": "dec-9018",
+  "requested_lifetime_seconds": 60
+}
+```
+
+The deployment must profile the actual draft exchange, client authentication, replay controls, and claim names it supports. The workload credential authenticates the edge to the local service; it is distinct from both the external user's access token and the transaction credential being requested.
+
 </details>
 <details><summary><strong>6. Transaction Token Service validates and binds the internal transaction</strong></summary>
 
 The service checks the caller and source grant, then binds transaction, workload, audience, expiry, and policy context. This makes the new credential narrower and short-lived inside the trust domain.
+
+```mermaid
+stateDiagram-v2
+    direction TB
+    [*] --> AuthenticateEdge
+    AuthenticateEdge --> RejectIssuance: caller or sender proof invalid
+    AuthenticateEdge --> ValidateSourceGrant: edge authenticated
+    ValidateSourceGrant --> RejectIssuance: source grant inactive
+    ValidateSourceGrant --> CompareDecision: grant valid
+    CompareDecision --> RejectIssuance: digest or policy decision differs
+    CompareDecision --> BindAudience: exact decision matches
+    BindAudience --> RejectIssuance: audience or lifetime exceeds obligation
+    BindAudience --> MintCredential: bounded request
+    RejectIssuance --> [*]
+    MintCredential --> [*]
+```
+
+The service fails before minting if any source, workload, operation, policy, audience, expiry, or replay binding is missing or inconsistent. A successful transition creates a new internal credential; it does not transform the external bearer token into a multi-audience token.
 
 </details>
 <details><summary><strong>7. Transaction Token Service returns the short-lived credential to the MCP Edge</strong></summary>
 
 The returned token carries only the internal audience and transaction authority required for the call. Its issuance event is correlated to the application decision without logging the token value.
 
+```json
+{
+  "iss": "https://tts.internal.acme",
+  "sub": "user-123",
+  "aud": "urn:service:ledger",
+  "act": {
+    "sub": "agent-ledger-7"
+  },
+  "workload": "spiffe://acme/edge/mcp-01",
+  "transaction_id": "txn-7b19",
+  "operation_digest": "sha256:4b72…",
+  "policy_decision_id": "dec-9018",
+  "exp": 1784890860
+}
+```
+
+The decoded claim view is likewise a local profile: the stable requirement is a short-lived credential bound to the internal audience, transaction, workload/actor context, and source decision. Cross-vendor field interoperability remains tied to the exact draft and deployment profile.
+
+**Artifact Produced:** Short-lived, audience-bound transaction credential and issuance record.
+
 </details>
 <details><summary><strong>8. MCP Edge calls the Internal Service with the transaction credential</strong></summary>
 
 The edge sends the approved internal request and the bounded credential. It never retries by forwarding the external access token if exchange is unavailable.
+
+```http
+POST /entries HTTP/1.1
+Host: ledger.internal.acme
+Authorization: Bearer eyJhbGci...&lt;transaction-credential>
+Idempotency-Key: txn-7b19
+Content-Type: application/json
+
+{
+  "account": "acct-481",
+  "amount": "125.00",
+  "currency": "EUR",
+  "operation_digest": "sha256:4b72…"
+}
+```
+
+The internal service sees the credential minted for its own audience and the canonical operation associated with the same transaction. The external OAuth access token never crosses this trust-domain boundary.
 
 </details>
 <details><summary><strong>9. Internal Service validates the credential and local entitlement</strong></summary>
@@ -16007,10 +16391,31 @@ The service verifies the transaction token and applies its own resource and acti
 
 The result is associated with the transaction and service decision. The edge still applies recipient, redaction, and cache policy before external release.
 
+```json
+{
+  "transaction_id": "txn-7b19",
+  "status": "posted",
+  "entry_id": "entry-88421",
+  "classification": "financial-confidential",
+  "internal_risk_score": 17
+}
+```
+
+The edge removes `internal_risk_score` under decision `dec-9018`, verifies the result belongs to `txn-7b19`, and only then constructs the externally releasable MCP result. Transaction authorization and result-release authorization are therefore correlated but separate decisions.
+
 </details>
 <details><summary><strong>11. MCP Edge returns the authorized MCP result to the Agent Client</strong></summary>
 
 The agent receives only the released result plus safe correlation evidence. If issuance, audience, internal entitlement, or result-release policy fails, the operation stops at that boundary.
+
+> **What crosses back to the external boundary**
+>
+> - **Released:** the externally permitted status and `entry_id`, correlated to JSON-RPC request `73`.
+> - **Retained internally:** `transaction_id`, service-decision evidence, and the protected classification record.
+> - **Removed:** `internal_risk_score` under obligation `dec-9018`.
+> - **Never returned:** the transaction credential, source access token, raw policy context, or unrelated internal-service fields.
+
+The release step therefore proves only that this result passed the pinned recipient and redaction policy. It does not expose the internal credential or make the service's full classified response part of the MCP result.
 
 </details>
 <br/>
@@ -21069,12 +21474,23 @@ sequenceDiagram
     end
 ```
 
+:::note[Credential custody changes at each boundary]
+The flow contains three credentials and one lifecycle record:
+
+- The **Auth0-domain user access token** is held by the agent application and can serve as the subject token for the configured exchange profile; it is not a Google credential.
+- The **provider refresh credential** remains in Token Vault and is never returned to the agent.
+- A **provider access token** may be dispensed to the agent for the provider audience and scopes; it is shorter-lived but still a bearer credential requiring careful custody.
+- The **connected-account record** links the user, organization, provider grant, stored credential family, scopes, status, and revocation lifecycle; it is not itself an access token.
+
+Possession of any one artifact does not establish that the others remain valid. Every exchange and provider call still evaluates the current connection, grant, credential, audience, scope, and application policy.
+:::
+
 <details>
 <summary><strong>1. End User authenticates via Universal Login against Auth0 Platform</strong></summary>
 
 The human user authenticates with Auth0's Universal Login page. This is the user's authentication with the AI agent's platform — not with the third-party API. Auth0 supports all standard authentication methods (password, social, passkey, MFA). If authentication fails, Auth0 actively drops the request with a `401 Unauthorized` and logs an invalid login attempt. Once authenticated, Auth0 issues a user access token that represents the user's identity within the agent's application.
 
-**Universal Login Initiation:**
+**Illustrative Universal Login initiation (Auth0-domain):**
 ```http
 GET /authorize?response_type=code
 &client_id=agent_client_123
@@ -21107,7 +21523,7 @@ Auth0 returns a `user_access_token` to the AI agent. This token represents the u
 
 The user clicks "Connect Google Account" in the agent's UI, which redirects to Auth0's Connected Accounts flow. Auth0 initiates an OAuth 2.0 flow with Google as the upstream provider. The user authenticates with Google and decides whether to grant the requested permissions (for example, `calendar.events.readonly`). A denial terminates the provider authorization flow with an error; operational logging must minimize sensitive authorization data. The connection remains usable only while the provider grant, stored credentials, Auth0 connection record, user/organization policy, and per-request authorization remain valid. Revocation, expiry, policy change, or a provider error can require reconnection or reauthorization.
 
-**Federated Connection Extracellular Call:**
+**Illustrative Connected Accounts initiation (Auth0 product flow):**
 ```http
 GET /authorize?connection=google-oauth2
 &scope=calendar.events.readonly HTTP/1.1
@@ -21120,13 +21536,15 @@ Host: agent-domain.auth0.com
 
 After successful Google consent, Auth0 stores both the Google `refresh_token` and `access_token` in the Token Vault — a secure, encrypted credential store. The Token Vault is the only component that holds the long-lived Google `refresh_token`. The agent never sees or handles these Google credentials directly. This is the critical security boundary: the agent operates on Auth0-domain tokens, and the Vault translates them to provider-specific tokens.
 
+**Artifact Produced:** Vault-held provider credential record linked to the user connection.
+
 </details>
 <details>
 <summary><strong>5. AI Agent executes RFC 8693 Token Exchange against Token Vault</strong></summary>
 
-When the agent needs to call the Google Calendar API, it sends an RFC 8693 Token Exchange request to the Token Vault. This is standard-based delegation — the agent presents its Auth0 token (proving the user's identity) and receives a Google-specific access token in return.
+When the agent needs to call the Google Calendar API, it sends a product-profiled RFC 8693 Token Exchange request to Token Vault. The agent presents the Auth0-domain user token as the configured subject token and requests a Google-specific access token; Token Vault still evaluates the connected account, provider grant, requested resource, and current product policy.
 
-**RFC 8693 Exchange Request:**
+**Illustrative Token Vault exchange request (product-profiled RFC 8693):**
 ```http
 POST /oauth/token HTTP/1.1
 Host: token-vault.auth0.com
@@ -21148,12 +21566,21 @@ If the stored Google access token has expired, the Token Vault transparently use
 **Token Vault Lifecycle Engine:**
 ```mermaid
 stateDiagram-v2
-    direction LR
-    CheckCache --> ValidateTTL: Token exists?
-    ValidateTTL --> ExecuteRefresh: Expired
-    ValidateTTL --> DispenseToken: Valid
-    ExecuteRefresh --> DispenseToken: Refresh Success
+    direction TB
+    [*] --> LoadConnection
+    LoadConnection --> RequireReconnect: missing, disabled, or revoked
+    LoadConnection --> CheckCachedAccess: active connection
+    CheckCachedAccess --> DispenseCached: access token valid
+    CheckCachedAccess --> RefreshProvider: absent or expired
+    RefreshProvider --> StoreRotated: refresh succeeds
+    RefreshProvider --> RequireReconnect: invalid_grant or provider denial
+    StoreRotated --> DispenseNew
+    DispenseCached --> [*]
+    DispenseNew --> [*]
+    RequireReconnect --> [*]
 ```
+
+The success path keeps the refresh credential inside the Vault. The failure path returns a bounded exchange error and moves the connection into the product's reconnect or remediation lifecycle; it must not dispense a stale provider token or expose the refresh credential to the agent.
 
 </details>
 <details>
@@ -21161,9 +21588,9 @@ stateDiagram-v2
 
 The Token Vault returns a short-lived Google access token to the agent. This token has limited scope (only the permissions the user consented to) and short TTL (typically 1 hour for Google). The agent can use this token directly in API calls. Critically, the agent never receives the Google refresh token — it only receives short-lived access tokens, limiting the blast radius if the agent is compromised.
 
-**Artifact Produced:** `Ephemeral OBO Provider Credential` (Short-lived, downstream-destined Google access token with explicitly restricted blast radius).
+**Artifact Produced:** Short-lived provider access token for the requested downstream audience and granted scopes.
 
-**Token Exchange Response:**
+**Illustrative Token Vault exchange response:**
 ```json
 {
   "access_token": "ya29.a0AdV...",
@@ -21177,7 +21604,7 @@ The Token Vault returns a short-lived Google access token to the agent. This tok
 <details>
 <summary><strong>8. AI Agent dispatches delegated Google Calendar API request to Third-Party API</strong></summary>
 
-The agent calls the Google Calendar API with `Authorization: Bearer google_access_token`. Google sees a standard OAuth 2.0 request — it cannot distinguish between a direct user request and an agent-mediated request. The token carries the user's identity and permissions, ensuring the agent operates within the user's specific access rights on Google.
+The agent calls the Google Calendar API with `Authorization: Bearer google_access_token`. Google validates a standard provider-issued OAuth credential against the provider grant, client, scopes, and policy. Unless the provider and exchange profile add an explicit actor signal, the request carries no standardized evidence of the Auth0-side agent chain; its authority is bounded by the provider grant and token, not by an assumption that the token visibly encodes a human and agent identity pair.
 
 **Delegated API Request:**
 ```http
@@ -21190,7 +21617,7 @@ Authorization: Bearer ya29.a0AdV...&lt;short_lived_google_token>
 <details>
 <summary><strong>9. Third-Party API returns requested resource payload to AI Agent</strong></summary>
 
-Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds long-lived Google credentials; (2) all API calls use the user's specific permissions (not a service account); (3) the Token Vault provides a centralized point for credential revocation — if the user disconnects their Google account, the Vault immediately invalidates all cached tokens.
+Google returns the calendar events to the agent. The complete flow maintains three security properties: (1) the agent never holds the long-lived Google refresh credential; (2) API calls remain bounded by the linked user's provider grant rather than a generic service account; and (3) the Token Vault provides a centralized credential-lifecycle control point. A disconnect or upstream revocation must invalidate stored and cached authority according to the product's documented propagation and provider-token semantics; “centralized” must not be read as proof of instantaneous invalidation at every downstream cache.
 
 </details>
 <br/>
