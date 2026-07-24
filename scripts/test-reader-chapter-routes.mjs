@@ -13,12 +13,12 @@ import {
 const DOC_SLUG = 'DR-0001-mcp-authentication-authorization-agent-identity';
 const LANDING_CHAPTER_ID = 'executive-decision-summary';
 const GROUP_CHAPTER_ID = 'protocol-foundations';
-const FIRST_CHAPTER_ID = '1-mcp-authorization-spec-evolution';
-const SECOND_CHAPTER_ID = '2-mcp-over-streamable-http-transport-layer-auth-implications';
-const THIRD_CHAPTER_ID = '3-mcp-scope-lifecycle-discovery-selection-and-challenge';
+const FIRST_CHAPTER_ID = '1-current-mcp-authorization-and-protocol-baseline';
+const SECOND_CHAPTER_ID = '2-stateless-streamable-http-authorization';
+const THIRD_CHAPTER_ID = '3-scope-and-client-identity-lifecycle';
 const CONSENT_CHAPTER_ID = '14-user-consent-models-first-party-vs-third-party';
-const SECOND_HEADING_ID = '21-transport-generations-and-compatibility';
-const SECOND_HEADING_LABEL = '2.1 Transport Generations and Compatibility';
+const SECOND_HEADING_ID = '21-current-transport-contract';
+const SECOND_HEADING_LABEL = '2.1 Current Transport Contract';
 const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '12-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '11-same-device-remote-presentation';
@@ -123,7 +123,7 @@ async function assertNarrowInlineCodeDoesNotOverflow(page) {
   const cases = [
     {
       chapterId: FIRST_CHAPTER_ID,
-      codeText: '_meta["io.modelcontextprotocol/serverInfo"]',
+      codeText: 'draft-ietf-oauth-identity-assertion-authz-grant-04',
     },
     {
       chapterId: THIRD_CHAPTER_ID,
