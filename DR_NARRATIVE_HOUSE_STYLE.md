@@ -405,7 +405,16 @@ Each step should usually include:
 - the actor and concrete action
 - why the step matters
 - the artifact, check, or decision produced if one exists
-- payload examples only when they clarify the protocol
+- a compact concrete request, response, object, decoded claim subset, UI
+  surface, state view, or exact delta whenever the step crosses a defined or
+  reliably known boundary
+
+Do not let protocol evidence disappear behind narrative restraint. If the
+method, URL, message, token response, product request, or state transition is
+known, show it at least once. Later repetitions may use a precise “what
+changed” delta. Prose-only treatment is reserved for actor-local reasoning,
+boundaries with no stable documented shape, or repeated exchanges whose full
+shape already appeared. Never invent a vendor contract to satisfy this rule.
 
 Avoid formulaic details blocks where every step has the same template regardless of importance. `Artifact Produced:` is useful only when the step creates a durable or decision-relevant artifact.
 
