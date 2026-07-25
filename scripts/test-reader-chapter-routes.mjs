@@ -13,12 +13,15 @@ import {
 const DOC_SLUG = 'DR-0001-mcp-authentication-authorization-agent-identity';
 const LANDING_CHAPTER_ID = 'executive-decision-summary';
 const GROUP_CHAPTER_ID = 'protocol-foundations';
-const FIRST_CHAPTER_ID = '1-current-mcp-authorization-and-protocol-baseline';
-const SECOND_CHAPTER_ID = '2-stateless-streamable-http-authorization';
-const THIRD_CHAPTER_ID = '3-scope-and-client-identity-lifecycle';
+const FIRST_CHAPTER_ID = '1-mcp-authorization-bootstrap-client-trust-and-grant-profiles';
+const SECOND_CHAPTER_ID = '2-request-scoped-authorization-and-downstream-execution';
+const THIRD_CHAPTER_ID = '3-scope-selection-and-runtime-step-up';
 const CONSENT_CHAPTER_ID = '14-authorization-approval-and-consent-models';
-const SECOND_HEADING_ID = '21-current-transport-contract';
-const SECOND_HEADING_LABEL = '2.1 Current Transport Contract';
+const SECOND_HEADING_ID = '21-request-contract-and-enforcement-ownership';
+const SECOND_HEADING_LABEL = '2.1 Request Contract and Enforcement Ownership';
+const LEGACY_FIRST_CHAPTER_ID = '1-current-mcp-authorization-and-protocol-baseline';
+const LEGACY_TRUST_HEADING_ID = '12-authorization-trust-chain';
+const MIGRATED_TRUST_HEADING_ID = '12-trust-boundaries-and-authorization-artifacts';
 const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '12-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '11-same-device-remote-presentation';
@@ -91,6 +94,24 @@ async function assertSlugRedirect(page) {
   }, { timeout: 20_000 });
 }
 
+async function assertPublishedLinkMigrationRoute(page) {
+  const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${LEGACY_FIRST_CHAPTER_ID}?layout=wide#${LEGACY_TRUST_HEADING_ID}`;
+  console.log(`[chapter routes smoke] checking published-link migration: ${url}`);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  await page.waitForFunction(({ slug, chapterId, headingId }) => (
+    window.location.pathname === `/${slug}/${chapterId}` &&
+    window.location.search === '?layout=wide' &&
+    window.location.hash === `#${headingId}` &&
+    Boolean(document.getElementById(headingId)) &&
+    document.querySelector('.chapter-nav-link.is-active')?.getAttribute('href') === `/${slug}/${chapterId}`
+  ), {
+    slug: DOC_SLUG,
+    chapterId: FIRST_CHAPTER_ID,
+    headingId: MIGRATED_TRUST_HEADING_ID,
+  }, { timeout: 20_000 });
+}
+
 async function assertInitialChapterRoute(page) {
   const url = `${getBaseUrl(page.__readerPort)}/${DOC_SLUG}/${FIRST_CHAPTER_ID}#${FIRST_CHAPTER_ID}`;
   console.log(`[chapter routes smoke] checking initial chapter route: ${url}`);
@@ -125,11 +146,11 @@ async function assertNarrowInlineCodeDoesNotOverflow(page) {
   const cases = [
     {
       chapterId: FIRST_CHAPTER_ID,
-      codeText: 'draft-ietf-oauth-identity-assertion-authz-grant-04',
+      codeText: 'client_id_metadata_document_supported',
     },
     {
       chapterId: THIRD_CHAPTER_ID,
-      codeText: 'authorization_response_iss_parameter_supported: true',
+      codeText: 'https://auth.example.com/.well-known/oauth-authorization-server/tenant1',
     },
     {
       chapterId: CONSENT_CHAPTER_ID,
@@ -2152,6 +2173,7 @@ async function main() {
     page.__readerPort = serverHandle.port;
 
     await assertSlugRedirect(page);
+    await assertPublishedLinkMigrationRoute(page);
     await assertInitialChapterRoute(page);
     await assertGroupHeadingRoute(page);
     await assertChapterNavTransition(page);

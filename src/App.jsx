@@ -1,7 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import manifest from './generated/reader-manifest.json';
 import ChapterPage from './features/reader/ChapterPage.jsx';
+import { resolvePublishedLinkMigration } from './features/reader/publishedLinkMigrations.js';
 import 'katex/dist/katex.min.css';
 import './index.css';
 
@@ -194,6 +195,37 @@ function DocumentRedirect({ document }) {
   );
 }
 
+function DocumentChapterRoute({
+  document,
+  layoutWidthMode,
+  theme,
+  globalMermaidZoomPercent,
+  onGlobalMermaidZoomChange,
+}) {
+  const { chapterId = '' } = useParams();
+  const location = useLocation();
+  const migratedLocation = resolvePublishedLinkMigration({
+    documentSlug: document.slug,
+    chapterId,
+    search: location.search,
+    hash: location.hash,
+  });
+
+  if (migratedLocation) {
+    return <Navigate to={migratedLocation} replace />;
+  }
+
+  return (
+    <ChapterPage
+      readerDocumentMeta={document}
+      layoutWidthMode={layoutWidthMode}
+      theme={theme}
+      globalMermaidZoomPercent={globalMermaidZoomPercent}
+      onGlobalMermaidZoomChange={onGlobalMermaidZoomChange}
+    />
+  );
+}
+
 function AppShell() {
   const [theme, setTheme] = useState(() => readInitialTheme());
   const [textSize, setTextSize] = useState(() => readInitialTextSize());
@@ -343,7 +375,7 @@ function AppShell() {
                     </div>
                     <div className="display-settings-caption">
                       {layoutWidthPreference === 'recommended'
-                        ? 'Recommended: reclaims available space while keeping prose readable.'
+                        ? 'Recommended: expands all article content into the available space.'
                         : `Fixed ${layoutWidthPreference} width. Choose Adaptive to respond to the navigation rails.`}
                     </div>
                   </section>
@@ -374,8 +406,8 @@ function AppShell() {
               <Route
                 path={`/${document.slug}/:chapterId`}
                 element={(
-                  <ChapterPage
-                    readerDocumentMeta={document}
+                  <DocumentChapterRoute
+                    document={document}
                     layoutWidthMode={layoutWidthMode}
                     theme={theme}
                     globalMermaidZoomPercent={globalMermaidZoomPercent}

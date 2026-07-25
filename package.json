@@ -14,6 +14,7 @@
     "dev": "node scripts/dev-reader.mjs",
     "test:reader:all": "node scripts/test-reader-all.mjs",
     "test:reader:chapter-routes": "node scripts/test-reader-chapter-routes.mjs",
+    "test:published-link-migrations": "node scripts/test-published-link-migrations.mjs",
     "test:standards-watch": "node scripts/test-standards-watch.mjs",
     "tailnet:share": "tailscale serve --bg --yes --https=4321 4322",
     "tailnet:status": "tailscale serve status",

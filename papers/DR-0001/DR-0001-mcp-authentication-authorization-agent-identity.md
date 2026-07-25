@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-25 · ~28,800 lines
+**DR-0001** · Published · Last updated 2026-07-25 · ~27,900 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -38,30 +38,31 @@ related: []
   - [In Scope](#in-scope)
   - [Out of Scope](#out-of-scope)
 - [Protocol Foundations](#protocol-foundations)
-  - <details><summary><a href="#1-current-mcp-authorization-and-protocol-baseline">1 Current MCP Authorization and Protocol Baseline</a></summary>
+  - <details><summary><a href="#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles">1 MCP Authorization Bootstrap, Client Trust, and Grant Profiles</a></summary>
 
     - [1.1 Current-Only Protocol Admission](#11-current-only-protocol-admission)
-    - [1.2 Authorization Trust Chain](#12-authorization-trust-chain)
-    - [1.3 Client Registration and Enterprise Governance](#13-client-registration-and-enterprise-governance)
-    - [1.4 Layered Failure Taxonomy](#14-layered-failure-taxonomy)
-    - [1.5 Solved Authorization Bootstrap](#15-solved-authorization-bootstrap)
+    - [1.2 Trust Boundaries and Authorization Artifacts](#12-trust-boundaries-and-authorization-artifacts)
+    - [1.3 Pre-Registration and Client ID Metadata Documents (CIMD)](#13-pre-registration-and-client-id-metadata-documents-cimd)
+    - [1.4 Authorization Path and Profile Selection](#14-authorization-path-and-profile-selection)
+    - [1.5 Canonical Interactive MCP OAuth Bootstrap](#15-canonical-interactive-mcp-oauth-bootstrap)
+    - [1.6 Enterprise-Managed Authorization: Alternative Grant Profile](#16-enterprise-managed-authorization-alternative-grant-profile)
+    - [1.7 OAuth Client Credentials: Direct Machine Authority](#17-oauth-client-credentials-direct-machine-authority)
+    - [1.8 High-Assurance OAuth Profile Overlay](#18-high-assurance-oauth-profile-overlay)
+    - [1.9 Layered Failure and Recovery Taxonomy](#19-layered-failure-and-recovery-taxonomy)
   </details>
-  - <details><summary><a href="#2-stateless-streamable-http-authorization">2 Stateless Streamable HTTP Authorization</a></summary>
+  - <details><summary><a href="#2-request-scoped-authorization-and-downstream-execution">2 Request-Scoped Authorization and Downstream Execution</a></summary>
 
-    - [2.1 Current Transport Contract](#21-current-transport-contract)
-    - [2.2 Request Security and Explicit Application State](#22-request-security-and-explicit-application-state)
-    - [2.3 Gateway and Server Enforcement](#23-gateway-and-server-enforcement)
-    - [2.4 Solved Stateless Tool Call and Downstream Authority](#24-solved-stateless-tool-call-and-downstream-authority)
-    - [2.5 Retry, Idempotency, and Custom Transports](#25-retry-idempotency-and-custom-transports)
+    - [2.1 Request Contract and Enforcement Ownership](#21-request-contract-and-enforcement-ownership)
+    - [2.2 Explicit Application State and Result Boundaries](#22-explicit-application-state-and-result-boundaries)
+    - [2.3 Canonical Request-to-Effect Flow](#23-canonical-request-to-effect-flow)
+    - [2.4 Retry, Idempotency, and Custom Transports](#24-retry-idempotency-and-custom-transports)
   </details>
-  - <details><summary><a href="#3-scope-and-client-identity-lifecycle">3 Scope and Client-Identity Lifecycle</a></summary>
+  - <details><summary><a href="#3-scope-selection-and-runtime-step-up">3 Scope Selection and Runtime Step-Up</a></summary>
 
-    - [3.1 Scope Communication Channels](#31-scope-communication-channels)
-    - [3.2 Scope Selection Strategy](#32-scope-selection-strategy)
-    - [3.3 Scope Challenge Handling (403 Insufficient Scope)](#33-scope-challenge-handling-403-insufficient-scope)
-    - [3.4 Scope Minimization Best Practices](#34-scope-minimization-best-practices)
-    - [3.5 How Scopes Interact with Related Sections](#35-how-scopes-interact-with-related-sections)
-    - [3.6 High-Assurance Authorization: FAPI 2.0, PAR, JAR, JARM](#36-high-assurance-authorization-fapi-20-par-jar-jarm)
+    - [3.1 Scope Communication and Five-Actor Responsibility](#31-scope-communication-and-five-actor-responsibility)
+    - [3.2 Initial Scope Selection and Transaction Binding](#32-initial-scope-selection-and-transaction-binding)
+    - [3.3 Runtime Insufficient-Scope Step-Up](#33-runtime-insufficient-scope-step-up)
+    - [3.4 Scope Minimization, Challenge Governance, and RAR Handoff](#34-scope-minimization-challenge-governance-and-rar-handoff)
   </details>
 - [Identity, Delegation, and Durable Authority](#identity-delegation-and-durable-authority)
   - <details><summary><a href="#4-choosing-the-authority-relationship">4 Choosing the Authority Relationship</a></summary>
@@ -173,12 +174,12 @@ related: []
   - <details><summary><a href="#14-authorization-approval-and-consent-models">14 Authorization, Approval, and Consent Models</a></summary>
 
     - [14.0 Consent Lifecycle Overview](#140-consent-lifecycle-overview)
-    - [14.1 First-Party Authorization (Enterprise/Same-Organization)](#141-first-party-authorization-enterprisesame-organization)
+    - [14.1 First-Party Authorization](#141-first-party-authorization)
     - [14.2 Third-Party Consent and Downstream Token Separation](#142-third-party-consent-and-downstream-token-separation)
     - [14.3 Incremental Consent in Agentic Workflows](#143-incremental-consent-in-agentic-workflows)
     - [14.4 Consent Decision Matrix](#144-consent-decision-matrix)
     - [14.5 Is User Consent Always Required?](#145-is-user-consent-always-required)
-    - [14.6 Machine-to-Machine (M2M) Flows Without User Involvement](#146-machine-to-machine-m2m-flows-without-user-involvement)
+    - [14.6 Machine Authority Is Not Consent](#146-machine-authority-is-not-consent)
     - [14.7 Approval, Grant, and Consent Persistence Architecture](#147-approval-grant-and-consent-persistence-architecture)
     - [14.8 Multi-Round-Trip Elicitation and External-Browser Handoff](#148-multi-round-trip-elicitation-and-external-browser-handoff)
   </details>
@@ -545,15 +546,15 @@ An accepted request satisfies every row. “Unknown” is a deny condition, not 
 
 **Foundational Architecture**
 
-1. **Admit one current core and explicit extensions.** Implement the approved `2026-07-28` request-scoped version and capability context, required routing headers, typed results, and explicit state. Pin and test the exact core and extension artifacts, and reject unapproved contracts without downgrade fallback ([§1](#1-current-mcp-authorization-and-protocol-baseline), [§2](#2-stateless-streamable-http-authorization), Rec 1, Rec 31).
-2. **Authorize every request and every durable handle.** Bind application state, Tasks, input `requestState`, subscriptions, caches, and continuations to the current subject, acting agent, client, tenant, resource, consent, and policy version. A modern handle is not a replacement transport session ([§2.2](#22-request-security-and-explicit-application-state), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 24, Rec 29, Rec 38).
+1. **Admit one current core and explicit extensions.** Implement the approved `2026-07-28` request-scoped version and capability context, required routing headers, typed results, and explicit state. Pin and test the exact core and extension artifacts, and reject unapproved contracts without downgrade fallback ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles), [§2](#2-request-scoped-authorization-and-downstream-execution), Rec 1, Rec 31).
+2. **Authorize every request and every durable handle.** Bind application state, Tasks, input `requestState`, subscriptions, caches, and continuations to the current subject, acting agent, client, tenant, resource, consent, and policy version. A modern handle is not a replacement transport session ([§2.2](#22-explicit-application-state-and-result-boundaries), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 24, Rec 29, Rec 38).
 3. **Assign decisions to the component that holds the authority.** Gateways can validate requests, compare routing metadata, apply shared policy, meter, and audit; authorization servers govern token issuance; hosts govern runtime isolation; registries govern discovery evidence; servers and backends retain business-resource authorization ([§13](#13-gateway-mediated-mcp-architecture), [§21](#21-product-implementation-landscape), [§22](#22-consolidated-comparison-thirteen-architectural-models), and Rec 2).
-4. **Version the core and every extension independently.** Negotiate Tasks, MCP Apps, Enterprise-Managed Authorization, and other extensions explicitly on the current request. Do not infer extension support from the core version or lift one product feature to its whole portfolio ([§1](#1-current-mcp-authorization-and-protocol-baseline), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes), Rec 6, Rec 12).
+4. **Version the core and every extension independently.** Negotiate Tasks, MCP Apps, Enterprise-Managed Authorization, and other extensions explicitly on the current request. Do not infer extension support from the core version or lift one product feature to its whole portfolio ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes), Rec 6, Rec 12).
 
 **Authorization & Oversight**
 
 5. **Compose authority per operation and separate credentials at every handoff.** When another party exercises a user's authority, preserve the user as subject and the current agent as actor; when work is organization-owned, use direct workload authority without inventing a user. Authenticate client and workload separately, target each credential to its resource, retain detailed grant/task provenance by reference, and never transit the incoming MCP token to a downstream API ([§4](#4-choosing-the-authority-relationship), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), [§6](#6-agent-identity-vs-user-identity), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns), [§9](#9-authorization-context-and-delegation-representation), Rec 3, Rec 11, and Rec 36).
-6. **Separate tool visibility, invocation authorization, and backend entitlement.** A filtered tool catalog reduces exposure but does not authorize `tools/call`; a permitted call does not prove access to every backend identifier in its arguments ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 7).
+6. **Separate tool visibility, invocation authorization, and backend entitlement.** A filtered tool catalog reduces exposure but does not authorize `tools/call`; a permitted call does not prove access to every backend identifier in its arguments ([§17.2](#172-tool-visibility-invocation-and-backend-entitlement), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 7).
 7. **Choose policy and guardrail composition by semantics and failure behavior.** Cedar, OPA/Rego, OpenFGA, CEL, and commercial PDPs solve different policy shapes. Version the PEP–PDP contract, retain decision provenance, and define whether detection runs before or after authorization and how disagreement or outage is handled ([§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, Rec 10, Rec 40, Rec 41).
 8. **Choose credential treatment per trust boundary.** Token exchange, managed custody, injection, stripping, and workload identity have different delegation and exposure properties. Document issuer, subject/actor meaning, audience, storage, rotation, revocation, recovery, and failure for each downstream credential ([§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 13, Rec 20, and Rec 21).
 9. **Select oversight from action consequence, not a universal tier.** Use reversibility, sensitivity, legal or financial effect, autonomy, and time pressure to select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Preserve who decided, what was displayed, and what happened ([§14](#14-authorization-approval-and-consent-models), [§15](#15-human-oversight-architecture), [§16](#16-task-based-access-control-tbac), Rec 14, and Rec 17).
@@ -581,11 +582,11 @@ These profiles select control patterns, not winning products. The product append
 
 ### Top Open Risks
 
-1. **Explicit state-handle semantics are not interoperably complete.** The core allows application state but does not standardize creation, delegation, rotation, expiry, revocation, transfer, collision, and confused-deputy behavior across implementations ([§2.2](#22-request-security-and-explicit-application-state), [OQ 5](#oq-5)).
+1. **Explicit state-handle semantics are not interoperably complete.** The core allows application state but does not standardize creation, delegation, rotation, expiry, revocation, transfer, collision, and confused-deputy behavior across implementations ([§2.2](#22-explicit-application-state-and-result-boundaries), [OQ 5](#oq-5)).
 2. **Core/extension skew and forward product adoption remain weakly evidenced.** The surveyed products do not yet establish the approved `2026-07-28` routing contract, independent extension versions, or comparable negative conformance behavior ([§21.1](#211-role-and-lifecycle-inventory), [OQ 6](#oq-6), [OQ 23](#oq-23), [OQ 25](#oq-25)).
 3. **Durable task authority and transfer remain local design problems.** The Draft Tasks extension defines operations but not a portable authority record, transfer protocol, or cross-agent delegation model ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [OQ 17](#oq-17)).
-4. **Subscription and cache authorization lack shared lifecycle profiles.** Creation policy is insufficient without emitted-object checks, reconnection and termination rules, cache keying, invalidation, and cross-tenant safety ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [OQ 8](#oq-8), [OQ 36](#oq-36)).
-5. **Normative and implementation surfaces can disagree.** Error allocation, official documentation, schemas, extensions, SDKs, and gateway behavior need a conflict-resolution and conformance process rather than optimistic inference ([§1.5](#15-solved-authorization-bootstrap), [OQ 7](#oq-7)).
+4. **Subscription and cache authorization lack shared lifecycle profiles.** Creation policy is insufficient without emitted-object checks, reconnection and termination rules, cache keying, invalidation, and cross-tenant safety (§§17.6–17.7, [OQ 8](#oq-8), [OQ 36](#oq-36)).
+5. **Normative and implementation surfaces can disagree.** Error allocation, official documentation, schemas, extensions, SDKs, and gateway behavior need a conflict-resolution and conformance process rather than optimistic inference ([§1.9](#19-layered-failure-and-recovery-taxonomy), [OQ 7](#oq-7)).
 6. **Software, tool, and registry trust remain non-transitive.** Publisher identity, package integrity, schema review, registry listing, certification, and runtime authorization are different proofs; correction and takedown behavior remains incomplete ([§13.7](#137-mcp-tool-supply-chain-security), [§22](#22-consolidated-comparison-thirteen-architectural-models), [OQ 12](#oq-12), [OQ 22](#oq-22), [OQ 24](#oq-24)).
 7. **Multi-principal consent and revocation are not portable.** Sub-agent expansion, delegation-chain revocation, and concurrent users need explicit ownership, conflict, propagation, and audit semantics ([§6.6](#66-multi-user-agent-authorization), [§14.7](#147-approval-grant-and-consent-persistence-architecture), [OQ 11](#oq-11), [OQ 13](#oq-13), [OQ 14](#oq-14)).
 8. **Legal responsibility and cross-border evidence remain deployment-specific.** Provider/deployer classification, disclosure/content provenance, and jurisdictional delegation claims require authoritative legal and technical profiles beyond MCP interoperability ([§23](#23-eu-ai-act-and-adjacent-eu-obligations-applicability-controls-and-evidence), [OQ 26](#oq-26), [OQ 27](#oq-27), [OQ 28](#oq-28), and [OQ 31](#oq-31)).
@@ -663,11 +664,11 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 - API-to-MCP tool scope mapping
 - Authorization models and policy engines (Cedar, OPA/Rego, OpenFGA)
 - Rich Authorization Requests (RAR) vs. OAuth scopes (RFC 9396)
-- Emerging IETF/OIDF drafts (AAuth, Transaction Tokens, WIMSE, Identity Chaining, FAPI 2.0)
+- Emerging IETF/OIDF work (AAuth, Transaction Tokens, WIMSE, Identity Chaining) plus final high-assurance profiles such as FAPI 2.0
 - Provenance-aware authorization-context transformation, carrier selection, and current-actor representation
 - Refresh-token and authority lifecycle for durable agent work
 - Credential delegation patterns (OBO exchange, JIT injection, token stripping, vault delegation, SPIFFE federation)
-- Product implementation landscape with thirteen gateway deep-dives and consolidated comparison matrices
+- Product implementation landscape with thirteen role-normalized offering deep-dives and consolidated comparison matrices
 - EU AI Act (Regulation (EU) 2024/1689) compliance mapping — Articles 9, 12, 14, 15, 26, 50
 - GDPR (Regulation (EU) 2016/679) interaction with MCP AuthN/AuthZ patterns
 - eIDAS 2.0 (Regulation (EU) 2024/1183) implications for agent identity and cross-border trust
@@ -693,13 +694,15 @@ Unless specific routing boundaries are analyzed (see the detailed architectural 
 
 ---
 
-### 1. Current MCP Authorization and Protocol Baseline
+### 1. MCP Authorization Bootstrap, Client Trust, and Grant Profiles
 
-The forward architecture begins with admission, not negotiation by trial and error. A request is eligible for authorization only when its core version, per-request capabilities, extension contracts, transport metadata, client identity, issuer, and resource audience satisfy the configured profile. OAuth success does not cure a protocol-admission failure, and protocol admission does not grant an application operation.
+MCP authorization begins with three separate decisions: admit the protocol request, establish a trustworthy OAuth client and authorization-server path, and select the grant profile that matches the authority relationship. Only then can the client obtain a credential for the MCP resource. OAuth success does not cure a protocol-admission failure, protocol admission does not grant an application operation, and a token does not prove that a particular tool call or downstream effect is allowed.
+
+This chapter is the canonical home for the credential-acquisition paths used by this architecture: interactive Authorization Code with PKCE, Enterprise-Managed Authorization, and the OAuth Client Credentials extension. It also defines the Client ID Metadata Document branch, the high-assurance FAPI overlay, and the failure owner for each bootstrap layer. §2 begins after credential acquisition and authorizes a concrete request and effect; §3 governs initial scope selection and runtime step-up; §4 decides whose authority the selected grant represents.
 
 #### 1.1 Current-Only Protocol Admission
 
-The opening protocol-admission profile is the operational definition of “current.” The core obligations are:
+The admitted core floor is MCP `2026-07-28`. Deployments may implement later compatible revisions, but they do not silently accept an older core, infer extensions from core admission, or negotiate security policy by retrying progressively weaker shapes. Before OAuth or application authorization begins, the following gates apply:
 
 | Gate | Current contract | Security consequence |
 |:--|:--|:--|
@@ -712,9 +715,77 @@ The opening protocol-admission profile is the operational definition of “curre
 
 This profile has no fallback branch. An obsolete dependency requires a separately approved migration exception that identifies the affected surface and trust boundary, named owner, expiry, compensating controls, operating evidence, and removal plan. The exception governs temporary exposure; it does not admit the obsolete surface into the approved architecture.
 
-#### 1.2 Authorization Trust Chain
+When current MCP sources disagree during a release transition, implementations and this architecture apply the following evidence order:
 
-Authorization crosses three distinct trust boundaries: metadata establishes where authorization may occur, OAuth establishes a token for the MCP resource, and application policy decides whether the authenticated principal may perform the requested operation. Downstream APIs form a fourth boundary and require their own credentials.
+| Precedence | Evidence | Use |
+|:--:|:--|:--|
+| **1** | Published, versioned [MCP specification](https://modelcontextprotocol.io/specification/) and matching normative schema | Defines the admitted core wire and required behavior |
+| **2** | Locked release tag and accepted schema snapshot for the forward floor | Defines the pre-publication contract when the calendar-dated release is already fixed |
+| **3** | Merged specification PRs that the accepted schema snapshot incorporates | Resolves the exact change and rationale when rendered guidance lags |
+| **4** | Versioned extension specifications and their named OAuth/OIDF dependencies | Define extension-only fields, discovery signals, grant types, and lifecycle semantics |
+| **5** | Official guides and Tier-1 SDK codecs/tests | Confirm implementation behavior and expose documentation drift; they do not silently override higher-ranked normative evidence |
+
+The `2026-07-28` floor is therefore enforced from its locked release candidate and accepted schema snapshot until the final versioned publication occupies the first row. A later refresh may advance evidence status; it must not weaken admission or reinterpret an extension as core.
+
+#### 1.2 Trust Boundaries and Authorization Artifacts
+
+Authorization is not one transitive chain of trust. Metadata identifies candidate endpoints and client material; an admitted grant profile issues a credential for the MCP resource; the MCP server authenticates that credential and the current protocol request; application policy decides the requested effect; a separate credential authorizes any downstream API; and release policy decides what result may return to the client. Success at one boundary is evidence for the next decision, never a substitute for it.
+
+```mermaid
+flowchart LR
+    Metadata["Resource, issuer, and<br/>client metadata"]
+    Profile["Selected grant profile<br/>and transaction bindings"]
+    Token["MCP-resource<br/>access token"]
+    Admission["Protocol and token<br/>admission context"]
+    Decision["Application decision<br/>and obligations"]
+    Downstream["Separate downstream<br/>credential and decision"]
+    Result["Classified MCP result<br/>and safe correlation"]
+
+    Metadata -->|"validated inputs"| Profile
+    Profile -->|"credential issuance"| Token
+    Token -->|"current request"| Admission
+    Admission -->|"normalized facts"| Decision
+    Decision -->|"target-bounded release"| Downstream
+    Downstream -->|"provider response"| Result
+```
+
+The architecture preserves the following artifacts and proof limits at those boundaries:
+
+| Boundary | Retained artifact or evidence | What it establishes | What it does **not** establish | Canonical technical owner |
+|:--|:--|:--|:--|:--|
+| **Resource and issuer discovery** | Protected-resource metadata plus authorization-server metadata, each bound to origin, retrieval time, validation result, and cache/change state | Candidate MCP resource identifier, accepted issuer relationship, endpoints, and advertised profile support | Publisher trust merely from successful retrieval, client identity, user authority, or permission to call a tool | §§1.3–1.5 |
+| **Client identity** | Issuer-bound pre-registration or validated CIMD document hash, exact `client_id`, redirects, keys/authentication method, and publisher-policy result | The client identity material accepted by this authorization server | Client-instance attestation, MCP scope, tenant access, application authorization, or downstream entitlement | [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd) |
+| **Grant transaction** | Selected profile, issuer, client, resource, redirect where applicable, state/PKCE or assertion bindings, decision actor, and denial/expiry state | Which credential-acquisition path ran and which transaction values were validated | Permission for arbitrary later parameters or proof that another grant profile is supported | §§1.4–1.8 |
+| **MCP credential** | Access-token custody record with safe issuer, audience/resource, client, subject or machine-principal context, scope, expiry, and grant correlation | A credential was issued for the MCP resource under the selected grant | Application permission, a downstream API credential, a JWT format, or releasable result data | §§1.5–1.7 and [§11](#11-credential-custody-and-release-patterns) |
+| **Request admission** | Current-version/capability/routing checks plus normalized token-validation facts | The bearer credential and exact MCP request passed protocol and resource-server admission | Authorization of the tool arguments, handles, tenant object, backend effect, or result release | §§2.1–2.3 |
+| **Application decision** | Subject, agent, client, tenant, tool, arguments digest, explicit handles, policy version, decision ID, obligations, and decision lifetime | Policy evaluated the concrete requested operation and produced enforceable obligations | Backend acceptance, execution success, or permission to disclose every provider field | [§2.3](#23-canonical-request-to-effect-flow) and Chapters 16–18 |
+| **Downstream authority** | Target audience, operation/scope, subject/actor context, short lifetime, custody handle, and correlation to the application decision | A separately issued or released credential may be used at the named backend boundary | Permission to pass through the MCP token, reuse the credential for another audience, or expose credential material to the model/client | [§2.3](#23-canonical-request-to-effect-flow), §5, and [§11.7](#117-brokered-credential-use-solved-walkthrough) |
+| **Provider result and MCP release** | Provider outcome, classification/redaction result, safe decision correlation, and final typed MCP result | The returned content passed the recipient and release obligations for this request | A right to retain raw provider data, disclose redacted fields, or reuse the result outside its cache/recipient policy | §§2.2–2.3 and [§17.7](#177-cache-authority) |
+
+Every metadata or client-document fetch is an untrusted network operation: enforce HTTPS, redirect and DNS/IP policy, response-size and content-type limits, issuer consistency, and cache/change control before using the response. Raw authorization codes, bearer credentials, private keys, secrets, and unredacted provider data remain outside evidence records. The complete wire ceremonies now live only in §§1.3 and 1.5–1.7; request-to-effect authorization lives in [§2.3](#23-canonical-request-to-effect-flow); generic downstream derivation lives in §5.
+
+#### 1.3 Pre-Registration and Client ID Metadata Documents (CIMD)
+
+An MCP client needs an identity accepted by the selected authorization server. Where an administrative relationship exists, use issuer-bound pre-registration: retain the exact issuer, `client_id`, redirect URIs, client class, authentication method, credential rotation state, and registration source together. A registration issued for one authorization server is not portable evidence for another.
+
+[Client ID Metadata Documents (CIMD)](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) provide the approved no-prior-relationship branch. The active OAuth WG draft lets a client use an HTTPS URL with a path as its `client_id`; the authorization server retrieves the document only when its metadata advertises:
+
+```json
+{
+  "client_id_metadata_document_supported": true
+}
+```
+
+| Decision | Pre-registration | CIMD |
+|:--|:--|:--|
+| **Use when** | The client and authorization server have an administrative relationship | No bilateral registration exists and the authorization server explicitly supports CIMD |
+| **Identity** | Authorization-server-issued `client_id` bound to that issuer | Exact HTTPS document URL used as `client_id`; document value must equal the URL |
+| **Redirects and authentication** | Fixed by the issuer-bound registration | Taken from the validated document and constrained by authorization-server policy |
+| **Network exposure** | None during selection | Authorization-server outbound fetch; SSRF, redirect, DNS/IP, size, timeout, content-type, and cache controls are mandatory |
+| **Trust result** | Accepted registered client under the issuer's policy | Identified client software whose publisher/origin is separately accepted by policy |
+| **Failure** | Unknown, expired, or mismatched registration stops | Unsafe fetch, changed/invalid document, identifier mismatch, redirect mismatch, or rejected publisher stops; no DCR fallback |
+
+The following focused flow ends when the client identity is admitted to an authorization transaction. It does not repeat the user authorization, code, token, or MCP request wire owned by [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap).
 
 ```mermaid
 ---
@@ -730,594 +801,38 @@ config:
 sequenceDiagram
     autonumber
     participant Client as MCP Client
-    participant MCP as MCP Server<br/>(Resource Server)
     participant AS as Authorization Server
-    participant CIMD as Client Metadata<br/>Endpoint
-    participant PDP as Application PDP
-    participant API as Downstream API
+    participant CIMD as CIMD HTTPS Endpoint
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Client: Phase 1: Validate trust metadata
-    Client->>MCP: Request protected-resource metadata
-    MCP-->>Client: Resource URI + allowed authorization server
-    Client->>AS: Fetch AS metadata
-    AS-->>Client: Issuer + endpoints + registration capabilities
-    Client->>Client: Validate URLs, redirects,<br/>issuer, and fetch policy
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of Client: Phase 2: Establish client and user authority
-    alt Pre-registered relationship
-        Client->>AS: Use issuer-bound client registration
-    else Trusted CIMD
-        AS->>CIMD: Fetch HTTPS client metadata
-        CIMD-->>AS: Exact client_id + redirects + keys
-        AS->>AS: Validate document and trust policy
-        Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Client->>AS: Authorization request<br/>resource + state + PKCE S256
-    AS-->>Client: Code response + issuer
-    Client->>Client: Verify state and exact issuer
-    Client->>AS: Token request<br/>code + verifier + resource
-    AS-->>Client: MCP-audience access token
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Client: Phase 3: Authorize application operation
-    Client->>MCP: tools/call + bearer token<br/>+ current protocol metadata
-    MCP->>MCP: Validate signature, issuer,<br/>audience, time, client, scope
-    MCP->>PDP: Subject + agent + tenant<br/>+ tool + arguments + handles
-    PDP-->>MCP: Decision + obligations + decision ID
-    MCP->>AS: Obtain separate downstream authority
-    AS-->>MCP: API-audience credential
-    MCP->>API: Authorized backend request
-    API-->>MCP: Result
-    MCP-->>Client: Classified result + evidence correlation
-    Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+    Client->>AS: Authorization request with HTTPS client_id
+    AS->>CIMD: GET exact client_id URL
+    CIMD-->>AS: Client metadata document
+    AS->>AS: Validate fetch, identity, redirects, keys, trust, cache
+    Note right of CIMD: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ```
 
-<details><summary><strong>1. MCP Client requests protected-resource metadata from the MCP Server</strong></summary>
+<details><summary><strong>1. MCP Client sends the CIMD identifier in the authorization request</strong></summary>
 
-The client begins at the resource it intends to call instead of guessing an authorization server. This anchors later discovery to the MCP resource’s own identifier and policy.
-
-**Standard wire shape (illustrative):**
-
-```http
-GET /.well-known/oauth-protected-resource HTTP/1.1
-Host: mcp.example.com
-Accept: application/json
-```
-
-No bearer token or authorization code crosses this boundary. The response is discovery input and remains untrusted until the client validates the returned resource and issuer relationship.
-
-</details>
-<details><summary><strong>2. MCP Server returns its resource identifier and allowed Authorization Server</strong></summary>
-
-The server publishes the resource URI and accepted authorization-server relationship. The client retains both values so a later token can be checked against the intended issuer and audience.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: max-age=300
-
-{
-  "resource": "https://mcp.example.com",
-  "authorization_servers": ["https://as.example.com"]
-}
-```
-
-**Artifact Produced:** A protected-resource metadata snapshot bound to the MCP resource origin and retrieval time.
-
-</details>
-<details><summary><strong>3. MCP Client fetches Authorization Server metadata</strong></summary>
-
-The client retrieves the declared issuer’s metadata under its network-fetch policy. The request discovers endpoints and supported client-registration mechanisms without treating the response as trusted yet.
-
-**Standard wire shape:**
-
-```http
-GET /.well-known/oauth-authorization-server HTTP/1.1
-Host: as.example.com
-Accept: application/json
-```
-
-Redirects, DNS resolution, response size, and content type are constrained before the body is parsed. Discovery does not authorize the client to send credentials to a redirected or merely similar host.
-
-</details>
-<details><summary><strong>4. Authorization Server returns issuer, endpoint, and registration metadata</strong></summary>
-
-The response identifies the issuer and its authorization and token endpoints. These values become usable only after exact issuer, URL, and capability validation.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: max-age=300
-
-{
-  "issuer": "https://as.example.com",
-  "authorization_endpoint": "https://as.example.com/authorize",
-  "token_endpoint": "https://as.example.com/token",
-  "code_challenge_methods_supported": ["S256"]
-}
-```
-
-**Artifact Produced:** A candidate authorization-server metadata document. “Candidate” matters: retrieval success is not issuer trust.
-
-</details>
-<details><summary><strong>5. MCP Client validates metadata and redirect policy</strong></summary>
-
-The client checks HTTPS, redirects, DNS/IP destinations, issuer consistency, response limits, and exact redirect rules. A failure stops discovery before credentials or authorization codes are sent.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    [*] --> Parse
-    Parse --> Reject: malformed or oversized
-    Parse --> CheckIssuer: valid JSON
-    CheckIssuer --> Reject: issuer mismatch
-    CheckIssuer --> CheckEndpoints: exact issuer
-    CheckEndpoints --> Reject: unsafe URL or redirect
-    CheckEndpoints --> Accept: HTTPS and fetch policy pass
-    Accept --> [*]
-    Reject --> [*]
-```
-
-The accepted snapshot includes the issuer, endpoint set, validation time, and cache/change-control metadata. It does not contain user authority or permission to call an MCP tool.
-
-</details>
-<details><summary><strong>6. MCP Client selects its issuer-bound pre-registration</strong></summary>
-
-When a prior relationship exists, the client loads the registration stored for this exact issuer. Binding the registration to the issuer prevents a client identifier or secret from being reused at a lookalike authorization server.
-
-The deployment-local selection record binds `issuer`, `client_id`, `redirect_uri`, and `registration_source = pre_registered`. Secret or private-key material stays in the client credential store; it is not copied into the authorization request or walkthrough evidence.
-
-</details>
-<details><summary><strong>7. Authorization Server fetches the trusted CIMD document</strong></summary>
-
-When the server advertises CIMD instead, it retrieves the HTTPS client-metadata URL under a bounded outbound-fetch policy. This is a client-identification path, not a grant of MCP permissions.
-
-The authorization server performs an HTTPS `GET` against the exact client-metadata URL and treats it as an untrusted fetch target. The same redirect, DNS/IP, content-type, and size controls used for other security metadata apply before any field is trusted.
-
-```http
-GET /oauth/client-metadata.json HTTP/1.1
-Host: client.example
-Accept: application/json
-```
-
-</details>
-<details><summary><strong>8. Client Metadata Endpoint returns exact client identity material</strong></summary>
-
-The endpoint returns the exact `client_id`, redirect URIs, and keys associated with the client software. The authorization server compares these values with the request rather than accepting caller-supplied substitutions.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: max-age=300
-
-{
-  "client_id": "https://client.example/oauth/client-metadata.json",
-  "redirect_uris": ["https://client.example/callback"],
-  "token_endpoint_auth_method": "none",
-  "grant_types": ["authorization_code"],
-  "response_types": ["code"]
-}
-```
-
-**Artifact Produced:** The retrieved client metadata document plus its content hash and retrieval evidence.
-
-</details>
-<details><summary><strong>9. Authorization Server validates the CIMD document and trust policy</strong></summary>
-
-The server checks document syntax, identifier equality, redirects, key material, retrieval safety, and its local publisher policy. An untrusted or ambiguous document ends the flow without falling back to DCR.
-
-The decision is fail-closed and issuer-local:
-
-| Check | Accept only when |
-|:------|:-----------------|
-| Identifier | The document’s `client_id` exactly matches the URL used as `client_id`. |
-| Redirect | The requested redirect URI exactly matches a registered value. |
-| Retrieval | HTTPS, redirect, DNS/IP, size, and content-type policy all pass. |
-| Publisher policy | The authorization server accepts this metadata origin and client class. |
-
-**Artifact Produced:** A client-metadata validation result linked to the document hash and authorization transaction.
-
-</details>
-<details><summary><strong>10. MCP Client sends the resource-bound authorization request</strong></summary>
-
-The client sends the approved client identity, MCP resource indicator, exact redirect URI, state, and PKCE S256 challenge. These values bind the user-facing authorization transaction to the resource and client instance.
-
-**Standard wire shape (query shortened for readability):**
+The client uses the exact document URL as `client_id` and binds the same ordinary authorization transaction values required by [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap). The authorization server may resolve it as CIMD only because its own metadata advertised support.
 
 ```http
 GET /authorize?response_type=code
-  &client_id=https%3A%2F%2Fclient.example%2Foauth%2Fclient-metadata.json
-  &redirect_uri=https%3A%2F%2Fclient.example%2Fcallback
+  &client_id=https%3A%2F%2Fapp.example.com%2Foauth%2Fclient-metadata.json
+  &redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback
   &resource=https%3A%2F%2Fmcp.example.com
+  &scope=tools%3Acall
   &state=st_7d91...
   &code_challenge=Qm9...
   &code_challenge_method=S256 HTTP/1.1
 Host: as.example.com
 ```
 
-The client retains the exact issuer, state, redirect URI, resource, and PKCE verifier as one transaction record. None of those correlation values independently proves user approval.
+**Artifact Produced:** A pending authorization transaction containing an unresolved CIMD `client_id`; no authorization code or client trust decision exists yet.
 
 </details>
-<details><summary><strong>11. Authorization Server returns the code and exact issuer</strong></summary>
+<details><summary><strong>2. Authorization Server fetches the exact Client ID Metadata Document URL</strong></summary>
 
-After authentication and policy evaluation, the server redirects with an authorization code and issuer identity. The response is still untrusted until the client matches it to the retained transaction.
-
-```http
-HTTP/1.1 302 Found
-Location: https://client.example/callback?code=cd_4f2...&state=st_7d91...&iss=https%3A%2F%2Fas.example.com
-Cache-Control: no-store
-```
-
-The code is short-lived and remains in client custody. It is not logged as evidence, exposed to the model, or accepted without the retained transaction and PKCE verifier.
-
-</details>
-<details><summary><strong>12. MCP Client verifies state and issuer binding</strong></summary>
-
-The client consumes the stored state and requires the returned issuer to equal the issuer selected during discovery. A mismatch is an authorization-server mix-up denial, not a reason to try another endpoint.
-
-The validation decision records `state = matched_and_consumed`, exact issuer and redirect matches, and the disposition `continue_to_token_endpoint`. Replay of consumed state, an unknown code, or any issuer mismatch terminates the transaction. The record may retain hashes and identifiers, but not the authorization code itself.
-
-</details>
-<details><summary><strong>13. MCP Client redeems the code with verifier and resource</strong></summary>
-
-The token request proves possession of the PKCE verifier and repeats the intended resource. This prevents an intercepted code or cross-resource substitution from silently becoming an MCP token.
-
-```http
-POST /token HTTP/1.1
-Host: as.example.com
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=cd_4f2...&
-redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&
-code_verifier=pkce_6bb...&
-resource=https%3A%2F%2Fmcp.example.com
-```
-
-The client sends the code only to the validated token endpoint for the exact issuer. A token returned for a different resource does not satisfy this transaction.
-
-</details>
-<details><summary><strong>14. Authorization Server issues the MCP-audience access token</strong></summary>
-
-The server returns a token whose issuer, audience/resource, client, subject, time, and grant can be validated by the MCP resource. The token authorizes no unrelated downstream API.
-
-**Illustrative access-token claims when the token format is JWT:**
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp-gateway.internal.corp
-Authorization: Bearer &lt;host-access-token>
-MCP-Protocol-Version: 2026-07-28
-Content-Type: application/json
-
-{
-  "iss": "https://as.example.com",
-  "aud": "https://mcp.example.com",
-  "sub": "user-2481",
-  "client_id": "https://client.example/oauth/client-metadata.json",
-  "scope": "tools:call",
-  "exp": 1784920800
-}
-```
-
-Opaque tokens can carry the same semantics through introspection. The client stores the token as sensitive credential material; logs and evidence retain only safe identifiers, expiry, and correlation.
-
-**Artifact Produced:** An MCP-resource access token and a credential-custody record.
-
-</details>
-<details><summary><strong>15. MCP Client sends the current tools/call request to the MCP Server</strong></summary>
-
-The client sends one complete request with bearer token, core version, capabilities, routing headers, method, arguments, and explicit handles. No earlier connection state supplies missing protocol or authorization context.
-
-**Standard MCP-over-HTTP shape (illustrative):**
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp.example.com
-Authorization: Bearer eyJ...
-Content-Type: application/json
-MCP-Protocol-Version: 2026-07-28
-
-{
-  "jsonrpc": "2.0",
-  "id": 42,
-  "method": "tools/call",
-  "params": {
-    "name": "orders.update",
-    "arguments": {"order_id": "ord-731", "status": "approved"},
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-The bearer credential crosses only the client-to-MCP boundary. Provider credentials and downstream tokens are absent from the request and model-visible arguments.
-
-</details>
-<details><summary><strong>16. MCP Resource Server validates token and protocol admission</strong></summary>
-
-The server verifies signature or introspection, issuer, audience/resource, time, client, scope, version, capabilities, and routing-header/body agreement. Passing this boundary establishes authenticated request context, not application permission.
-
-The admission result separates proven facts—active token, exact issuer and audience, subject, client, and negotiated protocol version—from `application_authorization = not_yet_evaluated`.
-
-**Artifact Produced:** A normalized, request-bound admission context.
-
-</details>
-<details><summary><strong>17. MCP Server asks the Application PDP to authorize the operation</strong></summary>
-
-The server sends normalized subject, acting agent, client, tenant, tool, arguments, and handle authority to policy. The decision therefore covers the actual application effect rather than only the OAuth scope string.
-
-**Deployment-local policy input:**
-
-```json
-{
-  "subject": "user-2481",
-  "agent": "agent:tenant-a:order-worker",
-  "client_id": "https://client.example/oauth/client-metadata.json",
-  "tenant": "tenant-a",
-  "action": "tools/call",
-  "tool": "orders.update",
-  "resource": "order:ord-731",
-  "arguments_digest": "sha256:8fc2...",
-  "authority_handles": []
-}
-```
-
-Token material is not sent to the PDP when normalized claims and proof status suffice. The arguments digest keeps the later execution bound to what policy actually evaluated.
-
-</details>
-<details><summary><strong>18. Application PDP returns obligations and a decision identifier</strong></summary>
-
-The PDP permits or denies and can require redaction, step-up, limits, or other obligations. Its decision identifier anchors later execution and evidence to the policy version that was evaluated.
-
-```json
-{
-  "decision": "permit",
-  "decision_id": "dec-01J4Z8...",
-  "policy_version": "orders-policy@42",
-  "obligations": {
-    "redact": ["customer.ssn"],
-    "max_result_rows": 1
-  },
-  "expires_at": "2026-07-24T19:35:00Z"
-}
-```
-
-**Artifact Produced:** A request- and policy-version-bound decision with enforceable obligations.
-
-</details>
-<details><summary><strong>19. MCP Server requests separate downstream authority from the Authorization Server</strong></summary>
-
-Only after the MCP operation is permitted does the server obtain or exchange authority for the backend audience. The incoming MCP token is never forwarded as a convenience credential.
-
-**Deployment-local credential-broker exchange (illustrative, not MCP wire syntax):**
-
-```http
-POST /v1/credentials/issue HTTP/1.1
-Host: credential-broker.internal.example
-Authorization: Bearer <server-workload-credential>
-Content-Type: application/json
-
-{
-  "audience": "https://orders.internal.example",
-  "scope": ["orders:update"],
-  "subject": "user-2481",
-  "actor": "mcp-server:orders",
-  "decision_id": "dec-01J4Z8...",
-  "ttl_seconds": 60
-}
-```
-
-The request names the target audience, operation, subject, server actor, policy `decision_id`, and requested lifetime. The MCP access token remains in the resource-server boundary; the broker receives only the normalized inputs required to issue or release separate backend authority.
-
-</details>
-<details><summary><strong>20. Authorization Server returns the downstream API credential</strong></summary>
-
-The returned credential is scoped and audience-bound to the backend service and current operation. Credential class and correlation are recorded without logging token material.
-
-**Deployment-local response (illustrative):**
-
-```http
-HTTP/1.1 201 Created
-Content-Type: application/json
-Cache-Control: no-store
-
-{
-  "credential_handle": "cred-backend-01J4Z9...",
-  "credential_class": "backend_access_token",
-  "audience": "https://orders.internal.example",
-  "scope": ["orders:update"],
-  "expires_in": 60,
-  "decision_id": "dec-01J4Z8..."
-}
-```
-
-The non-secret handle and evidence view identify the backend audience, scope, lifetime, and policy decision. They are not the credential itself: the broker keeps the raw token in protected custody, and the MCP server resolves the handle only inside its outbound credential path. Neither value is returned to the MCP client.
-
-**Artifact Produced:** A short-lived backend credential plus a non-secret custody and correlation record.
-
-</details>
-<details><summary><strong>21. MCP Server calls the Downstream API with backend authority</strong></summary>
-
-The server invokes the exact backend action using the separate credential and approved arguments. The downstream service still applies its own entitlement and resource checks.
-
-```http
-PATCH /orders/ord-731 HTTP/1.1
-Host: orders.internal.example
-Authorization: Bearer backend-token...
-Content-Type: application/json
-X-Decision-ID: dec-01J4Z8...
-
-{"status":"approved"}
-```
-
-This is a deployment-local backend exchange, not MCP wire syntax. Only the downstream credential crosses this boundary; the client’s MCP token does not.
-
-</details>
-<details><summary><strong>22. Downstream API returns the operation result to the MCP Server</strong></summary>
-
-The backend response is data, not automatically releasable output. The MCP server classifies it and applies required redaction, recipient, and cache-scope policy.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "order_id": "ord-731",
-  "status": "approved",
-  "customer": {
-    "name": "Ada Example",
-    "ssn": "123-45-6789"
-  }
-}
-```
-
-Before release, the server correlates this provider result to the decision and applies the `customer.ssn` redaction obligation. The sensitive value is shown only to make the enforcement boundary explicit; production evidence must not retain it. Backend success proves the provider accepted the call, not that every returned field may be disclosed to the MCP client.
-
-</details>
-<details><summary><strong>23. MCP Server returns the classified result to the MCP Client</strong></summary>
-
-The client receives only the authorized MCP result plus safe evidence correlation. Admission, application, downstream, and result-release decisions remain joinable without exposing secrets.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 42,
-  "result": {
-    "content": [{"type": "text", "text": "Order ord-731 is approved."}],
-    "_meta": {"decision_id": "dec-01J4Z8..."}
-  }
-}
-```
-
-The evidence chain joins metadata snapshot, token admission, PDP decision, backend invocation, and release policy by identifiers and hashes. Authorization codes, bearer tokens, private keys, and unredacted provider data remain outside that evidence surface.
-
-**Artifact Produced:** The classified MCP result and safe end-to-end evidence correlation.
-
-</details>
-<br/>
-
-The metadata and client-document fetches are untrusted network operations: enforce HTTPS, redirect and DNS/IP policy, response-size and content-type limits, issuer consistency, and cache/change control. A validated CIMD document identifies client software; it does not grant a tool, resource, tenant, or downstream entitlement.
-
-#### 1.3 Client Registration and Enterprise Governance
-
-##### 1.3.1 Client ID Metadata Documents (CIMD)
-
-Client ID Metadata Documents serve clients that have no prior relationship with an authorization server. The client hosts metadata at an HTTPS URL and uses that exact URL as its `client_id`. Where a relationship already exists, issuer-bound pre-registration remains the simpler and preferred path.
-
-```json
-// Hosted at: https://app.example.com/oauth/client-metadata.json
-{
-  "client_id": "https://app.example.com/oauth/client-metadata.json",
-  "client_name": "Example MCP Client",
-  "client_uri": "https://app.example.com",
-  "logo_uri": "https://app.example.com/logo.png",
-  "redirect_uris": [
-    "http://127.0.0.1:3000/callback",
-    "http://localhost:3000/callback"
-  ],
-  "grant_types": ["authorization_code"],
-  "response_types": ["code"],
-  "token_endpoint_auth_method": "none"
-}
-```
-
-| Aspect | CIMD | Pre-registration |
-|:---|:---|:---|
-| **Use when** | Client and AS have no prior relationship | A deployment or user can establish client details out of band |
-| **`client_id`** | HTTPS URL with a path; document value matches the URL exactly | AS-issued identifier bound to that AS issuer |
-| **Validation** | Safe fetch, valid JSON, required fields, exact redirects, explicit trust policy, cache/change control | Exact redirects, credential custody where applicable, issuer-bound storage and rotation |
-| **Client authentication** | Public client or `private_key_jwt` where supported and configured | Defined by the registration |
-| **Current DR-0001 posture** | Approved when the AS advertises support and the document passes trust policy | Approved and preferred where a relationship exists |
-| **External status** | Active OAuth WG Client ID Metadata Document draft | Established operational pattern |
-
-**How CIMD works in the authorization flow**:
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Client as 🤖 MCP Client
-    participant AS as 🔑 Authorization Server
-    participant URL as 🌐 CIMD Endpoint<br/>(app.example.com)
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Client: Phase 1: Authorization Request
-    Client->>Client: Prepare identity<br/>client_id =<br/>https://app.example.com/<br/>oauth/client-metadata.json
-    Client->>AS: Authorization request<br/>(client_id = HTTPS URL)
-    AS->>AS: Detect URL format<br/>→ treat as CIMD
-    Note right of URL: ⠀
-    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of Client: Phase 2: Metadata Fetch
-    AS->>URL: GET /oauth/client-metadata.json
-    URL-->>AS: Metadata document (JSON)
-    Note right of URL: ⠀
-    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Client: Phase 3: Validation & Authorization
-    AS->>AS: Validate document<br/>• client_id matches URL exactly<br/>• valid JSON, required fields present
-    AS->>AS: Cache<br/>respecting HTTP headers
-    AS->>AS: Validate redirect_uris<br/>Validate match
-    AS-->>Client: Authorization proceeds
-    Note right of URL: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
-
-<details>
-<summary><strong>1. MCP Client prepares its CIMD-based client_id</strong></summary>
-
-The MCP Client holds its `client_id` as a resolvable HTTPS URL rather than a statically registered opaque string. For example, `https://app.example.com/oauth/client-metadata.json`. This URL acts as the identifier in the OAuth exchange and the exact location from which the Authorization Server retrieves metadata. It supports no-prior-relationship deployments; it does not replace pre-registration where one already exists.
-
-**Artifact Produced:** Resolvable `client_id` URL
-
-</details>
-<details>
-<summary><strong>2. MCP Client sends authorization request to AS</strong></summary>
-
-The MCP Client initiates the standard OAuth 2.1 flow (e.g., Authorization Code or Device Authorization Grant), but uses the HTTPS URL as its `client_id`.
-
-```http
-GET /authorize?response_type=code&client_id=https%3A%2F%2Fapp.example.com%2Foauth%2Fclient-metadata.json&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=mcp:tools&state=xyz123 HTTP/1.1
-Host: as.mcp.local
-```
-
-</details>
-<details>
-<summary><strong>3. Authorization Server detects URL format and treats it as CIMD</strong></summary>
-
-The Authorization Server inspects the incoming `client_id`. When it is an HTTPS URL with a path and the server advertises CIMD support, the server applies its CIMD resolution and trust policy rather than treating the identifier as a local opaque registration.
-
-</details>
-<details>
-<summary><strong>4. Authorization Server fetches the metadata document from the CIMD URL</strong></summary>
-
-The Authorization Server acts as an HTTP client and makes a direct `GET` request to the provided URL to retrieve the Client ID Metadata Document.
+The authorization server treats the client-controlled URL as an untrusted outbound target. It requires HTTPS and a path, constrains redirects, resolves and checks every destination address, rejects local/private destinations outside explicit policy, enforces timeout and response-size limits, and requires the expected JSON media type before parsing.
 
 ```http
 GET /oauth/client-metadata.json HTTP/1.1
@@ -1325,386 +840,85 @@ Host: app.example.com
 Accept: application/json
 ```
 
-</details>
-<details>
-<summary><strong>5. CIMD Endpoint returns the metadata document to Authorization Server</strong></summary>
+**Validation checkpoint:** A cached document may be reused only within its validated freshness and change-control policy. Caching is not an SSRF defense; revalidation and refresh perform the same destination checks.
 
-The CIMD Endpoint responds with the Client ID Metadata Document, declaring its redirect URIs, client properties, and—where used—cryptographic keys.
+</details>
+<details><summary><strong>3. CIMD Endpoint returns the client identity material</strong></summary>
+
+The document declares the exact identifier, redirect URIs, grant/response types, and—where applicable—the token-endpoint authentication method and verification keys.
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
 Cache-Control: max-age=300
+ETag: "client-metadata-v7"
 
 {
   "client_id": "https://app.example.com/oauth/client-metadata.json",
-  "client_name": "Weather Assistant MCP Agent",
-  "redirect_uris": [
-    "https://app.example.com/callback",
-    "mcp-weather://auth"
-  ],
+  "client_name": "Weather Assistant MCP Client",
+  "redirect_uris": ["https://app.example.com/callback"],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
   "token_endpoint_auth_method": "private_key_jwt",
-  "jwks_uri": "https://app.example.com/oauth/jwks.json",
-  "logo_uri": "https://app.example.com/logo.png"
+  "jwks_uri": "https://app.example.com/oauth/jwks.json"
 }
 ```
 
-**Artifact Produced:** Raw CIMD JSON Document
+**Artifact Produced:** The raw document, retrieval metadata, content hash, and cache validators in a restricted validation record—not a trusted registration and never private-key material.
 
 </details>
-<details>
-<summary><strong>6. Authorization Server validates the fetched metadata document</strong></summary>
+<details><summary><strong>4. Authorization Server validates identity, redirect, key, fetch, and publisher policy</strong></summary>
 
-The Authorization Server performs a strict structural and cryptographic validation of the JSON response:
-1. **Origin matching:** The `client_id` field *inside* the JSON must exactly string-match the URL that was fetched, preventing unauthorized domain spoofing.
-2. **Schema validation:** It verifies the presence of mandatory fields (like `redirect_uris` for authorization code grants). If this fails, the server responds with a `400 Bad Request` and an `invalid_client` error.
-3. **Key resolution:** If `token_endpoint_auth_method` is set to `private_key_jwt`, it preemptively resolves the `jwks_uri`.
+The server requires the document's `client_id` to exactly equal the fetched URL and the requested `redirect_uri` to exactly match a declared value. It validates the document schema, grant/response compatibility, authentication method, and any `jwks_uri` under the same safe-fetch policy. Local publisher/origin and client-class policy then decides whether the identified software is accepted.
 
-**Artifact Produced:** Validated Client Registration Cache Entry
+| Check | Fail-closed requirement |
+|:--|:--|
+| Identifier | Document `client_id` is byte-for-byte equal to the HTTPS URL used in the request |
+| Redirect | Requested redirect URI is an exact registered value; mismatch is not redirected to |
+| Retrieval | Scheme, redirect, DNS/IP, destination, timeout, size, content type, and parsing policy pass |
+| Key material | Declared authentication method and verification-key source are supported and safely resolved |
+| Cache/change | Freshness, validator, document hash, and material changes are governed |
+| Publisher trust | This authorization server accepts the origin, software, and client class |
 
-</details>
-<details>
-<summary><strong>7. Authorization Server caches the metadata document</strong></summary>
+On success, the existing transaction is marked `client_identity = validated_cimd` and continues at [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap). On failure, the authorization server terminates it without dynamic-registration fallback.
 
-After a safe fetch and full validation, the Authorization Server may cache the document according to its HTTP cache policy. Caching reduces repeated retrieval; it is not an SSRF control. Each initial fetch, redirect, revalidation, and cache refresh remains subject to scheme, DNS/IP, destination, size, timeout, content-type, and change-control policy.
-
-</details>
-<details>
-<summary><strong>8. Authorization Server validates redirect_uris against the metadata document</strong></summary>
-
-Returning to the original authorization request from Step 2, the Authorization Server verifies that the requested `redirect_uri` (`https://app.example.com/callback`) is explicitly listed in the `redirect_uris` array of the newly fetched and validated metadata document. If the URI does not match, the Authorization Server aborts the flow and returns an error directly to the browser without redirecting, preventing open-redirect exploitation.
+**Artifact Produced:** An issuer-local client-validation decision linked to the document hash, retrieval evidence, exact redirect, and authorization transaction.
 
 </details>
-<details>
-<summary><strong>9. Authorization Server proceeds with authorization</strong></summary>
 
-With the client identified, metadata validated, and redirect URI matched exactly, the Authorization Server applies its client trust and authorization policy before prompting for consent. CIMD removes a mandatory bilateral registration step for accepted clients; it does not require an AS to trust every reachable document or permit every agent.
-
-**What changed from Step 2:** The same pending authorization transaction now carries `client_identity = validated_cimd` and `redirect_uri = exact_match`. No authorization code exists yet; the server must still authenticate the user and make the authorization decision.
-
-**Artifact Produced:** A client-validated authorization transaction admitted to the next authorization stage.
-
-</details>
 <br/>
 
-**Security considerations for CIMD**:
-- The `client_id` URL **MUST** use the `https` scheme and contain a path component
-- ASes **SHOULD** cache metadata documents to avoid repeated fetches
-- ASes **MUST** validate that the fetched document's `client_id` matches the URL exactly
-- Clients **MAY** use `private_key_jwt` for client authentication with JWKS configuration
-- CIMD does NOT solve the problem of client *trust* — it solves client *identification*. An AS may still reject unknown clients even if their metadata is valid.
+CIMD identifies client software; it does not prove a particular running instance, user approval, MCP scope, tenant membership, application permission, or downstream entitlement. Those decisions remain at their own boundaries.
 
-##### 1.3.2 Enterprise-Managed Authorization: Identity Assertion Grant Protocol
+#### 1.4 Authorization Path and Profile Selection
 
-The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) is best understood as the MCP **enterprise bridge pattern** built on the IETF **Identity Assertion JWT Authorization Grant** (`draft-ietf-oauth-identity-assertion-authz-grant-04`, an IETF OAuth WG draft updated May 21, 2026; authors: A. Parecki [Okta], K. McGuinness, B. Campbell [Ping Identity]). That draft is itself a concrete enterprise profile of the **OAuth Identity and Authorization Chaining Across Domains** specification (`draft-ietf-oauth-identity-chaining-17`, submitted to the RFC Editor queue in July 2026; see [§20.4](#204-delegation-and-identity-chains)). In DR-0001's layering model, SEP-990 is **not** the federation/discovery layer. It is the runtime mechanism that lets an enterprise IdP broker access tokens for MCP servers after user SSO and administrator policy evaluation.
+Select the authority relationship in §4 before selecting wire mechanics. The same MCP resource may admit several paths, but a client uses only a path whose client class, authentication method, extension maturity, and deployment evidence are explicitly approved.
 
-The trust relationship between the enterprise IdP and the target MCP Authorization Server must already exist through bilateral onboarding or a separate trust substrate such as OpenID Federation ([§8.7.2](#872-openid-federation-11-for-agent-trust)). SEP-990 then uses that trust to **silently obtain access tokens for MCP servers**, replacing interactive user consent with **administrator-defined IdP policies**.
+| Path | Authority and user presence | Client and authentication | Grant/profile | Status and canonical wire |
+|:--|:--|:--|:--|:--|
+| **Ordinary interactive OAuth** | User-delegated authority; user or approved interactive decision actor participates | Public client with PKCE, or confidential client using its registered authentication method | Authorization Code + PKCE under the current MCP authorization profile | Core admitted path; complete flow in [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap) |
+| **Enterprise-Managed Authorization (EMA)** | Enterprise policy plus authenticated workforce identity; enterprise SSO may authenticate the user without treating the event as resource-owner consent | Enterprise-managed MCP client and trust relationship defined by deployment | Stable MCP EMA extension using the [Identity Assertion Authorization Grant (ID-JAG)](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) | Stable MCP extension over an active OAuth WG draft; complete flow in [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile) |
+| **Direct machine authority** | Client/workload acts under its own authority; no human subject or consent event is fabricated | Confidential, preregistered client using `private_key_jwt` in the canonical profile | MCP [OAuth Client Credentials extension](https://modelcontextprotocol.io/extensions/auth/oauth-client-credentials) | Optional draft extension; complete flow in [§1.7](#17-oauth-client-credentials-direct-machine-authority) |
+| **High-assurance overlay** | Same authority source as the compatible underlying grant | Confidential client with strong authentication and sender-constrained access tokens | [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0.html), optionally the separate [Message Signing profile](https://openid.net/specs/fapi-message-signing-2_0-final.html) | Final overlay, not a grant; applicability and deltas in [§1.8](#18-high-assurance-oauth-profile-overlay) |
+| **Downstream derivation** | Accepted upstream evidence is exchanged for target-bounded delegated or actor authority | Workload/client trusted by the target authorization server | [OAuth Token Exchange (RFC 8693)](https://www.rfc-editor.org/rfc/rfc8693.html) under a deployment profile | Not initial MCP bootstrap; complete owner is §5 |
+| **Structured constraints** | Existing authority is narrowed to typed actions, objects, amounts, recipients, or conditions | Client and authorization server share a registered authorization-details type | [Rich Authorization Requests (RFC 9396)](https://www.rfc-editor.org/rfc/rfc9396.html) | Request enrichment, not a standalone grant; complete owner is §19 |
 
-**Three-step flow** — The protocol combines two existing IETF standards:
+Each selection requires path-specific evidence; core MCP support is never treated as a universal extension-negotiation signal:
 
-| Step | Standard | Actor | Action | Output |
-|:-----|:---------|:------|:-------|:-------|
-| 1 — SSO | OIDC / SAML | User → IdP | Authenticate via enterprise SSO | ID Token (or SAML Assertion) |
-| 2 — Token Exchange | RFC 8693 | MCP Client → IdP | Exchange ID Token for an **ID-JAG** targeting the MCP Server's AS | Identity Assertion JWT Authorization Grant (`oauth-id-jag+jwt`) |
-| 3 — JWT Grant | RFC 7523 | MCP Client → MCP AS | Present the ID-JAG as a JWT assertion | Access token (audience-bound to MCP Server) |
-
-The **IdP policy evaluation** in Step 2 is the enterprise governance enforcement point — the administrator controls which MCP clients can act on behalf of which users, for which MCP servers, with which scopes. This replaces the interactive consent screen that the standard Authorization Code + PKCE flow ([§1.5](#15-solved-authorization-bootstrap)) would present. The key architectural boundary is that Step 2 carries **runtime authorization context**; it does not discover foreign issuers or establish ecosystem-wide trust. Those concerns belong to the separate trust-establishment layer ([§8.7.2](#872-openid-federation-11-for-agent-trust)).
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Client as 🤖 MCP Client
-    participant IdP as 🏢 Enterprise IdP
-    participant MAS as 🔑 MCP Authorization<br/>Server
-    participant MRS as 🛠️ MCP Server<br/>(Resource Server)
-
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Client: Phase 1: Enterprise SSO
-    Client->>IdP: OIDC/SAML SSO<br/>(user authenticates via<br/>browser redirect, MFA,<br/>WebAuthn, Kerberos)
-    IdP-->>Client: ID Token +<br/>(optional) refresh token
-    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(241, 196, 15, 0.14)
-    Note right of Client: Phase 2: ID-JAG Token Exchange (RFC 8693)
-    Client->>IdP: Token Exchange request<br/>grant_type=token-exchange<br/>requested_token_type=id-jag<br/>audience=MCP AS issuer URL<br/>resource=MCP Server URI (RFC 9728)<br/>subject_token=ID Token<br/>scope=chat.read chat.history
-    Note over IdP: Evaluate admin policy<br/>• Is this MCP client allowed?<br/>• For this MCP server?<br/>• With these scopes?<br/>• For this user/group?
-    IdP-->>Client: ID-JAG (signed JWT,<br/>typ=oauth-id-jag+jwt)
-    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Client: Phase 3: JWT Authorization Grant (RFC 7523)
-    Client->>MAS: Token request<br/>grant_type=jwt-bearer<br/>assertion=ID-JAG
-    Note over MAS: Validate ID-JAG<br/>• Verify IdP signature (JWKS)<br/>• Check aud = own issuer URL<br/>• Check client_id = authenticated client<br/>• Check typ = oauth-id-jag+jwt
-    MAS-->>Client: Access token<br/>(audience-bound to MCP Server)
-    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    rect rgba(52, 152, 219, 0.14)
-    Note right of Client: Phase 4: Authorized MCP Communication
-    Client->>MRS: MCP request +<br/>Authorization: Bearer token
-    MRS-->>Client: MCP response
-    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of MRS: ⠀
-```
-
-<details>
-<summary><strong>1. MCP Client initiates OIDC/SAML SSO with the enterprise IdP</strong></summary>
-
-The MCP Client redirects the user's browser to the enterprise IdP (e.g., Entra ID, Okta, PingFederate) using a standard OpenID Connect authorization request (or SAML AuthnRequest). The user authenticates via the organization's SSO ceremony — which may enforce MFA, device compliance checks, or WebAuthn tap. The IdP returns an authorization code to the client's redirect URI. The MCP Client exchanges the code for an ID Token containing the user's identity claims (`sub`, `iss`, `aud`, `auth_time`, `amr`). If the IdP supports the `offline_access` scope, the MCP Client also obtains a refresh token for silent ID-JAG renewal later.
-
-The worked path below uses OIDC Authorization Code + PKCE. SAML is an alternative enterprise sign-in ceremony and has a different wire shape; it is not represented by this OIDC request.
-
-```http
-GET /authorize?response_type=code
-  &client_id=mcp-desktop-client
-  &redirect_uri=https%3A%2F%2Fclient.enterprise.example%2Fcallback
-  &scope=openid%20profile%20offline_access
-  &state=st_8f31...
-  &nonce=n_2b77...
-  &code_challenge=6M7...
-  &code_challenge_method=S256 HTTP/1.1
-Host: idp.enterprise.example
-```
-
-After user authentication, the browser returns only the short-lived code and retained correlation value:
-
-```http
-HTTP/1.1 302 Found
-Location: https://client.enterprise.example/callback?code=cd_917...&state=st_8f31...
-Cache-Control: no-store
-```
-
-**Artifact Produced:** An authenticated OIDC authorization transaction containing the code, consumed state, nonce, redirect URI, and PKCE verifier.
-
-</details>
-<details>
-<summary><strong>2. Enterprise IdP returns the ID Token to the MCP Client</strong></summary>
-
-The Enterprise IdP completes the standard OIDC token exchange, returning an ID Token (JWT) that asserts the user's identity. This ID Token will serve as the `subject_token` in the next step. The ID Token's `aud` claim identifies the MCP Client (not the target MCP Server) — it is a standard SSO artifact, not yet scoped to any particular MCP resource.
-
-```http
-POST /token HTTP/1.1
-Host: idp.enterprise.example
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=cd_917...&
-redirect_uri=https%3A%2F%2Fclient.enterprise.example%2Fcallback&
-client_id=mcp-desktop-client&
-code_verifier=pkce_q91...
-```
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: no-store
-Pragma: no-cache
-
-{
-  "access_token": "<redacted>",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6I..."
-}
-```
-
-**Decoded and validated ID Token claim subset (illustrative):**
-
-```json
-{
-  "iss": "https://idp.enterprise.example",
-  "sub": "user-789",
-  "aud": "mcp-desktop-client",
-  "auth_time": 1784971800,
-  "amr": ["pwd", "hwk"],
-  "iat": 1784971810,
-  "exp": 1784975410
-}
-```
-
-The client verifies signature, issuer, audience, nonce, and time claims before admitting the ID Token as the next step's subject token. The access token in this OIDC response is for the enterprise IdP's own resource model; it is not the MCP-resource token issued in Step 6.
-
-**Artifact Produced:** A validated ID Token and, when requested and permitted, a refresh token kept in client credential custody.
-
-</details>
-<details>
-<summary><strong>3. MCP Client sends a Token Exchange request to the IdP for an ID-JAG</strong></summary>
-
-The MCP Client uses the ID Token as a `subject_token` in an RFC 8693 Token Exchange request to the Enterprise IdP's token endpoint. The request specifies: `audience` = the MCP Server's AS issuer URL, `resource` = the MCP Server's RFC 9728 resource identifier, `requested_token_type` = `urn:ietf:params:oauth:token-type:id-jag`, and optionally `scope` and `authorization_details` `(RFC 9396, §2)`. If the ID Token has expired, the client may use a previously obtained refresh token as the `subject_token` instead, avoiding a new SSO round-trip.
-
-```http
-POST /token HTTP/1.1
-Host: idp.enterprise.internal
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token_type=urn:ietf:params:oauth:token-type:id_token
-&subject_token=eyJhbGci...
-&requested_token_type=urn:ietf:params:oauth:token-type:id-jag
-&audience=https://auth.mcp-gateway.internal
-&resource=https://server.mcp.local
-```
-
-</details>
-<details>
-<summary><strong>4. Enterprise IdP evaluates administrator-defined policy and issues the ID-JAG</strong></summary>
-
-This is the **enterprise governance enforcement point**. The Enterprise IdP evaluates policies configured by the organization's IT administrator to determine whether the MCP Client should be granted access to act on behalf of this user for this target MCP Server with the requested scopes. Policy dimensions include: user group membership, MCP client identity, target MCP server allowlist, and permitted scope subsets.
-
-If authorized, the Enterprise IdP signs and returns an ID-JAG — a JWT with `typ: oauth-id-jag+jwt` containing claims `iss` (IdP), `sub` (user), `aud` (MCP AS issuer URL), `resource` (MCP Server URI), and `client_id` (MCP Client's registration at the MCP AS). The IdP may also include a `cnf.jkt` claim for DPoP sender-constraining. This assertion assumes the MCP AS already recognizes the enterprise IdP as a trusted issuer, whether through direct bilateral setup or a separate federation layer. If the policy evaluation fails, the IdP responds with `400 Bad Request` and `invalid_request` or `access_denied`, generating an audit log entry for the unauthorized access attempt.
-
-```jwt
-eyJhbGciOiJSUzI1NiIsIng1YyI...
-.
-{
-  "iss": "https://idp.enterprise.internal",
-  "sub": "user_789",
-  "aud": "https://auth.mcp-gateway.internal",
-  "resource": "https://server.mcp.local",
-  "client_id": "mcp-agent-123",
-  "iat": 1700000000,
-  "exp": 1700003600,
-  "typ": "oauth-id-jag+jwt"
-}
-.
-[signature]
-```
-
-**Artifact Produced:** Identity Assertion Grant JWT (ID-JAG)
-
-</details>
-<details>
-<summary><strong>5. MCP Client sends a JWT Authorization Grant request to the MCP Server's AS</strong></summary>
-
-The MCP Client uses the ID-JAG as a JWT assertion in an RFC 7523 JWT Authorization Grant request (`grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`) to the MCP Authorization Server token endpoint. The client authenticates with its credentials registered at the MCP AS. If the ID-JAG carries a `cnf` claim, the client must also present a DPoP proof JWT in the `DPoP` HTTP header.
-
-```http
-POST /token HTTP/1.1
-Host: auth.mcp-gateway.internal
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
-&assertion=eyJhbGci...
-&client_id=mcp-agent-123
-```
-
-When the client is confidential, it authenticates using the method registered at the MCP Authorization Server—for example, HTTP Basic, `private_key_jwt`, or a sender-constrained method. The walkthrough never embeds a reusable client secret in request bodies or evidence.
-
-</details>
-<details>
-<summary><strong>6. MCP Authorization Server validates the ID-JAG and issues an access token</strong></summary>
-
-The MCP Authorization Server validates the ID-JAG by: (1) checking the JWT `typ` is `oauth-id-jag+jwt` preventing token confusion attacks, (2) verifying the IdP's signature using the IdP's trusted key material (published JWKS, federated metadata, or equivalent), (3) confirming the `aud` claim matches its own issuer identifier, and (4) confirming the `client_id` claim matches the authenticated client, preventing cross-client impersonation.
-
-Upon successful validation, the MCP Authorization Server issues an audience-bound access token — the same kind of token that the standard Authorization Code + PKCE flow would produce, but obtained without any user interaction beyond the initial SSO. If validation fails (e.g., invalid signature), it returns a `401 Unauthorized` with an `invalid_client` or `invalid_grant` error, logging the failed trust verification.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "access_token": "eyJhbG...[audience-bound-jwt]",
-  "token_type": "Bearer",
-  "expires_in": 3600
-}
-```
-
-**Artifact Produced:** Access Token (Audience-bound)
-
-</details>
-<details>
-<summary><strong>7. MCP Client sends an authorized MCP request to the target MCP Server</strong></summary>
-
-The MCP Client sends MCP requests over Streamable HTTP with the standard `Authorization: Bearer` header, persistently storing the access token in its secure local memory. From the MCP Server's perspective, the access token is indistinguishable from one obtained via the standard consent-based flow — it carries the same audience binding, scope claims, and user identity.
-
-```http
-POST /mcp HTTP/1.1
-Host: server.mcp.local
-Authorization: Bearer eyJhbG...
-Content-Type: application/json
-Accept: application/json, text/event-stream
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/list
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/list",
-  "params": {
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-**Artifact Produced:** A request-bound credential-use record linking the MCP token's safe identifier to method `tools/list`, resource `https://server.mcp.local`, protocol version, and JSON-RPC request ID. The request does not create a DID or verifiable credential.
-
-</details>
-<details>
-<summary><strong>8. MCP Server returns the response to the MCP Client</strong></summary>
-
-The MCP Server validates the access token (signature, expiration, audience, scopes) to prevent unauthorized API execution, processes the JSON-RPC request, and returns the response. Subsequent MCP requests reuse the same access token until it expires, at which point the client can obtain a fresh ID-JAG from the Enterprise IdP (using the refresh token from Step 1) and exchange it for a new access token (Step 5) — all without user interaction.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "tools": [
-      { "name": "get_weather", "description": "Fetches weather" }
-    ]
-  }
-}
-```
-
-</details>
-<br/>
-
-**IdP visibility limitation** — The enterprise IdP controls *who can get tokens* for which MCP servers, but does **not** observe the actual MCP API calls between client and server. Runtime tool invocations, scope enforcement, and audit logging remain the responsibility of the MCP Server (or gateway, per [§13](#13-gateway-mediated-mcp-architecture)). This is analogous to traditional OAuth: the IdP governs authorization grants, not API call content.
-
-**Layering boundary** — Enterprise-Managed Authorization should not be mistaken for a general cross-ecosystem trust protocol. It is the **runtime enterprise bridge** that sits below SSO and above MCP token issuance. When an organization needs multilateral discovery and issuer trust across many external parties, that trust-establishment problem is handled by frameworks such as OpenID Federation ([§8.7.2](#872-openid-federation-11-for-agent-trust)), not by ID-JAG itself.
-
-**CIMD intersection** — A CIMD URL can provide a stable client identifier across authorization servers that accept it, reducing per-AS identifier mapping. It remains subject to each authorization server's trust and retrieval policy; it does not create a universal client trust relationship.
-
-> **Cross-references**: [§14.1](#141-first-party-authorization-enterprisesame-organization) (first-party consent bypass — SEP-990 is the protocol mechanism enabling it), [§14.7](#147-approval-grant-and-consent-persistence-architecture) (organization-managed consent pattern), [§8.7.2](#872-openid-federation-11-for-agent-trust) (OpenID Federation — separate trust-establishment layer), [§20.4](#204-delegation-and-identity-chains) (Identity Chaining — the parent runtime propagation specification), §H.5 (Auth0 XAA — a production implementation of this flow), [§12.3](#123-sender-constraint-and-key-custody-boundaries) (DPoP sender-constraining of ID-JAGs).
-
-#### 1.4 Layered Failure Taxonomy
-
-Failures must be classified at the boundary that rejected the request. Collapsing protocol, metadata, token, application, object, downstream, and evidence failures into a generic OAuth denial hides both the cause and the correct recovery.
-
-| Failure layer | Examples | Required response |
+| Path | Required support or discovery evidence | Successful selection still does **not** prove |
 |:--|:--|:--|
-| **Protocol admission** | Unsupported core; absent extension; capability missing; routing header/body mismatch | Reject before application dispatch; report the supported contract without downgrade fallback |
-| **Metadata and client trust** | Unsafe URL; SSRF target; issuer inconsistency; untrusted CIMD; redirect mismatch; local-client impersonation | Stop discovery or authorization; do not silently change registration mechanism |
-| **Authentication and token binding** | Bad signature; wrong issuer; wrong resource/audience; expiry; replay signal | Return the applicable authentication/token failure; never invoke the primitive |
-| **Application authorization** | Insufficient scope; denied tool/resource/prompt; tenant mismatch; unmet obligation | Deny or issue the minimum current scope challenge |
-| **Explicit-handle authorization** | Wrong owner/delegate; type substitution; expired/revoked task; stale request-state; unsafe cache reuse | Deny the operation without revealing whether another principal's object exists |
-| **Downstream authorization** | Backend audience/entitlement failure; exchange failure; policy mismatch | Fail the operation; never pass through the MCP token |
-| **Evidence and control plane** | PDP unavailable; stale policy; missing decision ID; failed audit sink | Apply the declared fail-closed/degraded policy and expose observable health evidence |
+| **Ordinary interactive OAuth** | Validated [Protected Resource Metadata (RFC 9728)](https://www.rfc-editor.org/rfc/rfc9728.html), selected issuer and [Authorization Server Metadata (RFC 8414)](https://www.rfc-editor.org/rfc/rfc8414.html), plus an accepted pre-registration or CIMD identity | User approval before the AS decision, application permission, or an OIDC ID token |
+| **EMA / ID-JAG** | AS metadata `authorization_grant_profiles_supported` contains `urn:ietf:params:oauth:grant-profile:id-jag`; enterprise SSO configuration and issuer trust are separately established | Generic federation, user consent, acceptance of every identity assertion, or permission for every MCP operation |
+| **Client Credentials** | Issuer-bound preregistration plus AS metadata `token_endpoint_auth_methods_supported` containing an approved `private_key_jwt` or `client_secret_basic` method; the exact draft extension revision is pinned | A user, consent event, refresh token, JWT access-token shape, or authority beyond the client/machine principal |
+| **FAPI overlay** | Compatible AS/client metadata, confidential-client architecture, sender-constraint method, selected FAPI profile, and named ecosystem/conformance evidence | That a public/native client became confidential, that PAR applies to a non-authorization-endpoint grant, or that Security Profile alone mandates JAR/JARM |
+| **[RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) derivation** | Target authorization server explicitly supports the selected exchange profile and accepts the presented evidence class | Initial client admission, universal impersonation/delegation semantics, or target-resource permission |
+| **RAR** | AS and resource server share a registered/profiled `authorization_details` type and validation contract | MCP-core support, a grant by itself, or application authorization of arbitrary detail values |
 
-The current core assigns `HeaderMismatch` to `-32020` and `UnsupportedProtocolVersion` to `-32022`. The core and current Tasks draft assign different numeric codes to a missing required capability, so policy and telemetry should normalize the semantic failure while protocol handling remains bound to the exact core and extension versions.
+An unsupported or ambiguous path stops at selection. It does not fall back to DCR, another grant, a weaker client-authentication method, or an invented MCP capability handshake.
 
-#### 1.5 Solved Authorization Bootstrap
+#### 1.5 Canonical Interactive MCP OAuth Bootstrap
 
-The following current-only flow shows the successful path and one concrete abuse denial. There is no alternate registration branch outside pre-registration or trusted CIMD.
+This is the sole complete ordinary MCP Authorization Code + PKCE ceremony in this document. It begins with the unauthenticated MCP request, validates resource and issuer metadata, consumes the accepted client identity from [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd), binds the authorization response and token to one transaction, retries the exact MCP operation, and keeps token admission separate from application authorization. There is no alternate client-registration branch outside issuer-bound pre-registration or validated CIMD.
 
 ```mermaid
 ---
@@ -1726,7 +940,7 @@ sequenceDiagram
     rect rgba(148, 163, 184, 0.14)
     Note right of Client: Phase 1: Discovery
     Client->>Server: Attempt MCP request
-    Server-->>Client: HTTP 401 + WWW-Authenticate<br/>(resource_metadata link per RFC 9728)
+    Server-->>Client: HTTP 401 + WWW-Authenticate<br/>(protected-resource metadata link)
 
     Client->>Server: Fetch /.well-known/oauth-protected-resource
     Server-->>Client: Returns { authorization_servers: [...] }
@@ -1738,18 +952,12 @@ sequenceDiagram
 
     rect rgba(52, 152, 219, 0.14)
     Note right of Client: Phase 2: Establish Client Identity
-    alt Issuer-bound pre-registration exists
-        Client->>Client: Load registration bound<br/>to validated AS issuer
-    else AS advertises CIMD
-        Client->>Client: Select trusted HTTPS<br/>client metadata URL
-        AS->>AS: Fetch and validate CIMD<br/>under explicit network policy
-        Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+    Client->>Client: Select accepted issuer-bound<br/>client identity from §1.3
     Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of Client: Phase 3: Authentication & Consent
+    Note right of Client: Phase 3: Authorization and Token Issuance
     Client->>AS: Authorization request<br/>resource + state + PKCE S256
     AS-->>Client: Code response + issuer
     Client->>Client: Validate state + exact issuer
@@ -1798,7 +1006,7 @@ Mcp-Method: tools/list
 <details>
 <summary><strong>2. MCP Server responds with HTTP 401 and WWW-Authenticate header</strong></summary>
 
-The MCP Server — acting as an OAuth 2.0 Resource Server — rejects the unauthenticated request with a `401 Unauthorized` response. The `WWW-Authenticate: Bearer` header includes a `resource_metadata` link `(RFC 9728, §3)`, directing the client to the Protected Resource Metadata document. The spec also allows the server to include a `scope` parameter here to guide the client's scope selection. The server logs an "unauthenticated challenge issued" telemetry event.
+The MCP Server — acting as an OAuth 2.0 Resource Server — rejects the unauthenticated request with a `401 Unauthorized` response. The `WWW-Authenticate: Bearer` header includes a `resource_metadata` link under [RFC 9728 §3](https://www.rfc-editor.org/rfc/rfc9728.html#section-3), directing the client to the Protected Resource Metadata document. The standard also allows the server to include a `scope` parameter here to guide the client's scope selection. The server logs an "unauthenticated challenge issued" telemetry event.
 
 ```http
 HTTP/1.1 401 Unauthorized
@@ -1812,7 +1020,7 @@ WWW-Authenticate: Bearer
 <details>
 <summary><strong>3. MCP Client fetches the Protected Resource Metadata document</strong></summary>
 
-The MCP Client sends a `GET` request to the returned metadata URL (`/.well-known/oauth-protected-resource`) on the MCP Server's origin. Under RFC 9728, it identifies the MCP resource, the Authorization Server(s) the resource declares, supported scopes, and bearer methods. The client applies its metadata URL, redirect, DNS/IP, response-size, and issuer policy before trusting the result.
+The MCP Client sends a `GET` request to the returned metadata URL (`/.well-known/oauth-protected-resource`) on the MCP Server's origin. Under [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html), it identifies the MCP resource, the Authorization Server(s) the resource declares, supported scopes, and bearer methods. The client applies its metadata URL, redirect, DNS/IP, response-size, and issuer policy before trusting the result.
 
 ```http
 GET /.well-known/oauth-protected-resource HTTP/1.1
@@ -1836,7 +1044,7 @@ Cache-Control: max-age=300
   "authorization_servers": [
     "https://auth.mcp-gateway.internal"
   ],
-  "scopes_supported": ["mcp:tools", "mcp:prompts", "mcp:resources"],
+  "scopes_supported": ["mcp:tools:read", "mcp:prompts:read", "mcp:resources:read"],
   "bearer_methods_supported": ["header"]
 }
 ```
@@ -1859,7 +1067,7 @@ Accept: application/json
 <details>
 <summary><strong>6. Authorization Server returns its metadata document</strong></summary>
 
-The Authorization Server returns the standard `(RFC 8414, §2)` metadata document declaring its endpoints (`/authorize`, `/token`) and capabilities. Crucially, the client checks if `client_id_metadata_document_supported` is `true`.
+The Authorization Server returns the standard [RFC 8414 §2](https://www.rfc-editor.org/rfc/rfc8414.html#section-2) metadata document declaring its endpoints (`/authorize`, `/token`) and capabilities. The client records whether `client_id_metadata_document_supported` is `true` before selecting the no-prior-relationship CIMD branch; issuer-bound pre-registration does not require that signal.
 
 ```http
 HTTP/1.1 200 OK
@@ -1881,70 +1089,34 @@ Cache-Control: max-age=300
 
 </details>
 <details>
-<summary><strong>7. MCP Client loads its issuer-bound pre-registration</strong></summary>
+<summary><strong>7. MCP Client selects the issuer-bound client identity admitted by §1.3</strong></summary>
 
-When the client already has an approved relationship, it loads the client identity stored for the validated authorization-server issuer. This prevents credentials or identifiers from being reused at a lookalike issuer.
+The client loads either the approved pre-registration for the validated issuer or the CIMD identity already validated under [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd). It never reuses a registration at a lookalike issuer and never interprets AS metadata as permission to trust an arbitrary metadata document.
 
-The selected record binds four values as one unit: exact AS issuer, client identifier, redirect URI set, and authentication method. Client secrets or signing keys stay in their credential store; the transaction retains only a reference to the selected registration and its version.
+| Bound transaction value | Required state |
+|:--|:--|
+| `issuer` | Exact issuer returned by validated AS metadata |
+| `client_id` | Issuer-bound registered identifier or exact validated CIMD URL |
+| `redirect_uri` | Exact URI accepted by the registration/CIMD decision |
+| `client_authentication` | Public-client `none` or the exact registered confidential-client method |
+| `registration_source` | Versioned `pre_registered` or `validated_cimd` decision reference |
 
-**Artifact Produced:** An issuer-bound client-registration selection.
+Secrets and signing keys remain in client custody. The authorization transaction retains only the registration/validation reference and the non-secret values it must compare later.
 
-</details>
-<details>
-<summary><strong>8. MCP Client selects a trusted CIMD URL when pre-registration is absent</strong></summary>
-
-If the authorization server advertises CIMD, the client selects its exact HTTPS metadata URL under local trust policy. The URL identifies client software; it does not grant access to the MCP resource.
-
-The selection records the URL, expected redirect URI, document origin, and the AS capability that enabled this branch. It does not pre-approve the fetched document: publisher trust, retrieval safety, and exact field matching remain authorization-server decisions.
-
-</details>
-<details>
-<summary><strong>9. Authorization Server fetches and validates the CIMD document</strong></summary>
-
-The server applies bounded network-fetch rules, requires exact client-identifier and redirect matching, validates keys and syntax, and evaluates publisher trust. Failure ends the flow without falling back to DCR.
-
-**CIMD fetch and response (standard draft shape):**
-
-```http
-GET /oauth/client-metadata.json HTTP/1.1
-Host: app.example.com
-Accept: application/json
-```
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: max-age=300
-
-{
-  "client_id": "https://app.example.com/oauth/client-metadata.json",
-  "redirect_uris": ["https://app.example.com/callback"],
-  "grant_types": ["authorization_code"],
-  "response_types": ["code"],
-  "token_endpoint_auth_method": "none"
-}
-```
-
-| Decision boundary | Fail-closed condition |
-|:------------------|:----------------------|
-| Retrieval | Unsafe redirect or DNS/IP destination, wrong content type, timeout, or oversized body |
-| Identity | Fetched `client_id` differs from the exact URL used in the request |
-| Redirect | Requested redirect URI is absent or not an exact match |
-| Publisher policy | The document is syntactically valid but its origin or client class is not trusted |
-
-**Artifact Produced:** A validated client-metadata result tied to the document hash and authorization transaction.
+**Artifact Produced:** An accepted issuer-bound client identity joined to the resource/issuer transaction.
 
 </details>
 <details>
-<summary><strong>10. MCP Client sends the resource-bound authorization request</strong></summary>
+<summary><strong>8. MCP Client sends the resource-bound authorization request</strong></summary>
 
-The request carries the approved client identity, MCP resource, state, exact redirect URI, and PKCE S256 challenge. These values bind authentication and consent to this resource and client transaction.
+The request carries the approved client identity, MCP resource, state, exact redirect URI, and PKCE S256 challenge. These values bind the authorization decision to this resource and client transaction.
 
 ```http
 GET /authorize?response_type=code
   &client_id=https%3A%2F%2Fapp.example.com%2Foauth%2Fclient-metadata.json
   &redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback
   &resource=https%3A%2F%2Fserver.mcp.local
+  &scope=mcp%3Atools%3Aread
   &state=st_42e...
   &code_challenge=pkce_challenge...
   &code_challenge_method=S256 HTTP/1.1
@@ -1955,9 +1127,9 @@ The client stores the exact issuer, resource, redirect URI, state, and PKCE veri
 
 </details>
 <details>
-<summary><strong>11. Authorization Server returns the code and issuer to the MCP Client</strong></summary>
+<summary><strong>9. Authorization Server returns the code and issuer to the MCP Client</strong></summary>
 
-After authenticating the user and evaluating client, resource, scope, and consent policy, the server returns a short-lived authorization code plus its issuer identity. The response is not yet safe to redeem.
+After authenticating the user when required and evaluating client, resource, scope, grant, and approval policy, the server returns a short-lived authorization code plus its issuer identity. The response is not yet safe to redeem.
 
 ```http
 HTTP/1.1 302 Found
@@ -1969,7 +1141,7 @@ The code remains in client custody and is accepted only within the retained tran
 
 </details>
 <details>
-<summary><strong>12. MCP Client validates state and the exact Authorization Server issuer</strong></summary>
+<summary><strong>10. MCP Client validates state and the exact Authorization Server issuer</strong></summary>
 
 The client consumes the retained state and requires the returned issuer to match discovery. An issuer or state mismatch is denied as a mix-up or replay signal.
 
@@ -1989,7 +1161,7 @@ The successful transition consumes state before token redemption. A denial does 
 
 </details>
 <details>
-<summary><strong>13. MCP Client redeems the code with the PKCE verifier and resource</strong></summary>
+<summary><strong>11. MCP Client redeems the code with the PKCE verifier and resource</strong></summary>
 
 The token request proves possession of the verifier and repeats the intended resource. An intercepted code or substituted audience therefore cannot silently become an MCP access token.
 
@@ -2009,7 +1181,7 @@ The request is sent only to the token endpoint from the validated issuer metadat
 
 </details>
 <details>
-<summary><strong>14. Authorization Server issues the audience-bound access token</strong></summary>
+<summary><strong>12. Authorization Server issues the audience-bound access token</strong></summary>
 
 The token binds issuer, MCP audience or resource, subject, client, grant, and validity period. It authorizes no unrelated downstream API and remains subject to application policy at the resource.
 
@@ -2028,17 +1200,41 @@ Cache-Control: no-store
 
 **Artifact Produced:** An MCP-resource access token plus a non-secret custody record containing its class, audience, expiry, and transaction correlation.
 
-</details>
-<details>
-<summary><strong>15. MCP Client sends the complete authorized request to the MCP Server</strong></summary>
-
-The request includes the bearer token, current core version, capabilities, routing headers, method, and arguments. It carries all protocol and authorization context needed for this request.
-
-> **What changed from Step 1:** the JSON-RPC operation can remain the same, but the request now carries the MCP-resource bearer token and the transaction’s current protocol metadata. No downstream credential, browser cookie, authorization code, or prior connection state is added.
+An ID token appears only when the deployment also requests and completes an OpenID Connect flow. It authenticates the user to the client; it is not the MCP access token, is not required by ordinary MCP OAuth, and is never substituted for the resource-bound bearer credential.
 
 </details>
 <details>
-<summary><strong>16. MCP Server validates protocol, token, and application authority</strong></summary>
+<summary><strong>13. MCP Client sends the complete authorized request to the MCP Server</strong></summary>
+
+The request repeats the same operation with the MCP-resource bearer token. Version, per-request client capabilities, and routing headers are still present; credential acquisition supplies no connection-derived protocol state.
+
+```http
+POST /mcp HTTP/1.1
+Host: server.mcp.local
+Authorization: Bearer eyJ...
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
+```
+
+**What changed from Step 1:** only the request ID and `Authorization` header are new. No downstream credential, browser cookie, authorization code, ID token, or prior connection state is added.
+
+</details>
+<details>
+<summary><strong>14. MCP Server validates protocol, token, and application authority</strong></summary>
 
 The server validates admission and routing, then checks signature or introspection, issuer, resource or audience, time, client, and scopes. It separately authorizes the primitive, arguments, tenant, and every explicit handle.
 
@@ -2058,9 +1254,34 @@ stateDiagram-v2
 
 The admission result and application decision are separately recorded. A valid token cannot bypass tool, argument, tenant, or handle policy.
 
+**Deployment-local application decision contract:**
+
+```json
+{
+  "input": {
+    "subject": "user-2481",
+    "client_id": "https://app.example.com/oauth/client-metadata.json",
+    "tenant": "tenant-a",
+    "method": "tools/list",
+    "arguments_digest": "sha256:e3b0...",
+    "authority_handles": [],
+    "token_admission": "passed"
+  },
+  "output": {
+    "decision": "permit",
+    "decision_id": "dec-4ab...",
+    "policy_version": "mcp-tools@42",
+    "obligations": {"filter_tools_by_entitlement": true},
+    "expires_at": "2026-07-25T16:05:00Z"
+  }
+}
+```
+
+The input is a normalized policy contract, not MCP wire. Raw access tokens stay out of the PDP when validated claims and proof status suffice.
+
 </details>
 <details>
-<summary><strong>17. MCP Server returns the typed response and decision correlation</strong></summary>
+<summary><strong>15. MCP Server returns the typed response and decision correlation</strong></summary>
 
 Only after all boundaries permit does the server execute and release the typed MCP result. Safe correlation joins the admission, token, application, and release decisions without exposing credentials.
 
@@ -2070,8 +1291,9 @@ Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": 1,
+  "id": 2,
   "result": {
+    "resultType": "complete",
     "tools": [{"name": "get_weather", "description": "Fetches weather"}],
     "_meta": {"decision_id": "dec-4ab..."}
   }
@@ -2083,23 +1305,648 @@ Content-Type: application/json
 </details>
 <br/>
 
+The fail-closed owner and retry consequence are explicit at every layer:
+
+| Failure stage | Required disposition | Retry boundary |
+|:--|:--|:--|
+| Resource or AS metadata | Reject unsafe fetch, issuer/resource mismatch, unsupported endpoint/profile, or stale material change | Re-fetch only under bounded metadata policy; never probe a similar issuer |
+| Client identity | Reject unknown pre-registration, invalid CIMD, redirect mismatch, or unsupported client authentication | Administrative repair or corrected trusted metadata; no DCR fallback |
+| Authorization response | Reject unknown/consumed state, redirect mismatch, or `iss` mismatch before token redemption | Start a fresh authorization transaction with new state and PKCE |
+| Token response/admission | Reject OAuth error, wrong issuer/audience/resource, inactive/expired token, or insufficient initial scope | Follow the AS error or §3 scope path; never forward the token elsewhere |
+| Protocol admission | Reject missing/mismatched version, capabilities, or routing metadata before dispatch | Correct and resend a new MCP request; OAuth success does not override this denial |
+| Application or release policy | Deny the primitive, arguments, tenant, handles, obligation enforcement, or recipient release | Retry only after a new applicable decision or corrected operation; never weaken policy automatically |
+
 **Solved denial — issuer/audience substitution.** If the authorization response carries an `iss` value different from the issuer recorded with state and the PKCE verifier, the client rejects the response before sending the code to a token endpoint. If the later access token targets a different resource/audience, the MCP server returns 401 and stops before primitive lookup. The decision record captures the expected and observed issuer/resource as protected diagnostic fields, the denial stage, policy version, and correlation ID; it does not retry with another issuer or forward the token downstream.
+
+#### 1.6 Enterprise-Managed Authorization: Alternative Grant Profile
+
+The stable MCP [Enterprise-Managed Authorization (EMA)](https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization) extension is an alternative initial grant path for enterprise-managed clients. It uses an enterprise identity assertion and the active OAuth WG [Identity Assertion Authorization Grant (ID-JAG)](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) to obtain an MCP-resource access token after enterprise SSO and administrator policy evaluation. It is not client registration, generic issuer federation, or proof that an MCP operation is allowed.
+
+The client may select EMA only when the target authorization server's metadata contains the exact grant-profile signal and the deployment has separately configured trust between the enterprise identity provider and target authorization server:
+
+```json
+{
+  "authorization_grant_profiles_supported": [
+    "urn:ietf:params:oauth:grant-profile:id-jag"
+  ]
+}
+```
+
+The enterprise IdP decides whether this client may request identity evidence for this user, target AS, MCP resource, and requested authority. The target authorization server independently validates that evidence and decides whether to issue its own MCP-resource token. OIDC is used in the solved flow below; a deployment using SAML must apply that ceremony's own wire and validation rules rather than relabeling the OIDC messages.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as MCP Client
+    participant IdP as Enterprise IdP
+    participant MAS as MCP Authorization Server
+    participant MRS as MCP Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Enterprise SSO
+    Client->>IdP: OIDC authorization request<br/>state + nonce + PKCE
+    IdP-->>Client: Authorization code + state
+    Client->>IdP: Code + verifier
+    IdP-->>Client: ID token<br/>+ optional refresh token
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Enterprise identity assertion
+    Client->>IdP: Token exchange for ID-JAG<br/>target AS + MCP resource
+    IdP-->>Client: Policy-approved ID-JAG
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 3: Target authorization server
+    Client->>MAS: ID-JAG JWT authorization grant
+    MAS-->>Client: MCP-resource access token
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Client: Phase 4: Request and application decision
+    Client->>MRS: Current MCP request + bearer token
+    MRS-->>Client: Typed MCP result
+    Note right of MRS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of MRS: ⠀
+```
+
+<details>
+<summary><strong>1. MCP Client starts the enterprise OIDC transaction</strong></summary>
+
+The client opens the enterprise IdP's validated authorization endpoint with state, nonce, exact redirect URI, and PKCE S256. The enterprise authentication ceremony may enforce device posture and phishing-resistant MFA. This first authorization request authenticates the user to the enterprise client; it does not request an MCP-resource token.
+
+```http
+GET /authorize?response_type=code
+  &client_id=mcp-desktop-client
+  &redirect_uri=https%3A%2F%2Fclient.enterprise.example%2Fcallback
+  &scope=openid%20profile%20offline_access
+  &state=st_8f31...
+  &nonce=n_2b77...
+  &code_challenge=6M7...
+  &code_challenge_method=S256 HTTP/1.1
+Host: idp.enterprise.example
+```
+
+**Artifact Produced:** A pending enterprise OIDC transaction with protected state, nonce, redirect URI, and PKCE verifier.
+
+</details>
+<details>
+<summary><strong>2. Enterprise IdP returns the authorization code to the MCP Client</strong></summary>
+
+After enterprise authentication and IdP policy checks, the browser returns only the short-lived code and retained state. The client consumes state and requires the exact redirect URI before using the code.
+
+```http
+HTTP/1.1 302 Found
+Location: https://client.enterprise.example/callback?code=cd_917...&state=st_8f31...
+Cache-Control: no-store
+```
+
+Unknown or consumed state, redirect mismatch, or an enterprise-authentication denial terminates this path. The code is never logged or exposed to model context.
+
+**Artifact Produced:** An authenticated enterprise OIDC transaction with a short-lived code linked to the consumed state, nonce, redirect URI, and verifier.
+
+</details>
+<details>
+<summary><strong>3. MCP Client redeems the enterprise code with its PKCE verifier</strong></summary>
+
+The client sends the code only to the enterprise IdP token endpoint retained with the OIDC transaction. The verifier proves possession and the exact redirect/client values close the transaction.
+
+```http
+POST /token HTTP/1.1
+Host: idp.enterprise.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=cd_917...&
+redirect_uri=https%3A%2F%2Fclient.enterprise.example%2Fcallback&
+client_id=mcp-desktop-client&
+code_verifier=pkce_q91...
+```
+
+The code and verifier are one-time transaction secrets, not enterprise authorization evidence.
+
+</details>
+<details>
+<summary><strong>4. Enterprise IdP returns and the MCP Client validates the ID Token</strong></summary>
+
+The ID token asserts the user's enterprise identity to the MCP client. Its `aud` identifies that client—not the target MCP authorization server or MCP resource.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+Pragma: no-cache
+
+{
+  "access_token": "<redacted>",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "id_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6I..."
+}
+```
+
+**Validated ID Token claim subset (illustrative):**
+
+```json
+{
+  "iss": "https://idp.enterprise.example",
+  "sub": "user-789",
+  "aud": "mcp-desktop-client",
+  "auth_time": 1784971800,
+  "amr": ["pwd", "hwk"],
+  "iat": 1784971810,
+  "exp": 1784975410
+}
+```
+
+The client verifies signature, issuer, audience, nonce, authentication/time claims, and expiry before admitting the ID token as enterprise identity evidence. The OIDC access token is for the enterprise IdP's resource model; it is not the MCP-resource token issued in Step 8. An optional refresh token remains in protected client custody and may refresh the enterprise OIDC session under IdP policy; it is not silently substituted as an ID-JAG subject token.
+
+**Artifact Produced:** A validated ID Token and, when requested and permitted, a refresh token kept in client credential custody.
+
+</details>
+<details>
+<summary><strong>5. MCP Client requests a target-bound ID-JAG from the enterprise IdP</strong></summary>
+
+The MCP Client uses the validated ID Token as a `subject_token` in an [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) Token Exchange request to the Enterprise IdP. The request binds the target MCP authorization-server issuer, MCP resource identifier, MCP client, requested token type, and minimum scope. An expired identity token requires renewed enterprise identity evidence under IdP policy; a refresh token is not relabeled as an ID token.
+
+```http
+POST /token HTTP/1.1
+Host: idp.enterprise.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token_type=urn:ietf:params:oauth:token-type:id_token
+&subject_token=eyJhbGci...
+&requested_token_type=urn:ietf:params:oauth:token-type:id-jag
+&audience=https://auth.mcp-gateway.internal
+&resource=https://server.mcp.local
+&scope=mcp:tools:read
+```
+
+**Artifact Produced:** A target-bound ID-JAG request joined to the validated enterprise identity transaction; the raw subject token remains credential material.
+
+</details>
+<details>
+<summary><strong>6. Enterprise IdP evaluates policy and returns the ID-JAG</strong></summary>
+
+This is the **enterprise governance enforcement point**. The Enterprise IdP evaluates policies configured by the organization's IT administrator to determine whether the MCP Client should be granted access to act on behalf of this user for this target MCP Server with the requested scopes. Policy dimensions include: user group membership, MCP client identity, target MCP server allowlist, and permitted scope subsets.
+
+If policy permits, the Enterprise IdP signs and returns the ID-JAG in the [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) `access_token` response field. The field name does not make it an access token: `issued_token_type` identifies ID-JAG and `token_type` is `N_A`.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:id-jag",
+  "token_type": "N_A",
+  "expires_in": 300,
+  "scope": "mcp:tools:read"
+}
+```
+
+The assertion binds enterprise issuer and subject, target MCP authorization-server audience, target MCP resource, client, issued/expiry time, and the grant's authorization context. The JWT `typ` is a protected header value, not an access-token claim:
+
+```jwt
+{
+  "alg": "RS256",
+  "kid": "enterprise-signing-2026-07",
+  "typ": "oauth-id-jag+jwt"
+}
+.
+{
+  "iss": "https://idp.enterprise.internal",
+  "sub": "user_789",
+  "aud": "https://auth.mcp-gateway.internal",
+  "resource": "https://server.mcp.local",
+  "client_id": "mcp-agent-123",
+  "iat": 1700000000,
+  "exp": 1700000300
+}
+.
+[signature]
+```
+
+The target authorization server must already trust the enterprise issuer through bilateral configuration or a separate federation substrate. A syntactically valid assertion cannot create that trust. A policy denial returns a token-endpoint OAuth error and records the user, client, target, requested authority, policy version, and denial reason without retaining the raw identity token or assertion.
+
+**Artifact Produced:** A short-lived ID-JAG plus safe policy-decision and custody records.
+
+</details>
+<details>
+<summary><strong>7. MCP Client sends the ID-JAG to the target MCP Authorization Server</strong></summary>
+
+The client presents the ID-JAG as an [RFC 7523](https://www.rfc-editor.org/rfc/rfc7523.html) JWT Authorization Grant at the validated target token endpoint and authenticates using the method registered at that authorization server. This example uses HTTP Basic only to show the separate client-authentication channel; a deployment may instead require `private_key_jwt` or an approved sender-constrained method.
+
+```http
+POST /token HTTP/1.1
+Host: auth.mcp-gateway.internal
+Authorization: Basic <registered-client-credentials>
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
+&assertion=eyJhbGci...
+&client_id=mcp-agent-123
+```
+
+The client never embeds a reusable secret in the form body or evidence. The target issuer, authenticated client, assertion audience, and resource binding must all agree.
+
+</details>
+<details>
+<summary><strong>8. MCP Authorization Server validates the ID-JAG and returns an access token</strong></summary>
+
+The MCP Authorization Server validates the ID-JAG by: (1) checking the JWT `typ` is `oauth-id-jag+jwt` preventing token confusion attacks, (2) verifying the IdP's signature using the IdP's trusted key material (published JWKS, federated metadata, or equivalent), (3) confirming the `aud` claim matches its own issuer identifier, and (4) confirming the `client_id` claim matches the authenticated client, preventing cross-client impersonation.
+
+After cryptographic validation, the target authorization server applies its own client, subject, resource, scope, and enterprise-issuer policy. Only that local decision can issue an MCP-resource access token. Invalid client authentication and invalid identity assertions remain distinct failure classes; neither triggers fallback to ordinary OAuth or another issuer.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "access_token": "mcp_at_7f2...",
+  "token_type": "Bearer",
+  "expires_in": 900,
+  "scope": "mcp:tools:read"
+}
+```
+
+The token may be opaque or structured. Evidence records retain its safe identifier, issuer, resource/audience, client, subject context, scope, expiry, grant-profile correlation, and custody location—not the bearer value.
+
+**Artifact Produced:** An MCP-resource access token plus a non-secret custody and grant-correlation record.
+
+</details>
+<details>
+<summary><strong>9. MCP Client sends an authorized request to the target MCP Server</strong></summary>
+
+The client uses the token on a complete current MCP request. The server applies the same protocol, token, primitive, arguments, tenant, handle, and release decisions as for [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap); the grant profile changes token provenance, not application-policy ownership.
+
+```http
+POST /mcp HTTP/1.1
+Host: server.mcp.local
+Authorization: Bearer eyJhbG...
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
+```
+
+**Artifact Produced:** A request-bound credential-use record linking the MCP token's safe identifier to method `tools/list`, resource `https://server.mcp.local`, protocol version, and JSON-RPC request ID. The request does not create a DID or verifiable credential.
+
+</details>
+<details>
+<summary><strong>10. MCP Server returns the typed result to the MCP Client</strong></summary>
+
+The MCP Server validates signature or introspection, issuer, resource/audience, time, client, and scope, then separately authorizes the requested primitive and releasable result. Subsequent requests may reuse the token within its validity and policy window. Renewal requires fresh acceptable enterprise identity evidence, a new policy-approved ID-JAG, and a new target-AS decision; whether enterprise SSO can refresh without user interaction is an IdP session policy, not an EMA guarantee.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "resultType": "complete",
+    "tools": [
+      { "name": "get_weather", "description": "Fetches weather" }
+    ],
+    "_meta": {"decision_id": "dec-ema-1"}
+  }
+}
+```
+
+**Artifact Produced:** A typed MCP result linked to the EMA grant, token admission, and current application decision without exposing the ID token, ID-JAG, or access token.
+
+</details>
+<br/>
+
+| Boundary | Denial or expiry consequence | Evidence retained |
+|:--|:--|:--|
+| Enterprise SSO | Authentication, device, nonce/state, or session-policy failure stops before identity evidence is accepted | Authentication event reference, assurance signals, client, policy, and protected reason |
+| Enterprise ID-JAG policy | User/client/target/resource/scope denial returns a token-endpoint error; no assertion is issued | Enterprise policy version, decision ID, requested target/authority, and denial class |
+| Target AS trust and grant | Untrusted issuer/key, wrong `typ`, audience, resource, client, time, replay, or local policy denial returns `invalid_grant`/the applicable OAuth error | Assertion hash or safe identifier, trust source, validation result, local policy decision, no raw ID-JAG |
+| MCP token and request | Wrong resource/audience, inactive token, protocol mismatch, or application denial stops before the effect/result boundary | Safe token ID, grant-profile correlation, admission and application decision IDs |
+| Renewal | Expiry requires refreshed acceptable identity evidence, a new ID-JAG policy decision, and a new target-AS grant | New lineage joined to—but not replacing—the expired grant record |
+
+The enterprise IdP controls issuance of identity evidence for named clients, users, and targets; it does not observe or authorize the actual MCP tool call. The target authorization server governs its grant, and the MCP server or gateway governs runtime scope, application policy, effect, and result release. EMA also does not establish cross-ecosystem issuer trust: bilateral onboarding or a separate federation layer such as [§8.7.2](#872-openid-federation-11-for-agent-trust) remains prerequisite.
+
+CIMD may provide the client identifier when both authorization servers accept it, but each issuer applies its own retrieval and trust policy. See [§14.1](#141-first-party-authorization) for first-party approval semantics, [§14.7](#147-approval-grant-and-consent-persistence-architecture) for organization-managed persistence, §4 for the enterprise authority relationship, [§12.3](#123-sender-constraint-and-key-custody-boundaries) for sender-constraint/key-custody decisions, [§20.4](#204-delegation-and-identity-chains) for the wider identity-chaining landscape, and [§H.5](#h5-mcp-integration-auth-for-mcp-ga-cimd-and-cross-app-access) for dated Auth0 implementation evidence.
+
+#### 1.7 OAuth Client Credentials: Direct Machine Authority
+
+The MCP [OAuth Client Credentials extension](https://modelcontextprotocol.io/extensions/auth/oauth-client-credentials) is the direct-machine bootstrap for a confidential client acting under its own authority. SEP-1046 is Final, but the extension specification itself remains **Protocol Revision: draft**; implementations pin and test the exact draft rather than transferring the SEP's maturity to the wire profile.
+
+This path is admitted only after §4 selects direct machine authority and all of the following prerequisites pass:
+
+| Prerequisite | Required evidence |
+|:--|:--|
+| Client relationship | Issuer-bound preregistration; the draft excludes Dynamic Client Registration |
+| Client class | Confidential client with credential custody and rotation controls |
+| AS support | `token_endpoint_auth_methods_supported` contains `private_key_jwt` or `client_secret_basic` |
+| Canonical method | `private_key_jwt`, following the draft's asymmetric-authentication recommendation |
+| Resource binding | Target MCP resource and minimum scope are explicit in the token request/profile |
+| Extension contract | Exact draft revision is pinned independently of core MCP admission |
+
+The draft and SEP-1046 disagree in their secret examples: SEP-1046 uses HTTP Basic for `client_secret_basic`, while the draft includes a form-body secret example. This architecture never sends a reusable client secret in the form body. A deployment that cannot use `private_key_jwt` may profile `client_secret_basic` only with HTTP Basic and explicit secret-custody controls while the source discrepancy remains monitored.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as Machine MCP Client
+    participant AS as Authorization Server
+    participant MCP as MCP Server
+
+    Client->>AS: Client Credentials token request<br/>private_key_jwt + resource + scope
+    AS-->>Client: MCP-resource access token
+    Client->>MCP: Current MCP request + bearer token
+    MCP->>MCP: Token admission + application decision
+    MCP-->>Client: Typed MCP result
+    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+<details><summary><strong>1. Machine MCP Client authenticates and requests an MCP-resource token</strong></summary>
+
+The client signs a short-lived JWT assertion with the preregistered key and sends it only to the validated token endpoint. The assertion audience is that endpoint, while the OAuth `resource` parameter identifies the MCP resource. The exact scope is the minimum machine authority required.
+
+```http
+POST /token HTTP/1.1
+Host: auth.internal.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&
+client_id=agent-batch-001&
+client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&
+client_assertion=eyJhbGciOiJSUzI1NiIs...&
+resource=https%3A%2F%2Fmcp.internal.example&
+scope=system%3Ahealth%3Aread
+```
+
+**Illustrative validated client-assertion claims:**
+
+```json
+{
+  "iss": "agent-batch-001",
+  "sub": "agent-batch-001",
+  "aud": "https://auth.internal.example/token",
+  "jti": "ca-01JQ...",
+  "iat": 1784973600,
+  "exp": 1784973660
+}
+```
+
+The AS rejects an unknown client/key, assertion replay, wrong audience, expired assertion, unapproved resource, or scope outside the preregistered machine policy.
+
+**Artifact Produced:** A one-time client-authentication decision joined to the preregistration version, key ID, target resource, requested scope, and assertion `jti`; no private key or raw assertion enters audit evidence.
+
+</details>
+<details><summary><strong>2. Authorization Server returns the direct-machine access token</strong></summary>
+
+The authorization server applies its client, resource, and application-permission policy and returns an MCP-resource bearer credential. The access token may be opaque or structured; no JWT shape, human subject, `sub` convention, role claim, or sender-constraint claim is assumed by the extension.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "access_token": "mcp_at_machine_4d1...",
+  "token_type": "Bearer",
+  "expires_in": 600,
+  "scope": "system:health:read"
+}
+```
+
+No refresh token is expected: [RFC 6749 §4.4.3](https://www.rfc-editor.org/rfc/rfc6749.html#section-4.4.3) says a refresh token should not be included for Client Credentials. Before expiry, the client reacquires a token by repeating the authenticated request and receiving a fresh AS policy decision.
+
+**Artifact Produced:** An MCP-resource machine credential plus a non-secret custody record containing issuer, resource/audience, client or workload principal, scope, expiry, grant type, key reference, and policy correlation.
+
+</details>
+<details><summary><strong>3. Machine MCP Client sends the complete current MCP request</strong></summary>
+
+There is no browser, state, PKCE, ID token, user, or consent ceremony. The client still sends the complete per-request core contract and the bearer credential.
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.internal.example
+Authorization: Bearer mcp_at_machine_4d1...
+Content-Type: application/json
+Accept: application/json, text/event-stream
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: system/health_check
+
+{
+  "jsonrpc": "2.0",
+  "id": 71,
+  "method": "tools/call",
+  "params": {
+    "name": "system/health_check",
+    "arguments": {},
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
+```
+
+The machine token remains at the MCP resource boundary. It is not forwarded to a downstream API, embedded in arguments, exposed to the model, or treated as a substitute for any provider credential.
+
+</details>
+<details><summary><strong>4. MCP Server separates token admission from machine-operation authorization</strong></summary>
+
+The resource server validates signature or introspection, issuer, resource/audience, expiry, client/workload identity, scope, and any selected sender constraint. It then authorizes the actual tool, arguments, tenant, explicit handles, downstream authority, and result release.
+
+| Decision | Required machine-path outcome |
+|:--|:--|
+| Token admission | Accepted issuer/resource/client/scope and active credential; no human identity is inferred |
+| Application policy | Named machine principal is entitled to `system/health_check` for this tenant and argument set |
+| Human-required operation | Deny or route to an explicitly user-delegated/enterprise-managed path; never fabricate a user |
+| Downstream credential | Obtain or release a separate backend-audience credential after application permission; never pass through the MCP token |
+| Evidence | Record machine principal, deploying organization/sponsor, grant/policy/key versions, request/decision IDs, effect, and release outcome |
+
+**Deployment-local decision result:**
+
+```json
+{
+  "decision": "permit",
+  "decision_id": "dec-machine-71",
+  "principal_type": "oauth_client",
+  "principal_id": "agent-batch-001",
+  "tool": "system/health_check",
+  "arguments_digest": "sha256:e3b0...",
+  "policy_version": "machine-tools@18",
+  "obligations": {"downstream_credential": "brokered"}
+}
+```
+
+The normalized decision is application evidence, not MCP wire. A valid machine token that lacks the required application entitlement is denied without changing grants or inventing an interactive prompt.
+
+</details>
+<details><summary><strong>5. MCP Server returns the typed machine-authority result</strong></summary>
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 71,
+  "result": {
+    "resultType": "complete",
+    "status": "pass",
+    "timestamp": "2026-07-25T10:15:30Z",
+    "_meta": {"decision_id": "dec-machine-71"}
+  }
+}
+```
+
+**Artifact Produced:** A typed MCP result and machine-principal execution record. A local evidence schema may use `user_id: null` or omit the field, but it must attribute the operation to the machine principal, client credential/key lineage, sponsor/deploying organization, and application decision—not to a fictitious individual.
+
+</details>
+
+<br/>
+
+Client Credentials proves only the authenticated client's direct machine authority under the configured AS and resource policies. It does not establish user delegation, legal consent, a refreshable session, downstream entitlement, or permission for arbitrary MCP operations. [§14.6](#146-machine-authority-is-not-consent) owns that consent/evidence distinction; Chapters 11–12 own credential custody, sender constraint, revocation, and termination.
+
+#### 1.8 High-Assurance OAuth Profile Overlay
+
+[FAPI 2.0 Security Profile Final](https://openid.net/specs/fapi-security-profile-2_0.html) is a high-assurance overlay for confidential OAuth clients. It is not another authority source or grant: first select the compatible base path in §§1.5–1.7, then determine whether the client architecture, authorization server, sender-constraint method, and ecosystem controls satisfy the profile.
+
+| Applicability question | Required decision |
+|:--|:--|
+| **Can the client be confidential?** | A public/native client cannot claim FAPI by enabling flags. Use a confidential client, BFF/gateway custody pattern, or remain on the approved non-FAPI baseline. |
+| **Can the AS authenticate it strongly?** | Configure an admitted FAPI client-authentication method and protect its keys under the custody controls in §11. |
+| **Can every access token be sender constrained?** | Select and enforce the FAPI sender-constraint method end to end; bearer-only fallback is not the same profile. |
+| **Which grant is used?** | Cross-grant confidential-client/authentication/sender-constraint requirements apply broadly, but authorization-endpoint requirements apply only to flows that use that endpoint. |
+| **What was actually analyzed/certified?** | The Final profile gives detailed security analysis to Authorization Code and CIBA. Do not infer an equally analyzed or certified non-interactive Client Credentials profile from the general grant language. |
+
+For the [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap) Authorization Code path, the overlay changes the transaction as follows:
+
+| Boundary | Approved baseline | FAPI 2.0 Security Profile delta |
+|:--|:--|:--|
+| Client | Public with PKCE or registered confidential client | Confidential client with profile-compliant strong authentication |
+| Authorization request | Front-channel request with `state`, resource, exact redirect, and PKCE S256 | Submit parameters through [PAR (RFC 9126)](https://www.rfc-editor.org/rfc/rfc9126.html), then use the returned `request_uri`; retain PKCE S256 and exact transaction binding |
+| Authorization response | Code, state, and exact issuer | Enforce the profile's response and [issuer-identification (RFC 9207)](https://www.rfc-editor.org/rfc/rfc9207.html) requirements |
+| Token endpoint | Code, verifier, redirect, client identity, and resource | Strong client authentication plus sender-constrained token issuance |
+| Resource request | Audience/resource-bound access token | Verify the selected sender proof and its key binding on every request |
+| Failure | Layer-specific denial | No fallback to bearer-only, front-channel-only, public-client, or weaker authentication behavior |
+
+The resulting relationship is:
+
+```mermaid
+flowchart LR
+    Base["Compatible base grant<br/>§1.5, §1.6, or §1.7"]
+    Client["Confidential client<br/>strong authentication"]
+    Endpoint["Authorization endpoint used?"]
+    AuthCode["PAR + PKCE S256<br/>issuer-bound response"]
+    NonInteractive["No PAR branch<br/>cross-grant controls only"]
+    Token["Sender-constrained<br/>MCP-resource token"]
+    Policy["MCP application and<br/>effect authorization"]
+
+    Base --> Client --> Endpoint
+    Endpoint -->|"yes"| AuthCode --> Token
+    Endpoint -->|"no"| NonInteractive --> Token
+    Token --> Policy
+```
+
+PAR is therefore not added to Client Credentials: that grant does not use the authorization endpoint. A deployment may apply FAPI's general confidential-client, strong-authentication, and sender-constraint requirements to the [§1.7](#17-oauth-client-credentials-direct-machine-authority) path, but it must label the selected profile and evidence precisely.
+
+[FAPI 2.0 Message Signing Final](https://openid.net/specs/fapi-message-signing-2_0-final.html) is a separate companion profile. The Security Profile itself does not mandate JAR or JARM:
+
+| Optional signed-message control | Standard/profile role | Use only when |
+|:--|:--|:--|
+| JAR | [RFC 9101](https://www.rfc-editor.org/rfc/rfc9101.html) signed/encrypted authorization request object | The selected Message Signing method requires authorization-request integrity/confidentiality beyond PAR transport |
+| JARM | [JWT Secured Authorization Response Mode](https://openid.net/specs/oauth-v2-jarm.html) | The selected method requires a signed authorization response |
+| Signed introspection | FAPI Message Signing method | The AS/resource trust model requires signed introspection responses |
+| HTTP Message Signatures | [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421.html) | A separate application profile binds covered HTTP components and the signer key to an accepted principal; it is not implied by FAPI OAuth conformance |
+
+FAPI hardens the OAuth layer; it does not authorize an MCP primitive, arguments, tenant object, explicit handle, downstream effect, or result release. [§12.3](#123-sender-constraint-and-key-custody-boundaries) owns sender-constraint and key-custody boundaries, [§13.6.3](#1363-profile-3-high-assuranceregulated-environments) owns the high-assurance deployment composition, [§15.5](#155-tier-5-ciba-protocol) owns the CIBA oversight profile, and §21 plus the product appendices own exact named/versioned implementation and certification evidence.
+
+#### 1.9 Layered Failure and Recovery Taxonomy
+
+Failures must be classified at the boundary that rejected the request. Collapsing protocol, metadata, token, application, object, downstream, and evidence failures into a generic OAuth denial hides both the cause and the correct recovery.
+
+| Failure layer | Canonical owner | Examples | Stop/recovery semantics |
+|:--|:--|:--|:--|
+| **Protocol admission** | MCP codec/server or validating gateway | Unsupported core, missing per-request capabilities, routing header/body mismatch, malformed JSON-RPC | Reject before application dispatch; correct the request under the admitted version or stop—never downgrade |
+| **Metadata and client trust** | Client for resource/issuer validation; AS for CIMD | Unsafe URL/redirect/DNS target, issuer/resource inconsistency, invalid or untrusted CIMD, redirect mismatch, unknown preregistration | Stop discovery/authorization; bounded re-fetch or administrative repair only, with no silent issuer/registration fallback |
+| **Grant profile** | Selected authorization server(s) | Ordinary OAuth error, enterprise ID-JAG policy/trust denial, Client Credentials authentication failure, unsupported FAPI requirement | Return the profile's OAuth error and preserve its decision owner; retry only as a new valid transaction or after configuration repair |
+| **Bearer-token admission** | MCP resource server | Bad signature/introspection, wrong issuer/resource/audience/client, expiry, replay or sender-proof failure | Return the applicable 401/challenge and stop before primitive lookup; never pass the token downstream |
+| **Scope and application authorization** | Resource server and application PDP | `insufficient_scope`, denied tool/resource/prompt, tenant mismatch, argument/obligation denial | Use the minimum governed §3 step-up when applicable; otherwise deny without weakening policy |
+| **Explicit-handle authority** | Owner of the application/task/request/cache object | Wrong owner/delegate, type substitution, expired/revoked task, stale request state, unsafe cache reuse | Deny without revealing whether another principal's object exists; require a fresh authorized handle or lifecycle decision |
+| **Downstream authority** | Credential broker and downstream resource | Exchange/release failure, wrong backend audience, backend entitlement or provider-policy denial | Fail or compensate the operation; never forward the MCP token or reinterpret provider denial as MCP success |
+| **Result/continuation** | MCP method or owning extension | Typed `input_required`, cancellation, partial/provider outcome, release/redaction failure | Preserve the typed result/continuation state and its owner; do not convert it into a transport session or generic OAuth failure |
+| **Evidence and control plane** | Policy/evidence service owner | PDP unavailable, stale policy, missing decision ID, failed required audit sink | Apply the declared fail-closed or narrowly bounded degraded policy and expose health/reconciliation evidence |
+
+The accepted `2026-07-28` core error allocation is exact:
+
+| Core signal | Code / placement | Meaning |
+|:--|:--|:--|
+| `HeaderMismatch` | JSON-RPC error `-32020` | `Mcp-Method`/`Mcp-Name` does not agree with the decoded request |
+| `MissingRequiredClientCapability` | JSON-RPC error `-32021` | The current request lacks a client capability required for that operation |
+| `UnsupportedProtocolVersion` | JSON-RPC error `-32022` | Header/body version is missing, inconsistent, or not admitted |
+| Core `input_required` | `result.resultType = "input_required"` | A typed method result that requires caller input/continuation; not a JSON-RPC error |
+| Tasks `input_required` | Tasks extension status field | Extension-owned task lifecycle state; it is not an alternate spelling or placement of core `resultType` |
+
+`server/discover` is a mandatory server method and an optional client call. It does not create a protocol session or replace per-request version/capability fields; its own request, response, and failures remain ordinary current MCP messages. OAuth token-endpoint errors and HTTP bearer challenges likewise remain in their OAuth/HTTP layers rather than being assigned invented MCP error codes.
 
 ---
 
-### 2. Stateless Streamable HTTP Authorization
+### 2. Request-Scoped Authorization and Downstream Execution
 
-The `2026-07-28` core makes each `POST /mcp` request a complete protocol and authorization unit. The request carries its version, client context, capabilities, routing assertions, bearer token, method, named object, and arguments; no connection-derived context supplies missing authority. A gateway can reject malformed or unauthorized traffic early, but the server remains responsible for the application decision over the validated body.
+After §1 obtains an MCP-resource credential, the `2026-07-28` core makes each `POST /mcp` request a complete protocol and authorization unit. The request carries its version, required client capabilities, optional self-reported client information, routing assertions, bearer token, method, named object, arguments, and explicit handles; no connection-derived context supplies missing authority. A gateway can reject malformed or unauthorized traffic early, but the server remains responsible for the application decision over the validated body and downstream effect.
 
-This chapter covers only the forward transport contract. **Stateless protocol** does not mean **stateless application**: baskets, tasks, request states, subscriptions, continuations, and caches remain protected resources. Their explicit handles name state but never authorize access to it.
+**Stateless protocol** does not mean **stateless application**: baskets, tasks, request states, subscriptions, continuations, caches, idempotency records, and provider operations remain protected resources. Their explicit handles name state but never authorize access to it.
 
-#### 2.1 Current Transport Contract
+#### 2.1 Request Contract and Enforcement Ownership
 
 | Boundary | Current contract | Required authorization consequence |
 |:--|:--|:--|
 | Endpoint and delivery | Client sends `POST /mcp`; a response may be JSON or an SSE stream for that request | Authenticate and authorize the request before dispatch; bind streamed messages to the same decision |
-| Protocol context | `MCP-Protocol-Version` plus protocol version, client information, and capabilities in request `_meta` | Reject missing, unsupported, or inconsistent protocol context before method authorization |
+| Protocol context | `MCP-Protocol-Version` agrees with required request `_meta.io.modelcontextprotocol/protocolVersion`; required `clientCapabilities` is present; optional `clientInfo` is self-reported | Reject missing, unsupported, or inconsistent required context before method authorization; never treat client information as identity evidence |
 | Routing | `Mcp-Method`, and `Mcp-Name` where applicable, agree with the canonical JSON-RPC body | Treat headers as checked routing assertions, never as authorization evidence |
+| Derived headers | Any `x-mcp-header` mapping comes from a validated tool parameter, cannot collide with protected routing/identity headers, and remains client-controlled application input | Never promote a derived value into authenticated identity or authorization context |
+| Discovery and server identity | Server implements `server/discover`; a client may call it. Optional response `_meta.io.modelcontextprotocol/serverInfo` is self-reported | Do not create a session, infer trust from discovery, or substitute server metadata for authenticated endpoint identity |
+| OAuth admission | Bearer credential validates for the selected issuer, MCP resource/audience, client/subject context, time, scope, and sender constraint where selected | Token success establishes request authentication facts, not primitive or effect permission |
 | Application continuity | Ordinary arguments carry an explicit application, task, request-state, subscription, continuation, or cache handle | Reauthorize the handle, operation, subject, tenant, and current policy on every use |
 | Recovery | A lost response is retried as a new request with a new JSON-RPC request ID | Use operation-specific idempotency controls; never infer success from transport state |
 | Change notifications | An opted-in `subscriptions/listen` request creates an authorized response stream | Authorize filters and referenced resources at creation and terminate delivery when authority changes |
@@ -2109,9 +1956,58 @@ This chapter covers only the forward transport contract. **Stateless protocol** 
 >
 > The endpoint accepts the current request-scoped contract only. Requests that lack complete per-request context or depend on connection-derived authority, separate delivery channels, or transport-level replay are rejected.
 
-#### 2.2 Request Security and Explicit Application State
+The gateway and MCP server enforce different parts of one request decision. The gateway can validate the transport envelope and bearer token, apply coarse controls, and route only after comparing headers with the decoded body. The MCP server owns the primitive, arguments, explicit application object, downstream effect, and release policy. Neither layer converts the other's success into implicit authorization.
 
-The request is the enforcement unit. A gateway can reject the request before dispatch, route it without parsing the entire body, and send it to any healthy server instance. The server still makes the authoritative application decision: a routing header identifies the claimed operation, while the validated JSON-RPC body and authorization context determine what the caller may actually do.
+| Stage | Enforcement point | Required decision | Evidence |
+|:--|:--|:--|:--|
+| Protocol admission | Gateway or server codec | Supported core and extension versions; required request `_meta`; capability presence | Exact core/extension version, admission outcome, rejected field/code |
+| Routing integrity | Gateway or server codec | `Mcp-Method` / `Mcp-Name` equal the validated body | Canonical request digest and header/body comparison |
+| Authentication | Gateway or MCP server | Signature/introspection, issuer, resource/audience, time, client, subject/actor, scopes, sender constraint | Safe token fingerprint, validation method/result, proof correlation |
+| Primitive authorization | MCP server and application PDP | Method, named tool/resource/prompt, arguments, tenant, risk, obligations | Policy version, decision ID, normalized argument digest |
+| Handle authorization | Application object owner | Handle type, owner/delegate, operation, expiry, revocation, object version | Handle fingerprint, lifecycle state, deny reason |
+| Downstream authorization | MCP server, credential broker, downstream service | Separate credential and audience for the intended service/action | Credential class/custody reference and downstream correlation |
+| Result release | MCP server or egress control | Result type, provider outcome, sensitivity, redaction, cache scope, recipient | Release decision, output classification, execution correlation |
+
+Validated identity travels from gateway to server in a protected internal context—not a client-writable forwarding header. A cryptographically authenticated internal token, mutually authenticated hop, or equivalent trusted channel binds the normalized principal, request digest, token-proof result, and decision correlation to the exact upstream request. The server rejects missing/conflicting context instead of reconstructing authority from routing metadata; §9 owns the carrier/profile details.
+
+The following request contains the complete protocol envelope for one tool call. `Mcp-Method` and `Mcp-Name` are checked routing assertions, not authorization evidence:
+
+```http
+POST /mcp HTTP/1.1
+Host: gateway.mcp.local
+Authorization: Bearer eyJhbGci...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: add_item
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "tools/call",
+  "params": {
+    "name": "add_item",
+    "arguments": {
+      "basket_id": "bkt_7f3b1b6f",
+      "sku": "SKU-123"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientInfo": {
+        "name": "shopping-agent",
+        "version": "2.0.0"
+      },
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
+```
+
+`clientInfo` is optional and self-reported; authorization uses the authenticated client/token context instead. A gateway rejects a routing mismatch with `HeaderMismatch` (`-32020`), a missing required capability with `MissingRequiredClientCapability` (`-32021`), and an unsupported/inconsistent version with `UnsupportedProtocolVersion` (`-32022`). It preserves structured error data rather than flattening every case into an undifferentiated HTTP `400`.
+
+#### 2.2 Explicit Application State and Result Boundaries
+
+Request-scoped protocol processing can route any admitted request to a healthy server instance, but every application object remains explicit and protected. Handles, subscription filters, result state, and cache metadata cross requests only through their declared values and lifecycle records; connection possession supplies no authority or continuation.
 
 ```mermaid
 ---
@@ -2155,49 +2051,11 @@ flowchart LR
     style Stream text-align:left
 ```
 
-The request below carries all protocol context needed to dispatch one tool call. `Mcp-Method` and `Mcp-Name` are required routing assertions, not authorization proofs. The gateway must compare them with the canonical JSON-RPC body and reject a mismatch with the modern `HeaderMismatchError` (`-32020`).
-
-```http
-POST /mcp HTTP/1.1
-Host: gateway.mcp.local
-Authorization: Bearer eyJhbGci...
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: add_item
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 42,
-  "method": "tools/call",
-  "params": {
-    "name": "add_item",
-    "arguments": {
-      "basket_id": "bkt_7f3b1b6f",
-      "sku": "SKU-123"
-    },
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientInfo": {
-        "name": "shopping-agent",
-        "version": "2.0.0"
-      },
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
 The server response carries the standard result discriminator. An ordinary completion uses `"complete"`; a multi-round-trip request uses `"input_required"` and is retried under the rules analyzed in [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff). If a response stream breaks before completion, the original request is lost—the client reissues it with a **new** JSON-RPC request ID and must apply ordinary idempotency safeguards.
 
 ```http
-POST /mcp HTTP/1.1
-Host: gateway.mcp.local
-Authorization: Bearer <mcp-resource-token>
+HTTP/1.1 200 OK
 Content-Type: application/json
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: batch_report
 
 {
   "jsonrpc": "2.0",
@@ -2227,38 +2085,16 @@ The modern enforcement surface is therefore wider than the bearer token:
 
 | Signal or resource | Gateway/server decision | Failure to avoid |
 |:--|:--|:--|
-| `Authorization` | Validate signature/introspection, `iss`, `aud`, expiry, scopes, sender constraint, subject and actor | Accepting a token issued for another resource or principal |
-| `MCP-Protocol-Version` + request `_meta` | Require consistency; select the admitted schema and capability profile | Downgrade or version-confusion processing |
-| `Mcp-Method` / `Mcp-Name` | Compare with the canonical method and named object; use for routing/rate limits only after validation | Header smuggling into a more permissive policy route |
-| `x-mcp-header` mapping | Validate the source tool parameter and prevent collisions with protected headers | Treating client-controlled derived headers as trusted identity |
 | Explicit state/task handle | Authorize ownership/delegation on every use; enforce expiry, revocation, destruction, and audit | Cross-tenant substitution or long-lived bearer-capability leakage |
 | `subscriptions/listen` | Bind notification types, filters, resources, and stream lifetime to the caller | Persistent data delivery after authority changes |
 | `ttlMs` / `cacheScope` | Constrain cache key, sharing, freshness, and invalidation | Serving user-specific tools or resources from a shared cache |
 | `resultType` | Enforce the correct completion, input, retry, and audit path | Treating an interim request for input as a completed operation |
 
-Modern MCP reserves `-32020` through `-32099` for protocol errors. The first allocation distinguishes `HeaderMismatchError` (`-32020`), `MissingRequiredClientCapabilityError` (`-32021`), and `UnsupportedProtocolVersionError` (`-32022`). Gateways should preserve the structured error data and use it for correct retry or rejection—not flatten all three into an undifferentiated HTTP `400`.
-
 This design removes protocol-layer affinity, not downstream state stores or content policy. Argument-sensitive ABAC, DLP, guardrails, and result inspection still require the request and result bodies. The gateway decision is to use standard headers for early classification, then ground authorization in the validated payload, token, state-resource ownership, and current policy.
 
 Primary sources: [draft Streamable HTTP changes](https://modelcontextprotocol.io/specification/draft/changelog); [versioning and compatibility](https://modelcontextprotocol.io/specification/draft/basic/versioning); [sessionless MCP](https://modelcontextprotocol.io/seps/2567-sessionless-mcp); [cacheable results](https://modelcontextprotocol.io/seps/2549-TTL-for-list-results).
 
-#### 2.3 Gateway and Server Enforcement
-
-The gateway and MCP server enforce different parts of one request decision. The gateway is well placed to validate the transport envelope and bearer token, apply coarse rate limits, and route only after comparing the headers with the body. The MCP server understands the primitive, arguments, explicit handle, and downstream effect. Neither layer may convert the other layer’s success into implicit authorization.
-
-| Stage | Enforcement point | Required decision | Evidence |
-|:--|:--|:--|:--|
-| Protocol admission | Gateway | Supported core and extension versions; required `_meta`; capability presence | Admission outcome and rejected field |
-| Routing integrity | Gateway | `Mcp-Method` / `Mcp-Name` equal the validated body | Header/body comparison |
-| Authentication | Gateway or server | Signature/introspection, issuer, audience/resource, time, client, subject/actor, scopes | Token fingerprint and validation result |
-| Primitive authorization | MCP server | Method, named tool/resource/prompt, arguments, tenant, risk, obligations | Policy version, decision ID, matched rule |
-| Handle authorization | MCP server | Handle type, owner/delegate, operation, expiry, revocation, object version | Handle hash, lifecycle state, deny reason |
-| Downstream authorization | MCP server and downstream service | Separate credential and audience for the intended service/action | Credential class and downstream correlation |
-| Result release | MCP server or egress control | Response type, sensitivity, redaction, cache scope, recipient | Release decision and output classification |
-
-Validated identity should travel from gateway to server in a protected internal context, not in a client-writable forwarding header. A cryptographically authenticated internal token, mutually authenticated hop, or equivalent trusted channel must bind the normalized principal and decision correlation to the exact upstream request. The server rejects missing or conflicting identity context instead of reconstructing authority from routing metadata.
-
-#### 2.4 Solved Stateless Tool Call and Downstream Authority
+#### 2.3 Canonical Request-to-Effect Flow
 
 The following flow shows where a stateless request begins and ends. The incoming MCP token establishes authority only at the MCP resource. A tool call that reaches another service requires a separately obtained credential for that downstream audience, and the final result requires its own release decision.
 
@@ -2323,7 +2159,8 @@ Mcp-Name: add_item
       "io.modelcontextprotocol/clientInfo": {
         "name": "basket-assistant",
         "version": "3.4.0"
-      }
+      },
+      "io.modelcontextprotocol/clientCapabilities": {}
     }
   }
 }
@@ -2568,6 +2405,7 @@ Content-Type: application/json
   "jsonrpc": "2.0",
   "id": 73,
   "result": {
+    "resultType": "complete",
     "content": [{"type": "text", "text": "SKU-184 was added to your basket."}],
     "_meta": {
       "basket_version": 19,
@@ -2587,7 +2425,7 @@ The MCP response contains no downstream token, provider secret, internal-margin 
 
 **Solved denial — cross-tenant handle substitution.** If the authenticated caller replaces `basket_id` with a valid handle owned by another tenant, the handle decision returns a generic forbidden outcome. Execution stops before any downstream credential is requested, the API is not called, and the evidence record stores a one-way handle fingerprint, authenticated tenant, policy version, decision ID, and reason code without confirming that the foreign object exists.
 
-#### 2.5 Retry, Idempotency, and Custom Transports
+#### 2.4 Retry, Idempotency, and Custom Transports
 
 A network failure does not reveal whether a mutating operation completed. The client retries with a new JSON-RPC request ID, while the application supplies an idempotency key or an operation-specific conditional such as an expected object version. The server binds that key to the authenticated subject, tenant, primitive, normalized arguments, and policy horizon; reusing it with different inputs is rejected.
 
@@ -2606,415 +2444,109 @@ A WebSocket or message-broker binding that authenticates only at connection setu
 
 ---
 
-### 3. Scope and Client-Identity Lifecycle
+### 3. Scope Selection and Runtime Step-Up
 
-Current MCP authorization communicates scope requirements through resource-server challenges and protected-resource metadata. Scope negotiation is safe only after the client has established the resource, validated the authorization-server issuer, selected an approved client identity, and bound the authorization response and token to that transaction.
+Scopes communicate coarse OAuth authority for an MCP resource; they do not replace the application decision over a primitive, arguments, tenant object, explicit handle, downstream effect, or result. Initial selection occurs only after §1 establishes the resource, issuer, accepted client identity, and grant profile. Runtime increase is a new authorization decision, not an automatic mutation of the old token.
 
-#### 3.1 Scope Communication Channels
+#### 3.1 Scope Communication and Five-Actor Responsibility
 
-Current MCP uses **three channels** to communicate scopes between servers and clients:
+Current MCP uses three resource-to-client channels to communicate scope guidance:
 
 | Channel | Mechanism | When Used | Standard |
 |:---|:---|:---|:---|
-| **1. Initial 401 `WWW-Authenticate`** | `scope` parameter in Bearer challenge | On first unauthenticated request | RFC 6750 §5 |
-| **2. Protected Resource Metadata** | `scopes_supported` array in `.well-known/oauth-protected-resource` | During authorization server discovery | RFC 9728 |
-| **3. Runtime 403 `WWW-Authenticate`** | `scope` parameter with `error="insufficient_scope"` | When operation requires more scopes than current token | RFC 6750 §5.1 |
+| **Initial 401 challenge** | `scope` parameter in a Bearer `WWW-Authenticate` challenge | First unauthenticated request or missing bearer credential | [RFC 6750 §3](https://www.rfc-editor.org/rfc/rfc6750.html#section-3) |
+| **Protected Resource Metadata** | `scopes_supported` in `/.well-known/oauth-protected-resource` | Resource/issuer discovery and initial selection fallback | [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) |
+| **Runtime 403 challenge** | `scope` with `error="insufficient_scope"` | A valid token lacks authority required by the attempted operation | [RFC 6750 §3.1](https://www.rfc-editor.org/rfc/rfc6750.html#section-3.1) |
 
-##### 3.1.1 Authorization Preflight: Discovery, Registration, and Issuer Binding
+Those channels do not give one actor unilateral scope control. Five actors own distinct decisions:
 
-Before selecting scopes or opening a browser, a current MCP client should complete the following preflight. This is part of the authorization decision, not merely connection setup:
+| Actor | Decision owned | Must not be inferred |
+|:--|:--|:--|
+| **MCP resource server** | Publishes supported/guidance metadata, challenges for the minimum scope it can justify for the attempted operation, and enforces token plus application policy | It cannot grant OAuth scope, approve for a user/administrator, or turn a catalog into ambient authority |
+| **MCP client** | Forms the minimum scope request for the current task, preserves transaction bindings, and decides whether a challenge warrants a new attempt | It cannot invent server requirements, claim approval, or widen silently |
+| **Applicable decision actor** | User, administrator, enterprise policy, or machine-client policy permits/denies the requested authority under the selected §4 relationship | No universal consent screen or human decision is implied |
+| **Authorization server** | Authenticates the client/evidence, applies grant policy, and issues the scope actually granted—possibly a subset of what was requested | A request or resource hint does not compel issuance |
+| **Application PDP/resource owner** | Authorizes the concrete primitive, arguments, tenant object, handle, effect, and release under current policy | A token containing the scope does not force application permission |
 
-1. Fetch and validate the RFC 9728 Protected Resource Metadata identified by the resource server. Treat each value in `authorization_servers` as an independent issuer.
-2. Discover authorization-server metadata using the standard RFC 8414 or OpenID Connect well-known locations. MCP defines no private suffix. For an issuer with a path such as `https://auth.example.com/tenant1`, try, in order:
+#### 3.2 Initial Scope Selection and Transaction Binding
+
+Before selecting scopes, the client reuses the validated §1 bootstrap inputs rather than repeating the OAuth ceremony:
+
+1. Fetch and validate the [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) Protected Resource Metadata identified by the resource server. Treat each value in `authorization_servers` as an independent candidate issuer.
+2. Discover authorization-server metadata using the standard [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414.html) or [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) well-known locations. MCP defines no private suffix. For an issuer with a path such as `https://auth.example.com/tenant1`, try, in order:
    - `https://auth.example.com/.well-known/oauth-authorization-server/tenant1`
    - `https://auth.example.com/.well-known/openid-configuration/tenant1`
    - `https://auth.example.com/tenant1/.well-known/openid-configuration`
    For an issuer without a path, try `/.well-known/oauth-authorization-server` and then `/.well-known/openid-configuration`.
-3. Use issuer-specific pre-registration where an administrative relationship exists. Otherwise use a Client ID Metadata Document only when the authorization server advertises support and the client meets the URL, redirect, software-identity, and trust-policy requirements.
-4. Store the validated issuer with the same transaction record as the PKCE verifier, `state`, resource indicator, exact redirect URI, and client identity. On the authorization response, validate `iss` per RFC 9207 before sending a code to any token endpoint. When `iss` is present, compare it to the recorded issuer by exact string comparison after form decoding only; do not normalize case, ports, slashes, or percent-encoding. If metadata advertised `authorization_response_iss_parameter_supported: true`, a missing `iss` is an error. A mismatch invalidates success and error responses alike.
+3. Reuse the issuer-bound pre-registration or validated CIMD decision from [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd) and the admitted grant path from [§1.4](#14-authorization-path-and-profile-selection).
+4. Store the selected scope source and requested set with the same transaction record as issuer, client, resource, exact redirect URI, state, PKCE verifier, and applicable decision actor. The callback and token steps remain exactly those in [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap) or the selected alternative profile.
 
 > **Important — Do not collapse the identity layers**
 >
-> The RFC 9728 resource identifier, the authorization-server issuer, the OAuth client registration, and the TLS endpoint are related but different security objects. Discovery tells a client where to continue; it does not make a self-reported server name or registry listing an authenticated runtime identity. [§6.2.1](#621-server-identity-is-also-layered) separates those layers explicitly.
+> The [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) resource identifier, the authorization-server issuer, the OAuth client registration, and the TLS endpoint are related but different security objects. Discovery tells a client where to continue; it does not make a self-reported server name or registry listing an authenticated runtime identity. [§6.2.1](#621-server-identity-is-also-layered) separates those layers explicitly.
 
-| Client-identity control | Pre-registration | Client ID Metadata Document |
-|:--|:--|:--|
-| Issuer binding | Store the assigned client identity under the exact validated issuer | The issuer resolves the HTTPS client identifier under its own CIMD trust policy |
-| Redirects | Register exact redirect URIs; reject unregistered variants | Require an exact match with the fetched document; prevent open redirects and mutable indirection |
-| Software identity | Administrative inventory and deployment attestation | Authenticate the HTTPS origin and evaluate document provenance; the URL alone does not establish organizational trust |
-| Fetch safety | No runtime metadata fetch is required | Apply HTTPS, redirect, DNS/IP, response-size, media-type, timeout, and cache controls; block local and link-local targets |
-| Local clients | Bind the installed application and exact loopback redirect policy | Treat localhost impersonation as an explicit risk; prefer pre-registration where an issuer can govern the installation |
-| Transaction binding | Record client identity with issuer, resource, state, PKCE verifier, and redirect URI | Apply the same transaction record and reject issuer or document changes mid-flow |
-| Failure behavior | Unknown registration fails visibly | Unsupported or untrusted CIMD fails visibly; do not select another registration mechanism silently |
+| Transaction field | Binding rule |
+|:--|:--|
+| MCP resource | Exact [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) `resource`; token and later request must target it |
+| Authorization-server issuer | Exact validated issuer and token endpoint; no normalization or alternate-issuer retry |
+| Client identity | Accepted [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd) registration/CIMD decision and authentication method |
+| Scope source | Initial 401 challenge, PRM fallback, or runtime 403 challenge; retain the exact source and retrieval/request time |
+| Requested scope set | Normalized minimum set for this task, never an unexplained superset |
+| Interactive bindings | Exact redirect URI, state, PKCE verifier/challenge, and [RFC 9207](https://www.rfc-editor.org/rfc/rfc9207.html) `iss` validation where the authorization-endpoint profile applies |
+| Decision actor | User, administrator, enterprise policy, or machine-client policy selected by the authority relationship |
+| Grant result | Requested set, granted set, denial/reason, token safe ID, expiry, and policy correlation |
 
-The interplay of these three channels creates a **reactive scope negotiation** protocol:
-
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Client as 🤖 MCP Client<br/>(Agent)
-    participant Server as 🛠️ MCP Server<br/>(Protected Resource)
-    participant AS as 🔑 Auth Server<br/>(AS / IdP)
-
-    rect rgba(148, 163, 184, 0.14)
-    Note left of Server: Phase 1: Resource & Scope Discovery
-    Client->>Server: POST /mcp (No token)
-    Server-->>Client: 401 Unauthorized<br/>WWW-Authenticate: Bearer scope="files:read"
-    Client->>Server: GET /.well-known/oauth-protected-resource
-    Server-->>Client: 200 OK (RFC 9728 Metadata)
-
-    Note right of Client: {<br/>  "scopes_supported": [<br/>    "files:read",<br/>    "files:write",<br/>    "admin:manage"<br/>  ],<br/>  "authorization_servers": ["https://..."]<br/>}
-    Note right of AS: ⠀
-    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    Client->>Client: Scope selection strategy<br/>if (res.headers["WWW-Authenticate"]?.scope) {<br/>  req.scope = header.scope<br/>} else {<br/>  req.scope = discovery.scopes_supported<br/>}
-
-    rect rgba(46, 204, 113, 0.14)
-    Note left of Server: Phase 2: Initial Authorization
-    Client->>AS: POST /token<br/>scope="files:read"
-    AS-->>Client: User consents,<br/>token issued
-    Client->>Server: POST /mcp<br/>Authorization: Bearer {token}
-    Server-->>Client: ✅ 200 OK (files:read sufficient)
-    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-
-    Note over Client,AS: ... time passes ...
-
-    rect rgba(241, 196, 15, 0.14)
-    Note left of Server: Phase 3: Runtime Policy Step-Up
-    Client->>Server: POST /mcp (Write Operation)
-    Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer error="insufficient_scope"
-    Client->>AS: POST /token (Step-up)<br/>scope="files:read files:write"
-    AS-->>Client: User consents<br/>to elevated scope
-    Client->>Server: POST /mcp (Retry Write)
-    Server-->>Client: ✅ 200 OK
-    Note right of AS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of AS: ⠀
-```
-
-<details>
-<summary><strong>1. MCP Client sends an unauthenticated request to the MCP Server</strong></summary>
-
-The client sends a core MCP request to `POST /mcp` without a bearer token. This is the standard RFC 6750 pattern: the client probes the resource server deliberately to trigger an authentication challenge. In MCP, this initial probe begins the current **scope discovery lifecycle** ([§1.3](#13-client-registration-and-enterprise-governance), [§1.5](#15-solved-authorization-bootstrap)).
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp.local
-Content-Type: application/json
-Accept: application/json, text/event-stream
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: read_file
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "read_file",
-    "arguments": { "path": "/docs" },
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-</details>
-<details>
-<summary><strong>2. MCP Server responds with 401 Unauthorized and scope guidance</strong></summary>
-
-The server rejects the unauthenticated request. Crucially, it responds not just with `401`, but uses **Channel 1** (the `scope` parameter in the `WWW-Authenticate` header) to actively guide the client on the minimum permission required for this specific endpoint.
-
-```http
-HTTP/1.1 401 Unauthorized
-WWW-Authenticate: Bearer
-  realm="mcp_weather",
-  scope="files:read",
-  resource_metadata="https://mcp.local/.well-known/oauth-protected-resource"
-```
-
-</details>
-<details>
-<summary><strong>3. MCP Client fetches the Protected Resource Metadata</strong></summary>
-
-Following RFC 9728, the client follows the `resource_metadata` URI from the `WWW-Authenticate` header to discover the full scope catalog and the exact identity providers trusted by this resource server.
-
-```http
-GET /.well-known/oauth-protected-resource HTTP/1.1
-Host: mcp.local
-Accept: application/json
-```
-
-</details>
-<details>
-<summary><strong>4. MCP Server returns the RFC 9728 metadata with full scope catalog</strong></summary>
-
-The server returns the JSON boundary definition. This constitutes **Channel 2**. The `scopes_supported` array provides the complete taxonomy of scopes the server recognizes, which is broader than the isolated `scope` hint in the 401 response and represents the maximum capability ceiling.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: max-age=300
-
-{
-  "resource": "https://mcp.local",
-  "authorization_servers": [
-    "https://auth.internal.corp"
-  ],
-  "scopes_supported": [
-    "files:read",
-    "files:write",
-    "admin:manage"
-  ]
-}
-```
-
-**Artifact Produced:** Protected Resource Metadata JSON
-
-</details>
-<details>
-<summary><strong>5. MCP Client applies the scope selection strategy</strong></summary>
-
-The client applies the current scope-minimization algorithm:
+The deterministic initial-selection rule is deliberately narrow:
 
 ```typescript
-// Formalized Scope Selection Logic (§3.2)
-function determineRequestedScope(authHeader, metadata) {
-  if (authHeader.scope) {
-    // 1. Prefer targeted 401 scope hint (least privilege)
-    return authHeader.scope;
-  } else if (metadata.scopes_supported) {
-    // 2. Fall back to entire catalog if no hint provided
-    return metadata.scopes_supported.join(" ");
+function determineInitialScope(challenge, protectedResourceMetadata) {
+  if (challenge.scope) return normalizeScopeSet(challenge.scope);
+  if (protectedResourceMetadata.scopes_supported) {
+    return normalizeScopeSet(protectedResourceMetadata.scopes_supported);
   }
-  // 3. Request no scope parameter by default
-  return null;
+  return null; // omit the OAuth scope parameter
 }
 ```
 
-Because the 401 provided `"files:read"`, the client narrows its request to just that permission.
+`scopes_supported` is a current advertised catalog and fallback input, not a permanent exhaustive ceiling or a menu to request eagerly. The client requests the selected set; the applicable decision actor may deny; the authorization server may grant a subset; and the resource server still enforces both the granted set and application policy. Scope increase after a 403 belongs only to [§3.3](#33-runtime-insufficient-scope-step-up).
 
-</details>
-<details>
-<summary><strong>6. MCP Client requests a token with the selected scope</strong></summary>
+The authorization record distinguishes guidance, request, grant, and enforcement:
 
-After an Authorization Code + PKCE flow, the client sends `POST /token` to the authorization server. The transaction remains bound to the exact client, redirect URI, verifier, and MCP resource; the resulting grant contains only the approved scope.
-
-```http
-POST /token HTTP/1.1
-Host: auth.internal.corp
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code
-&code=xyz123...
-&client_id=agent-cli-001
-&redirect_uri=http%3A%2F%2F127.0.0.1%3A33418%2Fcallback
-&code_verifier=pkce-verifier...
-&resource=https%3A%2F%2Fmcp.local
-&scope=files:read
-```
-
-</details>
-<details>
-<summary><strong>7. Authorization Server issues the token after user consent</strong></summary>
-
-The IdP presents the user with a consent screen specifically requesting "Read access to files". Upon approval, the AS issues an access token explicitly carrying the narrowed `scope: "files:read"` claim.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
+```json
 {
-  "access_token": "eyJhbG..read",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "files:read"
+  "resource": "https://mcp.local",
+  "scope_source": "initial_401_challenge",
+  "scope_guidance": ["files:read"],
+  "scope_requested": ["files:read"],
+  "decision_actor": "user_or_enterprise_policy",
+  "scope_granted": ["files:read"],
+  "token_id": "at-safe-7d1",
+  "resource_enforcement": "pending_per_request"
 }
 ```
 
-**Artifact Produced:** Scoped Access Token
+| Transition | Owner | Consequence |
+|:--|:--|:--|
+| Guidance → request | Client | Normalize and minimize; reject malformed, unrelated, or looping challenges |
+| Request → grant | Applicable decision actor and AS | Approve/deny and issue the actual granted subset; no token-endpoint consent is assumed |
+| Grant → request admission | MCP resource server | Validate the actual token scope for the exact resource and current operation |
+| Admission → application effect | MCP server/PDP | Apply primitive, arguments, tenant, handle, downstream, and release policy regardless of scope success |
 
-</details>
-<details>
-<summary><strong>8. MCP Client sends an authorized MCP request with the new token</strong></summary>
+This record is safe evidence only when token material and sensitive denial detail are excluded. Runtime widening begins a fresh [§3.3](#33-runtime-insufficient-scope-step-up) transaction; the initial selection record is never edited in place.
 
-The client retries the aborted operation from Step 1, this time attaching the authorized bearer token.
+#### 3.3 Runtime Insufficient-Scope Step-Up
 
-> **What changed from Step 1:** the method, JSON-RPC ID, tool name, arguments, protocol version, and client capabilities are unchanged. The retry adds `Authorization: Bearer eyJhbG..read`; it does not omit the original request body or MCP headers.
+An MCP resource that receives a valid access token with insufficient authority
+returns an [RFC 6750 `insufficient_scope`
+challenge](https://www.rfc-editor.org/rfc/rfc6750#section-3.1). That response is
+not a grant and does not prescribe who must approve the increase. It tells the
+client what the resource requires for this operation. The client validates the
+challenge, starts a fresh authorization transaction under the applicable
+profile, and retries only after receiving a new resource-bound credential.
 
-</details>
-<details>
-<summary><strong>9. MCP Server accepts the request — scope is sufficient</strong></summary>
-
-The server validates the token, matches the resource/audience against itself, and confirms that the required scope (`files:read`) is present. It then performs the separate tool, argument, and object authorization decision. A security record captures both authentication and application-authorization outcomes.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "resultType": "complete",
-    "content": [{ "type": "text", "text": "File contents here" }]
-  }
-}
-```
-
-</details>
-<details>
-<summary><strong>10. MCP Client attempts a write operation with the read-only token</strong></summary>
-
-Later in the agentic loop, the LLM decides to execute an aggressive tool call (e.g., `tools/call: write_file`). The request operates using the identical JWT acquired in Step 7, which lacks elevated permissions.
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp.local
-Authorization: Bearer eyJhbG..read
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "write_file",
-    "arguments": { "path": "/docs", "content": "..." }
-  }
-}
-```
-
-</details>
-<details>
-<summary><strong>11. MCP Server responds with 403 and the required scope</strong></summary>
-
-The server rejects the write operation via **Channel 3**: a runtime `403 Forbidden` response utilizing RFC 6750 §5.1. It explicitly demands the elevated scope required using `error="insufficient_scope"`.
-
-```http
-HTTP/1.1 403 Forbidden
-WWW-Authenticate: Bearer
-  error="insufficient_scope",
-  scope="files:read files:write"
-```
-
-</details>
-<details>
-<summary><strong>12. MCP Client initiates a step-up authorization request</strong></summary>
-
-The client reads the 403 response's `scope` hint and initiates an incremental authorization flow. It spins up a new `/authorize` transaction merging its previous context and the new requirement (`scope=files:read files:write`).
-
-```http
-GET /authorize?
-  response_type=code
-  &client_id=agent-cli-001
-  &redirect_uri=http%3A%2F%2F127.0.0.1%3A33418%2Fcallback
-  &scope=files:read%20files:write
-  &resource=https%3A%2F%2Fmcp.local
-  &state=step-up-9c2e
-  &code_challenge=xyz... HTTP/1.1
-Host: auth.internal.corp
-```
-
-</details>
-<details>
-<summary><strong>13. Authorization Server collects incremental consent and issues an elevated token</strong></summary>
-
-The AS detects the incremental delta. It presents a specialized consent UI asking merely to *augment* permissions ("The agent now also wants Write access..."). It issues a fresh, replacement JWT carrying the expanded scope payload.
-
-After the code callback, the client repeats Step 6 with a new authorization code and PKCE verifier; the exact request delta is `scope=files:read files:write`. The response is:
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "access_token": "eyJhbG..readwrite",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "files:read files:write"
-}
-```
-
-**Artifact Produced:** Elevated Access Token
-
-</details>
-<details>
-<summary><strong>14. MCP Client retries the write operation with the elevated token</strong></summary>
-
-The client retries the active write request utilizing the freshly minted JWT containing the expanded `files:write` scope segment, satisfying the step-up boundary condition.
-
-> **What changed from Step 10:** the retry uses a new request ID and the replacement token, while the tool name, arguments digest, MCP resource, client, and subject remain bound to the same intended operation. The old read-only token is not modified in place and is never treated as write-capable.
-
-The client still sends a complete MCP request; successful step-up does not authorize an automatic replay from hidden connection state.
-
-</details>
-<details>
-<summary><strong>15. MCP Server accepts the retried write operation</strong></summary>
-
-The server re-evaluates the pipeline and successfully processes the tool execution, demonstrating the three-phase reactive dynamic authorization model of the MCP protocol layer.
-
-The second admission records the elevated token ID, `files:write` scope check, fresh application-policy decision, exact argument digest, and resulting object version. It does not reuse the denial decision from Step 11 or infer permission from the fact that the user completed a browser flow.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 3,
-  "result": {
-    "resultType": "complete",
-    "content": [{"type": "text", "text": "File updated."}],
-    "_meta": {
-      "object_version": 19,
-      "decision_id": "dec-write-19"
-    }
-  }
-}
-```
-
-**Artifact Produced:** The typed write result plus a fresh decision correlation joining the original denial, step-up grant, retried request, and resulting effect.
-
-</details>
-
-
-#### 3.2 Scope Selection Strategy
-
-The current specification defines how MCP clients choose which scopes to request:
-
-> **Priority order:**
-> 1. Use the `scope` parameter from the initial `WWW-Authenticate` header in the 401 response, if provided
-> 2. If `scope` is not available, use all scopes defined in `scopes_supported` from the Protected Resource Metadata document, omitting the `scope` parameter entirely if `scopes_supported` is undefined
-
-This is architecturally significant because it means **the MCP server controls which scopes the client requests** — not the client. The server uses the `WWW-Authenticate: Bearer scope="..."` header to tell the client the minimum scope needed, acting as a form of **server-driven scope guidance**.
-
-> **Important — Scope selection is server-driven, not client-invented**
->
-> An MCP client should not treat `scopes_supported` as a menu to request eagerly. The default behavior is to follow the server's targeted 401/403 guidance first and only widen scope when the resource server explicitly demands it.
-
-**Consequences for gateway architecture**:
-- The MCP server (or gateway) can **dynamically determine** which scopes to advertise based on the request context
-- Scope minimization is enforced by default — the server only advertises what's needed
-- This enables the gateway to implement **context-aware scope selection** (e.g., different scopes for different API endpoints on the same MCP server)
-
-#### 3.3 Scope Challenge Handling (403 Insufficient Scope)
-
-The current specification defines the **runtime scope elevation** pattern using HTTP 403:
+The following ordinary Authorization Code + PKCE example is the canonical
+runtime delta from [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap). It deliberately shows the entire denied request,
+fresh transaction, token response, bound retry, and new application decision.
 
 ```mermaid
 ---
@@ -3032,168 +2564,315 @@ sequenceDiagram
     participant Client as 🤖 MCP Client
     participant Server as 🛠️ MCP Server
     participant AS as 🔑 Authorization Server
-    participant User as 👤 End User
+    participant Decision as 👤 Applicable Decision Authority
 
     rect rgba(241, 196, 15, 0.14)
-    Note right of Client: Phase 1: Insufficient Scope
-    Client->>Server: tools/call: write_file<br/>Authorization: Bearer {token}<br/>(scope: files:read)
-    Server-->>Client: 403 Forbidden<br/>WWW-Authenticate: Bearer<br/>error="insufficient_scope"<br/>scope="files:read files:write"
-    Client->>Client: Extract requirements<br/>Parse required scopes from 403
-    Note right of User: ⠀
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of Client: Phase 1: Resource challenge
+    Client->>Server: tools/call write_file<br/>current resource token
+    Server-->>Client: 403 insufficient_scope<br/>files:read files:write
+    Client->>Client: Validate challenge<br/>compute minimal union<br/>enforce retry cap
+    Note right of Decision: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of Client: Phase 2: Step-Up Authentication
-    Client->>AS: GET /authorize<br/>scope=files:read files:write
-    AS->>User: Incremental consent:<br/>"Grant file write access?"
-    User->>AS: Approve
-    AS->>Client: New token (files:read + files:write)
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of Client: Phase 2: Fresh grant transaction
+    Client->>AS: GET /authorize<br/>new state + PKCE<br/>resource + scope union
+    AS->>Decision: Evaluate requested increase<br/>under applicable policy
+    Decision-->>AS: Permit or deny
+    AS-->>Client: Redirect with code<br/>state + issuer
+    Client->>Client: Validate and consume<br/>transaction bindings
+    Client->>AS: POST /token<br/>code + PKCE verifier<br/>resource
+    AS-->>Client: OAuth token response<br/>actual granted scope
+    Note right of Decision: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 
     rect rgba(46, 204, 113, 0.14)
-    Note right of Client: Phase 3: Retry operation
-    Client->>Server: tools/call: write_file (retry)<br/>Authorization: Bearer {new-token}
-    Server-->>Client: ✅ 200 OK — file written
-    Note over Client,Server: Max retries enforced —<br/>prevents infinite 403 loops
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    Note right of Client: Phase 3: Bound retry
+    Client->>Server: Retry tools/call<br/>new request ID + token
+    Server->>Server: Fresh token admission<br/>and application decision
+    Server-->>Client: Typed result or<br/>new bounded denial
+    Note right of Decision: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
 ```
 
 <details>
-<summary><strong>1. MCP Client sends a tools/call with insufficient scope</strong></summary>
+<summary><strong>1. MCP Client sends the originating operation with its current resource token</strong></summary>
 
-The client attempts a state-mutating operation (`tools/call: write_file`) utilizing its current bearer token, which only carries the `files:read` scope. The agent may not possess explicit prior knowledge that this specific tool execution strictly binds to an elevated `files:write` scope requirement—this is determined deeply within the server's policy enforcement point (PEP) at runtime.
+The client sends the complete operation to the MCP resource. Its local grant
+record says the current credential was issued for `files:read`; the credential
+itself can be opaque or structured. The request does not claim write authority
+through an untrusted model annotation.
 
 ```http
 POST /mcp HTTP/1.1
 Host: mcp.example.com
-Authorization: Bearer eyJhbGci...
+Authorization: Bearer mcp_at_read_7Qf...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: write_file
 Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": 4,
+  "id": 41,
   "method": "tools/call",
   "params": {
     "name": "write_file",
-    "arguments": { "path": "/etc/config", "content": "..." }
+    "arguments": {
+      "path": "/workspace/config.json",
+      "content": "{\"mode\":\"reviewed\"}"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
   }
 }
 ```
 
+**Evidence bound:** resource, client, authorization subject, tool, normalized
+arguments or content digest, token fingerprint, request ID, and policy version.
+
 </details>
 <details>
-<summary><strong>2. MCP Server responds with 403 Forbidden and the required scope</strong></summary>
+<summary><strong>2. MCP Server returns a machine-readable insufficient-scope challenge</strong></summary>
 
-Because the JWT lacks `files:write`, the server's local policy engine rejects the JSON-RPC execution. It returns a `403 Forbidden` response utilizing `error="insufficient_scope"`. Per RFC 6750 §5.1, the `scope` attribute definitively lists the space-delimited set of scopes required to satisfy the denied request. The server's policy enforcement point generates an initial `403` audit trail tracking the failed boundary check.
+The server first admits and validates the presented token, then determines that
+the current grant is insufficient for `write_file`. It returns HTTP 403 with
+the required scope set. The challenge describes a resource requirement; it
+does not prove that the client is eligible for the scopes or that the
+Authorization Server will grant them.
 
 ```http
 HTTP/1.1 403 Forbidden
-WWW-Authenticate: Bearer
-  error="insufficient_scope",
+WWW-Authenticate: Bearer error="insufficient_scope",
   scope="files:read files:write",
   resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource",
-  error_description="Additional file write permission required"
+  error_description="Additional file write authority is required"
+Cache-Control: no-store
 ```
+
+**Artifact produced:** denial record and challenge, correlated to request
+`41`.
 
 </details>
 <details>
-<summary><strong>3. MCP Client extracts the required scopes from the 403 response</strong></summary>
+<summary><strong>3. MCP Client validates the challenge, computes the minimal union, and applies a retry cap</strong></summary>
 
-This self-referential phase represents the client's internal reactive logic. It parses the HTTP headers, computes the scope delta (`files:write` is the delta), and verifies its own internal execution state to confirm it's not caught in an infinite step-up loop.
+The client accepts the challenge only from the resource to which it sent the
+request, checks that protected-resource and issuer bindings still match the
+validated [§3.2](#32-initial-scope-selection-and-transaction-binding) transaction state, and rejects malformed or unexpectedly broad
+scope values. It computes:
+
+```text
+previously requested: files:read
+resource challenge:   files:read files:write
+next request:         files:read files:write
+incremental delta:    files:write
+```
+
+The client keys its circuit breaker to the operation, resource, challenge
+fingerprint, and policy epoch. This example permits one step-up attempt. A
+repeated or widening challenge after that attempt ends the operation instead
+of producing an authorization loop.
 
 ```mermaid
 stateDiagram-v2
     direction LR
-    Parse403 --> ComputeDelta: extract 'scope'
-    ComputeDelta --> CheckCache: need 'files-write'
-    CheckCache --> Abort: already denied today
-    CheckCache --> StepUp: cached as allowed/unknown
+    Validate --> Reject: wrong origin, resource, issuer, or syntax
+    Validate --> ComputeUnion: valid challenge
+    ComputeUnion --> Stop: empty delta or retry cap reached
+    ComputeUnion --> Authorize: minimal non-empty delta
 ```
 
 </details>
 <details>
-<summary><strong>4. MCP Client sends a step-up authorization request to the AS</strong></summary>
+<summary><strong>4. MCP Client starts a fresh Authorization Code + PKCE transaction</strong></summary>
 
-The client suspends its agentic loop and dispatches an incremental authorization request to the IdP. It specifically merges its pre-existing scope (`files:read`) with the newly demanded scope (`files:write`).
+The client suspends the operation in trusted local state, creates a new
+one-time `state`, PKCE verifier, and S256 challenge, and sends the full
+resource-bound authorization request. It does not reuse the original bootstrap
+transaction from [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap).
 
 ```http
-GET /authorize?
-  response_type=code&
-  client_id=agent-cli-001&
-  scope=files:read%20files:write&
-  resource=https://mcp.example.com&
-  code_challenge=xyz...&
-  code_challenge_method=S256 HTTP/1.1
+GET /authorize?response_type=code&client_id=agent-cli-001&redirect_uri=https%3A%2F%2Fclient.example%2Foauth%2Fcallback&scope=files%3Aread%20files%3Awrite&resource=https%3A%2F%2Fmcp.example.com&state=st_stepup_9c1&code_challenge=m0n3N9o4...&code_challenge_method=S256 HTTP/1.1
 Host: auth.example.com
+Accept: text/html
 ```
 
-</details>
-<details>
-<summary><strong>5. Authorization Server presents an incremental consent prompt to the user</strong></summary>
-
-Through session persistence or explicit `id_token_hint`, the AS recognizes the active user. It computes that the user has already consented to `files:read`, and therefore only explicitly prompts for the incremental elevation: *"The CLI Agent is requesting permission to write to your files. Grant?"*
-
-**Illustrative authorization-server surface**
-
-> **Additional permission requested**
->
-> **Client:** CLI Agent<br/>
-> **Resource:** `mcp.example.com`<br/>
-> **Already granted:** Read files<br/>
-> **New permission:** Write files<br/>
-> **Reason:** Retry `write_file` for `/etc/config`<br/>
-> **Available actions:** **Allow write access** · **Deny**
-
-The prompt identifies the client, target resource, incremental permission, and triggering operation. It does not imply that the proposed file contents are safe or that the MCP server must execute the retry.
+The suspended record binds the new transaction to the denied operation,
+challenge fingerprint, target resource, client identity, redirect URI, and
+one permitted retry.
 
 </details>
 <details>
-<summary><strong>6. End User approves the elevated scope</strong></summary>
+<summary><strong>5. Authorization Server asks the applicable decision authority to evaluate the increase</strong></summary>
 
-The user interacts with the AS prompt and affirmatively approves the delegation parameter. This consent logic acts as the system's runtime human-in-the-loop (HITL) boundary checkpoint.
+The Authorization Server evaluates eligibility and routes the request to the
+decision authority established by deployment policy. This is not universally
+an end-user consent prompt.
 
-The authorization server records the user decision against the exact client, resource, scope delta, authorization transaction, and policy version. Approval authorizes the server to issue the requested grant; it is not proof that the later token contains the scope, that the retry matches the approved operation, or that application policy will permit it.
+| Authority path | Illustrative decision |
+|:--|:--|
+| End-user delegated authority | The user approves or denies the incremental `files:write` grant |
+| Administrator-preapproved ordinary OAuth | Existing policy permits the scope for this client, subject, and resource without a new user prompt |
+| Enterprise-managed authorization | Enterprise policy and the managed client posture determine the grant under [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile) |
+| Stronger assurance required | The AS performs step-up authentication before the grant decision |
 
-**Artifact Produced:** An incremental-consent decision linked to the authorization transaction.
+If a user-facing prompt is required, it identifies the client, resource,
+already granted scopes, new scope delta, triggering operation, and available
+deny action. Approval of the scope increase is not approval of arbitrary later
+arguments and is not proof that the resource will execute the retry.
 
 </details>
 <details>
-<summary><strong>7. Authorization Server issues a new token with the elevated scope</strong></summary>
+<summary><strong>6. Applicable decision authority permits or denies the grant</strong></summary>
 
-The AS completes the PKCE-verified authorization code exchange. It mints and returns a fresh JWT encompassing both the baseline and elevated scopes (`scp: ["files:read", "files:write"]`).
+A denial returns `access_denied` through the authorization response, consumes
+the transaction, records the outcome, and terminates this retry path. A permit
+allows the Authorization Server to issue an authorization code; it does not
+guarantee the requested scope will appear in the token response.
+
+**Artifact produced:** a grant decision linked to the client, authorization
+subject, resource, requested scope union, incremental delta, policy version,
+and denied MCP operation.
+
+</details>
+<details>
+<summary><strong>7. Authorization Server returns an authorization code with state and issuer</strong></summary>
+
+After a permitted decision, the user agent returns to the exact registered
+redirect URI. The response carries a short-lived code, the original `state`,
+and the authorization-server issuer identifier.
+
+```http
+HTTP/1.1 302 Found
+Location: https://client.example/oauth/callback?code=cd_stepup_h71...&state=st_stepup_9c1&iss=https%3A%2F%2Fauth.example.com
+Cache-Control: no-store
+```
+
+On denial, the same channel carries `error=access_denied` and the original
+`state`; no token request follows.
+
+</details>
+<details>
+<summary><strong>8. MCP Client validates and consumes the authorization response</strong></summary>
+
+The client compares `state` in constant time, verifies the exact redirect URI
+and issuer against the suspended transaction, rejects duplicate callbacks,
+and atomically marks the response consumed. It resumes only the operation that
+created this transaction; a model cannot redirect the code to a different
+resource or tool call.
+
+**Failure consequence:** any mismatch, replay, expiry, or denial closes the
+transaction and leaves request `41` unexecuted.
+
+</details>
+<details>
+<summary><strong>9. MCP Client redeems the code with its PKCE verifier and target resource</strong></summary>
+
+The token request uses the endpoint discovered and validated in [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap), the same
+client and redirect URI, the one-time verifier paired with the authorization
+request, and the intended MCP resource.
+
+```http
+POST /token HTTP/1.1
+Host: auth.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&
+code=cd_stepup_h71...&
+client_id=agent-cli-001&
+redirect_uri=https%3A%2F%2Fclient.example%2Foauth%2Fcallback&
+code_verifier=verifier_stepup_9c1...&
+resource=https%3A%2F%2Fmcp.example.com
+```
+
+**Artifact evaluated:** the authorization code, PKCE binding, client binding,
+redirect binding, resource indicator, and consumed transaction state.
+
+</details>
+<details>
+<summary><strong>10. Authorization Server returns the actual granted scope</strong></summary>
+
+The token response is authoritative for what was granted. This example uses an
+opaque access token; the client does not assume JWT shape or a provider-specific
+`scp` claim. The AS may grant a subset of the requested union, so the client
+checks the returned `scope` before retrying.
 
 ```http
 HTTP/1.1 200 OK
 Content-Type: application/json
+Cache-Control: no-store
 
 {
-  "access_token": "eyJhbG..elevated",
+  "access_token": "mcp_at_write_A3m...",
   "token_type": "Bearer",
-  "expires_in": 3600,
+  "expires_in": 900,
   "scope": "files:read files:write"
 }
 ```
 
-**Artifact Produced:** Elevated Access Token
+**Artifact produced:** replacement MCP resource credential and grant record.
 
 </details>
 <details>
-<summary><strong>8. MCP Client retries the write operation with the elevated token</strong></summary>
+<summary><strong>11. MCP Client retries the same material operation with a new request ID</strong></summary>
 
-The client wakes its suspended loop. It resends the exact JSON-RPC payload from Step 1, this time swapping the `Authorization` header with the newly minted JWT.
+The client reconstructs the operation from trusted suspended state, verifies
+that its material arguments still match the denied operation, assigns a new
+JSON-RPC ID, and substitutes only the replacement credential and attempt
+correlation. A changed path or content requires a new authorization decision.
 
-> **What changed from Step 1:** the retry carries `Authorization: Bearer eyJhbG..elevated` and a new attempt correlation, while the resource, tool name, path, content digest, client, and subject remain bound to the suspended operation.
+```http
+POST /mcp HTTP/1.1
+Host: mcp.example.com
+Authorization: Bearer mcp_at_write_A3m...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: write_file
+Content-Type: application/json
 
-The client does not silently broaden the arguments or treat the consent event itself as a credential. The fresh token is the grant artifact, and the server still performs current token and application-policy checks.
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "tools/call",
+  "params": {
+    "name": "write_file",
+    "arguments": {
+      "path": "/workspace/config.json",
+      "content": "{\"mode\":\"reviewed\"}"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
+```
 
 </details>
 <details>
-<summary><strong>9. MCP Server accepts the retried operation</strong></summary>
+<summary><strong>12. MCP Server performs fresh token admission and application authorization</strong></summary>
 
-The server decodes the new token, observes that `files:write` is successfully populated within the `scp` array, and permits the JSON-RPC execution. The sequence strictly enforces a "maximum retries" circuit breaker to prevent looping 403 vectors if the AS silently dropped the elevated scope. The server generates a successful step-up authorization security log confirming the elevated access.
+The server validates the replacement credential according to its advertised
+format and issuer profile, including issuer, audience/resource, expiry,
+revocation or introspection state, client binding where applicable, and the
+granted `files:write` authority. It then makes a new application decision over
+the current tool, arguments, tenant, subject, handles, policy version, and
+side-effect state.
+
+The prior grant decision is evidence in this chain, not a command to execute.
+The resource may still deny the retry because the object changed, policy
+changed, a lease expired, or another application constraint failed.
+
+</details>
+<details>
+<summary><strong>13. MCP Server returns a typed result or a new bounded denial</strong></summary>
+
+On success, the result uses the current typed MCP result shape and correlates
+the original denial, grant transaction, replacement token fingerprint, fresh
+application decision, and resulting effect.
 
 ```http
 HTTP/1.1 200 OK
@@ -3201,143 +2880,89 @@ Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": 4,
+  "id": 42,
   "result": {
     "resultType": "complete",
-    "content": [{ "type": "text", "text": "File written successfully." }]
+    "content": [
+      { "type": "text", "text": "Configuration file updated." }
+    ],
+    "_meta": {
+      "decision_id": "dec-write-42",
+      "prior_denial_id": "deny-write-41"
+    }
   }
 }
 ```
+
+Another `insufficient_scope` response reaches the retry cap and terminates this
+operation. It does not silently launch a second widening transaction.
 
 </details>
 
 <br/>
 
-```http
-HTTP/1.1 403 Forbidden
-WWW-Authenticate: Bearer
-  error="insufficient_scope",
-  scope="files:read files:write user:profile",
-  resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource",
-  error_description="Additional file write permission required"
-```
+The server should challenge with the minimum scopes needed for the current
+operation. Anticipatory scope bundles increase authority and approval surface
+without proving that later operations require them. The client nevertheless
+includes still-required previously requested scopes because an [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750.html)
+challenge need not repeat the client's full prior request.
 
-**Three strategies for scope inclusion in the 403 challenge**:
+For the Client Credentials profile in [§1.7](#17-oauth-client-credentials-direct-machine-authority), the same 403 challenge can cause a
+machine client to request a replacement token under its pre-registered policy.
+It does **not** create a fictitious user-consent ceremony. If policy does not
+permit the additional machine scope, the client records the denial and stops.
 
-| Strategy | Scopes Returned | Use Case |
-|:---|:---|:---|
-| **Minimum** | Only the scopes required for the current operation | Strictest server-side least privilege |
-| **Recommended** | Current-operation scopes plus closely related scopes | Reduces repeated challenges for one operation |
-| **Extended** | Current-operation scopes plus anticipated near-term scopes | Reduces future round trips but increases consent breadth |
+#### 3.4 Scope Minimization, Challenge Governance, and RAR Handoff
 
-The server is not required to repeat scopes that the client requested previously. **Scope accumulation is a client responsibility**: for re-authorization, compute the union of the previously requested scope set and the newly challenged scope set. The client should then retry no more than a few times, preventing elevation loops where a misconfigured server keeps demanding different scopes.
+Scope minimization is an ownership discipline, not a rule that one component
+can enforce alone. The resource communicates coarse requirements, the client
+forms a bounded request, the applicable authority and Authorization Server
+decide what to grant, and the resource makes the final application decision.
 
-#### 3.4 Scope Minimization Best Practices
+| Layer | Current protocol responsibility | DR-0001 architecture policy |
+|:--|:--|:--|
+| **MCP/OAuth baseline** | Initial selection follows [§3.2](#32-initial-scope-selection-and-transaction-binding); a valid but under-scoped token can receive the [RFC 6750 §3.1](https://www.rfc-editor.org/rfc/rfc6750.html#section-3.1) `insufficient_scope` challenge used in [§3.3](#33-runtime-insufficient-scope-step-up) | Treat guidance, request, grant, token admission, and application authorization as separate records |
+| **Resource challenge** | The MCP resource chooses the `scope` value needed for the denied operation; [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750.html) does not require it to repeat the client's complete prior request | Challenge with the minimum registered coarse scopes the resource can justify; do not return a full catalog or speculative future bundle |
+| **Client retry** | The client forms the next request and therefore preserves still-required prior scopes when adding the challenged delta | Validate origin/resource/issuer, reject malformed or unrelated scopes, apply a challenge-keyed retry cap, and never interpret a 403 as approval |
+| **Decision authority and AS grant** | The applicable user, administrator, enterprise policy, or machine policy permits or denies; the AS issues the actual granted subset | Do not assume a user prompt, token-endpoint consent, or exact equality between requested and granted scope |
+| **Resource enforcement** | The resource validates the credential and authorizes the current operation | A granted scope is a ceiling, not permission for arbitrary primitive arguments, tenant objects, handles, downstream effects, or result release |
 
-The current Security Best Practices document treats **scope minimization** as a first-class security concern:
+The resource derives a challenge from the same trusted request context used
+for the denial: admitted protocol and extension versions, authenticated
+subject and actor, primitive method and name, normalized arguments, tenant,
+explicit handles, tool/resource metadata, and current policy version. Draft
+`Mcp-Method` and `Mcp-Name` headers can provide an early routing signal under
+[§2](#2-request-scoped-authorization-and-downstream-execution), but the final challenge remains bound to the parsed MCP request and the
+component that owns the authorization decision.
 
-| Anti-Pattern | Risk | Correct Practice |
-|:---|:---|:---|
-| Requesting all `scopes_supported` upfront | Over-privileged token, expanded blast radius | Start with minimal scope (e.g., `mcp:tools-basic`) |
-| Using wildcard scopes (`*`, `all`, `full-access`) | Agent gets unlimited access | Use precise per-operation scopes |
-| Publishing all possible scopes in `scopes_supported` | Clients may request everything | Publish only categories; use 403 challenges for specifics |
-| Returning full scope catalog in every 403 challenge | Pointless elevation, consent fatigue | Emit only the precise scopes needed for the denied operation |
-| Bundling unrelated privileges to avoid future prompts | Violates least privilege | Request scopes incrementally as needed |
-| Treating the `scope` claim in the token as sufficient | Scope != authorization — token may be stolen | Always validate scopes AND enforce server-side authz logic |
+A gateway may generate or normalize a scope challenge only when it is the
+policy enforcement point that made the denial or when a defined contract with
+the backend assigns it that responsibility. A pass-through gateway must not
+silently widen, narrow, replace, or reinterpret a backend challenge. When
+normalization is authorized, the evidence record preserves the backend
+decision, the exposed challenge, the mapping rule and version, and the
+responsible policy domain.
 
-**Recommended client behavior**:
-1. Begin with only baseline scopes (or those specified by initial `WWW-Authenticate`)
-2. Cache recent failures to avoid repeated elevation loops for denied scopes
-3. Handle scope downsizing gracefully — the AS MAY issue a subset of requested scopes
+The following rules are the deployment baseline:
 
-**Recommended server behavior**:
-1. Emit precise scope challenges — never return the full catalog
-2. Log elevation events (scope requested, granted subset) with correlation IDs
-3. Include `error_description` for human-readable debugging
+| Prohibited pattern | Required treatment |
+|:--|:--|
+| Request every value in `scopes_supported` merely because it is advertised | Use the [§3.2](#32-initial-scope-selection-and-transaction-binding) selected minimum for the current task; treat the catalog as guidance/fallback, not ambient authority |
+| Wildcard or catch-all scopes such as `*`, `all`, or `full-access` | Replace them with registered coarse permissions whose enforcement meaning is documented |
+| Add unrelated scopes to avoid a later authorization ceremony | Request the current minimum; a later material increase uses [§3.3](#33-runtime-insufficient-scope-step-up) |
+| Read a provider-specific JWT claim and treat it as the whole authorization decision | Validate the credential under its advertised profile, then perform application authorization regardless of token format |
+| Retry indefinitely as challenges change | Bind a small retry budget to the operation, resource, challenge fingerprint, and policy epoch; terminate on repetition or unexplained widening |
+| Put secrets or sensitive policy detail in `error_description` or logs | Return safe operator context and record only non-secret token identifiers, normalized scope sets, decision IDs, and reason codes |
 
-#### 3.5 How Scopes Interact with Related Sections
-
-This scope lifecycle connects to several patterns discussed elsewhere in the document:
-
-| Related Section | Connection |
-|:---|:---|
-| **[§14](#14-authorization-approval-and-consent-models) Incremental Consent** | The 403 `insufficient_scope` challenge is the *mechanism* through which incremental consent is triggered at the protocol level |
-| **[§16](#16-task-based-access-control-tbac) TBAC** | Task-based scopes (`task:travel:book:flight`) can be returned in the 401/403 `scope` parameter, enabling the MCP server to demand task-specific authorization |
-| **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | The gateway maps the current request method, named primitive, arguments, resource, and authenticated authority into trusted local policy before constructing a scope challenge |
-| **[§2](#2-stateless-streamable-http-authorization) Transport Headers** | Draft `Mcp-Method` / `Mcp-Name` headers give the gateway a cheap primitive signal before full JSON-RPC parsing, helping it select the right scope-mapping rule for `tools/call`, `resources/read`, and `prompts/get` |
-| **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) RAR** | Scopes and `authorization_details` (RAR) can coexist — scopes for broad access categories via `WWW-Authenticate`, RAR for structured constraints in the authorization request |
-| **[§13](#13-gateway-mediated-mcp-architecture) Gateway** | The gateway intercepts 401/403 responses from the MCP server and can **rewrite** the scope challenge before forwarding to the client, implementing policy-driven scope selection |
-
-**Policy consequence**: scope challenges should be generated from the *same request context* the gateway and server use for authorization: token claims, admitted protocol and extension versions, authenticated subject and actor, primitive method and name, arguments, explicit-handle authority, and relevant tool/resource metadata. That keeps runtime 403 challenges aligned with the actual denied operation instead of returning a generic scope catalog.
-
-#### 3.6 High-Assurance Authorization: FAPI 2.0, PAR, JAR, JARM
-
-When MCP tool calls involve **high-value operations** — financial transactions, regulated data access, healthcare record modification, or legally binding actions — the baseline OAuth 2.1 security profile ([§1](#1-current-mcp-authorization-and-protocol-baseline)) may be insufficient. The **Financial-grade API (FAPI) 2.0** family of specifications, along with its component standards PAR, JAR, and JARM, provides a hardened authorization layer designed for exactly these scenarios.
-
-**Why these matter for MCP**:
-- **High-value tool calls**: An agent executing `tools/call: transfer_funds` or `tools/call: submit_regulatory_filing` requires stronger authorization guarantees than a `tools/call: search_documents` invocation
-- **Regulated environments**: PSD3 (EU), Open Banking (UK/AU/BR), and healthcare (FHIR/SMART) ecosystems increasingly mandate FAPI 2.0 compliance
-- **AI-specific threat model**: FAPI 2.0's formal attacker model explicitly addresses token injection and authorization request manipulation — attacks that are amplified when non-deterministic AI agents handle authorization flows
-
-##### 3.6.1 Specification Landscape
-
-| Standard | RFC / Spec | Status | What It Secures | MCP Relevance |
-|:---------|:-----------|:-------|:----------------|:--------------|
-| **PAR** (Pushed Authorization Requests) | [RFC 9126](https://datatracker.ietf.org/doc/html/rfc9126) | Standards Track (Sep 2021) | Moves authorization request parameters to a secure backchannel POST, replacing URL query strings | Prevents authorization parameter tampering in MCP OAuth flows; critical when agents construct authorization requests programmatically — eliminates risk of LLM-generated malformed redirect URIs |
-| **JAR** (JWT-Secured Authorization Request) | [RFC 9101](https://datatracker.ietf.org/doc/html/rfc9101) | Standards Track (Aug 2021) | Wraps authorization request in a signed/encrypted JWT, ensuring integrity and confidentiality | Enables MCP clients to cryptographically bind authorization parameters; prevents man-in-the-middle modification of scope, resource, or audience values |
-| **JARM** (JWT Secured Authorization Response Mode) | [OIDF Final Spec](https://openid.net/specs/oauth-v2-jarm.html) (Nov 2022) | Final Specification | Encodes authorization responses (code, state, iss) as signed JWTs | Protects the authorization code response from injection/replay; validates the authorization server's identity to the MCP client |
-| **FAPI 2.0 Security Profile** | [OIDF Final Spec](https://openid.net/specs/fapi-2_0-security-profile.html) (Feb 2025) | Final Specification | Combines PAR + sender-constrained tokens (DPoP or mTLS) + `iss` validation as a unified high-assurance profile | Provides the complete security posture for high-risk MCP tool invocations; mandates PAR and sender-constraining, eliminating entire classes of token theft |
-| **FAPI 2.0 Message Signing** | [OIDF Final Spec](https://openid.net/specs/fapi-2_0-message-signing.html) (Sep 2025) | Final Specification | HTTP message integrity, signer authentication, and covered-component binding through [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421.html) signatures | Can prove that the holder of a signing key signed specified HTTP components; authorization still depends on token, policy, resource, operation, and key-to-principal validation |
-
-> **Architecture note**: PAR and JAR are **complementary, not competing**. PAR secures the *transport* of authorization parameters (backchannel POST instead of front-channel redirect). JAR secures the *content* (signed JWT). FAPI 2.0 mandates PAR and recommends JAR for the highest assurance levels. JARM secures the *response* direction — together, they provide end-to-end integrity for the entire authorization code flow.
-
-```mermaid
----
-config:
-  flowchart:
-    subGraphTitleMargin:
-      bottom: 25
----
-flowchart TB
-    subgraph FAPI["FAPI 2.0 Security Profile"]
-        direction TB
-
-        subgraph Request["Authorization Request"]
-            direction LR
-            PAR["PAR (RFC 9126)<br/>Secures TRANSPORT<br/>Backchannel POST<br/>replaces URL query strings"]
-            JAR["JAR (RFC 9101)<br/>Secures CONTENT<br/>Signed/encrypted JWT<br/>integrity + confidentiality"]
-            PAR --- JAR
-        end
-
-        Request --> Flow["Authorization Code Flow<br/>(PKCE + resource binding)"]
-
-        Flow --> Response["JARM (OIDF)<br/>Secures RESPONSE<br/>Authorization code in signed JWT<br/>prevents injection/replay"]
-
-        Response --> Token["Sender-Constrained Token<br/>(DPoP or mTLS)<br/>Proof-of-possession"]
-    end
-
-    Token --> MCP["🤖 MCP Tool Call<br/>with FAPI 2.0 Message Signing<br/>(RFC 9421 integrity + signer authentication)"]
-
-```
-
-##### 3.6.2 MCP Gateway FAPI 2.0 Support
-
-Among the gateways surveyed in [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway), FAPI 2.0 support varies:
-
-| Gateway | Section | PAR | JAR | JARM | DPoP/mTLS | FAPI 2.0 Certified | Notes |
-|:--------|:--------|:---:|:---:|:----:|:---------:|:------------------:|:------|
-| **PingGateway** | [§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive) | ✅ | ✅ | ✅ | ✅ | ✅ | Best positioned — Ping is a certified FAPI provider; filter chain enforces PAR, DPoP, JARM; Agent IAM Core provides agent-as-identity (GA Mar 2026) |
-| **Auth0 (HRI)** | [§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform) | ✅ | ✅ | ✅ | ✅ | ✅ | [Highly Regulated Identity](https://auth0.com/docs/secure/highly-regulated-identity) — FAPI 2.0 Security Profile certified |
-| **WSO2 IS** | [§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization) | ✅ | ⚠️ | ✅ | ⚠️ | ⚠️ In progress | PAR and JARM supported; FAPI 2.0 conformance testing underway |
-| **Kong** | [§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-in-an-established-api-gateway) | ➡️ | ➡️ | ➡️ | ➡️ | ❌ | Transparent proxy — AS must handle PAR/JAR/JARM validation |
-| **Traefik** | [§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation) | ➡️ | ➡️ | ➡️ | ➡️ | ❌ | Transparent proxy — AS must handle validation |
-| **Cloudflare** | [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) | ➡️ | ➡️ | ➡️ | ➡️ | ❌ | Transparent proxy — AS must handle validation |
-
-> ✅ = Native support · ⚠️ = Partial/in progress · ➡️ = Pass-through (AS-enforced) · ❌ = Not certified
-
-> **Cross-reference**: The FAPI CIBA Profile ([§15.5](#155-tier-5-ciba-protocol)) profiles financial-grade backchannel authentication. Composing it with the FAPI 2.0 Security Profile can strengthen the OAuth/OIDC layer, but it is not a complete MCP or transaction-authorization stack: the deployment still needs exact resource/operation policy, approval-display and execution binding, application lifecycle, downstream cancellation, and domain controls.
-
-> **Emerging standards**: For the emerging IETF drafts that extend the OAuth/OIDC foundation described in [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§3](#3-scope-and-client-identity-lifecycle) — including Agentic Authorization (AAuth, [§20.8](#208-gnap-and-directional-research)), Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)), and Identity Chaining ([§20.4](#204-delegation-and-identity-chains)) — see [§20](#20-emerging-standards-for-ai-agent-authorization).
+Flat scopes should remain coarse. When a registered authorization decision
+depends on structured values—such as a specific action, object, recipient,
+amount, purpose, or constraint—use a profiled [RFC 9396 Rich Authorization
+Request](https://www.rfc-editor.org/rfc/rfc9396.html)
+`authorization_details` type and follow §19. Do not encode unbounded
+JSON semantics into ad hoc scope strings, and do not imply that RAR is part of
+core MCP. Scopes and RAR can coexist: scopes identify broad authority classes;
+the registered authorization-details type carries structured constraints that
+the AS, client, and resource have agreed to interpret.
 
 ---
 
@@ -3351,7 +2976,14 @@ This group addresses the **end-to-end lifecycle of identity and authority** in a
 
 An agent identity does not answer the authorization question by itself. For each operation, the deployment must decide **whose authority permits the action, which actor is exercising that authority, which client and workload may present it, and what the resource server is expected to decide**. Treating “the agent” as one permanent subject collapses distinctions that later determine token contents, approval, revocation, and audit evidence.
 
-This chapter chooses the authority relationship. Agent and workload classification remain in Agent Identity vs. User Identity ([§6](#6-agent-identity-vs-user-identity)); token derivation follows in OAuth Token Exchange and Delegated Derivation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); approval and consent evidence remain in Authorization, Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)).
+This chapter chooses the authority relationship. The [§1.4](#14-authorization-path-and-profile-selection) selector then maps
+user-delegated authority to ordinary OAuth ([§1.5](#15-canonical-interactive-mcp-oauth-bootstrap)), enterprise-managed
+authority to EMA ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)), and direct machine authority to Client Credentials
+([§1.7](#17-oauth-client-credentials-direct-machine-authority)), with [§1.8](#18-high-assurance-oauth-profile-overlay) applied only as a compatible high-assurance overlay. Agent
+and workload classification remain in Agent Identity vs. User Identity ([§6](#6-agent-identity-vs-user-identity));
+downstream token derivation follows in OAuth Token Exchange and Delegated
+Derivation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); approval and consent evidence remain in Authorization,
+Approval, and Consent Models ([§14](#14-authorization-approval-and-consent-models)).
 
 > **Important — Delegation is conditional, not universal**
 >
@@ -3564,7 +3196,13 @@ The next chapter derives a target-bounded token when token exchange is the selec
 
 [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) defines an OAuth extension-grant protocol for an authorization server acting as a Security Token Service (STS). It can derive a token for a new resource, audience, scope, or token type and can express delegation or impersonation, but it does **not** define a universal agent trust model, token syntax, consent ceremony, or lifecycle linkage.
 
-This chapter explains derivation. Credential custody remains in Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); durable continuation remains in Authorization Continuity and Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks)); current cross-domain and transaction-token work remains in Emerging Standards for AI Agent Authorization ([§20](#20-emerging-standards-for-ai-agent-authorization)).
+This chapter explains derivation after §4 has selected the actual
+authority relationship. It is the downstream-derivation path named by [§1.4](#14-authorization-path-and-profile-selection),
+not an alternative way to skip the initial MCP bootstrap or manufacture
+authority. Credential custody remains in Credential Custody and Release
+Patterns ([§11](#11-credential-custody-and-release-patterns)); durable continuation remains in Authorization Continuity and
+Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks)); current cross-domain and transaction-token work remains
+in Emerging Standards for AI Agent Authorization ([§20](#20-emerging-standards-for-ai-agent-authorization)).
 
 > **Important — Token exchange is a policy decision, not token forwarding**
 >
@@ -4142,7 +3780,7 @@ flowchart TB
 
 ##### 6.3.1 Approach A: Agent-as-OAuth-Client (Current MCP Spec)
 
-Each governed agent application gets an issuer-bound client identity. Use administrative pre-registration where the issuer and deployer have a relationship; otherwise use a Client ID Metadata Document when the issuer advertises support and the client meets the trust policy in [§3.1.1](#311-authorization-preflight-discovery-registration-and-issuer-binding).
+Each governed agent application gets an issuer-bound client identity. Use administrative pre-registration where the issuer and deployer have a relationship; otherwise use a Client ID Metadata Document when the issuer advertises support and the client meets the trust policy in [§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd).
 
 ```json
 // Hosted at: https://agents.example.com/travel-assistant/oauth/client-metadata.json
@@ -4178,7 +3816,7 @@ SVID (X.509):
   SAN:     URI:spiffe://example.com/agent/travel-assistant/instance-789
 ```
 
-An application can compose a SPIFFE SVID with RFC 8693 as a locally defined `actor_token` profile, but the OAuth SPIFFE Client Authentication draft does not standardize that mapping:
+An application can compose a SPIFFE SVID with [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) as a locally defined `actor_token` profile, but the OAuth SPIFFE Client Authentication draft does not standardize that mapping:
 
 ```
 POST /token
@@ -4200,8 +3838,8 @@ POST /token
 
 | Method | Mechanism | Standards Base |
 |:---|:---|:---|
-| **`spiffe_jwt`** | JWT-SVID as `client_assertion` in token request | RFC 7521/7523 profile |
-| **`spiffe_x509`** | X.509-SVID via mutual TLS (SPIFFE ID in URI SAN) | RFC 8705 profile |
+| **`spiffe_jwt`** | JWT-SVID as `client_assertion` in token request | [RFC 7521](https://www.rfc-editor.org/rfc/rfc7521.html) / [RFC 7523](https://www.rfc-editor.org/rfc/rfc7523.html) profile |
+| **`spiffe_x509`** | X.509-SVID via mutual TLS (SPIFFE ID in URI SAN) | [RFC 8705](https://www.rfc-editor.org/rfc/rfc8705.html) profile |
 | **`spiffe_wit`** | WIT-SVID via `OAuth-Client-Attestation` headers | Attestation-Based Client Auth |
 
 This eliminates the need for `client_secret` entirely — the agent authenticates to the AS using its runtime-attested SVID:
@@ -4217,7 +3855,7 @@ client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-spiffe&
 client_assertion=&lt;JWT-SVID>
 ```
 
-**CIMD + SPIFFE binding**: The draft integrates with Client ID Metadata Documents ([§1.3.1](#131-client-id-metadata-documents-cimd)) — an MCP client's CIMD can declare its SPIFFE identity and trust bundle:
+**CIMD + SPIFFE binding**: The draft integrates with Client ID Metadata Documents ([§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd)) — an MCP client's CIMD can declare its SPIFFE identity and trust bundle:
 
 ```json
 {
@@ -4230,7 +3868,7 @@ client_assertion=&lt;JWT-SVID>
 
 The AS validates the JWT-SVID's `sub` claim against the CIMD's `spiffe_id` pattern, and verifies the SVID signature against the trust bundle from `spiffe_bundle_endpoint`. This creates a **secretless MCP client registration** pattern: agents deployed in SPIFFE-enabled environments authenticate to OAuth ASes without any pre-shared secrets.
 
-**AS metadata extension**: Authorization servers advertise SPIFFE support via `token_endpoint_auth_methods_supported: ["spiffe_jwt", "spiffe_x509", "spiffe_wit"]`, enabling MCP clients to discover and select the appropriate authentication method during the discovery flow ([§1.4](#14-layered-failure-taxonomy)).
+**AS metadata extension**: Authorization servers advertise SPIFFE support via `token_endpoint_auth_methods_supported: ["spiffe_jwt", "spiffe_x509", "spiffe_wit"]`, enabling MCP clients to discover and select the appropriate authentication method during the discovery flow ([§1.4](#14-authorization-path-and-profile-selection)).
 
 > **Implementation status (March 2026)**: Keycloak 26.4+ implements JWT-SVID client authentication as a **preview feature** using the SPIFFE Trust Bundle Endpoint for key validation. Stian Thorgersen (IBM) co-authored both the IETF draft and the [Keycloak federated client authentication feature](https://www.keycloak.org/2026/01/federated-client-authentication), making Keycloak the **reference implementation** for SPIFFE-based OAuth client auth. GA is targeted for Keycloak 26.6 pending IETF draft finalization. Hitachi will present implementation patterns for SPIFFE + OAuth federated identity at KubeCon + CloudNativeCon Europe 2026 (March 23–26, Amsterdam). Riptides has implemented kernel-level SPIFFE identity for agentic MCP workloads using kTLS and in-kernel mTLS handshakes. See [§20.5](#205-sender-audience-and-workload-constraints) for the current deployment boundary.
 
@@ -4358,9 +3996,9 @@ The approaches in [§6.3](#63-three-architectural-approaches-to-agent-identity)�
 
 | Identity Need | OIDC/OAuth Approach ([§6.3](#63-three-architectural-approaches-to-agent-identity)) | DID/VC Approach | Trade-off |
 |:---|:---|:---|:---|
-| **Agent registration** | Issuer-specific pre-registration or CIMD ([§1.3](#13-client-registration-and-enterprise-governance)) | DID creation (`did:web`, `did:key`) — agent generates its own globally unique identifier without per-AS registration | DID eliminates issuer-specific onboarding but requires verifiers to resolve and trust the DID method; CIMD is simpler for deployments governed through OAuth issuers |
+| **Agent registration** | Issuer-specific pre-registration or CIMD ([§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd)) | DID creation (`did:web`, `did:key`) — agent generates its own globally unique identifier without per-AS registration | DID eliminates issuer-specific onboarding but requires verifiers to resolve and trust the DID method; CIMD is simpler for deployments governed through OAuth issuers |
 | **Agent authentication** | `client_secret_jwt` / `private_key_jwt` / mTLS (RFC 8705) — credential verified by AS | DID Authentication (DIDAuth) — agent proves control of the private key associated with its DID via challenge-response | DIDAuth is AS-independent but lacks the battle-tested token introspection and revocation infrastructure of OAuth; no standardized DIDAuth protocol has reached production maturity |
-| **Capability declaration** | CIMD `client_name`, `grant_types`, `scope` ([§1.3](#13-client-registration-and-enterprise-governance)) or RAR `authorization_details` ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)) | Verifiable Credential with agent capabilities — issuer (e.g., deploying organization) attests to specific capabilities, model family, trust level in a cryptographically signed VC | VCs enable richer, portable capability attestation (including model version, safety certifications) that travels with the agent across organizations; CIMD is sufficient for single-AS scenarios |
+| **Capability declaration** | CIMD `client_name`, `grant_types`, `scope` ([§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd)) or RAR `authorization_details` ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)) | Verifiable Credential with agent capabilities — issuer (e.g., deploying organization) attests to specific capabilities, model family, trust level in a cryptographically signed VC | VCs enable richer, portable capability attestation (including model version, safety certifications) that travels with the agent across organizations; CIMD is sufficient for single-AS scenarios |
 | **Cross-org trust** | OIDC Federation ([§8.7.2](#872-openid-federation-11-for-agent-trust)) — hierarchical Trust Chains via signed Entity Statements | DID resolution + VC verification — verifier resolves the agent's DID, retrieves the DID Document, and validates presented VCs against trusted issuer DIDs | OIDC Federation provides a structured governance hierarchy (Trust Anchors, Intermediates); DID/VC offers flatter, more ad-hoc trust but requires each verifier to maintain its own trusted issuer list |
 | **Credential delegation** | RFC 8693 token exchange — STS issues scoped delegated token with `act` claim ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)) | VC issuance/presentation — delegating entity issues a scoped VC to the agent; agent presents the VC to downstream services | VC-based delegation supports offline verification and cross-domain portability without real-time STS connectivity; RFC 8693 provides tighter integration with existing OAuth token lifecycle (introspection, revocation) |
 
@@ -4429,7 +4067,7 @@ flowchart LR
 
 **VC Wallets and Agent Identity**: Microsoft Entra Verified ID is the most mature enterprise VC platform, supporting both DID creation and VC issuance/verification. SpruceID and walt.id provide open-source VC tooling. However, **no VC wallet currently supports agent-specific identity flows** — existing wallets are designed for human holders. The DIF Trusted AI Agents Working Group (TAIAWG), launched September 2025, is working on specifications for agentic identity, agentic registries, and trusted agent communication using DIDs/VCs, with "Agentic Authority Use Cases" as its first planned deliverable. Indicio ProvenAI offers an early VC-based platform for agent authentication, consent management, and delegated authority.
 
-**MCP Intersection: MCP-I (Model Context Protocol — Identity)**. The MCP authorization spec ([§1](#1-current-mcp-authorization-and-protocol-baseline)) mandates OAuth 2.1, and all current MCP gateway implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)) implement OAuth-based authentication. However, in March 2026 **Vouched** [donated MCP-I](https://modelcontextprotocol-identity.io/) to the **Decentralized Identity Foundation** (DIF), to be developed under the **Trusted AI Agents Working Group** (TAIAWG) — making MCP-I the **first and only framework that directly bridges DID/VC with MCP** for agent identity. MCP-I extends MCP with cryptographic identity and delegation, enabling agents to prove who they are (identity), who authorized them (delegation), what they are allowed to do (scope), and whether they can be trusted (reputation). It retains full interoperability with existing MCP transports (Streamable HTTP, stdio) and message formats, adding identity headers (`MCP-I-Credential`, `MCP-I-Delegation`) to existing JSON-RPC messages. The [§6.5](#65-decentralized-identity-didvc-for-agent-identity) sequence diagram below illustrates the conceptual actor-token integration point; MCP-I formalizes this into a complete architectural framework.
+**MCP Intersection: MCP-I (Model Context Protocol — Identity)**. The MCP authorization spec ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles)) mandates OAuth 2.1, and all current MCP gateway implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)) implement OAuth-based authentication. However, in March 2026 **Vouched** [donated MCP-I](https://modelcontextprotocol-identity.io/) to the **Decentralized Identity Foundation** (DIF), to be developed under the **Trusted AI Agents Working Group** (TAIAWG) — making MCP-I the **first and only framework that directly bridges DID/VC with MCP** for agent identity. MCP-I extends MCP with cryptographic identity and delegation, enabling agents to prove who they are (identity), who authorized them (delegation), what they are allowed to do (scope), and whether they can be trusted (reputation). It retains full interoperability with existing MCP transports (Streamable HTTP, stdio) and message formats, adding identity headers (`MCP-I-Credential`, `MCP-I-Delegation`) to existing JSON-RPC messages. The [§6.5](#65-decentralized-identity-didvc-for-agent-identity) sequence diagram below illustrates the conceptual actor-token integration point; MCP-I formalizes this into a complete architectural framework.
 
 MCP-I is composed of six modular services:
 
@@ -4814,9 +4452,9 @@ sequenceDiagram
 ```
 
 <details>
-<summary><strong>1. Shared Agent initializes its per-user delegation store</strong></summary>
+<summary><strong>1. Shared Agent loads its per-user delegation store</strong></summary>
 
-The shared agent maintains an internal delegation store securely mapping each delegating human user to their specific OAuth token and constrained scopes. This self-referential initialization represents the agent loading its active credential set: `Alice → token_A (calendar:read)` and `Bob → token_B (email:send)`. Each token was obtained via separate RFC 8693 token exchanges.
+The shared agent maintains an internal delegation store securely mapping each delegating human user to their specific OAuth token and constrained scopes. This local credential-load step represents the agent loading its active credential set: `Alice → token_A (calendar:read)` and `Bob → token_B (email:send)`. Each token was obtained via separate [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html) token exchanges.
 
 ```json
 {
@@ -5290,7 +4928,7 @@ If closure cannot be proved—for example, a provider cannot report whether an o
 
 #### 7.7 Provisioning and Lifecycle Event Subjects
 
-Provisioning and security events are inputs to lifecycle orchestration, not a universal offboarding protocol. [SCIM 2.0](https://www.rfc-editor.org/rfc/rfc7644) can provision and change identities where the target implements an appropriate resource model. [RFC 8417](https://www.rfc-editor.org/rfc/rfc8417) defines Security Event Tokens (SETs); [RFC 9493](https://www.rfc-editor.org/rfc/rfc9493) defines subject identifiers for SETs; and [RFC 9967](https://www.rfc-editor.org/rfc/rfc9967) defines event-stream management operations. None of them proves, alone, that an MCP session, task, or external provider operation reached a terminal state.
+Provisioning and security events are inputs to lifecycle orchestration, not a universal offboarding protocol. [SCIM 2.0](https://www.rfc-editor.org/rfc/rfc7644) can provision and change identities where the target implements an appropriate resource model. [RFC 8417](https://www.rfc-editor.org/rfc/rfc8417) defines Security Event Tokens (SETs); [RFC 9493](https://www.rfc-editor.org/rfc/rfc9493) defines subject identifiers for SETs; and [RFC 9967](https://www.rfc-editor.org/rfc/rfc9967) defines event-stream management operations. None of them proves, alone, that an MCP request, task, continuation, or external provider operation reached a terminal state.
 
 The lifecycle service should normalize an incoming signal into an internal event with an explicit subject:
 
@@ -5396,7 +5034,7 @@ While MCP defines how agents call **tools**, the [Agent-to-Agent (A2A) protocol]
 | **Interaction model** | Request/response (tools/call) | Long-running tasks with streaming updates |
 | **Discovery** | RFC 9728 (Protected Resource Metadata) | Agent Cards (JSON metadata at `/.well-known/agent-card.json`) |
 | **Auth declaration** | Server's `oauth-protected-resource` metadata | Agent Card `securitySchemes` field |
-| **Transport** | Streamable HTTP ([§2](#2-stateless-streamable-http-authorization)) | Web-aligned transport bindings; JSON-RPC/HTTP remains the binding used in DR-0001 examples |
+| **Transport** | Streamable HTTP ([§2](#2-request-scoped-authorization-and-downstream-execution)) | Web-aligned transport bindings; JSON-RPC/HTTP remains the binding used in DR-0001 examples |
 | **Identity model** | User delegates to agent (OBO) | Agent delegates to agent (chained delegation) |
 | **Governance** | Linux Foundation (Anthropic-originated) | Linux Foundation (Google-originated; multi-vendor TSC) |
 
@@ -5536,7 +5174,7 @@ A2A defines a **two-tier discovery model** that MCP does not have:
 | **Public** | `GET /.well-known/agent-card.json` | ❌ | General discovery, capability browsing |
 | **Extended** | `GetExtendedAgentCard` (JSON-RPC) | ✅ | Per-caller capability disclosure, sensitive skills |
 
-**Security implication**: The Extended Agent Card enables **least-privilege discovery** — agents reveal only the capabilities appropriate to each caller's trust level. An unauthenticated caller sees general skills; an authenticated enterprise partner sees additional privileged capabilities. This is architecturally aligned with [§3](#3-scope-and-client-identity-lifecycle) (scope minimization) and [§16](#16-task-based-access-control-tbac) (TBAC), where access is progressively disclosed based on authorization level.
+**Security implication**: The Extended Agent Card enables **least-privilege discovery** — agents reveal only the capabilities appropriate to each caller's trust level. An unauthenticated caller sees general skills; an authenticated enterprise partner sees additional privileged capabilities. This is architecturally aligned with [§3](#3-scope-selection-and-runtime-step-up) (scope minimization) and [§16](#16-task-based-access-control-tbac) (TBAC), where access is progressively disclosed based on authorization level.
 
 #### 8.3 A2A Security Model
 
@@ -5620,11 +5258,11 @@ Beyond the cross-protocol delegation gap ([§8.4](#84-the-mcp--a2a-security-gap)
 | **Agent Shadowing** | Malicious agent mimics the Agent Card of a legitimate agent | TLS certificate validation + Agent Card signing | [§8.2](#82-a2a-authentication-architecture) — discovery integrity |
 | **Rug Pull** | Trusted agent gradually shifts to malicious behavior over time | Runtime behavior monitoring (external) | [§6.3](#63-three-architectural-approaches-to-agent-identity) — trust levels |
 | **Agent Card Poisoning** | Injecting malicious instructions into Agent Card descriptions or skill metadata | Input sanitization, schema validation | [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails) — ContextForge guardrails |
-| **Authorization Creep** | Agent gradually accumulates broader permissions than originally intended | Least-privilege scopes, time-bound tokens | [§3](#3-scope-and-client-identity-lifecycle) — scope minimization |
-| **Task Replay** | Attacker replays previously valid task requests | Nonce + timestamp verification per task | [§2](#2-stateless-streamable-http-authorization) — Streamable HTTP CSRF protection |
+| **Authorization Creep** | Agent gradually accumulates broader permissions than originally intended | Least-privilege scopes, time-bound tokens | [§3](#3-scope-selection-and-runtime-step-up) — scope minimization |
+| **Task Replay** | Attacker replays previously valid task requests | Nonce + timestamp verification per task | [§2](#2-request-scoped-authorization-and-downstream-execution) — Streamable HTTP CSRF protection |
 | **Cross-Agent Escalation** | Agent B uses Agent A's valid credentials for unauthorized tool access | Per-task credential validation, scope binding | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) — OBO scope binding |
 
-> **Out of scope**: Cross-agent prompt injection — where A2A message content manipulates an agent's LLM behavior — remains a model-level security concern, excluded per the scope definition in [§1](#1-current-mcp-authorization-and-protocol-baseline).
+> **Out of scope**: Cross-agent prompt injection — where A2A message content manipulates an agent's LLM behavior — remains a model-level security concern, excluded per the scope definition in [§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles).
 
 #### 8.4 The MCP × A2A Security Gap
 
@@ -6267,7 +5905,7 @@ Four models exist for establishing trust between organizations for agent communi
 | **Metadata Policy** | Hierarchical JSON policy that superiors impose on subordinates | Trust Anchor mandates DPoP, issuer metadata constraints, signing algorithms, or required assurance properties |
 | **Resolve Flow** | Resolution of the leaf entity's metadata and applicable policies via subordinate statements or a federation resolve endpoint | Org Y's gateway bootstraps trust in Org X's issuer without hand-managed key exchange |
 
-OIDC Federation does **not** define the cross-domain access token itself. It establishes that Org Y can trust Org X's issuer metadata, keys, and inherited policy posture. The runtime token still comes from ordinary OAuth mechanisms: local issuance, Identity Chaining ([§20.4](#204-delegation-and-identity-chains)), Enterprise-Managed Authorization / ID-JAG ([§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol)), or another accepted profile.
+OIDC Federation does **not** define the cross-domain access token itself. It establishes that Org Y can trust Org X's issuer metadata, keys, and inherited policy posture. The runtime token still comes from ordinary OAuth mechanisms: local issuance, Identity Chaining ([§20.4](#204-delegation-and-identity-chains)), Enterprise-Managed Authorization / ID-JAG ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)), or another accepted profile.
 
 **How OIDC Federation fits cross-org MCP tool calls**:
 
@@ -7219,7 +6857,7 @@ Problems #1 (cross-protocol delegation) and #4 (session/context correlation) rem
 
 ##### 8.8.6 AP2 in the DR-0001 Compliance Stack
 
-AP2 operates at a distinct layer in the payment authorization stack, complementing — not replacing — CIBA ([§15.5](#155-tier-5-ciba-protocol)) and MCP/A2A ([§1](#1-current-mcp-authorization-and-protocol-baseline), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)):
+AP2 operates at a distinct layer in the payment authorization stack, complementing — not replacing — CIBA ([§15.5](#155-tier-5-ciba-protocol)) and MCP/A2A ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles), [§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns)):
 
 | Layer | Protocol | Payment Function | PSD2 Function |
 |:------|:---------|:----------------|:--------------|
@@ -8401,9 +8039,9 @@ sequenceDiagram
     participant API as 🔧 API
 
     rect rgba(148, 163, 184, 0.14)
-    Note right of User: Phase 1: User-Present Initialization
+    Note right of User: Phase 1: User-Present Authorization
     User->>Agent: "Process all invoices overnight"
-    Note over User,IdP: Session established via Token Exchange OR CIBA
+    Note over User,IdP: Offline authority established via Token Exchange OR CIBA
     Agent->>IdP: Obtain tokens (access + refresh)
     IdP-->>Agent: { access_token (15 min),<br/>refresh_token (24 hours) }
     Note right of API: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -9161,6 +8799,10 @@ The active OAuth working-group draft [OAuth 2.0 Refresh Token and Authorization 
 #### 12.3 Sender Constraint and Key-Custody Boundaries
 
 [DPoP](https://www.rfc-editor.org/rfc/rfc9449) binds a proof and, when used, an access token to a public key. [OAuth mTLS](https://www.rfc-editor.org/rfc/rfc8705) can bind an access token to the certificate/key used on resource requests. Both reduce bearer-token replay, but neither revokes the underlying grant or proves that the client/workload is trusted for the requested action.
+
+§1.8 decides when FAPI or another high-assurance OAuth overlay applies;
+this section owns the sender-constraint and private-key-custody mechanics that
+such an overlay depends on.
 
 ```mermaid
 ---
@@ -11422,11 +11064,11 @@ Applying [STRIDE](https://learn.microsoft.com/en-us/azure/security/develop/threa
 | STRIDE Category | Threat in MCP Context | Gateway Mitigation | DR-0001 Sections |
 |:----------------|:---------------------|:-------------------|:-----------------|
 | **Spoofing** | A malicious agent presents a forged or stolen `act` claim; a compromised server supplies a lookalike URL Elicitation destination | Validate token type, signature, issuer, audience, top-level subject, current actor, and sender proof; treat prior nested actors as informational and require separate grant/trace evidence; require a trusted per-server destination policy, normalized URL checks, explicit client display/consent, and server-side browser identity binding | [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation); [§6.3](#63-three-architectural-approaches-to-agent-identity); [§9.3](#93-internal-assertion-and-trusted-channel-profile); [§12.3](#123-sender-constraint-and-key-custody-boundaries); [§14.8.2](#1482-security-boundaries); [§14.8.3](#1483-ciba-vs-url-elicitation); [§14.8.4](#1484-current-server-initiated-interaction-boundaries) |
-| **Tampering** | An attacker modifies MCP JSON-RPC request payloads in transit (e.g., altering tool parameters or injecting additional tool calls) to change the outcome of an authorized operation | **Guardrail Engine**: Payload validation verifies JSON-RPC schema conformance and sanitizes input before forwarding to MCP server; TLS 1.3 termination at gateway ensures channel integrity | [§2](#2-stateless-streamable-http-authorization) (Streamable HTTP + TLS); [§13.2](#132-gateway-responsibilities) (request validation); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare edge TLS) |
+| **Tampering** | An attacker modifies MCP JSON-RPC request payloads in transit (e.g., altering tool parameters or injecting additional tool calls) to change the outcome of an authorized operation | **Guardrail Engine**: Payload validation verifies JSON-RPC schema conformance and sanitizes input before forwarding to MCP server; TLS 1.3 termination at gateway ensures channel integrity | [§2](#2-request-scoped-authorization-and-downstream-execution) (Streamable HTTP + TLS); [§13.2](#132-gateway-responsibilities) (request validation); [§K](#appendix-k-cloudflare-mcp-edge-native-mcp-gateway-with-zero-trust) (Cloudflare edge TLS) |
 | **Repudiation** | An agent invokes a high-risk tool (e.g., `payments/transfer`) and later denies the action—no audit trail exists to attribute the invocation to a specific user + agent pair | Decision evidence with `sub`, `act`, tool, minimized arguments, timestamp, policy version, and outcome; protected authorization context supplies attribution; immutable export supports investigation | [§13.5.3](#1353-trace-context-and-audit-log-correlation)–[§13.5.4](#1354-authorization-decision-tracing); [§9](#9-authorization-context-and-delegation-representation); [§23.4](#234-articles-12-19-and-26-recordkeeping-and-retention); [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) |
 | **Information Disclosure** | A compromised or over-privileged MCP server leaks user tokens, tool responses containing PII, or tenant-level credentials via SSRF (cf. CVE-2026-26118) | **Guardrail Engine**: Inspects tool responses to filter PII and sensitive data payloads. Downstream token separation ensures the MCP client never receives backend service tokens; secretless credential model ([§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) Model C) ensures the agent never holds credentials; gateway-side scope attenuation limits data exposure radius | [§11](#11-credential-custody-and-release-patterns) (credential separation); [§7.4](#74-correlated-object-lifecycles-owners-and-artifacts) (secretless credentials); [§H.2](#h2-token-vault-early-access-managed-third-party-credential-store) (Token Vault); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker secret injection) |
 | **Denial of Service** | A malicious or malfunctioning agent floods the gateway with tool invocation requests, exhausting rate limits and blocking legitimate agents from accessing tools | Per-user, per-agent, and per-tool rate limiting; bounded budgets; lifetime limits close idle subscriptions and abandoned tasks; container-level resource limits in Docker MCP deployments. ([§13.8](#138-authorization-infrastructure-resilience) extends DoS analysis to authorization-infrastructure failure with component-specific degraded/fail-closed guidance.) | [§13.2](#132-gateway-responsibilities) (rate limiting); [§13.8](#138-authorization-infrastructure-resilience) (infrastructure resilience); [§10.4](#104-security-guardrails-for-agent-refresh-tokens) (lifetime controls); [§J](#appendix-j-docker-mcp-gateway-container-runtime-as-mcp-security-boundary) (Docker resource constraints) |
-| **Elevation of Privilege** | An agent authorized for read-only tool access (`tools:read:*`) exploits a scope validation gap to invoke a write tool (`tools:execute:payments/transfer`), escalating from observer to executor | **PDP Policy Evaluation**: TBAC constrains tool access to declared task context; scope-to-tool mapping enforces strict scope boundaries at gateway; OBO delegation with scope attenuation ensures delegated tokens cannot exceed the user's original authorization | [§16](#16-task-based-access-control-tbac) (TBAC); [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (scope-to-tool mapping); [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (OBO scope attenuation); [§3.4](#34-scope-minimization-best-practices) (scope minimization) |
+| **Elevation of Privilege** | An agent authorized for read-only tool access (`tools:read:*`) exploits a scope validation gap to invoke a write tool (`tools:execute:payments/transfer`), escalating from observer to executor | **PDP Policy Evaluation**: TBAC constrains tool access to declared task context; scope-to-tool mapping enforces strict scope boundaries at gateway; OBO delegation with scope attenuation ensures delegated tokens cannot exceed the user's original authorization | [§16](#16-task-based-access-control-tbac) (TBAC); [§18](#18-authorization-models-and-policy-engines-pattern-synthesis) (scope-to-tool mapping); [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (OBO scope attenuation); [§3.4](#34-scope-minimization-challenge-governance-and-rar-handoff) (scope minimization) |
 | **Elevation of Privilege** (Tool Chaining) | **Automated Offensive Cyber Workflows**: An agent leverages access to multiple discrete tools (e.g., code execution, file editing) to chain them into a larger offensive cyber workflow, a primary misuse vector identified by NIST AI 800-1. | **TBAC & Gateway Guardrails**: Task-Bound Access Control prevents arbitrary tool chaining by binding access to specific task contexts; gateway guardrails intercept dual-use tool requests at runtime. | [§16](#16-task-based-access-control-tbac) (TBAC); [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) (Guardrails); [§24.3](#243-emerging-agent-security-identity-and-evaluation-maturity-watch) (NIST AI 800-1) |
 
 > **Connection to [§7.8](#78-risk-and-governance-crosswalk)**: This STRIDE model complements the concise OWASP, CoSAI, and CSA risk/governance crosswalk by focusing specifically on the **gateway as a trust boundary**—the architectural component where many DR-0001 mitigations are enforced. Product maturity boundaries are kept separately in [§7.9](#79-product-implementation-evidence-and-maturity-boundaries).
@@ -12027,8 +11669,8 @@ flowchart TD
 
 | Component | Baseline | Conditional Choice | Evidence Boundary |
 |:--|:--|:--|:--|
-| **Protocol** | Current request-scoped contract; core and extension versions pinned independently | Additional current extension versions only after explicit admission and negative tests | [§1.1](#11-current-only-protocol-admission), [§2.1](#21-current-transport-contract), Rec 31 |
-| **Identity / registration** | Enterprise IdP/AS; separate user, client/agent, and workload identity; CIMD or managed registration | Enterprise-Managed Authorization for governed SSO brokering; SPIFFE where workload attestation is supported | [§3](#3-scope-and-client-identity-lifecycle), [§6](#6-agent-identity-vs-user-identity), and [§20.5](#205-sender-audience-and-workload-constraints) |
+| **Protocol** | Current request-scoped contract; core and extension versions pinned independently | Additional current extension versions only after explicit admission and negative tests | [§1.1](#11-current-only-protocol-admission), [§2.1](#21-request-contract-and-enforcement-ownership), Rec 31 |
+| **Identity / registration** | Enterprise IdP/AS; separate user, client/agent, and workload identity; CIMD or managed registration | Enterprise-Managed Authorization for governed SSO brokering; SPIFFE where workload attestation is supported | [§3](#3-scope-selection-and-runtime-step-up), [§6](#6-agent-identity-vs-user-identity), and [§20.5](#205-sender-audience-and-workload-constraints) |
 | **Request enforcement** | Inline PEP validates token, routing context, primitive, tenant, policy, and explicit handles | APIM, PingGateway, Kong, AgentGateway, Traefik, Red Hat, or server-native enforcement according to verified role | [§13](#13-gateway-mediated-mcp-architecture), [§21](#21-product-implementation-landscape), [§22](#22-consolidated-comparison-thirteen-architectural-models), and Appendices A–E/I/L |
 | **Credential treatment** | Managed injection, audience-bound exchange, or workload identity keeps reusable credentials outside model context | Token vault or secretless pattern where downstream systems support it | [§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 13, and Rec 20 |
 | **Authorization model** | RBAC for coarse workforce roles plus ABAC/resource checks for sensitive arguments and backend objects | OPA, Cedar, CEL, PingAuthorize, or another PDP selected by policy semantics and outage behavior | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
@@ -12090,7 +11732,7 @@ flowchart TD
 | Component | Baseline | Conditional Choice | Evidence Boundary |
 |:--|:--|:--|:--|
 | **Protocol** | Current core per approved client; core and extension versions pinned independently | Additional current extensions only when the client, server, and policy profile pin the same contract | [§1.1](#11-current-only-protocol-admission), Rec 1, Rec 31 |
-| **Client identity / registration** | Issuer-specific pre-registration where a relationship exists; otherwise CIMD with issuer binding, software provenance, redirect validation, fetch safety, and tenant ownership | Fail visibly when neither approved path is available | [§3](#3-scope-and-client-identity-lifecycle), [§7](#7-agent-definition-identity-and-governance-lifecycles), and [§13.7](#137-mcp-tool-supply-chain-security) |
+| **Client identity / registration** | Issuer-specific pre-registration where a relationship exists; otherwise CIMD with issuer binding, software provenance, redirect validation, fetch safety, and tenant ownership | Fail visibly when neither approved path is available | [§3](#3-scope-selection-and-runtime-step-up), [§7](#7-agent-definition-identity-and-governance-lifecycles), and [§13.7](#137-mcp-tool-supply-chain-security) |
 | **Consent / delegation** | Explicit or administrator-governed grant tied to the user, agent client, resource, purpose, scopes, and expiry | Incremental consent, external approval, or platform-managed cross-app access when the authority and evidence model are defined | [§14](#14-authorization-approval-and-consent-models), Rec 14 |
 | **Credential custody** | Token vault, audience-bound exchange, or managed injection prevents reusable upstream credentials entering agent context | Direct exchange for trusted partners that can preserve subject/actor and audience semantics | [§11](#11-credential-custody-and-release-patterns), [§12](#12-credential-state-revocation-and-termination-convergence), Rec 3, and Rec 13 |
 | **Authorization model** | Tenant ABAC plus backend resource authorization; ReBAC for sharing relationships where that is the actual policy shape | OpenFGA, Cedar, OPA, CEL, or another PDP selected and tested by semantics | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 4, Rec 9 |
@@ -12154,7 +11796,7 @@ flowchart TD
 | Component | Baseline | Conditional Choice | Evidence Boundary |
 |:--|:--|:--|:--|
 | **Protocol / conformance** | Exact core and extension versions pinned; positive and negative fixtures cover routing, typed results, errors, handles, revocation, and degraded operation | No conditional compatibility route; unsupported contracts fail closed | [§1.1](#11-current-only-protocol-admission), [§22.1](#221-protocol-admission-extensions-and-conformance), Rec 12, Rec 31 |
-| **OAuth profile** | Issuer/resource validation, strong client authentication, credential custody, replay defense, and auditable delegation | FAPI 2.0, PAR, JARM, DPoP, mTLS, or another coherent profile where the operation and counterpart support it | [§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm), [§12.3](#123-sender-constraint-and-key-custody-boundaries), Rec 21, Rec 23 |
+| **OAuth profile** | Issuer/resource validation, strong client authentication, credential custody, replay defense, and auditable delegation | FAPI 2.0, PAR, JARM, DPoP, mTLS, or another coherent profile where the operation and counterpart support it | [§1.8](#18-high-assurance-oauth-profile-overlay), [§12.3](#123-sender-constraint-and-key-custody-boundaries), Rec 21, Rec 23 |
 | **Identity / attestation** | Human, agent/client, workload, organization, and authority claims remain separate policy inputs | SPIFFE or other workload attestation; verified authority claims where an applicable trust framework exists | [§6](#6-agent-identity-vs-user-identity), [§20.5](#205-sender-audience-and-workload-constraints), [§20.6](#206-policy-evidence-and-verified-authority), Rec 26, and Rec 27 |
 | **PEP / PDP** | Gateway performs deterministic request checks; versioned PDP contract evaluates governed business policy and returns obligations/reasons | Cedar, OPA, PingAuthorize, or another engine selected by semantics, verification, operations, and failure mode | [§13.2](#132-gateway-responsibilities), [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), Rec 9, and Rec 10 |
 | **State / Tasks** | Durable authority record links every handle or task to principal, purpose, consent, budget, policy, expiry, revocation, and result access | Draft Tasks only with extension-specific lifecycle and transfer policy | [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), Rec 24, Rec 34, Rec 38 |
@@ -12305,7 +11947,7 @@ A mature MCP tool registry ecosystem needs: **(1)** signed descriptors with publ
 
 ##### 13.7.4 Agent Discovery and Registry Ecosystem
 
-DR-0001 covers individual agent discovery mechanisms in depth — CIMD for MCP client registration ([§1.3](#13-client-registration-and-enterprise-governance)), A2A Agent Cards for agent-to-agent discovery ([§8.2](#82-a2a-authentication-architecture), [§8.6](#86-emerging-standards-and-discovery-federation)), Signed Agent Cards for cross-org trust ([§8.7.3](#873-a2a-v10-signed-agent-cards)), the MCP Registry for server catalog ([§13.7.3](#1373-mcp-registry-trust-models)), and Azure API Center for enterprise agent/server registry ([§A.4](#a4-versioned-protocol-alignment-and-evidence-gaps)). However, the *ecosystem* of competing discovery and registry approaches is itself an emerging architectural concern. Six distinct approaches are converging, each with fundamentally different trust models, governance structures, and authorization implications:
+DR-0001 covers individual agent discovery mechanisms in depth — CIMD for MCP client registration ([§1.3](#13-pre-registration-and-client-id-metadata-documents-cimd)), A2A Agent Cards for agent-to-agent discovery ([§8.2](#82-a2a-authentication-architecture), [§8.6](#86-emerging-standards-and-discovery-federation)), Signed Agent Cards for cross-org trust ([§8.7.3](#873-a2a-v10-signed-agent-cards)), the MCP Registry for server catalog ([§13.7.3](#1373-mcp-registry-trust-models)), and Azure API Center for enterprise agent/server registry ([§A.4](#a4-versioned-protocol-alignment-and-evidence-gaps)). However, the *ecosystem* of competing discovery and registry approaches is itself an emerging architectural concern. Six distinct approaches are converging, each with fundamentally different trust models, governance structures, and authorization implications:
 
 | Registry / Discovery | Trust Model | Namespace | Identity Standard | Publish AuthZ | Query AuthZ | Maturity |
 |:---------------------|:------------|:----------|:-----------------|:-------------|:-----------|:---------|
@@ -12326,7 +11968,7 @@ DR-0001 covers individual agent discovery mechanisms in depth — CIMD for MCP c
 - **Metadata integrity**: Signed Agent Cards (A2A) and AGNTCY (VC-based) provide cryptographic signing of published metadata. The MCP Registry, Azure API Center, and Windows 11 Registry rely on transport-level integrity (HTTPS) without signing individual tool descriptors — leaving the gap identified in [§13.7.2](#1372-defense-in-depth-for-tool-supply-chain) (tool descriptor signing) open.
 - **Discovery authorization**: The MCP Registry and public A2A-compatible catalogs are typically queryable by design, but A2A does not prescribe one standard registry API or authorization model. Azure API Center and Windows 11 restrict queries via RBAC. AGNTCY's Agent Directory exposes an attribute-based query API. The public-by-default model enables the Dependency Confusion threat ([§13.7.1](#1371-tool-supply-chain-threat-taxonomy)) — a malicious publisher can discover existing tool names and register confusingly similar ones.
 - **Registry governance**: Ranges from vendor-operated (Anthropic/GitHub for MCP Registry, Microsoft for API Center and Windows 11) to neutral foundation or community-led ecosystems (Linux Foundation for A2A governance and AGNTCY, DIF for MCP-I). The governance model determines who can delist malicious servers and how quickly — a critical concern for supply chain security ([§13.7.1](#1371-tool-supply-chain-threat-taxonomy), [§13.7.2](#1372-defense-in-depth-for-tool-supply-chain)).
-- **Discovery-to-authorization pipeline**: Once an agent discovers an MCP server via a registry, the path to an authorized request is: registry metadata (server URL, transport type) → RFC 9728 Protected Resource Metadata discovery (`GET /.well-known/oauth-protected-resource`) → Authorization Server discovery (`authorization_servers` field) → OAuth 2.1 authorization flow ([§1.5](#15-solved-authorization-bootstrap)) → per-request protocol routing and operation authorization ([§13.1](#131-general-gateway-architecture)). The critical security question is: **does registry membership imply any level of trust?** No. Registry discovery is untrusted input; agents and gateways still apply publisher/namespace verification, artifact provenance, hash pinning, schema validation, tool-diff detection, live resource/issuer validation, and request-level authorization.
+- **Discovery-to-authorization pipeline**: Once an agent discovers an MCP server via a registry, the path to an authorized request is: registry metadata (server URL, transport type) → RFC 9728 Protected Resource Metadata discovery (`GET /.well-known/oauth-protected-resource`) → Authorization Server discovery (`authorization_servers` field) → OAuth 2.1 authorization flow ([§1.5](#15-canonical-interactive-mcp-oauth-bootstrap)) → per-request protocol routing and operation authorization ([§13.1](#131-general-gateway-architecture)). The critical security question is: **does registry membership imply any level of trust?** No. Registry discovery is untrusted input; agents and gateways still apply publisher/namespace verification, artifact provenance, hash pinning, schema validation, tool-diff detection, live resource/issuer validation, and request-level authorization.
 
 > **DNS-SD note**: DNS-based Service Discovery (DNS-SD/mDNS, RFC 6763) is a well-established zero-configuration protocol for local network service discovery (printers, media servers). However, no evidence exists of DNS-SD adoption for MCP server discovery — the MCP specification does not reference it, and no MCP client or gateway implements mDNS-based server discovery. The security implications would be severe: mDNS is unauthenticated (any LAN device can advertise as an MCP server), has no namespace verification, no publisher identity, and no signed metadata — making it equivalent to the Shadow MCP Servers threat in [§13.7.1](#1371-tool-supply-chain-threat-taxonomy). If local MCP server discovery emerges as a requirement, it should be built on authenticated mechanisms (e.g., SPIFFE SVIDs + mTLS) rather than unauthenticated multicast.
 
@@ -12346,10 +11988,10 @@ Five components in the MCP gateway authorization pipeline can fail independently
 
 | # | Component | Failure Mode | Default Behavior | Recommended Pattern | Cross-Ref |
 |:-:|:----------|:-------------|:-----------------|:--------------------|:----------|
-| 1 | **Authorization Server (AS)** | Token refresh fails; introspection endpoint unreachable; JWKS endpoint down | JWT: continue with cached JWKS (resilience window = JWKS cache TTL). Opaque: **fail-closed** — cannot validate without AS introspection (RFC 7662) | Cache JWKS aggressively (24h TTL, respecting `Cache-Control`); rate-limit `kid`-miss refetch (5–10 min interval to prevent JWKS endpoint DoS); prefer JWTs over opaque tokens for resilience; circuit breaker on AS endpoints | [§2.4](#24-solved-stateless-tool-call-and-downstream-authority), [§3](#3-scope-and-client-identity-lifecycle) |
+| 1 | **Authorization Server (AS)** | Token refresh fails; introspection endpoint unreachable; JWKS endpoint down | JWT: continue with cached JWKS (resilience window = JWKS cache TTL). Opaque: **fail-closed** — cannot validate without AS introspection (RFC 7662) | Cache JWKS aggressively (24h TTL, respecting `Cache-Control`); rate-limit `kid`-miss refetch (5–10 min interval to prevent JWKS endpoint DoS); prefer JWTs over opaque tokens for resilience; circuit breaker on AS endpoints | §§1.5–1.8, [§2.1](#21-request-contract-and-enforcement-ownership), [§3](#3-scope-selection-and-runtime-step-up) |
 | 2 | **Policy Decision Point (PDP)** — Cedar / OPA | Policy evaluation timeout; policy store unreachable; bundle server down | Cedar: **fail-closed** (default-deny — empty policy set → all requests denied). OPA: **stale-while-revalidate** (last good bundle) → fail-closed if no cached bundle on cold start | OPA: enable bundle persistence to disk (`bundles[_].persist: true`) + readiness probes (`/health?bundles`). Cedar: implement gateway-side policy caching with TTL. Both: circuit breaker with configurable fail-open for `riskLevel: low` tools only | [§18](#18-authorization-models-and-policy-engines-pattern-synthesis), [§E.2](#e2-authentication-and-authorization-architecture) |
 | 3 | **Guardrail Engine** | Prompt-injection scanner offline; PII filter unreachable | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails) separates authorization from guardrails but does not grant authority to bypass required inspection | Follow the action-class outage policy: fail closed where inspection is mandatory; otherwise permit only an explicitly bounded class, record `guardrail_bypassed: true` ([§13.5.4](#1354-authorization-decision-tracing)), require CIBA for high-consequence actions ([§15.5](#155-tier-5-ciba-protocol)), and emit an assurance-change event | [§13.2.1](#1321-the-latency-trade-off-in-authz-vs-guardrails), [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) |
-| 4 | **Gateway request workers and explicit state stores** | Worker crash/restart, in-flight response loss, or handle/task/subscription/cache store unavailability | In-flight request is lost; explicit operations fail closed when their authority record cannot be loaded | Keep request workers stateless; externalize and replicate handle authority, tasks, subscriptions, and authorization-partitioned cache; drain response streams; deploy redundant workers | [§2.2](#22-request-security-and-explicit-application-state), [§2.4](#24-solved-stateless-tool-call-and-downstream-authority), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§13.1](#131-general-gateway-architecture) |
+| 4 | **Gateway request workers and explicit state stores** | Worker crash/restart, in-flight response loss, or handle/task/subscription/cache store unavailability | In-flight request is lost; explicit operations fail closed when their authority record cannot be loaded | Keep request workers stateless; externalize and replicate handle authority, tasks, subscriptions, and authorization-partitioned cache; drain response streams; deploy redundant workers | [§2.2](#22-explicit-application-state-and-result-boundaries), [§2.4](#24-retry-idempotency-and-custom-transports), [§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows), [§13.1](#131-general-gateway-architecture) |
 | 5 | **Revocation / CAEP infrastructure** | SSF transmitter/receiver offline; revocation events not delivered | Event-driven invalidation is unavailable; residual exposure depends on token lifetime, online status, cache policy, and resource behavior | Conservative token lifetimes; persistent retry; stream-health alarms; authoritative reconciliation before declaring convergence | §§12.2, 12.4, 12.6, 12.11 |
 
 ##### 13.8.2 Fail-Open vs. Fail-Closed Decision Matrix
@@ -12398,7 +12040,7 @@ This group shifts from *who the agent is* ([§4](#4-choosing-the-authority-relat
 
 Agent deployments need a precise vocabulary before they need another consent screen. **Legal consent** is a data-processing basis with validity and withdrawal requirements; **OAuth resource-owner authorization** lets a client receive delegated authority; **business approval** authorizes a consequential action; **authentication or step-up** establishes who approved and at what assurance; and **enterprise policy authorization** allows an administrator to govern access without a per-server user prompt. These controls may appear in the same flow, but none is a synonym for the others.
 
-CIAM deployments commonly expose an end-user authorization ceremony. WIAM deployments more often use administrator pre-approval, access packages, or Enterprise-Managed Authorization (see [§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol)). MCP defines authorization and optional interaction mechanisms; it does not make a particular legal basis or consent screen universal.
+CIAM deployments commonly expose an end-user authorization ceremony. WIAM deployments more often use administrator pre-approval, access packages, or Enterprise-Managed Authorization (see [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)). MCP defines authorization and optional interaction mechanisms; it does not make a particular legal basis or consent screen universal.
 
 > **Important — Approval is not runtime authority**
 >
@@ -12476,245 +12118,50 @@ The canonical digest covers a schema-defined action object, not the natural-lang
 
 Any material change after approval—operation type, target, value, recipient, constraint, batch membership, execution window, or downstream audience—requires narrowing against an already-granted bound or a new approval. Authentication strength alone cannot cure parameter drift.
 
-#### 14.1 First-Party Authorization (Enterprise/Same-Organization)
+#### 14.1 First-Party Authorization
 
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Client as 🤖 MCP Client<br/>(Corp App)
-    participant IdP as 🔑 Organization Identity Provider
-    participant Server as 🛠️ MCP Server<br/>(Corp Tool)
+“First party” describes an organizational relationship; it does not select a
+grant, prove consent, or authorize a tool call. Two current paths can implement
+an enterprise-controlled relationship, and their protocol and evidence models
+must remain distinct.
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Client: Phase 1: Enterprise Authorization
-    Client->>IdP: Authorization request<br/>resource + state + PKCE S256
-    IdP->>IdP: Authenticate user and<br/>apply administrator policy
-    IdP-->>Client: Code response + issuer
-    Client->>Client: Validate state and exact issuer
-    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+| Dimension | Administrator-preapproved ordinary OAuth | Enterprise-Managed Authorization (EMA) |
+|:--|:--|:--|
+| **Canonical wire owner** | Authorization Code + PKCE in [§1.5](#15-canonical-interactive-mcp-oauth-bootstrap) | Stable MCP EMA extension and ID-JAG profile in [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile) |
+| **Eligibility authority** | Administrator policy makes a client, resource, scope, and user/group combination eligible for the ordinary authorization path | Enterprise policy determines which managed client and authenticated workforce identity evidence may be presented to the target AS |
+| **User authentication** | The AS can invoke enterprise SSO, MFA, and device checks during the authorization-endpoint transaction | The enterprise IdP authenticates the workforce user and the managed client obtains identity evidence for the ID-JAG exchange |
+| **Browser/resource redirect** | Present: the client runs the ordinary resource-bound authorization-endpoint flow | Avoided at the target resource: the client exchanges the enterprise identity assertion under the selected EMA grant profile |
+| **User-facing consent** | A client-specific consent screen can be omitted when administrator policy supplies the approval basis; any acknowledgement is recorded as what it actually was | No per-resource user-consent ceremony is fabricated; enterprise policy and target-AS grant policy remain the authority path |
+| **Successful artifact** | MCP-resource access token issued through the ordinary code grant | MCP-resource access token issued after the target AS validates the ID-JAG inputs and applies local issuance policy |
+| **Selection evidence** | Validated ordinary OAuth metadata, accepted client identity, administrator eligibility policy, and any required user-authentication event | Exact `authorization_grant_profiles_supported` signal, managed-client relationship, enterprise issuer trust, ID-JAG validation, and target-AS policy |
+| **Fallback rule** | Failure stops the ordinary transaction | Unsupported or rejected EMA stops that path; it does not silently become DCR or an ordinary interactive grant |
 
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Client: Phase 2: Token Grant
-    Client->>IdP: Token request<br/>code + verifier + resource
-    IdP-->>Client: MCP-resource access token
-    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+The ordinary path can therefore contain a successful SSO event without
+containing an employee-consent event. EMA can contain authenticated workforce
+identity evidence without making the enterprise IdP the target resource's
+Authorization Server. “Same organization” is never a substitute for the exact
+issuer, client, resource, grant-profile, and policy bindings in §§1.5–1.6.
 
-    rect rgba(52, 152, 219, 0.14)
-    Note right of Client: Phase 3: Authorized MCP Request
-    Client->>Server: tools/call + bearer token<br/>+ current protocol metadata
-    Server->>Server: Validate token and<br/>application policy
-    Server-->>Client: Typed MCP result
-    Note right of Server: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of Server: ⠀
-```
+The evidence chain names each decision separately:
 
-<details>
-<summary><strong>1. MCP Client sends a resource-bound authorization request to the organization IdP</strong></summary>
+| Record | What it proves | What it does not prove |
+|:--|:--|:--|
+| **Authentication event** | The enterprise IdP authenticated a user at a stated time and assurance level | Consent, client eligibility, an OAuth grant, or permission for an MCP operation |
+| **Administrator eligibility/preapproval** | Named policy permits the client, user/group, resource, and requested authority to enter the selected path | That authentication succeeded, a token was issued, or current application policy permits execution |
+| **AS grant decision** | The AS issued or denied the resource-bound authority represented by the resulting grant | That the resource admitted the token or approved the tool arguments |
+| **Resource application decision** | The current primitive, arguments, tenant, handles, and effect were permitted under current policy | A general right to other tools or later operations |
 
-After the [§1.5](#15-solved-authorization-bootstrap) discovery and client-identification preflight, the corporate MCP Client opens the organization's Authorization Server endpoint. The request binds the pre-approved client, exact redirect URI, MCP resource, state, and PKCE challenge.
-
-```http
-GET /authorize?response_type=code
-  &client_id=corp-mcp-client-001
-  &redirect_uri=https://corp-app.internal/callback
-  &scope=internal:read
-  &resource=https%3A%2F%2Fmcp.internal.corp
-  &state=st_corp_731...
-  &code_challenge=xyz123...
-  &code_challenge_method=S256 HTTP/1.1
-Host: login.internal.corp
-```
-
-Administrator pre-approval makes the client and requested scope eligible for this path; it does not bypass user authentication, transaction binding, token issuance, or resource-server policy.
-
-</details>
-<details>
-<summary><strong>2. Organization IdP authenticates the user and applies administrator policy</strong></summary>
-
-The IdP performs the organization's SSO ceremony and evaluates the registered client, requested MCP resource, scope, user/group eligibility, device posture, and any required authentication strength. A WebAuthn ceremony may contribute an `amr` or `acr` signal; it is not an OAuth token type.
-
-**Illustrative authorization-server surface**
-
-> **Corporate sign-in**
->
-> **Application:** Corp MCP Client<br/>
-> **Resource:** `mcp.internal.corp`<br/>
-> **Requested access:** Read internal tools<br/>
-> **Governance:** Approved by enterprise policy `mcp-first-party@12`<br/>
-> **Required authentication:** Managed device + phishing-resistant MFA
-
-Because an administrator has pre-approved the eligible client/scope relationship, the IdP can omit a client-specific consent prompt. The decision record names the policy and user authentication event; it does not fabricate employee consent.
-
-</details>
-<details>
-<summary><strong>3. Organization IdP returns an authorization code and issuer to the MCP Client</strong></summary>
-
-After authentication and administrator-policy evaluation, the IdP redirects to the exact registered client callback with a short-lived code, retained state, and issuer identity.
-
-```http
-HTTP/1.1 302 Found
-Location: https://corp-app.internal/callback?code=cd_corp_921...&state=st_corp_731...&iss=https%3A%2F%2Flogin.internal.corp
-Cache-Control: no-store
-```
-
-The browser carries the code, not the MCP access token. The code remains unusable without the retained PKCE verifier and transaction binding.
-
-</details>
-<details>
-<summary><strong>4. MCP Client validates state and the exact issuer</strong></summary>
-
-The client consumes `st_corp_731...` and requires the returned issuer to match the issuer stored with the authorization transaction. Unknown/consumed state, issuer mismatch, or redirect mismatch terminates the flow before any token request.
-
-```json
-{
-  "state": "matched_and_consumed",
-  "issuer": "https://login.internal.corp",
-  "redirect_uri": "https://corp-app.internal/callback",
-  "resource": "https://mcp.internal.corp",
-  "next_action": "redeem_code"
-}
-```
-
-This is a client-local transaction result, not a token or consent record.
-
-</details>
-<details>
-<summary><strong>5. MCP Client redeems the code with its PKCE verifier and MCP resource</strong></summary>
-
-```http
-POST /token HTTP/1.1
-Host: login.internal.corp
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=cd_corp_921...&
-client_id=corp-mcp-client-001&
-redirect_uri=https%3A%2F%2Fcorp-app.internal%2Fcallback&
-code_verifier=pkce_corp_44...&
-resource=https%3A%2F%2Fmcp.internal.corp
-```
-
-The request goes only to the validated token endpoint for the exact issuer. Administrator governance does not permit the client to redeem the code at another issuer or for another resource.
-
-</details>
-<details>
-<summary><strong>6. Organization IdP returns an MCP-resource access token</strong></summary>
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: no-store
-
-{
-  "access_token": "eyJhbGciOiJSUzI1NiIs...",
-  "token_type": "Bearer",
-  "expires_in": 900,
-  "scope": "internal:read"
-}
-```
-
-For the selected JWT access-token profile, the resource server can validate `iss = https://login.internal.corp`, `sub = employee-001`, `aud = https://mcp.internal.corp`, the client, scope, time claims, and a grant/policy correlation. The client treats the token as opaque and keeps it out of browser URLs, model context, and ordinary logs.
-
-**Artifact Produced:** Enterprise-policy-issued MCP access token plus a non-secret custody record.
-
-</details>
-<details>
-<summary><strong>7. MCP Client sends a complete authorized tool request</strong></summary>
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp.internal.corp
-Authorization: Bearer <mcp-resource-token>
-Content-Type: application/json
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: internal_status
-
-{
-  "jsonrpc": "2.0",
-  "id": 14,
-  "method": "tools/call",
-  "params": {
-    "name": "internal_status",
-    "arguments": {},
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-The token proves the current OAuth grant at this resource boundary. The server still authorizes the named tool, arguments, tenant, and any downstream effect.
-
-</details>
-<details>
-<summary><strong>8. MCP Server validates token admission and application policy</strong></summary>
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    [*] --> ValidateProtocol
-    ValidateProtocol --> Deny: version or routing mismatch
-    ValidateProtocol --> ValidateToken: protocol admitted
-    ValidateToken --> Deny: issuer, audience, time, or scope invalid
-    ValidateToken --> EvaluateTool: token admitted
-    EvaluateTool --> Deny: tool, tenant, arguments, or policy denied
-    EvaluateTool --> Permit: current policy permits
-```
-
-The decision record retains the administrator-policy reference separately from the resource-server tool decision. Pre-approval of `internal:read` is not blanket permission for every internal tool.
-
-</details>
-<details>
-<summary><strong>9. MCP Server returns the typed result to the MCP Client</strong></summary>
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 14,
-  "result": {
-    "resultType": "complete",
-    "content": [{"type": "text", "text": "Internal systems operational."}],
-    "_meta": {"decision_id": "dec-first-party-14"}
-  }
-}
-```
-
-**Artifact Produced:** A typed MCP result and safe correlation between enterprise authorization and the current application decision.
-
-</details>
-
-<br/>
-
-**Characteristics**:
-- **Authorization is administrator-governed** — the organization has pre-approved the MCP client application or made it eligible under IdP policy
-- The user authenticates via SSO but may see **no client-specific consent screen** (or a policy-specific acknowledgement)
-- Common in enterprise deployments where the MCP client and MCP server are both operated by the same organization
-- The organization's IdP manages the trust relationship between apps
-- **Incremental scope consent** is still possible: new tools may trigger a one-time consent prompt for their specific scopes
-
-> **Enterprise extension**: The ext-auth **Enterprise-Managed Authorization** extension (SEP-990) formalizes this first-party enterprise authorization model via the **Identity Assertion JWT Authorization Grant** protocol (see [§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol) for the full three-step flow). It allows enterprise IdP administrators to centrally control which MCP clients can be used within their organization, avoiding repeated per-server user prompts. It remains optional and independently negotiated: employees receive this administrator-managed path only when client, server, and enterprise policy explicitly support it.
+Denials remain local to their boundary. Authentication failure produces no
+usable identity evidence; administrator ineligibility produces no approved
+grant path; AS denial produces no replacement resource credential; and
+resource denial produces no authorized effect even if token admission
+succeeds. Revoking administrator eligibility, the OAuth grant, the token, or
+the application entitlement is also a distinct lifecycle event and must be
+propagated according to Chapters 11–12.
 
 #### 14.2 Third-Party Consent and Downstream Token Separation
 
-Cross-organization consent does not create a second MCP protocol mode. The MCP client still authenticates to the MCP resource under the current authorization profile ([§1](#1-current-mcp-authorization-and-protocol-baseline)), and the resulting access token remains audience-bound to that resource. When a tool needs a third-party API grant, the MCP server or its credential broker obtains and stores that downstream grant as a separate credential under [§11](#11-credential-custody-and-release-patterns); it never turns the third-party token into a protocol session or passes either token across the wrong audience boundary.
+Cross-organization consent does not create a second MCP protocol mode. The MCP client still authenticates to the MCP resource under the current authorization profile ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles)), and the resulting access token remains audience-bound to that resource. When a tool needs a third-party API grant, the MCP server or its credential broker obtains and stores that downstream grant as a separate credential under [§11](#11-credential-custody-and-release-patterns); it never turns the third-party token into a protocol session or passes either token across the wrong audience boundary.
 
 The current sequence is:
 
@@ -12729,262 +12176,101 @@ The current sequence is:
 >
 > An MCP access token authorizes the MCP resource. A GitHub, Salesforce, or other provider token authorizes that provider. Consent at either boundary does not imply consent at the other, and a successful prior grant is evidence to re-evaluate—not durable authority to bypass current policy.
 
-The deny behavior is equally important. If consent is declined, the downstream grant is insufficient, the provider token is revoked, or the tool's current policy no longer permits the operation, the server fails that operation without issuing a substitute MCP token, exposing the provider token, or preserving hidden session authority. Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), gateway token exchange ([§11](#11-credential-custody-and-release-patterns)), and the solved per-request flow ([§17.4](#174-durable-task-lifecycle)) provide the implementation patterns.
+The deny behavior is equally important. If consent is declined, the downstream grant is insufficient, the provider token is revoked, or the tool's current policy no longer permits the operation, the server fails that operation without issuing a substitute MCP token, exposing the provider token, or preserving hidden session authority. Token Vault ([§H.2](#h2-token-vault-early-access-managed-third-party-credential-store)), gateway token exchange ([§11](#11-credential-custody-and-release-patterns)), and the canonical request-to-effect flow ([§2.3](#23-canonical-request-to-effect-flow)) provide the implementation patterns.
 
 #### 14.3 Incremental Consent in Agentic Workflows
 
-Traditional OAuth requests all scopes upfront. Agentic workflows benefit from **incremental consent**:
+Incremental authorization delays a material authority increase until an
+operation requires it. The exact `403` → fresh authorization transaction →
+token → bound retry wire belongs to [§3.3](#33-runtime-insufficient-scope-step-up). This section owns the decision and
+evidence question: **what changed, who is authorized to decide, what was
+displayed, and what survives afterward?**
 
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Agent as 🤖 Agent
-    participant GW as 🛡️ MCP Gateway
-    participant AS as 🔑 Authorization Server
-    participant User as 👤 User
+“Incremental consent” is accurate only when an end user actually makes a
+consent decision. The same protocol trigger can instead reach administrator
+policy, enterprise-managed policy, stronger-authentication policy, or a
+machine-only grant rule.
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Initial Attempt
-    Note over Agent: Holds token with<br/>minimal scopes:<br/>profile, tools:list
-    Agent->>GW: Call tool (e.g., send_email)
-    GW-->>Agent: 403 insufficient_scope<br/>(needs emails:send)
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+##### 14.3.1 Material-Change Disclosure
 
-    rect rgba(241, 196, 15, 0.14)
-    Note right of Agent: Phase 2: Incremental Authorization
-    Agent->>AS: Incremental auth request<br/>(scope = profile tools:list emails:send)
-    AS->>User: Targeted consent prompt<br/>"Allow agent to send emails?"
-    User-->>AS: Approve (or deny)
-    AS-->>Agent: Updated token<br/>(+ emails:send)
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+The decision surface compares current authority with the proposed increase.
+It must not reduce the change to a friendly tool name or a single scope label
+when other fields materially affect the consequence.
 
-    rect rgba(46, 204, 113, 0.14)
-    Note right of Agent: Phase 3: Retry with New Scope
-    Agent->>GW: Retry tool call
-    GW-->>Agent: ✅ Tool response
-    Note right of User: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-    Note right of User: ⠀
-```
+| Dimension | Current authority | Proposed increase | Disclosure and binding rule |
+|:--|:--|:--|:--|
+| **Client and actor** | `agent-app-001` acting for the current subject | Same client and actor | A changed client, subject, or actor starts a different decision |
+| **Resource** | Corporate MCP Gateway | Same resource | The grant and later token remain bound to the exact resource |
+| **Coarse authority** | `profile tools:list` | Add `emails:send` | Show the incremental delta and preserve the actual granted subset |
+| **Operation** | List available tools | Invoke `send_email` | Bind approval evidence to the named primitive, not every tool sharing the scope |
+| **Material arguments** | No recipient or content | Recipient `boss@corp.internal`; trusted content digest `sha256:8fd…` | A changed recipient or content digest requires re-evaluation |
+| **Effect and downstream domain** | Read-only discovery | External email delivery through the corporate mail provider | Disclose the side effect and downstream authorization boundary |
+| **Duration and reuse** | Existing baseline grant | One operation or named grant lifetime | State whether later sends can reuse the grant and how it can be revoked |
 
-<details>
-<summary><strong>1. Agent attempts a tool call with its current minimal-scope token</strong></summary>
+An illustrative prompt can therefore say:
 
-Operating under the principle of least privilege ([§3](#3-scope-and-client-identity-lifecycle)), the agent holds an access token containing only baseline scopes (`profile`, `tools:list`). When the workflow reaches an email action, it attempts to invoke the `send_email` tool with that deliberately restricted token, allowing the resource boundary to reject an authority increase that was never granted.
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp-gateway.internal
-Authorization: Bearer eyJhbGci... (Scopes: profile tools:list)
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: send_email
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "send_email",
-    "arguments": { "to": "boss@corp.internal" },
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-**Artifact Evaluated:** Baseline JWT (`tools:list`).
-
-</details>
-<details>
-<summary><strong>2. MCP Gateway rejects the call with 403 insufficient_scope</strong></summary>
-
-The gateway maps `send_email` to its required permission, detects that the presented token lacks `emails:send`, and rejects the operation through the RFC 6750 challenge mechanism. The response gives the client a machine-readable authorization signal without granting the missing scope or leaking broader policy detail; the denial is correlated with the gateway's decision record and telemetry.
-
-```http
-HTTP/1.1 403 Forbidden
-WWW-Authenticate: Bearer error="insufficient_scope",
-                  error_description="The token is missing a required scope",
-                  scope="emails:send"
-Content-Type: application/json
-```
-
-</details>
-<details>
-<summary><strong>3. Agent sends an incremental authorization request to the Authorization Server</strong></summary>
-
-Detecting the `insufficient_scope` error, the agent pauses its planning loop and initiates a targeted, mid-flight OAuth flow back to its Authorization Server. A malformed request triggers a `400 Bad Request`.
-
-```http
-GET /authorize?response_type=code
-  &client_id=agent-app-001
-  &scope=profile%20tools:list%20emails:send
-  &state=incr_456
-  &code_challenge=abc...
-  &code_challenge_method=S256
-  &prompt=consent HTTP/1.1
-Host: auth.internal.corp
-```
-The MCP client—not the resource server and not a provider-specific merge flag—computes the union of the previously requested scopes (`profile tools:list`) and the new challenge (`emails:send`). This preserves the existing authorization context even when the 403 challenge lists only the scopes required for the current operation.
-
-</details>
-<details>
-<summary><strong>4. Authorization Server presents a targeted consent prompt to the User</strong></summary>
-
-Because the request is narrow, the Authorization Server can render a specific prompt: *"The agent is attempting to send an email. Do you approve the `emails:send` permission?"*
-
-**Illustrative authorization-server surface**
-
-> **Additional permission requested**
+> **Additional authority requested**
 >
-> **Client:** `agent-app-001`<br/>
-> **Resource:** Corporate MCP Gateway<br/>
-> **Already granted:** Profile and list tools<br/>
-> **New permission:** Send email<br/>
-> **Trigger:** `send_email` to `boss@corp.internal`<br/>
-> **Available actions:** **Allow email sending** · **Deny**
+> **Client:** `agent-app-001` · **Resource:** Corporate MCP Gateway<br/>
+> **New authority:** Send one email<br/>
+> **Recipient:** `boss@corp.internal` · **Content:** reviewed digest
+> `sha256:8fd…`<br/>
+> **Persistence:** This approval applies to this operation only<br/>
+> **Actions:** **Allow this send** · **Deny**
 
-Targeted disclosure reduces approval fatigue by avoiding an upfront wall of permissions. It does not by itself establish compliance or prove that the eventual email parameters match what the user reviewed; that requires the display-to-grant and grant-to-execution bindings in [§14.0.1](#1401-three-bindings-from-request-to-execution).
+The displayed record is evidence of what a decision maker saw. It does not
+prove that the AS granted the requested scope, that the retry matched the
+display, that the provider delivered the message, or that legal consent was
+the applicable processing basis.
 
-</details>
-<details>
-<summary><strong>5. User approves or denies the incremental scope request</strong></summary>
+##### 14.3.2 Applicable Decision Authority
 
-The user reviews the requested boundary expansion. If denied, the AS returns `access_denied`; the client must stop this authorization attempt and may continue only through an independently authorized path.
+The selected §4 authority relationship determines who or what may
+decide the increase:
 
-```mermaid
-stateDiagram-v2
-    direction TB
-    EvaluatePrompt --> ClickApprove: user agrees
-    ClickApprove --> UpdateConsentDB: AS persists scope
-    UpdateConsentDB --> IssueCode: AS returns auth code
-    EvaluatePrompt --> ClickDeny: user rejects
-    ClickDeny --> CancelTask: Agent aborts email logic
-```
+| Path | Valid decision source | Denial consequence |
+|:--|:--|:--|
+| **End-user delegated authority** | Authenticated user decision under the AS policy and current assurance requirements | Return `access_denied`, consume the authorization transaction, and leave the MCP operation denied |
+| **Administrator-preapproved ordinary OAuth** | Named administrator policy plus any required user authentication or acknowledgement | Ineligibility stops issuance; absence of a consent screen is not recorded as user consent |
+| **Enterprise-Managed Authorization** | Enterprise policy and target-AS ID-JAG issuance policy under [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile) | Rejected evidence or policy produces no target-resource credential and no silent ordinary-OAuth fallback |
+| **Direct machine authority** | Pre-registered client/workload policy under [§1.7](#17-oauth-client-credentials-direct-machine-authority) | Policy denies token reacquisition; no user prompt or consent artifact is invented |
+| **Step-up authentication only** | Existing grant policy requires stronger evidence from the same authorized actor | Authentication success satisfies assurance policy but does not itself enlarge the grant |
 
-If approved, the AS records the granted authority and its evidence according to [§14.7.4](#1474-scalability-considerations). Whether that record is also evidence of legal consent depends on the data-processing purpose and applicable legal basis.
+A decision maker can deny, cancel, or abandon the ceremony. The client must
+distinguish those outcomes from network failure and from resource-policy
+denial, but none permits the suspended operation to execute through another
+unapproved path.
 
-</details>
-<details>
-<summary><strong>6. Authorization Server returns an updated token with the new scope added</strong></summary>
+##### 14.3.3 Persistence, Revocation, and Evidence
 
-After approval, the AS redirects with a code and retained state; the client validates the issuer and redeems that code with the PKCE verifier and MCP resource. The granted scope can be narrower than the union requested, and the access token may be a JWT or opaque token depending on the deployment.
+The system records persistence explicitly. An operation-bound approval expires
+when that operation completes or its deadline passes. A reusable grant names
+its scope, resource, subject/actor, client, conditions, issue time, expiry, and
+revocation route. A refresh or replacement token can narrow authority; it
+cannot silently convert an operation-bound approval into durable permission.
 
-```http
-HTTP/1.1 302 Found
-Location: https://agent-app.internal/callback?code=cd_incr_456...&state=incr_456&iss=https%3A%2F%2Fauth.internal.corp
-Cache-Control: no-store
-```
+| Evidence link | Required fields | Proof limit |
+|:--|:--|:--|
+| **Original denial** | Resource, request ID, primitive, normalized material fields, token safe ID, required scope, policy version | Establishes why the old authority failed, not eligibility for more |
+| **Disclosure** | Rendered fields or canonical display digest, locale, client, resource, delta, effect, persistence statement | Establishes what was presented, not who decided or what was granted |
+| **Decision** | Authenticated decision actor, permit/deny/cancel, time, assurance, policy, disclosure digest | Establishes the decision under that policy, not token contents |
+| **Grant** | AS, client, subject/actor, resource, requested and granted authority, expiry, safe grant/token IDs | Establishes issued authority, not application permission |
+| **Retry and effect** | New request ID, material-field comparison, token fingerprint, fresh application decision, provider outcome, result-release decision | Establishes what was attempted and permitted after the grant |
+| **Revocation/expiry** | Target grant or approval, effective time, reason, propagation status, dependent tasks/leases | Establishes termination intent and observed propagation, not retroactive erasure of an effect |
 
-```http
-POST /token HTTP/1.1
-Host: auth.internal.corp
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=authorization_code&
-code=cd_incr_456...&
-client_id=agent-app-001&
-redirect_uri=https%3A%2F%2Fagent-app.internal%2Fcallback&
-code_verifier=pkce_incr_456...&
-resource=https%3A%2F%2Fmcp-gateway.internal
-```
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: no-store
-
-{
-  "access_token": "eyJhb...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "scope": "profile tools:list emails:send"
-}
-```
-
-**Artifact Produced:** Updated OAuth token response granting `emails:send` in this example.
-
-</details>
-<details>
-<summary><strong>7. Agent retries the tool call with the scope-expanded token</strong></summary>
-
-The client reconstructs the operation from trusted application state, compares its material fields with the approved request, and retries with the new token. It must not replay an LLM-generated payload merely because the scope is now present.
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp-gateway.internal
-Authorization: Bearer eyJhbGci... (Scopes: profile tools:list emails:send)
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: send_email
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "method": "tools/call",
-  "params": {
-    "name": "send_email",
-    "arguments": {"to": "boss@corp.internal"},
-    "_meta": {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientCapabilities": {}
-    }
-  }
-}
-```
-
-Compared with Step 1, the recipient and trusted content digest are unchanged, the JSON-RPC ID is new, and the bearer credential is the replacement token. Scope elevation does not authorize altered email content.
-
-</details>
-<details>
-<summary><strong>8. MCP Gateway accepts the retried call and returns the tool response</strong></summary>
-
-The gateway validates the token according to its format and issuer profile, then re-evaluates the tool, recipient, arguments, tenant, handles, and current policy before forwarding. The `emails:send` scope is a ceiling, not a complete decision.
-
-The successful retry record binds the new token fingerprint and granted scope to the same client, subject, recipient, email-content digest, policy version, and original denial correlation. If the arguments changed materially after the prompt, policy can require a new approval or deny the retry.
-
-The incremental loop (`403` → authorization ceremony → token → retry) can now complete. A current grant may avoid another prompt, but later requests can still fail because the grant expired or was revoked, the AS narrowed a refresh, stronger authentication is required, or runtime policy denies the specific email operation.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 2,
-  "result": {
-    "resultType": "complete",
-    "content": [{"type": "text", "text": "Email accepted for delivery."}],
-    "_meta": {"decision_id": "dec-email-incr-456"}
-  }
-}
-```
-
-**Artifact Produced:** Fresh application decision and typed tool result linked to the denial and incremental grant.
-
-</details>
-
-<br/>
-
-This current pattern composes RFC 6750's `insufficient_scope` challenge with an ordinary resource-bound Authorization Code + PKCE transaction. The MCP resource communicates the missing authority; the Authorization Server decides what to grant, and the resource re-authorizes the retried operation.
+The display-to-decision, decision-to-grant, and grant-to-execution joins are
+separate. Systems that retain only a consent-screen screenshot or only an
+access-token log cannot prove that the approved change became the executed
+operation. [§14.7](#147-approval-grant-and-consent-persistence-architecture) defines the durable records, while Chapters 11–12 govern
+credential, task, lease, and revocation consequences.
 
 #### 14.4 Consent Decision Matrix
+
+The deployment relationship does not determine a universal ceremony. Select
+the authority and approval pattern from whose authority is exercised, whether
+an administrator has established policy in advance, whether the requested
+authority is new or materially changed, and whether the operation itself
+requires a human decision.
 
 | Scenario | Authority / Approval Pattern | User Action | Admin Action | Human-Oversight Role |
 |:---|:---|:---|:---|:---|
@@ -12995,6 +12281,12 @@ This current pattern composes RFC 6750's `insufficient_scope` challenge with an 
 | High-risk operation (e.g., payment) | Stronger/fresher authentication plus transaction approval | Re-authenticate if challenged and approve the material transaction details | Define assurance, approval, and value thresholds | Supports intervention only when execution remains bound to the approved operation |
 | Sensitive unattended agent action | Decoupled approval using CIBA or an authenticated workflow ([§15](#15-human-oversight-architecture)) | Review and approve on a separate channel/device | Configure eligible clients, users, actions, and channels | Out-of-band intervention before execution |
 
+The resulting record must say which actor and policy supplied the decision,
+what authority or material operation was reviewed, what was actually granted,
+and which runtime control enforces it. A deployment cannot relabel
+administrator policy, authentication, or an automated browser click as
+end-user consent merely to fill an evidence field.
+
 #### 14.5 Is User Consent Always Required?
 
 A fundamental architectural question: **in a first-party enterprise deployment, does the MCP authorization flow always require user interaction, or can agents operate purely machine-to-machine?**
@@ -13002,7 +12294,7 @@ A fundamental architectural question: **in a first-party enterprise deployment, 
 | Flow Type | User Consent Required? | Mechanism | Use Case |
 |:---|:---|:---|:---|
 | **User-delegated (Authorization Code + PKCE)** | Policy-dependent | User authenticates through the AS; the client may rely on an existing grant, administrator pre-approval, or a new resource-owner authorization ceremony | Agent acts **on behalf of** a user |
-| **Client Credentials (M2M)** | ✗ No | Service authenticates with its own credentials (secret or certificate); no user is involved | Autonomous system agents, batch processing, infrastructure automation |
+| **Client Credentials (M2M)** | ✗ No | A preregistered confidential client authenticates with the method admitted by the selected profile—`private_key_jwt` in the canonical [§1.7](#17-oauth-client-credentials-direct-machine-authority) profile; no user is involved | Autonomous system agents, batch processing, infrastructure automation |
 | **Token Exchange (RFC 8693 OBO)** | No new ceremony when current authority and policy suffice | Agent exchanges a subject token for a narrower audience-bound token; the AS must evaluate delegation policy and cannot assume that an upstream screen authorized every downstream action | Sub-agent delegation chains |
 
 **Key insight**: MCP core authorization uses OAuth Authorization Code + PKCE for a **user-delegated** flow, but delegated authorization does not make an interactive consent screen inherent. The AS decides whether an existing grant, enterprise policy, or new user ceremony is required, and the MCP server still makes a runtime authorization decision:
@@ -13015,256 +12307,63 @@ A fundamental architectural question: **in a first-party enterprise deployment, 
 >
 > **Mixed MCP + browser-native deployments ([§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff))**: Chrome's March 11, 2026 WebMCP guidance explicitly says **MCP and WebMCP are complementary**: MCP exposes backend capabilities, while WebMCP exposes live website actions in the user's tab. That reduces some screenshot-analyze-click fragility, but it does **not** remove the consent problem. Cloudflare's April 15, 2026 Browser Run WebMCP support already demonstrates this mixed model and notes that some website tools pause for **user confirmation** before sensitive actions. In other words, browser-native tooling can make legitimate agent interactions more structured, but sensitive grants still need human approval and website-layer bot controls rather than blind trust in the browser surface.
 
-**Machine-to-machine** (Client Credentials) is available through the independently negotiated MCP Client Credentials authorization extension, not through core authorization alone. A client must not infer support from core MCP version or ordinary OAuth metadata; both endpoints must explicitly support the extension. This is appropriate for agents that do not act on behalf of a user (for example, scheduled data pipelines and infrastructure bots). See [§14.6](#146-machine-to-machine-m2m-flows-without-user-involvement) for implementation details.
+**Machine-to-machine** (Client Credentials) is available through the independently negotiated MCP Client Credentials authorization extension, not through core authorization alone. A client must not infer support from core MCP version or ordinary OAuth metadata; the selected parties and authorization-server profile must provide the exact support evidence in [§1.7](#17-oauth-client-credentials-direct-machine-authority). This is appropriate for agents that do not act on behalf of a user (for example, scheduled data pipelines and infrastructure bots). §1.7 owns the wire protocol; [§14.6](#146-machine-authority-is-not-consent) owns the authority and consent consequences.
 
 
 > **Implementation boundary**: Consent continuity belongs in the governed approval record described in [§14.7](#147-approval-grant-and-consent-persistence-architecture). A product-specific browser cookie may protect a UI interaction, but it is not the portable consent artifact or MCP authorization decision.
 
-#### 14.6 Machine-to-Machine (M2M) Flows Without User Involvement
+#### 14.6 Machine Authority Is Not Consent
 
-For scenarios where no user is present — autonomous agents, scheduled jobs, infrastructure bots — the OAuth 2.0 **Client Credentials** grant can be composed with MCP through the Client Credentials authorization extension.
+Direct machine authority is appropriate when a workload acts for the
+deploying organization rather than on behalf of a present human. The complete
+MCP OAuth Client Credentials extension flow, support evidence, confidential
+client authentication, token request, and MCP request belong to [§1.7](#17-oauth-client-credentials-direct-machine-authority). This
+section defines the governance consequence: **a machine grant is neither
+delegated user authority nor a human-consent event**.
 
-> **Extension boundary**: The ext-auth **OAuth Client Credentials** extension (SEP-1046, §1.3) defines this flow. It is optional, additive, and independently negotiated. Core MCP authorization support does not imply Client Credentials support, just as it does not imply Enterprise-Managed Authorization support.
+| Question | Direct machine-authority answer | Required boundary |
+|:--|:--|:--|
+| **Whose authority is exercised?** | The registered client/workload and the organization that deploys and governs it | Do not insert a fictitious human `sub`, user ID, consent receipt, or “on behalf of” claim |
+| **Who approved the capability?** | Administrator or workload-governance policy made the client eligible for named resource permissions | Eligibility is distinct from token issuance and from the application decision on each request |
+| **What does the token represent?** | The authority actually granted to the machine principal under the selected issuer profile | Treat the token as opaque at the client; resource-side claim or introspection semantics are profile-specific |
+| **Is a human ceremony required?** | Not for the Client Credentials grant | A resource that requires user-delegated authority must deny and start an independently selected user path; it must not graft a prompt onto the machine grant |
+| **What still gets authorized?** | Every primitive, argument, tenant object, explicit handle, downstream effect, and result release | Machine authentication and scope admission never force application permission |
 
-| Aspect | User-Delegated (MCP Spec) | Machine-to-Machine |
-|:---|:---|:---|
-| **OAuth Grant** | Authorization Code + PKCE | Client Credentials |
-| **User Involvement** | User authentication and a grant ceremony are policy-dependent | None — service authenticates with its own identity |
-| **Token Represents** | A user's delegated access | The application itself |
-| **Authority Source** | Resource-owner grant and/or enterprise policy | Administrator-configured application permissions |
-| **Token Claims** | Contains a human `sub`, may contain `act` (agent) | Represents the client/workload; exact `sub`, `azp`, `client_id`, and role/scope claims are issuer-profile specific |
-| **Gateway Enforcement** | Token validation, request/tool authorization, consent/grant checks, and explicit-handle policy | Token validation, request/tool authorization, application permissions, and explicit-handle policy; no human-consent or PKCE ceremony |
-| **Suitable For** | Agent acts on behalf of a human | Agent operates autonomously, no human context |
+No interactive user does not mean no human governance. Named owners approve
+the client registration, credential method, resource and scope eligibility,
+deployment environment, rotation policy, and operational purpose. Those
+administrator decisions can be reviewed or withdrawn without being labeled
+as end-user consent or legal consent.
 
-```mermaid
----
-config:
-  themeVariables:
-    noteBkgColor: "transparent"
-    noteBorderColor: "transparent"
-  sequence:
-    messageAlign: left
-    noteAlign: left
-    actorMargin: 250
----
-sequenceDiagram
-    autonumber
-    participant Agent as 🤖 Autonomous Agent
-    participant AS as 🔑 Authorization Server
-    participant GW as 🛡️ API Gateway
-    participant MCP as 🛠️ MCP Server
+Denials remain boundary-specific:
 
-    rect rgba(148, 163, 184, 0.14)
-    Note right of Agent: Phase 1: Machine Authentication
-    Note over Agent,MCP: M2M Flow (Client Credentials)<br/>No user, no consent, no PKCE
-    Agent->>AS: POST /token<br/>grant_type=client_credentials<br/>authenticated client<br/>scope=mcp-server/.default
-    AS-->>Agent: access_token<br/>(aud=mcp-server,<br/>client/workload authority)
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+| Boundary | Denial and consequence |
+|:--|:--|
+| **Client authentication** | Invalid assertion, certificate, secret, or workload evidence produces no token |
+| **AS grant policy** | Ineligible resource or scope produces no machine grant; the client does not downgrade its authentication method or invent another grant |
+| **Token admission** | Wrong issuer, audience/resource, expiry, sender binding, revocation state, or profile fails before application authorization |
+| **Application policy** | A valid machine token can still be denied for the tool, arguments, tenant, handle, effect, or release |
+| **Human-authority requirement** | Stop the machine operation or begin a separately bound user-delegated/approval path; never attribute the resulting decision to the workload |
 
-    rect rgba(241, 196, 15, 0.14)
-    Note right of GW: Phase 2: Gateway Validation
-    Agent->>GW: POST /mcp<br/>Authorization: Bearer jwt_token<br/>MCP-Protocol-Version: 2026-07-28<br/>Mcp-Method: tools/call<br/>Mcp-Name: system/health_check
-    GW->>GW: Validate token and sender proof<br/>✓ Signature / introspection<br/>✓ Issuer + audience<br/>✓ Application permissions<br/>✓ Expiry + revocation posture<br/>✓ Request, tool, and handle policy<br/><br/>No human consent ceremony<br/>No PKCE validation
-    Note right of MCP: ⠀
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
+Machine evidence identifies the actual principal and ownership chain:
 
-    rect rgba(46, 204, 113, 0.14)
-    Note right of GW: Phase 3: Forward & Execute
-    GW->>MCP: Forward (authenticated)
-    MCP-->>GW: MCP response
-    GW-->>Agent: Tool result
-    Note right of MCP: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-    end
-```
+| Evidence class | Minimum safe record |
+|:--|:--|
+| **Workload identity** | Stable machine principal, deploying organization, service owner, environment, accepted issuer and client registration |
+| **Credential/grant** | Authentication-method class, public key or certificate identifier where applicable, resource, requested/granted authority, safe token/grant ID, issue and expiry |
+| **Request decision** | Primitive, normalized material arguments, tenant and handle decisions, policy version, decision ID, result/effect correlation |
+| **Lifecycle** | Credential rotation, grant or registration withdrawal, workload suspension/offboarding, dependent tokens, handles, tasks and leases, propagation status |
 
-<details>
-<summary><strong>1. Autonomous Agent requests a token from the Authorization Server using Client Credentials</strong></summary>
-
-An autonomous background agent (for example, a scheduled data pipeline or infrastructure bot) requests an OAuth Client Credentials token because no human delegation is involved. The client authenticates with the method required by the AS—preferably asymmetric client authentication, mTLS, or workload identity rather than a long-lived embedded secret. Failed client authentication is denied and logged.
-
-```http
-POST /token HTTP/1.1
-Host: auth.internal.corp
-Authorization: Basic <redacted>
-Content-Type: application/x-www-form-urlencoded
-
-grant_type=client_credentials&scope=mcp-server%2F.default
-```
-
-The redacted Basic header illustrates confidential-client authentication
-without printing a secret. A stronger deployment can replace it with
-`private_key_jwt`, mTLS, or workload-bound authentication while retaining the
-same Client Credentials grant.
-
-</details>
-<details>
-<summary><strong>2. Authorization Server returns a JWT access token with application identity only</strong></summary>
-
-The AS validates the client authentication and issues an access token representing the client or workload rather than a human delegation. Claim shape is profile-specific: some issuers use `sub`, `azp`, `client_id`, roles, or scopes in different combinations, so the resource must validate the agreed profile and must not infer a human principal.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-Cache-Control: no-store
-
-{
-  "access_token": "eyJhbG...",
-  "token_type": "Bearer",
-  "expires_in": 900
-}
-```
-
-The following is the relevant decoded claim subset from that illustrative
-JWT; it is not an additional token-endpoint response field:
-
-```json
-{
-  "iss": "https://auth.internal.corp",
-  "sub": "agent-batch-001",
-  "aud": "mcp-server",
-  "roles": ["batch:read", "infra:write"],
-  "azp": "agent-batch-001",
-  "iat": 1784973600,
-  "exp": 1784974500
-}
-```
-The permissions (`roles`) are dictated entirely by what the IT Administrator pre-configured in the IdP for this specific service account.
-
-**Artifact Produced:** M2M Access Token (`azp: agent-batch-001` in this issuer profile).
-
-</details>
-<details>
-<summary><strong>3. Autonomous Agent sends the MCP request with the Bearer token to the Gateway</strong></summary>
-
-Armed with its machine token, the agent securely transmits an MCP JSON-RPC `tools/call` over HTTPS to the API Gateway. There is no browser redirect, no state parameter handling, and no incremental consent checking.
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp-gateway.internal.corp
-Authorization: Bearer eyJhbG...
-MCP-Protocol-Version: 2026-07-28
-Mcp-Method: tools/call
-Mcp-Name: system/health_check
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": { "name": "system/health_check" }
-}
-```
-
-</details>
-<details>
-<summary><strong>4. API Gateway validates the token and authorizes the machine request</strong></summary>
-
-The gateway receives the HTTP request and validates the token according to the issuer profile. A validation failure such as an expired token, bad signature, inactive introspection response, or wrong audience produces an authentication failure before application authorization begins.
-
-```mermaid
-stateDiagram-v2
-    direction TB
-    DecodeJWT --> VerifySignature: against JWKS
-    VerifySignature --> CheckExpiry: exp > now()
-    CheckExpiry --> CheckAudience: aud == mcp-server
-    CheckAudience --> EnforceRoles: check 'roles' claim
-```
-
-The gateway does not perform a human consent ceremony or PKCE validation because no authorization-code flow occurred. It still authenticates and authorizes every MCP request and every referenced state or task handle. Sender constraint is a profile decision: DPoP, mTLS, `private_key_jwt`, workload attestation, or another proof may be required for machine credentials and must never be skipped merely because the caller is backend-to-backend.
-
-</details>
-<details>
-<summary><strong>5. API Gateway forwards the authenticated request to the MCP Server</strong></summary>
-
-After validation and gateway policy, the gateway forwards the canonical JSON-RPC request plus protected internal identity/decision context to the MCP Server. The server trusts that context only over an authenticated internal channel and still enforces the tool, arguments, tenant, handles, and downstream authority appropriate to the operation.
-
-```http
-POST /mcp HTTP/1.1
-Host: mcp-server.internal.corp
-Content-Type: application/json
-MCP-Protocol-Version: 2026-07-28
-Authorization: Bearer <gateway-to-server-token>
-X-Policy-Context: <signed-or-channel-bound-reference>
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "system/health_check",
-    "arguments": {}
-  }
-}
-```
-
-`X-Policy-Context` is an illustrative deployment-local carrier, not an MCP
-header. It resolves to the validated workload principal, accepted issuer and
-audience, effective application permissions, policy decision, and request
-correlation data without forwarding the caller's original bearer token.
-
-</details>
-<details>
-<summary><strong>6. MCP Server returns the tool response to the Gateway</strong></summary>
-
-The MCP Server executes the authorized `system/health_check` tool and returns the JSON-RPC result. If an operation requires a human principal but the token profile represents only the client/workload, the server must deny or route to an appropriate user-delegated flow; it must not fabricate a human identity or treat the condition as an accidental application crash.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "resultType": "complete",
-    "status": "pass",
-    "timestamp": "2026-03-24T10:15:30Z"
-  }
-}
-```
-
-</details>
-<details>
-<summary><strong>7. API Gateway returns the tool result to the Autonomous Agent</strong></summary>
-
-The gateway returns the result and records decision evidence appropriate to the deployment's audit system. The evidence identifies the machine principal and policy decision without claiming that every SIEM backend is immutable.
-
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "resultType": "complete",
-    "status": "pass",
-    "timestamp": "2026-07-25T10:15:30Z"
-  }
-}
-```
-
-**Artifact Produced:** Machine-principal tool-execution audit event.
-
-```json
-{
-  "event": "m2m_tool_execution",
-  "timestamp": "2026-03-19T10:00:00Z",
-  "application_id": "agent-batch-001",
-  "user_id": null,
-  "tool_invoked": "system/health_check",
-  "status": "success"
-}
-```
-In this local event schema, `user_id` is `null` because no human subject participated. Other issuer and audit profiles may omit the field or use a different representation. The event supports attribution to the workload and deploying organization, not to a fictitious individual user.
-
-</details>
-
+Raw credentials stay out of this record. When no human participated, a local
+schema can omit `user_id` or explicitly mark the subject class as
+`machine`; it must not populate a human identity for reporting convenience.
+Chapters 7, 11, and 12 govern ownership, credential custody, rotation,
+revocation, task cancellation, and evidence convergence after machine
+authority ends.
 
 #### 14.7 Approval, Grant, and Consent Persistence Architecture
 
-The preceding sections ([§14.1](#141-first-party-authorization-enterprisesame-organization)–[§14.6](#146-machine-to-machine-m2m-flows-without-user-involvement)) define several different authority paths—resource-owner authorization, administrator policy, incremental grants, and M2M application permissions. This section addresses the complementary architectural question: **which records persist each decision, how do they relate, and what must happen when authority changes?**
+The preceding sections ([§14.1](#141-first-party-authorization)–[§14.6](#146-machine-authority-is-not-consent)) define several different authority paths—resource-owner authorization, administrator policy, incremental grants, and M2M application permissions. This section addresses the complementary architectural question: **which records persist each decision, how do they relate, and what must happen when authority changes?**
 
 Treating a token as the only durable record loses the distinction among the request, the approval or administrator decision, the grant, the runtime representation, and the later policy decision. The model breaks down at agent scale for three reasons:
 
@@ -13280,13 +12379,13 @@ Five persistence patterns appear across IAM products. The first three commonly d
 |:--------|:------|:-----------|:-------|:-----------|:--------|
 | **Moment-in-time** | Consent produces tokens; no independent record | Token artifacts only | Token TTL | Revoke tokens | Traditional OAuth |
 | **Time-bounded** | Consent has explicit expiration independent of token TTL | Consent record with `expires_at` | Automatic expiry + re-consent | Explicit + automatic | Descope, Ping Identity |
-| **Progressive** | Consent accumulates as agent requests new scopes | Growing {scope, timestamp} pairs per agent per user | Per-scope TTL | Per-scope revocation | Descope, Auth0, MCP spec ([§3.3](#33-scope-challenge-handling-403-insufficient-scope)) |
+| **Progressive** | Authority expands through separately evaluated increments | Growing {scope, timestamp} pairs per agent per user where the product uses that model | Per-scope or per-grant TTL | Per-scope or per-grant revocation | Descope, Auth0; runtime step-up in [§3.3](#33-runtime-insufficient-scope-step-up) |
 | **Organization-managed** | Administrator permits or restricts agent access | Organization policy, allowlist/denylist, access package, or application assignment | Policy-driven | Administrator-initiated and organization-scoped | Stytch organization app policy, enterprise IdPs |
 | **First-class entity** | Decision has its own ID, attributes, evidence, and lifecycle | Dedicated approval, grant, or authority record | Configurable per record | Per-record withdrawal, revocation, supersession, or expiry | Descope Consent ID; local authority records |
 
 > **Important — Organization policy is not user consent**
 >
-> The organization-managed pattern maps to Enterprise-Managed Authorization ([§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol)) and related cross-application access controls. IT departments—not individual users—control which clients can reach which resources. Persist the policy decision and its accountable administrator or governance process; do not relabel it as end-user consent.
+> The organization-managed pattern maps to Enterprise-Managed Authorization ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)) and related cross-application access controls. IT departments—not individual users—control which clients can reach which resources. Persist the policy decision and its accountable administrator or governance process; do not relabel it as end-user consent.
 
 **Authority branches for enterprise-managed and autonomous-payment delegation** — Agentic systems need at least five distinct records because authorization is not a single browser prompt:
 
@@ -13298,7 +12397,14 @@ Five persistence patterns appear across IAM products. The first three commonly d
 | **Human-Not-Present AP2 payment** | Open mandate constraints followed by closed transaction mandates | Standing or conditional purchase instructions such as "buy below this price before Friday" | Runtime policy must enforce amount, merchant, instrument, TTL, and challenge rules; issuer/network challenge can still force user re-entry |
 | **URL elicitation / browser handoff** | Continuation record plus post-return token, credential, or verified completion evidence | Credential acquisition when the agent cannot complete the flow in-band | Navigation acceptance is not durable authority; persist the resulting grant/completion record and its revocation or cancellation path |
 
-The design consequence is that AP2 mandates and XAA/Identity Assertion exchanges should not be collapsed into ordinary OAuth consent rows. XAA is a centrally governed enterprise authorization decision, while AP2 is a payment-domain evidence envelope. Both may produce tokens downstream, but the durable record that matters for audit and revocation is the policy decision or signed mandate, not merely the access token.
+The design consequence is that AP2 mandates and EMA/ID-JAG exchanges should
+not be collapsed into ordinary OAuth consent rows. EMA is a centrally governed
+enterprise authorization path, while AP2 is a payment-domain evidence
+envelope. A product can brand its EMA-related surface differently—for example,
+Auth0 Cross App Access (XAA)—without changing the evidence boundary. Both paths
+may produce tokens downstream, but the durable record that matters for audit
+and revocation is the policy decision or signed mandate, not merely the access
+token.
 
 ##### 14.7.1.1 Approval and Authority Evidence Record
 
@@ -13389,7 +12495,13 @@ Evidence stores must minimize fields, encrypt restricted content, enforce purpos
 | **Consent audit trail** | Event-based | Event Streams (2025) | Dashboard logs | User profile + audit |
 | **Agent-specific consent** | ✅ Agent as first-class identity | ✅ Agent as OAuth client | ✅ Connected Apps | ✅ Identity for AI |
 
-> **Key observation**: Descope's Consent ID model is the most architecturally advanced, but Auth0/Stytch/Ping are **production-ready** for current agent deployments. The choice between "consent as entity" and "consent as grant attribute" is an architectural trade-off: the entity model provides richer audit and lifecycle management at the cost of additional storage and complexity.
+> **Evidence boundary:** This comparison records documented product models,
+not a maturity ranking or deployment recommendation. A first-class decision
+entity can support granular lifecycle and evidence joins, while a
+grant-attached model can reduce state duplication; either design still needs
+configuration-specific proof of expiry, withdrawal, downstream termination,
+retention, and access control. Product lifecycle and role evidence belongs
+in [§21](#21-product-implementation-landscape) and the relevant appendix.
 
 ##### 14.7.3 Consent Revocation vs. Token Revocation
 
@@ -16102,9 +15214,9 @@ The scoring engine ingests behavioral signals from sources already present in th
 |:----------------|:---------|:---------------------------|:-----------------|
 | **Tool call patterns** | Frequency, tool selection distribution, parameter anomalies, tool drift (calling tools outside normal operational profile) | Gateway audit logs ([§13.2](#132-gateway-responsibilities)), authorization decision logs ([§13.5.4](#1354-authorization-decision-tracing)) | High — tool drift is the strongest indicator of compromised or misaligned agent behavior |
 | **Error behavior** | Error rate, error type distribution (4xx vs. 5xx), retry patterns, retry bombing | MCP server `tools/call` responses, gateway error logs | Medium — elevated errors may indicate probing or confused agent state |
-| **Scope usage** | Ratio of used vs. requested scopes, scope escalation attempts (403 frequency), privilege creep over time | Token introspection, scope challenge logs ([§3](#3-scope-and-client-identity-lifecycle)) | High — scope escalation attempts are a direct authorization risk signal |
+| **Scope usage** | Ratio of used vs. requested scopes, scope escalation attempts (403 frequency), privilege creep over time | Token introspection, scope challenge logs ([§3](#3-scope-selection-and-runtime-step-up)) | High — scope escalation attempts are a direct authorization risk signal |
 | **Budget consumption** | Spend velocity, cost anomalies, budget burn rate deviation from historical baseline | Token budget system ([§13.2.2](#1322-identity-aware-rate-limiting-and-token-budget-governance)) | Medium — abnormal spend velocity correlates with compromised or runaway agents |
-| **Request and state patterns** | Request duration, retry/reissue frequency, handle lifetime, task duration vs. complexity, subscription churn | Modern request/handle rules ([§2.2](#22-request-security-and-explicit-application-state)–[§2.4](#24-solved-stateless-tool-call-and-downstream-authority)), Draft Tasks ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)), gateway audit logs | Low–Medium — transport and timing anomalies are weak signals alone but strengthen composite scores |
+| **Request and state patterns** | Request duration, retry/reissue frequency, handle lifetime, task duration vs. complexity, subscription churn | Modern request/handle rules ([§2.2](#22-explicit-application-state-and-result-boundaries)–[§2.4](#24-retry-idempotency-and-custom-transports)), Draft Tasks ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)), gateway audit logs | Low–Medium — transport and timing anomalies are weak signals alone but strengthen composite scores |
 | **Guardrail triggers** | LLM output policy violations, content safety blocks, prompt injection detections | Content safety systems (e.g., Azure APIM `llm-content-safety`, [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive); ContextForge guardrails, [§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)) | High — guardrail violations directly indicate policy-violating agent behavior (cross-request aggregate scoring; for per-request guardrail→authorization feedback, see [§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
 | **Delegation behavior** | Delegation depth anomalies, cross-org delegation frequency, `act` claim chain length growth | Token exchange logs ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation), RFC 8693), delegation chain audit ([§13.5.4](#1354-authorization-decision-tracing)) | Medium — unusual delegation patterns may indicate lateral movement or privilege laundering |
 
@@ -17420,7 +16532,7 @@ A complete decision record contains a correlation and decision ID, time, enforce
 
 > **See also**: [§16](#16-task-based-access-control-tbac) (TBAC), [§13.6](#136-reference-architecture-profiles) (Reference Architecture Profiles — policy engine selection per profile)
 
-This section synthesizes the authorization models documented across [§16](#16-task-based-access-control-tbac) (TBAC and behavioral trust), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (primitive and handle authorization), [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR), [§3](#3-scope-and-client-identity-lifecycle) (scope and client identity), and the thirteen product implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which products support it, and how do the controls compose?"*
+This section synthesizes the authorization models documented across [§16](#16-task-based-access-control-tbac) (TBAC and behavioral trust), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (primitive and handle authorization), [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR), [§3](#3-scope-selection-and-runtime-step-up) (scope and client identity), and the thirteen product implementations ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway)). Its purpose is to provide a **single reference** for answering: *"Which authorization pattern should I use, which products support it, and how do the controls compose?"*
 
 > **Cross-reference**: For the role-normalized product comparison across lifecycle, protocol admission, authorization placement, composition, and portability, see [§22](#22-consolidated-comparison-thirteen-architectural-models). This section focuses specifically on the **authorization model** dimension.
 
@@ -17428,7 +16540,7 @@ This section synthesizes the authorization models documented across [§16](#16-t
 
 | Model | Granularity | Primary Gateway(s) | Best For |
 |:---|:---|:---|:---|
-| **Scopes** | Permission string → tool category | PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)), WSO2 IS ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)), TrueFoundry ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane)) | Standard OAuth flows and trusted scope-to-primitive policy (§3.5, [§17.2](#172-tool-visibility-invocation-and-backend-entitlement)) |
+| **Scopes** | Permission string → tool category | PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)), WSO2 IS ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)), TrueFoundry ([§D](#appendix-d-truefoundry-ai-gateway-mcp-gateway-as-control-plane)) | Standard OAuth flows and trusted scope-to-primitive policy (§3.4, [§17.2](#172-tool-visibility-invocation-and-backend-entitlement)) |
 | **Products/Subs** | API product → MCP server | Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)) | Azure-native governance, REST→MCP |
 | **RBAC** | Role → server/tool access | ContextForge ([§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)), WSO2 IS ([§G](#appendix-g-wso2-identity-serverasgardeo-idp-native-mcp-authorization)), Kong ([§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-in-an-established-api-gateway)) | Simple, well-understood access control |
 | **ACL** | Group → tool set | Kong ([§C](#appendix-c-kong-ai-gateway-plugin-based-mcp-adoption-in-an-established-api-gateway)) | Simple tool-level gates (MCP ACL v3.13) |
@@ -17912,6 +17024,11 @@ flowchart TD
 
 Traditional OAuth scopes are flat strings (`emails:write`, `calendar:read`). They work as coarse-grained permission labels but break down when authorization decisions require **structured context** — "transfer 45 EUR to Merchant X" is fundamentally different from "write to payments". [Rich Authorization Requests (RFC 9396)](https://www.rfc-editor.org/rfc/rfc9396.html) define the `authorization_details` parameter for carrying such fine-grained authorization requirements in OAuth messages.
 
+§3.4 hands structured constraints to this chapter after coarse scope
+selection. This chapter owns the registered request/grant/token/enforcement
+contract; it does not redefine MCP scope challenges or the canonical
+authorization bootstrap.
+
 > **Important — RAR structures a request; it does not complete the authorization pipeline**
 >
 > Use a profiled `authorization_details` type when the authorization decision depends on resource identifiers, amounts, recipients, actions, or other structured constraints. The request is not the grant, token, consent ceremony, task lifecycle, or runtime decision. The AS can reject, narrow, or enrich it, and the RS must enforce the granted form against the actual operation.
@@ -18325,7 +17442,7 @@ Any local experiment must use a collision-resistant private `type`, version the 
 
 ### 20. Emerging Standards for AI Agent Authorization
 
-> **See also**: [§3](#3-scope-and-client-identity-lifecycle) (scope and client identity), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (token exchange), [§8.7](#87-cross-organization-agent-federation) (cross-organization federation), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (explicit-handle authority), and [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR).
+> **See also**: [§3](#3-scope-selection-and-runtime-step-up) (scope and client identity), [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) (token exchange), [§8.7](#87-cross-organization-agent-federation) (cross-organization federation), [§17](#17-authorization-across-mcp-primitives-and-durable-state) (explicit-handle authority), and [§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) (RAR).
 
 The emerging-standards question is not which proposal uses the word “agent.” It is which unresolved authorization problem a proposal addresses, what institution stands behind it, and whether its wire contract is stable enough to become a production dependency. The current architecture therefore starts with published OAuth, JOSE, OpenID, GNAP, workload-identity, and continuous-access building blocks; it pins working-group drafts only through an explicit local profile; and it treats individual agent proposals as design signals until they gain institutional review and interoperable implementations.
 
@@ -18865,7 +17982,7 @@ Web Bot Authentication addresses website-layer traffic policy, not MCP OAuth aut
 | Main proof | Signed HTTP request and key provenance | Access token/resource binding plus optional sender constraint |
 | Main decision | Site traffic and content policy | Primitive, argument, handle, tenant, and downstream entitlement |
 | Identity posture | May be identified, pseudonymous, or deliberately anonymous | Must satisfy the MCP deployment’s issuer/client/subject policy |
-| Deployment status | **Monitor** active individual drafts | Use the current MCP authorization baseline in [§1](#1-current-mcp-authorization-and-protocol-baseline), [§2](#2-stateless-streamable-http-authorization), and [§3](#3-scope-and-client-identity-lifecycle) |
+| Deployment status | **Monitor** active individual drafts | Use the current MCP authorization baseline in [§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles), [§2](#2-request-scoped-authorization-and-downstream-execution), and [§3](#3-scope-selection-and-runtime-step-up) |
 
 The work is relevant to remote-browser agents because IP addresses are weak identity signals and shared infrastructure complicates rate limiting. It should remain a separate edge control: a verified bot signature may influence traffic policy, but it must not be converted into an MCP access token or application authorization without an explicit, independently secured bridge.
 
@@ -18905,6 +18022,11 @@ The durable forward architecture is therefore standards-layered:
 ### 21. Product Implementation Landscape
 
 The appendix set contains thirteen **offerings**, not thirteen interchangeable gateways. The evidence establishes candidate roles, product surfaces, maturity, and documentation at a stated date; it does **not** establish deployment acceptance. Some offerings are inline runtimes, some are identity systems, some are host/runtime boundaries, and some expose registry or curation surfaces alongside another role. Comparing them as one scoreboard hides where a control executes and turns “not documented” into a false negative.
+
+Grant-profile and assurance claims are normalized against the selectors in
+§§1.4–1.8. Core OAuth support does not establish EMA, Client Credentials,
+FAPI, PAR, JARM, or sender-constraint support; each applies only to the exact
+documented product surface, role, version, and configuration.
 
 ```mermaid
 flowchart LR
@@ -19367,7 +18489,7 @@ Exit begins at support sunset, an unresolved critical vulnerability, a failed co
 
 > **See also**: [§7.8](#78-risk-and-governance-crosswalk) (OWASP mapping), §13.5 (trace and decision evidence), [§23.10](#2310-gdpr-data-subject-rights-and-agent-memory) (GDPR rights and agent memory)
 
-This section maps the MCP authentication, authorization, and identity patterns documented in [§1](#1-current-mcp-authorization-and-protocol-baseline)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway) to operational evidence for the **EU Artificial Intelligence Act** ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)), the **General Data Protection Regulation** ([Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679)), **eIDAS 2.0** ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)), and adjacent product/cybersecurity duties. Architecture can preserve control and evidence; it cannot infer whether a deployment is a provider, deployer, importer, distributor, product manufacturer, or high-risk AI system from its protocol topology alone.
+This section maps the MCP authentication, authorization, and identity patterns documented in [§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles)–[§M](#appendix-m-litellm-proxy-as-egress-ai-gateway-multi-provider-orchestration-with-native-mcp-gateway) to operational evidence for the **EU Artificial Intelligence Act** ([Regulation (EU) 2024/1689](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689)), the **General Data Protection Regulation** ([Regulation (EU) 2016/679](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32016R0679)), **eIDAS 2.0** ([Regulation (EU) 2024/1183](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1183)), and adjacent product/cybersecurity duties. Architecture can preserve control and evidence; it cannot infer whether a deployment is a provider, deployer, importer, distributor, product manufacturer, or high-risk AI system from its protocol topology alone.
 
 > **Important — DR-0001 policy: decide applicability before claiming an outcome**
 >
@@ -21184,7 +20306,7 @@ The `2026-07-28` core is request-scoped. Version, client information, and capabi
 
 **Applicability:** Contract — approved `2026-07-28` request-scoped core; surface — Core MCP; evidence — normative requirement plus architectural inference; product role — host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** Current Authorization and Protocol Baseline ([§1](#1-current-mcp-authorization-and-protocol-baseline)); Stateless Streamable HTTP Authorization ([§2](#2-stateless-streamable-http-authorization)); Current Enforcement Pipeline ([§13.2](#132-gateway-responsibilities)).
+**Evidence trail:** MCP Authorization Bootstrap, Client Trust, and Grant Profiles ([§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles)); Request-Scoped Authorization and Downstream Execution ([§2](#2-request-scoped-authorization-and-downstream-execution)); Gateway Responsibilities ([§13.2](#132-gateway-responsibilities)).
 
 ##### 25.1.2 Key Finding 2: The OAuth Resource-Server Plane Does Not Replace Application Authorization
 <a id="finding-2"></a>
@@ -21193,7 +20315,7 @@ RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, PKCE, audien
 
 **Applicability:** Contract — current MCP authorization plus RFC 9728 and RFC 8707; surface — metadata, token, and application authorization; evidence — normative requirement plus architectural inference; product role — host/client, IdP/AS, gateway/runtime, and MCP server.
 
-**Evidence trail:** Authorization Trust Chain ([§1](#1-current-mcp-authorization-and-protocol-baseline)); Scope and Client-Identity Lifecycle ([§3](#3-scope-and-client-identity-lifecycle)); Authorization Model Comparison ([§22.3](#223-authorization-model-comparison)).
+**Evidence trail:** Trust Boundaries and Authorization Artifacts ([§1.2](#12-trust-boundaries-and-authorization-artifacts)); Scope Selection and Runtime Step-Up ([§3](#3-scope-selection-and-runtime-step-up)); Authorization Model Comparison ([§22.3](#223-authorization-model-comparison)).
 
 
 #### 25.2 Identity and Delegation
@@ -21283,7 +20405,7 @@ Azure APIM's current Credential Manager and custom OBO patterns preserve differe
 
 **Applicability:** Contract — current product evidence assessed against the forward baseline; surface — Azure APIM credential treatment; evidence — implementation evidence plus analysis; product role — gateway/runtime.
 
-**Evidence trail:** Azure API Management ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** Azure API Management ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 ##### 25.4.3 Key Finding 12: Purpose-Built MCP Filters Still Need Exact Contract and Lifecycle Evidence
 <a id="finding-12"></a>
@@ -21292,7 +20414,7 @@ PingGateway demonstrates that protocol-aware validation, protected-resource meta
 
 **Applicability:** Contract — current product evidence does not establish the forward core; surface — PingGateway MCP feature; evidence — implementation and lifecycle evidence; product role — gateway/runtime with adjacent IdP/AS.
 
-**Evidence trail:** PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)); Role and Lifecycle Inventory ([§21.1](#211-role-and-lifecycle-inventory)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive)); Role and Lifecycle Inventory ([§21.1](#211-role-and-lifecycle-inventory)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 ##### 25.4.4 Key Finding 17: ContextForge Shows Breadth Without Converting Community Evidence into Vendor Certification
 <a id="finding-17"></a>
@@ -21301,7 +20423,7 @@ ContextForge v1.0.6 combines gateway, registry, federation, translation, OIDC/JW
 
 **Applicability:** Contract — exact current core not established; surface — ContextForge v1.0.6 and MCP Apps; evidence — release and implementation evidence with explicit conformance gap; product role — gateway/runtime and registry.
 
-**Evidence trail:** ContextForge ([§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)); Role and Lifecycle Inventory ([§21.1](#211-role-and-lifecycle-inventory)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** ContextForge ([§F](#appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails)); Role and Lifecycle Inventory ([§21.1](#211-role-and-lifecycle-inventory)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 ##### 25.4.5 Key Finding 13: TrueFoundry Demonstrates Control-Plane Composition Without Establishing Exact Core Support
 <a id="finding-13"></a>
@@ -21319,7 +20441,7 @@ AgentGateway v1.1 provides route-level MCP authentication, native browser OIDC w
 
 **Applicability:** Contract — product evidence does not establish the forward core; surface — AgentGateway v1.1; evidence — exact `2025-06-18` product metadata plus current release evidence; product role — gateway/runtime.
 
-**Evidence trail:** AgentGateway ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)).
+**Evidence trail:** AgentGateway ([§E](#appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)).
 
 
 #### 25.5 Platform and Runtime Implementations
@@ -21433,7 +20555,7 @@ The current invariant is broad: authorize every explicit application-state handl
 
 **Applicability:** Contract — current request-scoped core plus pinned extensions; surface — application state, Tasks, request-state, subscriptions, caches, and continuations; evidence — normative architecture, product evidence gaps, and analysis; product role — gateway/runtime, host/runtime, and MCP server.
 
-**Evidence trail:** Stateless Streamable HTTP Authorization ([§2](#2-stateless-streamable-http-authorization)); Explicit-Handle Authority Model ([§17.3](#173-explicit-handle-authority-model)); Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks) and [§17.4](#174-durable-task-lifecycle)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** Request-Scoped Authorization and Downstream Execution ([§2](#2-request-scoped-authorization-and-downstream-execution)); Explicit-Handle Authority Model ([§17.3](#173-explicit-handle-authority-model)); Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks) and [§17.4](#174-durable-task-lifecycle)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 
 #### 25.10 Composable Agentic Identity Stack
@@ -21469,7 +20591,7 @@ Tools, prompts, and resources retain different name-, URI-, argument-, and conte
 
 **Applicability:** Contract — current core plus pinned subscription/cache extensions; surface — tools, prompts, resources, subscriptions, and cache metadata; evidence — normative requirement plus threat analysis; product role — host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)); Stateless Request Authorization ([§2](#2-stateless-streamable-http-authorization)); Gateway Architecture ([§13](#13-gateway-mediated-mcp-architecture)).
+**Evidence trail:** Authorization Across MCP Primitives and Durable State ([§17](#17-authorization-across-mcp-primitives-and-durable-state)); Stateless Request Authorization ([§2](#2-request-scoped-authorization-and-downstream-execution)); Gateway Architecture ([§13](#13-gateway-mediated-mcp-architecture)).
 
 
 #### 25.13 Authority-Aware Governance
@@ -21565,7 +20687,7 @@ That record is the missing implementation contract. A task handle must remain au
 
 **Applicability:** Contract — pinned `io.modelcontextprotocol/tasks` Draft extension; surface — task lifecycle and authority record; evidence — normative extension behavior plus architectural inference; product role — host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** MCP Tasks Extension ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); Task Authority Record ([§10.6.3](#1063-task-authority-record) and [§17.4](#174-durable-task-lifecycle)); Forward-Baseline Evidence Matrix ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** MCP Tasks Extension ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); Task Authority Record ([§10.6.3](#1063-task-authority-record) and [§17.4](#174-durable-task-lifecycle)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 #### 25.21 Agent Behavioral Trust Scoring
 
@@ -21780,7 +20902,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 25](#finding-25) (multi-layer trust); [KF 27](#finding-27) (unequal standards maturity).
 
-23. **Apply high-assurance OAuth profiles to operations that justify their controls.** For business-critical or high-sensitivity deployments, evaluate FAPI 2.0 profiles, PAR, JARM, sender-constrained tokens, phishing-resistant user authentication, and stronger client authentication as a coherent profile. Confirm the parties implement the same profile and keep domain-specific legal requirements separate from the technical baseline.
+23. **Apply high-assurance OAuth profiles to operations that justify their controls.** Use the [§1.8](#18-high-assurance-oauth-profile-overlay) applicability decision: select a compatible base grant first, then evaluate FAPI 2.0 Security Profile, the separately selected Message Signing profile, PAR/JAR/JARM where their authorization-endpoint/message contracts apply, sender-constrained tokens, phishing-resistant user authentication, and stronger client authentication as a coherent profile. Confirm the parties implement the same profile and keep domain-specific legal requirements separate from the technical baseline.
 
    **Applicability:** Current external OAuth profiles for high-assurance deployments.
 
@@ -22936,10 +22058,10 @@ While Entra Agent ID is architecturally sophisticated, it introduces **hard vend
 
 | Reference | Connection |
 |:---|:---|
-| **[§3](#3-scope-and-client-identity-lifecycle) Scope and Client Identity** | Current APIM evidence does not establish CIMD or a complete RFC 9728-generated metadata path; pre-registration and external-AS deployment must be verified explicitly |
+| **[§3](#3-scope-selection-and-runtime-step-up) Scope Selection and Runtime Step-Up** | Current APIM evidence does not establish CIMD or a complete RFC 9728-generated metadata path; pre-registration and external-AS deployment must be verified explicitly |
 | **[§13.3](#133-gateway-architecture-patterns) Stateless Protocol Proxy (Azure APIM)** | APIM supplies the gateway policy and credential boundary, but its current product evidence does not establish every July 2026 admission, routing, extension, or handle check |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Tool Authorization** | Mode B (REST→MCP) automates the API Operation → MCP Tool mapping using OpenAPI definitions; generated visibility does not grant invocation |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | APIM can validate and authorize the incoming request, but public evidence does not establish current MCP explicit-handle ownership or proof-of-possession; deployments still need authorization on every request and every explicit state handle. |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | APIM can validate and authorize the incoming request, but public evidence does not establish current MCP explicit-handle ownership or proof-of-possession; deployments still need authorization on every request and every explicit state handle. |
 | **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | APIM Credential Manager can resolve managed-identity or user-context connections, while custom OBO via `send-request` ([§A.3.4](#a34-custom-obo-token-exchange-pattern-send-request)) derives a downstream token. These are composable custody/delegation choices; application-only and user-delegated authority remain distinct. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | APIM has no native external policy engine (Cedar, OPA, OpenFGA) but extends its security surface area with `llm-content-safety` (content moderation + PII detection/redaction + Task Adherence), `llm-semantic-cache-*` (caching), and `llm-token-limit` (token-aware rate limiting). These are orthogonal to AuthZ but relevant for MCP workload governance |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | APIM supports importing and governing A2A agent APIs (preview, Nov 2025) with OpenTelemetry GenAI semantic convention logging (March 2026) and cross-cloud agent governance via Foundry. The AI-Gateway labs demonstrate a heterogeneous multi-agent architecture (Semantic Kernel + AutoGen) with MCP-enabled agents deployed as A2A agents on ACA, with APIM as the authn/authz gateway |
@@ -23128,13 +22250,13 @@ The gateway must bind downstream issuance to the exact backend audience and gran
 
 | Reference | Connection |
 |:---|:---|
-| **[§3](#3-scope-and-client-identity-lifecycle) Scope Lifecycle** | `McpProtectionFilter` implements the full scope challenge handling (401 + 403 with `WWW-Authenticate`) described in [§3.3](#33-scope-challenge-handling-403-insufficient-scope) |
+| **[§3](#3-scope-selection-and-runtime-step-up) Scope Selection and Step-Up** | `McpProtectionFilter` implements the full scope challenge handling (401 + 403 with `WWW-Authenticate`) described in [§3.3](#33-runtime-insufficient-scope-step-up) |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | PingGateway's three-filter chain maps directly to the gateway responsibilities table in [§13.2](#132-gateway-responsibilities) |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | The PingAuthorize integration enables task-based authorization decisions at the Groovy script level, implementing TBAC without scope encoding |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | `McpProtectionFilter` `supportedScopes` supplies server-level scope policy; per-tool and per-argument authorization still requires a trusted policy mapping |
 | **[§9](#9-authorization-context-and-delegation-representation) Authorization Context** | The `JwtBuilderFilter` → `HeaderFilter` pattern implements request-context enrichment described in [§9](#9-authorization-context-and-delegation-representation), including `act` claim propagation |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | Ping Identity has published A2A agent identity content on its Identity for AI platform and contributed to the March 2026 IETF Internet-Draft on "AI Agent Authentication and Authorization" — indicating future A2A integration alongside existing MCP support. No native A2A protocol support in PingGateway filters yet |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | PingGateway's OAuth and policy filters evaluate requests, and DPoP can sender-constrain tokens. Public documentation does not establish current MCP explicit-handle ownership or transfer rules; documented `Mcp-Session-Id` routing is product-gap evidence, not proof of those controls. |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | PingGateway's OAuth and policy filters evaluate requests, and DPoP can sender-constrain tokens. Public documentation does not establish current MCP explicit-handle ownership or transfer rules; documented `Mcp-Session-Id` routing is product-gap evidence, not proof of those controls. |
 | **MCP Core Version** | PingGateway 2026.6 explicitly supports `2025-06-18` and `2025-11-25` through `preferredServerVersion`. CIMD, the 2026 routing headers, independently versioned official extensions, and current explicit-handle semantics remain unverified. |
 | **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) Guardrail-to-Authorization Feedback** | Identity for AI GA adds DLP and recording to PingGateway's MCP surface. PingOne Protect can provide behavioral-risk signals to policy, while content-level prompt guardrails remain a distinct control |
 | **[§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity) Runtime Identity** | Conceptual framework connecting agent/workload identity ([§6](#6-agent-identity-vs-user-identity) and [§7](#7-agent-definition-identity-and-governance-lifecycles)), explicit delegation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) and [§11](#11-credential-custody-and-release-patterns)), and per-action enforcement ([§13](#13-gateway-mediated-mcp-architecture) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)). The cited 2026 incident supplies a current motivating case |
@@ -23348,7 +22470,7 @@ Among the thirteen offerings surveyed on 23 July 2026, Kong has the broadest exp
 | **[§16](#16-task-based-access-control-tbac) TBAC** | MCP ACL (built-in to AI MCP Proxy, GA v3.13) provides Consumer/Consumer Group–based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | AI MCP OAuth2 enforces route-level scopes; generated-tool visibility and route admission still require an explicit per-tool and per-argument authorization decision |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A** | Kong AI Gateway 3.14 shipped native A2A support and structured A2A logging in April 2026, with an enterprise-only caveat for Kong's AI/MCP plugin stack |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Kong can terminate, strip, validate, or exchange credentials per request. Available evidence does not establish an explicit policy binding its documented `Mcp-Session-Id` values—or current application, task, subscription, and continuation handles—to the authenticated principal |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Kong can terminate, strip, validate, or exchange credentials per request. Available evidence does not establish an explicit policy binding its documented `Mcp-Session-Id` values—or current application, task, subscription, and continuation handles—to the authenticated principal |
 | **Official Extensions** | `id-jag-relay` provides an EMA compatibility path with Okta as the first documented IdP; routing-header support, Tasks, MCP Apps, and support for the approved `2026-07-28` floor remain unverified |
 
 
@@ -23916,7 +23038,7 @@ This positions TrueFoundry alongside AgentGateway ([§E](#appendix-e-agentgatewa
 | **[§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern) Guardrail-to-Authorization Feedback** | The guardrail suite spans built-in detectors, Cedar/OPA policy, and external providers; detector output must enter a per-request authorization decision rather than act as ambient trust |
 | **[§18.3](#183-policy-engine-evaluation) Cedar** | Cedar Guardrail for MCP tools — formal verification and deny-by-default for tool authorization |
 | **[§9](#9-authorization-context-and-delegation-representation) Authorization Context** | Identity Injection forwards the user's token rather than minting the local signed assertion profile described in [§9](#9-authorization-context-and-delegation-representation); deployments still need to verify that the received token is intended for the next resource and must not treat forwarding as RFC 8693 exchange |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Available evidence does not establish an explicit policy binding application, task, subscription, or continuation handles to the authenticated principal; deployments must enforce those handles as authorization-sensitive inputs |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Available evidence does not establish an explicit policy binding application, task, subscription, or continuation handles to the authenticated principal; deployments must enforce those handles as authorization-sensitive inputs |
 | **Official Extensions** | Exact support for routing headers, Tasks, MCP Apps, EMA, and the approved `2026-07-28` floor remains unverified |
 
 ---
@@ -24404,7 +23526,7 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 | **[§16](#16-task-based-access-control-tbac) TBAC** | CEL `mcpAuthorization` enables request-context checks at the tool/resource level; unauthorized resources can be filtered from discovery before execution |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Tool federation changes discovery and composition; per-tool/per-resource CEL decisions still determine invocation authority |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | AgentGateway's A2A support establishes a cross-protocol runtime surface, while portable delegation context remains a separate evidence gap |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Version 1.1 adds stateless-session options for OpenAPI/SSE upstreams and explicit session TTLs, while Streamable HTTP can remain stateful. `mcp.sessionId` is documented for post-request logging, not request-time authorization; explicit principal-to-session/task-handle binding remains unverified |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Version 1.1 adds stateless-session options for OpenAPI/SSE upstreams and explicit session TTLs, while Streamable HTTP can remain stateful. `mcp.sessionId` is documented for post-request logging, not request-time authorization; explicit principal-to-session/task-handle binding remains unverified |
 | **Official Extensions** | Exact support for routing headers, Tasks, MCP Apps, EMA, and the approved `2026-07-28` floor remains unverified; public conformance evidence was not found |
 
 ---
@@ -24576,7 +23698,7 @@ In the 23 July 2026 survey, ContextForge documents the **broadest observability 
 | **[§16](#16-task-based-access-control-tbac) TBAC** | RBAC via SSO claims, not task-based — guardrails provide an orthogonal authorization layer |
 | **[§17.2](#172-tool-visibility-invocation-and-backend-entitlement) Primitive Authorization** | Virtual Server Manager maps REST/gRPC operations to MCP tools; tool visibility and API-key scoping do not replace invocation and backend authorization |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | OPA integration in the v1.0.0 release line adds Rego-based policy evaluation alongside the guardrail pipeline |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | The post-GA line fixes a session-token admin bypass and multi-worker session-affinity defects, but available evidence still does not establish a general principal-to-session/task-handle authorization invariant |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | The post-GA line fixes a session-token admin bypass and multi-worker session-affinity defects, but available evidence still does not establish a general principal-to-session/task-handle authorization invariant |
 | **Official Extensions** | MCP Apps is supported in `v1.0.6`; routing headers, Tasks, EMA, public conformance, an exact highest core version, and support for the approved `2026-07-28` floor remain unverified |
 
 
@@ -25022,7 +24144,7 @@ WSO2's scope enforcement goes beyond basic JWT validation:
 
 The current organization model is more specific than generic “scope sharing”: an MCP server registered in the root organization, together with its scopes, is automatically inherited throughout the child hierarchy. Each child organization may authorize its own agents and applications against that inherited definition. It cannot independently register, share, or subscribe to the inherited server.
 
-This maps to the user-delegated authorization pattern in [§14](#14-authorization-approval-and-consent-models) and the scope lifecycle in [§3](#3-scope-and-client-identity-lifecycle). The screen and resulting grant must still be distinguished from any separately applicable legal-consent or business-approval record.
+This maps to the user-delegated authorization pattern in [§14](#14-authorization-approval-and-consent-models) and the scope lifecycle in [§3](#3-scope-selection-and-runtime-step-up). The screen and resulting grant must still be distinguished from any separately applicable legal-consent or business-approval record.
 
 #### G.5 Multi-Tenant Architecture
 
@@ -25067,13 +24189,13 @@ Both share the same core architecture and feature set (MCP server templates, age
 
 | Reference | Connection |
 |:---|:---|
-| **[§1](#1-current-mcp-authorization-and-protocol-baseline) MCP Auth Spec** | WSO2 IS implements the MCP auth spec by acting as the AS natively — the spec's intended architecture |
-| **[§3](#3-scope-and-client-identity-lifecycle) Scope Lifecycle** | RFC 9728 discovery, exact issuer/resource binding, administrator-managed client identity, consent, and scope challenge |
+| **[§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles) Authorization Bootstrap and Profiles** | WSO2 IS implements the MCP auth spec by acting as the AS natively — the spec's intended architecture |
+| **[§3](#3-scope-selection-and-runtime-step-up) Scope Selection and Step-Up** | RFC 9728 discovery, exact issuer/resource binding, administrator-managed client identity, consent, and scope challenge |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | WSO2 IS directly implements Approach C (agents as first-class identities in IdP) |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Unlike gateways ([§13.2](#132-gateway-responsibilities)–[§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), WSO2 IS removes the intermediary — the IdP IS the AS |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | WSO2 IS provides native consent UIs with per-scope granularity and incremental consent |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Scope-based RBAC maps to TBAC via per-tool scope definitions |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | WSO2 documents access-token-backed connection authorization, but available MCP evidence does not establish enforcement that binds current application, task, subscription, and continuation handles to the authenticated user, agent, client, and tenant tuple |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | WSO2 documents access-token-backed connection authorization, but available MCP evidence does not establish enforcement that binds current application, task, subscription, and continuation handles to the authenticated user, agent, client, and tenant tuple |
 | **Organization Inheritance** | Root-registered MCP servers and scopes are inherited automatically; child organizations authorize local agents/apps but do not re-register, share, or subscribe to the inherited server |
 | **Official Extensions** | Exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
 
@@ -25597,7 +24719,7 @@ As of the July 23, 2026 re-check, Auth0's MCP-specific story has three component
 
 XAA implements an administrator-managed **enterprise policy authorization** pattern in Rec 14: in managed contexts, IT administrators define which agents and applications may request access instead of presenting a per-interaction user prompt at every target. That is not automatically the user's legal consent, and sub-agent expansion plus dependency-aware termination remain separate architecture questions (§§12.10–12.11).
 
-Current XAA docs describe the feature in the enterprise-managed terms of [§14.1](#141-first-party-authorization-enterprisesame-organization) and [§14.5](#145-is-user-consent-always-required): IT admins centrally define app and agent access controls through the enterprise IdP, reducing repeated end-user prompts while grounding the token flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
+Current XAA docs describe the feature in the enterprise-managed terms of [§14.1](#141-first-party-authorization) and [§14.5](#145-is-user-consent-always-required): IT admins centrally define app and agent access controls through the enterprise IdP, reducing repeated end-user prompts while grounding the token flow in the Identity Assertion Authorization Grant. The Beta label is operationally meaningful, not just marketing copy: current limits include confidential first-party requesting apps, no delegated administration, one XAA-enabled connection per upstream IdP issuer, limited organization support, no dynamic user creation, and a 5 RPS cap for ID-JAG exchanges at the `/token` endpoint.
 
 #### H.6 Auth0 MCP Server
 
@@ -25649,7 +24771,7 @@ In the 23 July 2026 evidence snapshot, Auth0 has the broadest explicitly documen
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Authorization Models** | FGA supplies relationship-based data authorization (user→document, agent→folder) alongside, rather than as a substitute for, OAuth scope and token validation |
 | **[§19](#19-rich-authorization-requests-rar-vs-oauth-scopes) RAR** | RAR structures requested/granted OAuth authority; FGA evaluates relationships at runtime. They can share identifiers but are different artifacts and decision points |
 | **[§8](#8-a2a-protocol-and-ap2-agent-to-agent-authentication-and-payment-patterns) A2A Protocol** | Auth0 publicly states it is partnering with Google Cloud to define A2A auth specifications based on secure standards and build SDKs / samples — positioning Auth0 as a CIAM layer adjacent to both MCP and A2A security |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Auth0/Okta issue and validate authorization artifacts but do not mediate every MCP transport request. MCP servers must bind application, task, subscription, cache, and continuation handles to the authenticated principal and client; sender-constrained tokens do not create that binding automatically |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Auth0/Okta issue and validate authorization artifacts but do not mediate every MCP transport request. MCP servers must bind application, task, subscription, cache, and continuation handles to the authenticated principal and client; sender-constrained tokens do not create that binding automatically |
 | **Lifecycle Boundary** | Auth for MCP is GA; Token Vault is Early Access; XAA is Beta; the Okta Open Source MCP Server is separately GA with Elicitation and scope-based tool loading |
 | **Official Extensions** | Okta's server uses Elicitation for destructive-action confirmation; exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
 
@@ -26134,7 +25256,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 |:---|:---|
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Traefik Hub forwards or strips Token A; the MCP server implements RFC 8693 exchange for backend-audience Token B |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Traefik Hub implements task-, tool-, and transaction-level policy using JWT claims and MCP request parameters |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Traefik Hub documents `Mcp-Session-Id` use on its older supported contract for affinity/telemetry, but available evidence does not establish current application/task-handle authorization |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Traefik Hub documents `Mcp-Session-Id` use on its older supported contract for affinity/telemetry, but available evidence does not establish current application/task-handle authorization |
 | **Official Extensions** | Exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
 
 ---
@@ -26297,7 +25419,7 @@ The credential isolation model is fundamentally different from other approaches:
 | Reference | Connection |
 |:---|:---|
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Docker MCP Gateway operates at a **different layer** than the gateways in [§13](#13-gateway-mediated-mcp-architecture) — container runtime vs. network proxy. They are complementary, not competing |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Container isolation bounds processes and credentials, but it does not bind application, task, subscription, and continuation handles to an authenticated principal; that remains a gateway/server authorization responsibility |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Container isolation bounds processes and credentials, but it does not bind application, task, subscription, and continuation handles to an authenticated principal; that remains a gateway/server authorization responsibility |
 | **Lifecycle Boundary** | Catalog and Toolkit are Beta; AI Governance MCP Gateway is invite-only; Dynamic MCP discovery is experimental |
 | **Official Extensions** | Exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
 
@@ -26454,7 +25576,7 @@ This does **not** mean Cloudflare has collapsed browser automation into MCP auth
 | Reference | Connection |
 |:---|:---|
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Cloudflare adds a new layer to [§13](#13-gateway-mediated-mcp-architecture) — edge gateway plus optional edge-hosted remote MCP server. Other gateways operate mainly at origin; Cloudflare can operate before traffic reaches origin **and** host the remote MCP server itself |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Durable Object-backed instances and auth-context propagation create useful isolation primitives, but product-defined durable application state does not prove current MCP application/task-handle authorization; binding each handle and continuation to the authenticated principal remains an application responsibility |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Durable Object-backed instances and auth-context propagation create useful isolation primitives, but product-defined durable application state does not prove current MCP application/task-handle authorization; binding each handle and continuation to the authenticated principal remains an application responsibility |
 | **[§20.7](#207-web-bot-authentication) Web Bot Authentication** | Browser Run adds signed website-layer bot identification (`Signature-agent`, `Signature`, `Signature-Input`) and WebMCP browser tooling. That strengthens the Cloudflare browser story without collapsing website-layer bot auth into MCP authorization |
 | **Official Extensions** | Stateful hosting documents Elicitation; exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
 
@@ -26761,7 +25883,7 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 | **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Three credential patterns implemented declaratively: Wristband JWT injection (new), RFC 8693 OBO exchange ([§5.2](#52-profiled-token-exchange-flow)), and Vault credential translation (new). The metadata phase's priority-based resolution chain is the most flexible credential delegation model in the investigation. |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Introduces a new archetype: "Envoy-Native / Service Mesh Gateway." The key distinction is that Envoy handles routing while ALL security intelligence lives in external services (Authorino, Vault, Keycloak) composed via declarative CRDs. This is the service mesh security model applied to MCP. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | Kuadrant's AuthPolicy uniquely combines OPA Rego + CEL + pattern matching in a single 4-phase pipeline. CEL handles inline predicate evaluation; OPA handles complex claim extraction; pattern matching handles simple allow/deny. This is the only gateway offering all three expression languages composably. |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | Wristband JWTs are time-bounded per-request authorization assertions, not session credentials. In-memory/Redis session stores and URL token elicitation do not by themselves prove principal binding for session, task, or continuation handles |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Wristband JWTs are time-bounded per-request authorization assertions, not session credentials. In-memory/Redis session stores and URL token elicitation do not by themselves prove principal binding for session, task, or continuation handles |
 | **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | Composes OBO token derivation with Vault-backed credential resolution, selected per request through declarative policy. The deployment must preserve the authority source, custody transition, and fallback evidence rather than treating both paths as one credential mode. |
 | **[§13.3](#133-gateway-architecture-patterns) Architecture Patterns** | Red Hat supplies the service-mesh/Kubernetes archetype: Envoy routing, external `ext_authz`, Gateway API–referenced CRDs, and a four-phase policy pipeline; Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) represents a different Kubernetes gateway composition |
 | **Lifecycle / Extensions** | Connectivity Link `1.4.1` + MCP Gateway `0.6.0` Technology Preview; URL-based token elicitation is configurable, while public conformance, routing headers, Tasks, MCP Apps, EMA, and support for the approved `2026-07-28` floor remain unverified |
@@ -28414,7 +27536,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | LiteLLM introduces a new archetype: **"AI-Native MCP Gateway"** — purpose-built for LLM orchestration with native MCP support, as distinct from traditional API gateways that bolt on MCP via plugins. The `MCPServerManager` registry, tool namespacing, and OpenAPI-to-MCP conversion are AI-native capabilities. |
 | **[§23](#23-eu-ai-act-and-adjacent-eu-obligations-applicability-controls-and-evidence) EU AI Act** | LiteLLM's seven-entity spend tracking and per-MCP-tool fields ([§M.4](#m4-token-spend-tracking-and-budget-enforcement)) can contribute logging, attribution, and cost evidence. They do not independently establish compliance with Articles 9, 12, or 15; completeness, retention, system classification, and the wider control set remain decisive. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | LiteLLM uses a built-in RBAC model (`role_permissions`) rather than delegating to an external policy engine. This is simpler but less expressive than Cedar/OPA. For enterprises needing fine-grained ABAC, the Component Chain topology addresses this by placing the policy engine at the Ingress API Gateway layer. |
-| **[§2](#2-stateless-streamable-http-authorization) State and Request Authorization** | LiteLLM's gateway and JWT-signer controls are per-request authorization mechanisms, not proof of ownership for an application, task, subscription, cache, or continuation handle. Available public v1.93.0 evidence does not establish a current explicit-handle authorization policy, so deployments must enforce principal and tenant ownership wherever such handles cross the gateway. |
+| **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | LiteLLM's gateway and JWT-signer controls are per-request authorization mechanisms, not proof of ownership for an application, task, subscription, cache, or continuation handle. Available public v1.93.0 evidence does not establish a current explicit-handle authorization policy, so deployments must enforce principal and tenant ownership wherever such handles cross the gateway. |
 | **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | The MCP Zero Trust JWT Signer's `end_user_claim_sources` configuration implements a priority-based subject-context resolution chain (`token:sub` → `token:email` → `litellm:user_id`) for outbound JWT claims. This resolves claim inputs; it does not by itself prove delegated authority or safe credential custody. |
 | **[§13.3](#133-gateway-architecture-patterns) Architecture Patterns** | LiteLLM represents the **AI-native egress gateway** in the component-chain topology and is complementary to ingress gateways such as APIM, Kong, PingGateway, and Traefik Hub |
 | **Lifecycle / Extensions** | v1.93.0 stable; core gateway protocol documented at `2025-11-25`, with a separate per-server version setting. Public conformance, `2026-07-28` routing headers, Tasks, MCP Apps, EMA, and explicit state/task-handle policy remain unverified; prerelease-only features are excluded. |
@@ -28444,13 +27566,13 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Cloudflare — Browser Run adds WebMCP support](https://developers.cloudflare.com/changelog/post/2026-04-15-br-webmcp/) — Browser Run WebMCP support; typed website-tool execution and human confirmation on sensitive actions (April 15, 2026) ([§14.5](#145-is-user-consent-always-required), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§20.7](#207-web-bot-authentication))
 - [CVE-2026-26118 — Azure MCP Server SSRF](https://www.cve.org/CVERecord?id=CVE-2026-26118) — Server-Side Request Forgery in Azure MCP Server allowing an authorized attacker to elevate privileges over a network (CVSS 8.8, disclosed March 2026; patched in Azure.Mcp ≥1.0.2 / ≥2.0.0-beta.17). See [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive) for affected ranges and server-boundary implications.
 - [DIF — Trusted AI Agents Working Group (TAIAWG)](https://identity.foundation/) — Decentralized Identity Foundation working group (launched September 2025) defining interoperable specifications for agentic identity, agentic registries, trusted agent communication, and access control using DIDs/VCs; first deliverable: Agentic Authority Use Cases ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
-- [draft-ietf-oauth-identity-assertion-authz-grant-04 — Identity Assertion JWT Authorization Grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) — OAuth WG profile of Identity Chaining for enterprise SSO; updated May 21, 2026 ([§1.3.2](#132-enterprise-managed-authorization-identity-assertion-grant-protocol))
+- [draft-ietf-oauth-identity-assertion-authz-grant-04 — Identity Assertion JWT Authorization Grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) — OAuth WG profile of Identity Chaining for enterprise SSO; updated May 21, 2026 ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile))
 - [draft-ietf-oauth-identity-chaining-17 — OAuth Identity and Authorization Chaining Across Domains](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) — Preserves identity and authorization context across trust domains via RFC 8693 Token Exchange and RFC 7523 JWT Authorization Grant; latest revision July 19, 2026 and submitted to the RFC Editor queue ([§20.4](#204-delegation-and-identity-chains))
 - [draft-meunier-webbotauth-httpsig-protocol-00](https://datatracker.ietf.org/doc/draft-meunier-webbotauth-httpsig-protocol/) — Active individual proposal for Web Bot Authentication using HTTP Message Signatures ([§20.7](#207-web-bot-authentication))
 - [draft-nottingham-webbotauth-use-cases-02](https://datatracker.ietf.org/doc/draft-nottingham-webbotauth-use-cases/) — Use cases for authentication of web bots: abuse mitigation, access control, differentiated content, auditing, traffic classification, site services, and contextual information (published April 1, 2026) ([§20.7](#207-web-bot-authentication))
 - [draft-rescorla-anonymous-webbotauth-01](https://datatracker.ietf.org/doc/draft-rescorla-anonymous-webbotauth/) — Active individual Anonymous Bot Authentication proposal: policy and rate-limiting signals without identifying a specific bot; updated July 19, 2026 ([§20.7](#207-web-bot-authentication))
-- [FAPI 2.0 Message Signing](https://openid.net/specs/fapi-2_0-message-signing.html) — HTTP message integrity, signer authentication, and covered-component binding through RFC 9421 signatures (Final Specification, September 2025) (§3.6)
-- [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-2_0-security-profile.html) — Financial-grade API security profile mandating PAR, sender-constrained tokens, and `iss` validation (Final Specification, February 2025) (§3.6)
+- [FAPI 2.0 Message Signing](https://openid.net/specs/fapi-message-signing-2_0-final.html) — HTTP message integrity, signer authentication, and covered-component binding through RFC 9421 signatures (Final Specification, September 2025) (§1.8)
+- [FAPI 2.0 Security Profile](https://openid.net/specs/fapi-security-profile-2_0.html) — Financial-grade API security profile mandating PAR, sender-constrained tokens, and `iss` validation (Final Specification, February 2025) (§1.8)
 - [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) — OpenID Implementer's Draft profile strengthening CIBA for financial-grade deployments; profile controls do not by themselves establish a payment's SCA or dynamic-linking compliance ([§15.5](#155-tier-5-ciba-protocol), [§15.10.3](#15103-psd2psd3-payment-services))
 - [IETF webbotauth Working Group](https://datatracker.ietf.org/wg/webbotauth/about/) — Standardizing cryptographic authentication of automated web clients (bots, crawlers, AI agents) to websites ([§20.7](#207-web-bot-authentication))
 - [ISO/IEC 23894:2023 — Artificial intelligence — Guidance on risk management](https://www.iso.org/standard/77304.html) — Organizational guidance for integrating AI risk management; not a certifiable management-system requirement ([§24.5](#245-iso-ai-governance-risk-impact-and-assurance-map))
@@ -28458,7 +27580,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [ISO/IEC 42005:2025 — AI system impact assessment](https://www.iso.org/standard/42005) — Lifecycle guidance for assessing effects on individuals, groups, and society; not automatic completion of a legal impact assessment ([§24.5](#245-iso-ai-governance-risk-impact-and-assurance-map))
 - [ISO/IEC 42006:2025 — Requirements for AIMS audit and certification bodies](https://www.iso.org/standard/42006) — Additional requirements for bodies auditing and certifying ISO/IEC 42001 management systems; not product or request certification ([§24.5](#245-iso-ai-governance-risk-impact-and-assurance-map))
 - [ISO/IEC TS 27560:2023 — Consent record information structure](https://www.iso.org/standard/80392.html) — Interoperable records and receipts for a PII principal's consent to PII processing; not a general business-approval or OAuth-grant schema ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
-- [JARM — JWT Secured Authorization Response Mode](https://openid.net/specs/oauth-v2-jarm.html) — JWT-encoded authorization responses with signing and encryption (Final Specification, November 2022) (§3.6)
+- [JARM — JWT Secured Authorization Response Mode](https://openid.net/specs/oauth-v2-jarm.html) — JWT-encoded authorization responses with signing and encryption (Final Specification, November 2022) (§1.8)
 - [MCP Authorization Extensions](https://github.com/modelcontextprotocol/ext-auth) — Optional, additive, composable auth extensions for MCP
 - [MCP Authorization Spec (Draft)](https://modelcontextprotocol.io/specification/draft/basic/authorization) — Current draft spec
 - [MCP Security Best Practices (Draft)](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — Current draft
@@ -28484,8 +27606,8 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [RFC 8705 — OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens](https://datatracker.ietf.org/doc/html/rfc8705) — OAuth client authentication and certificate-bound access tokens ([§12.3](#123-sender-constraint-and-key-custody-boundaries))
 - [RFC 8707 — Resource Indicators for OAuth 2.0](https://www.rfc-editor.org/rfc/rfc8707.html) — Token audience binding
 - [RFC 9068 — JWT Profile for OAuth 2.0 Access Tokens](https://www.rfc-editor.org/rfc/rfc9068.html) — JWT access token format
-- [RFC 9101 — The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/html/rfc9101) — Signed/encrypted authorization request parameters (August 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
-- [RFC 9126 — OAuth 2.0 Pushed Authorization Requests (PAR)](https://datatracker.ietf.org/doc/html/rfc9126) — Backchannel authorization request submission (September 2021) ([§3.6](#36-high-assurance-authorization-fapi-20-par-jar-jarm))
+- [RFC 9101 — The OAuth 2.0 Authorization Framework: JWT-Secured Authorization Request (JAR)](https://datatracker.ietf.org/doc/html/rfc9101) — Signed/encrypted authorization request parameters (August 2021) ([§1.8](#18-high-assurance-oauth-profile-overlay))
+- [RFC 9126 — OAuth 2.0 Pushed Authorization Requests (PAR)](https://datatracker.ietf.org/doc/html/rfc9126) — Backchannel authorization request submission (September 2021) ([§1.8](#18-high-assurance-oauth-profile-overlay))
 - [RFC 9396 — Rich Authorization Requests](https://www.rfc-editor.org/rfc/rfc9396.html) — Structured `authorization_details` for fine-grained authorization
 - [RFC 9470 — OAuth 2.0 Step Up Authentication Challenge Protocol](https://www.rfc-editor.org/rfc/rfc9470.html) — Resource-server challenge for stronger or fresher user authentication; does not itself grant the retried operation ([§15.5.5.2](#15552-authentication-step-up-is-not-business-approval))
 - [RFC 9449 — OAuth 2.0 Demonstrating Proof of Possession (DPoP)](https://datatracker.ietf.org/doc/html/rfc9449) — Application-layer sender constraint with explicit freshness, endpoint, method, and key-binding checks ([§12.3](#123-sender-constraint-and-key-custody-boundaries))

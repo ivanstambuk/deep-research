@@ -11,10 +11,15 @@ records:
     title: MCP 2026-07-28 protocol revision
     artifact_type: protocol_release
     lifecycle_decision: forward_floor
-    external_status: Locked release candidate; final publication scheduled for 2026-07-28
+    external_status: Locked release candidate tagged 2026-07-28-RC at commit 9d700ed; accepted pre-final schema snapshot 7634684; final publication scheduled for 2026-07-28
     verified_on: 2026-07-25
     primary_sources:
       - https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/releases/tag/2026-07-28-RC
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/commit/9d700ed
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/blob/7634684382c3d14cf7e9f14073fe40a2d8ace3fa/schema/draft/schema.ts
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2907
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3002
     current_dr_use:
       - Minimum approved core for new deployments
       - Stateless per-request protocol and independently versioned extension baseline
@@ -35,6 +40,76 @@ records:
     status_history:
       - on: 2026-05-21
         status: Release candidate locked
+      - on: 2026-05-29
+        status: Release candidate tagged 2026-07-28-RC at commit 9d700ed
+      - on: 2026-07-25
+        status: Accepted pre-final schema reconciled through commit 7634684, including PRs 2907 and 3002
+
+  - id: oauth-client-id-metadata-document-02
+    title: OAuth Client ID Metadata Document
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 02; active OAuth WG document, updated 2026-07-06
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-client-id-metadata-document-02.html
+    current_dr_use:
+      - Revision-pinned URL-based OAuth client identification and metadata discovery profile
+      - Candidate client identity path when issuer-bound pre-registration is unavailable and the authorization server advertises support
+    non_claims:
+      - Published RFC or final OAuth profile
+      - Proof of publisher trust, client-instance attestation, MCP permission, or operation authorization
+    adoption_triggers:
+      - New draft revision, Working Group Last Call, IESG progression, or RFC publication
+      - Authorization-server interoperability evidence for client_id_metadata_document_supported and the selected client-authentication method
+    fallback_controls:
+      - Prefer issuer-bound pre-registration where an administrative relationship exists
+      - Apply exact URL and redirect matching, SSRF controls, bounded retrieval, and cache revalidation
+    responsible_domain: oauth-client-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["1.3"]
+    match_terms: ["Client ID Metadata Document", "CIMD"]
+    status_history:
+      - on: 2026-07-06
+        status: Revision 02 published as an active OAuth WG document
+
+  - id: mcp-oauth-client-credentials-draft
+    title: MCP OAuth Client Credentials Extension
+    artifact_type: mcp_extension_draft
+    lifecycle_decision: profile
+    external_status: Protocol Revision draft at ext-auth commit fb374c7db2b34f18ca9183882e0beecdf661892b; related SEP-1046 is Final
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://raw.githubusercontent.com/modelcontextprotocol/ext-auth/fb374c7db2b34f18ca9183882e0beecdf661892b/specification/draft/oauth-client-credentials.mdx
+      - https://modelcontextprotocol.io/seps/1046-support-oauth-client-credentials-flow-in-authoriza
+    current_dr_use:
+      - Revision-pinned optional direct machine-authority profile for HTTP-based MCP transports
+      - Profile requiring preregistration and authorization-server metadata advertising private_key_jwt or client_secret_basic
+    non_claims:
+      - Stable or final MCP extension merely because SEP-1046 is Final
+      - Dynamic Client Registration, human identity, user consent, refresh-token issuance, or a universal MCP capability-negotiation handshake
+    adoption_triggers:
+      - Extension advances from Protocol Revision draft to a stable revision
+      - Draft and SEP-1046 reconcile the client-secret transport example
+      - Interoperability evidence for preregistration, discovery, client authentication, resource binding, and MCP request enforcement
+    fallback_controls:
+      - Use issuer-bound preregistration and private_key_jwt for the DR-0001 canonical profile
+      - Reacquire access tokens before expiry rather than assume a refresh token
+      - Keep machine-principal authority and downstream token custody explicit
+    responsible_domain: machine-authorization
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["14.6"]
+    match_terms: ["Client Credentials", "Machine-to-Machine"]
+    status_history:
+      - on: 2025-07-23
+        status: SEP-1046 created
+      - on: 2026-07-25
+        status: Extension remains Protocol Revision draft while SEP-1046 is Final
 
   - id: caep-interop-1-0-draft-01
     title: CAEP Interoperability Profile 1.0 draft 01

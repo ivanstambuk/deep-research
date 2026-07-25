@@ -205,22 +205,22 @@ async function assertExplicitRailWidths(page) {
   assertNoPageOverflow('explicit rail resize', narrowerOutline);
 }
 
-async function assertProseAndTechnicalLanes(page) {
-  console.log('[adaptive layout] checking prose and technical width lanes');
+async function assertContentBlocksShareAdaptiveWidth(page) {
+  console.log('[adaptive layout] checking consistent prose and technical widths');
   await page.setViewportSize({ width: 2560, height: 1100 });
   await resetAdaptiveState(page, { navCollapsed: true });
   const geometry = await readGeometry(page);
 
-  if (geometry.proseWidth < 760 || geometry.proseWidth > 900) {
-    throw new Error(`prose lane escaped its readable bound: ${JSON.stringify(geometry)}`);
+  if (geometry.proseWidth < 1500 || geometry.proseWidth > 1602) {
+    throw new Error(`prose did not use the wider bounded surface: ${JSON.stringify(geometry)}`);
   }
   if (geometry.technicalWidth < 1500 || geometry.technicalWidth > 1602) {
-    throw new Error(`technical lane did not use its wider bounded surface: ${JSON.stringify(geometry)}`);
+    throw new Error(`technical content did not use its wider bounded surface: ${JSON.stringify(geometry)}`);
   }
-  if (geometry.technicalWidth - geometry.proseWidth < 600) {
-    throw new Error(`technical and prose lanes are not materially distinct: ${JSON.stringify(geometry)}`);
+  if (Math.abs(geometry.technicalWidth - geometry.proseWidth) > 2) {
+    throw new Error(`prose and technical content use inconsistent widths: ${JSON.stringify(geometry)}`);
   }
-  assertNoPageOverflow('prose and technical lanes', geometry);
+  assertNoPageOverflow('consistent prose and technical widths', geometry);
 }
 
 async function assertReadingPositionAndFocus(page) {
@@ -490,7 +490,7 @@ async function main() {
     await assertAdaptiveReclaimsNavWidth(page);
     await assertAdaptiveLiveResizeAndManualPrecedence(page);
     await assertExplicitRailWidths(page);
-    await assertProseAndTechnicalLanes(page);
+    await assertContentBlocksShareAdaptiveWidth(page);
     await assertReadingPositionAndFocus(page);
     await assertMermaidOverflowResynchronizes(page);
     await assertBreakpointBoundaryMatrix(page);

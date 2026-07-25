@@ -1263,7 +1263,6 @@ img {
 }
 
 .chapter-reader[data-layout-width='adaptive'] .doc-article {
-  --reader-prose-max-width: 88ch;
   --reader-technical-max-width: 100%;
 }
 
@@ -1274,6 +1273,9 @@ img {
   h4,
   h5,
   h6,
+  p,
+  ul,
+  ol,
   blockquote,
   hr,
   pre,
@@ -1288,12 +1290,6 @@ img {
   box-sizing: border-box;
   width: 100%;
   max-inline-size: var(--reader-technical-max-width);
-}
-
-.chapter-reader[data-layout-width='adaptive'] .doc-article > :where(p, ul, ol) {
-  box-sizing: border-box;
-  width: 100%;
-  max-inline-size: min(100%, var(--reader-prose-max-width));
 }
 
 @container reader-main (inline-size > 1680px) {
