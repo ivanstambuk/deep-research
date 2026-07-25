@@ -328,6 +328,33 @@ Full issuance choreography remains in OID4VCI Issuance Flow for SCA Attestations
 
 ---
 
+## Policy Voice and Forward-Looking Guidance
+
+A DR document may teach, evaluate, and set policy at the same time. Direct language is appropriate when the text defines the approved architecture, a mandatory version floor, a prohibited surface, a migration requirement, or the preferred option on a clearly named dimension.
+
+Keep the claim category visible:
+
+| Claim type | Reader-facing treatment |
+|:-----------|:------------------------|
+| External requirement | Attribute it to the governing standard, regulation, or authority. |
+| Observed product fact | Give the product/version and evidence date. |
+| Architecture recommendation | State the recommendation and the evidence or trade-off that supports it. |
+| Document policy | Name it as the approved architecture or deployment policy; do not imply that an external standard mandates it. |
+
+Forward-looking policy is valid when an imminent or emerging standard is sufficiently settled, near-term, materially improves the architecture, and is intentionally selected. Write the target architecture as the operative design. Less-settled work belongs in an explicit `Monitor` or `Future` category rather than being blended into current requirements.
+
+Use the reader-actionability test:
+
+- if the passage helps a reader make a safer, more accurate, or better-governed decision, it belongs in the document even when it is prescriptive or report-specific
+- if it only tells a future maintainer or AI agent how to refresh, recheck, cite, generate, or award internal “credit,” move it to repository guidance or a planning artifact
+- retain dated evidence snapshots, security advisories, migration controls, and policy gates when they directly support decisions
+
+Treat obsolete protocols and product shapes concisely: identify their lifecycle status, state the current policy, name the replacement, and explain the material consequence. Include longer history only when it is needed for migration, interoperability, or security.
+
+Evidence-based rankings are allowed, but the comparison dimension, evidence date, and material limitation must be explicit. Avoid unsupported universal superlatives, absence claims based on incomplete evidence, and priority claims such as “first ever” unless a primary source establishes them.
+
+---
+
 ## Detail Pacing
 
 A chapter can be very detailed without feeling dense if the detail is paced.

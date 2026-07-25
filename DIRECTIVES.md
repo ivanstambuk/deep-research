@@ -103,6 +103,11 @@ Authoring rules:
 5. Use directives for reader navigation and emphasis, not decoration.
 6. Keep directive bodies short when possible: ideally one short paragraph, occasionally two.
 7. A subsection should usually contain `0` or `1` directive. `2` is acceptable only when the subsection genuinely contains two distinct callout-worthy ideas.
+8. Policy directives may mandate an approved architecture, version floor, prohibition, migration control, or evidence-based preference. Make clear whether the statement is an external requirement, an observed fact, an architecture recommendation, or document-specific policy.
+9. Forward-looking directives may adopt an imminent, sufficiently settled standard as the operative target. Use `Monitor` or `Future` language for less-settled work rather than weakening an intentionally selected floor.
+10. Every directive must pass the reader-actionability test: it should improve a reader's security, architecture, implementation, governance, or interpretation decision. Maintainer reminders, refresh promises, author instructions, citation workflow, and internal “credit” mechanics do not belong in reader-facing directives.
+11. Dated evidence snapshots and security advisories are valid callouts when the date/version and direct consequence are explicit. Do not use unsupported priority claims such as “first ever,” or frame evidence as validating the document itself.
+12. `Best`, `strongest`, and similar rankings are acceptable only when the comparison dimension, evidence date, and material limitation are stated.
 
 ---
 

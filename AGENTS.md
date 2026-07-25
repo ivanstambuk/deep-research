@@ -839,3 +839,15 @@ Within a DR document, prefer the **real subject** of the sentence — for exampl
 - ❌ `DR-0002 bridges this gap...`
 
 Use `DR-000X` identifiers where the document identity itself genuinely matters: frontmatter/metadata, file paths, repo tooling/tests, explicit cross-document references like `(DR-0003, §29.3)`, navigation labels such as `DR-0002 Reference`, comparison tables, coverage matrices, internal coverage/structure statements, findings/update-history notes, or other places where the document is the actual thing being discussed.
+
+### Policy Voice vs. Maintainer Narration
+
+DR documents may be opinionated architecture and policy instruments. They may define an approved architecture, mandate a version floor, prohibit obsolete or unsafe surfaces, identify a best practice, rank options on a named dimension, require migration governance, and recommend adoption of an imminent or emerging standard when the evidence and maturity justify it.
+
+- Distinguish external requirements, observed product facts, architecture recommendations, and document-specific policy. A local policy must not masquerade as a standards requirement, but it may still be direct and mandatory.
+- Forward-looking policy is legitimate when the target is sufficiently settled, near-term, materially better, and intentionally selected. Describe the resulting architecture directly; reserve `Monitor` or `Future` treatment for less-settled work.
+- Keep dated evidence snapshots, actionable security advisories, migration requirements, and release gates when they help a reader make a safer or more informed decision.
+- Remove maintainer-only narration from reader prose: future refresh promises, recheck reminders, author instructions, citation or scratch workflow, generation mechanics, and internal “credit” language belong in repository guidance or planning artifacts.
+- Treat obsolete surfaces concisely: state the lifecycle status, the document policy, the replacement, and the operational consequence. Add history only when it materially supports migration, interoperability, or security.
+- Use `best`, `strongest`, or similar rankings only when the comparison dimension, evidence date, and material limitation are explicit. Do not infer universal superiority or absence from incomplete evidence.
+- For CVEs and dated product evidence, state the verified facts and direct architectural consequence. Avoid unsupported priority claims such as “first ever,” and do not say that external evidence “validates this report.”
