@@ -278,6 +278,16 @@ The following table lists verifier stages.
 
 ---
 
+## Code and Machine-Readable Records
+
+Use a YAML block in a reader-facing DR article only when the YAML is itself the subject: genuine executable configuration, an externally defined wire or file format, or syntax that a reader is expected to implement. Label illustrative configuration honestly and keep secrets or production identifiers out of it.
+
+Do not present invented governance records, evidence manifests, author metadata, refresh reminders, maturity-watch state, or bot-oriented trackers as YAML merely because a maintainer could parse them. Convert reader-relevant decisions into prose and introduced tables, with consequence prose after substantial tables. Put machine-oriented refresh state in a tracked repository registry when it has durable maintenance value; otherwise keep it in a scratch planning artifact.
+
+A tracked registry is maintenance evidence, not hidden article content and not an authority that rewrites policy. Its entries may prompt primary-source review and proposed edits, but a reviewer decides whether the article, its policy, or a deployment profile changes.
+
+---
+
 ## Flow, Consequence, Evidence
 
 Prefer the pattern **flow -> consequence -> evidence**.

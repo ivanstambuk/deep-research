@@ -36,6 +36,7 @@
 # Check 35: Block commits with raw Markdown bold inside Mermaid node/subgraph labels.
 # Check 36: Block commits with all-empty Markdown table rows.
 # Check 37: Block commits with unnumbered nested subsections inside numbered DR section trees.
+# Check 38: Validate the standards-watch registry when it or DR-0001 changes.
 # Install: git config core.hooksPath .githooks
 
 set -euo pipefail
@@ -72,17 +73,32 @@ fi
 # are intentionally excluded from DR-document validation.
 RAW_STAGED_MD=$(git diff --cached --name-only --diff-filter=ACM -- '*.md' | grep -vE '^papers/DR-[0-9]{4}/DR-[0-9]{4}-style-guide\.md$|^AGENTS\.md$' || true)
 STAGED_MDX=$(git diff --cached --name-only --diff-filter=ACM | grep '^src/papers/.*\.mdx$' || true)
+STAGED_STANDARDS_WATCH=$(git diff --cached --name-only --diff-filter=ACMRD | grep -E '^(data/standards-watch\.yaml|scripts/(validate|test)-standards-watch\.mjs|src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity\.mdx)$' || true)
 
 # Staged index files: README.md and llms.txt (for Check 12)
 STAGED_INDEX=$(git diff --cached --name-only --diff-filter=ACM -- 'README.md' 'llms.txt')
 
-if [ -z "$RAW_STAGED_MD" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_INDEX" ]; then
+if [ -z "$RAW_STAGED_MD" ] && [ -z "$STAGED_MDX" ] && [ -z "$STAGED_INDEX" ] && [ -z "$STAGED_STANDARDS_WATCH" ]; then
   exit 0
 fi
 
 EXITCODE=0
 
 GENERATED_MIRRORS=""
+
+# ── Check 38: Standards-watch registry structure ────────────────────
+
+if [ -n "$STAGED_STANDARDS_WATCH" ]; then
+  if ! node scripts/validate-standards-watch.mjs; then
+    echo ""
+    echo "HOW TO FIX standards-watch validation:"
+    echo "  1. Run: npm run validate:standards-watch"
+    echo "  2. Correct the reported registry, document, or section reference."
+    echo "  3. Re-stage the affected files and commit again."
+    echo ""
+    EXITCODE=1
+  fi
+fi
 
 if [ -n "$STAGED_MDX" ]; then
   mapfile -t STAGED_MDX_FILES <<< "$STAGED_MDX"

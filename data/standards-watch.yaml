@@ -1,0 +1,886 @@
+schema_version: 1
+
+documents:
+  DR-0001:
+    title: MCP Authentication, Authorization, and Agent Identity
+    source: src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx
+    mirror: papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.md
+
+records:
+  - id: mcp-2026-07-28
+    title: MCP 2026-07-28 protocol revision
+    artifact_type: protocol_release
+    lifecycle_decision: forward_floor
+    external_status: Locked release candidate; final publication scheduled for 2026-07-28
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+    current_dr_use:
+      - Minimum approved core for new deployments
+      - Stateless per-request protocol and independently versioned extension baseline
+    non_claims:
+      - Final publication had already occurred on the verification date
+      - Product support or conformance follows from the release announcement
+    adoption_triggers:
+      - Confirm final publication and compare the final text with the locked release candidate
+    fallback_controls:
+      - Reject older protocol shapes for new deployments
+      - Isolate unavoidable migration compatibility under an expiring exception
+    responsible_domain: protocol-architecture
+    next_review_on: 2026-07-29
+    affected_sections:
+      - document: DR-0001
+        sections: ["1.1"]
+    match_terms: ["2026-07-28", "Current-Only Protocol Admission"]
+    status_history:
+      - on: 2026-05-21
+        status: Release candidate locked
+
+  - id: caep-interop-1-0-draft-01
+    title: CAEP Interoperability Profile 1.0 draft 01
+    artifact_type: oidf_working_group_draft
+    lifecycle_decision: profile
+    external_status: OpenID Shared Signals WG Standards Track draft, published 2026-07-21
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html
+    current_dr_use:
+      - Revision-pinned interoperability profile for SSF transmitters and receivers
+    non_claims:
+      - Final OpenID specification
+      - Source of MCP task, subscription, or handle semantics
+    adoption_triggers:
+      - Implementer Draft or Final approval
+      - Interoperability evidence for the selected transmitter and receiver products
+    fallback_controls:
+      - Use final SSF and CAEP specifications with a deployment-local endpoint and event profile
+      - Retain local task and object authorization rules
+    responsible_domain: continuous-access
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.6"]
+    match_terms: ["CAEP Interoperability Profile"]
+
+  - id: oauth-identity-chaining-17
+    title: OAuth Identity and Authorization Chaining Across Domains
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 17; submitted for publication; RFC Editor queue, In Progress
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/
+    current_dr_use:
+      - Revision-pinned cross-domain identity and authorization chaining profile
+    non_claims:
+      - Published RFC
+      - Automatic trust in upstream issuers or authorization for MCP application objects
+    adoption_triggers:
+      - RFC publication followed by a source-level delta review
+    fallback_controls:
+      - Pin revision 17
+      - Validate the full trust and authorization chain and issue a local audience-bound token
+    responsible_domain: federation-architecture
+    next_review_on: 2026-08-01
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.4"]
+    match_terms: ["Identity and Authorization Chaining"]
+
+  - id: oauth-transaction-tokens-09
+    title: OAuth Transaction Tokens
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 09; OAuth WG document in Working Group Last Call
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/
+    current_dr_use:
+      - Revision-pinned trust-domain transaction credential profile
+    non_claims:
+      - Published RFC
+      - Replacement for external authorization or application-object authorization
+    adoption_triggers:
+      - IESG progression or RFC publication
+      - Interoperable implementation evidence for the selected trust-domain profile
+    fallback_controls:
+      - Exchange external credentials only at the trust boundary
+      - Use short-lived audience-bound internal credentials under a local profile
+    responsible_domain: credential-architecture
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.3"]
+    match_terms: ["Transaction Tokens"]
+
+  - id: oauth-spiffe-client-auth-02
+    title: OAuth SPIFFE Client Authentication
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 02; active OAuth WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-spiffe-client-auth/
+    current_dr_use:
+      - Revision-pinned OAuth client authentication with validated SVIDs
+    non_claims:
+      - User delegation
+      - Application authorization or automatic actor-claim semantics
+    adoption_triggers:
+      - Working Group Last Call or later publication milestone
+      - Product interoperability for the selected SVID method
+    fallback_controls:
+      - Use an approved OAuth client-authentication method
+      - Map workload identity into policy only under an explicit local rule
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["SPIFFE Client Authentication", "draft-ietf-oauth-spiffe-client-auth-02"]
+
+  - id: oauth-identity-assertion-grant-04
+    title: Identity Assertion JWT Authorization Grant
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 04; active OAuth WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/
+    current_dr_use:
+      - Candidate enterprise-managed cross-app authorization profile
+    non_claims:
+      - Published RFC
+      - Open-ended federation or arbitrary agent-chain semantics
+    adoption_triggers:
+      - Working Group Last Call or later publication milestone
+      - MCP enterprise-managed profile alignment and implementation evidence
+    fallback_controls:
+      - Use pre-established issuer and client relationships
+      - Preserve resource authorization-server control over local access tokens
+    responsible_domain: enterprise-federation
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.4"]
+    match_terms: ["Identity Assertion JWT Authorization Grant"]
+
+  - id: openid-authority-claims-2026-05-25
+    title: OpenID Connect Authority claims extension
+    artifact_type: oidf_working_group_draft
+    lifecycle_decision: profile
+    external_status: eKYC and IDA WG Standards Track draft snapshot, published 2026-05-25
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://openid.net/specs/openid-authority-claims-1_0.html
+      - https://openid.bitbucket.io/ekyc/openid-authority.html
+    current_dr_use:
+      - Revision-pinned verified natural-person authority evidence
+    non_claims:
+      - Final OpenID specification
+      - Standardized software-agent authority or delegation
+    adoption_triggers:
+      - Implementer Draft or Final approval
+      - A separately reviewed profile for any non-human mapping
+    fallback_controls:
+      - Verify human authority through authoritative local or sector sources
+      - Treat any agent mapping as local policy rather than OIDF interoperability
+    responsible_domain: identity-assurance
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.4", "20.6"]
+    match_terms: ["OpenID Authority Claims"]
+
+  - id: wimse-arch-08
+    title: WIMSE Architecture
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 08; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-arch/
+    current_dr_use:
+      - Architecture component of the revision-pinned WIMSE workload-identity profile
+    non_claims:
+      - Application authorization
+      - Maturity of every companion WIMSE document
+    adoption_triggers:
+      - Publication milestone and coordinated companion-profile review
+    fallback_controls:
+      - Use deployment-approved workload identity with explicit trust-domain and authorization policy
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["WIMSE architecture", "WIMSE"]
+    status_history:
+      - on: 2026-07-06
+        status: Advanced to revision 08
+
+  - id: wimse-http-signature-05
+    title: WIMSE Workload-to-Workload Authentication with HTTP Signatures
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 05; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-http-signature/
+    current_dr_use:
+      - HTTP-message-signature binding in the revision-pinned WIMSE profile
+    non_claims:
+      - Application permission
+      - Published RFC
+    adoption_triggers:
+      - Publication milestone and interoperable proof validation
+    fallback_controls:
+      - Use RFC 9421 under an explicit workload key-discovery and replay profile
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["HTTP-signature", "WIMSE HTTP-signature"]
+
+  - id: wimse-identifier-03
+    title: WIMSE Workload Identifier
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 03; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-identifier/
+    current_dr_use:
+      - Identifier component of the revision-pinned WIMSE profile
+    non_claims:
+      - Proof of workload posture or application authority
+      - Published RFC
+    adoption_triggers:
+      - Publication milestone and stable comparison rules
+    fallback_controls:
+      - Pin a local workload-identifier syntax, trust domain, and comparison policy
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["identifiers", "WIMSE"]
+
+  - id: wimse-mutual-tls-02
+    title: WIMSE Workload Authentication Using Mutual TLS
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 02; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-mutual-tls/
+    current_dr_use:
+      - Mutual-TLS binding in the revision-pinned WIMSE profile
+    non_claims:
+      - User delegation or tool authorization
+      - Published RFC
+    adoption_triggers:
+      - Publication milestone and interoperable workload-certificate validation
+    fallback_controls:
+      - Use deployment-approved mTLS with explicit workload-name and trust-domain mapping
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["mTLS", "WIMSE"]
+
+  - id: wimse-workload-creds-02
+    title: WIMSE Workload Credentials
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 02; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-workload-creds/
+    current_dr_use:
+      - Credential component of the revision-pinned WIMSE profile
+    non_claims:
+      - Proof-of-possession binding by itself
+      - Application permission or published RFC
+    adoption_triggers:
+      - Publication milestone and companion binding stability
+    fallback_controls:
+      - Use deployment-approved key-bound workload credentials with bounded lifetime
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["credentials", "WIMSE"]
+
+  - id: wimse-practices-05
+    title: WIMSE Workload Identity Practices
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 05; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-workload-identity-practices/
+    current_dr_use:
+      - Operational-practices component of the revision-pinned WIMSE profile
+    non_claims:
+      - Conformance or application authorization
+      - Published RFC
+    adoption_triggers:
+      - Publication milestone and operational implementation evidence
+    fallback_controls:
+      - Apply local credential issuance, rotation, revocation, recovery, and federation controls
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["practices", "WIMSE"]
+
+  - id: wimse-wpt-01
+    title: WIMSE Workload Proof Token
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 01; active WIMSE WG document
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-wimse-wpt/
+    current_dr_use:
+      - Proof component of the revision-pinned WIMSE profile
+    non_claims:
+      - Application authority or published RFC
+    adoption_triggers:
+      - Publication milestone and interoperable replay-resistant proof validation
+    fallback_controls:
+      - Use an approved proof-of-possession mechanism under an explicit replay profile
+    responsible_domain: workload-identity
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.1", "20.5"]
+    match_terms: ["proof", "WIMSE"]
+
+  - id: rar-agent-extensions-01
+    title: Policy, Lifecycle, and Intent Extensions for OAuth RAR
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 01; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/
+    current_dr_use:
+      - Vocabulary and threat-analysis signal for intent, policy context, and lifecycle binding
+    non_claims:
+      - Production interoperability target
+      - Client-selected compliance outcome or authenticated task lifecycle
+    adoption_triggers:
+      - Working-group adoption and an interoperable security profile
+    fallback_controls:
+      - Use RFC 9396 with locally registered types and authenticated lifecycle controls
+    responsible_domain: fine-grained-authorization
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["19.4", "20.2"]
+    match_terms: ["draft-chen-oauth-rar-agent-extensions"]
+
+  - id: scope-agent-extensions-00
+    title: Structured and Constraint Extensions for OAuth Scopes
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 00; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-chen-oauth-scope-agent-extensions/
+    current_dr_use:
+      - Design signal for structured agent-skill permission syntax
+    non_claims:
+      - Standards-track interoperability
+      - Replacement for RFC 9396 or resource-server authorization
+    adoption_triggers:
+      - Working-group adoption and stable syntax with implementation evidence
+    fallback_controls:
+      - Use scopes for coarse rights and RFC 9396 for structured authorization
+    responsible_domain: fine-grained-authorization
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.2"]
+    match_terms: ["draft-chen-oauth-scope-agent-extensions"]
+
+  - id: agent-operation-authorization-02
+    title: Agent Operation Authorization
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 02; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-liu-agent-operation-authorization/
+    current_dr_use:
+      - Design signal for verifiable user-agent-operation binding
+    non_claims:
+      - Production token profile
+      - Independent proof of user perception or correct execution
+    adoption_triggers:
+      - Working-group adoption and a reviewed trust and evidence model
+    fallback_controls:
+      - Bind local authority records to exact operations, policy decisions, and execution evidence
+    responsible_domain: operation-authorization
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.2"]
+    match_terms: ["draft-liu-agent-operation-authorization"]
+
+  - id: decoupled-agent-authz-00
+    title: A Decoupled Authorization Model for Agent2Agent
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 00; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-chen-agent-decoupled-authorization-model/
+    current_dr_use:
+      - Design signal for intent-based just-in-time multi-agent authorization
+    non_claims:
+      - Production protocol or standards consensus
+    adoption_triggers:
+      - Working-group adoption and interoperable delegation semantics
+    fallback_controls:
+      - Keep inter-agent grants behind a local trust, attenuation, and evidence profile
+    responsible_domain: multi-agent-authorization
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.2"]
+    match_terms: ["draft-chen-agent-decoupled-authorization-model"]
+
+  - id: collaborative-agent-authz-02
+    title: OAuth 2.0 Extension for Multi-AI Agent Collaboration
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 02; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-song-oauth-ai-agent-collaborate-authz/
+    current_dr_use:
+      - Design signal for bounded task-group and applier-on-behalf-of authorization
+    non_claims:
+      - Production interoperability or standards consensus
+    adoption_triggers:
+      - Working-group adoption and a reviewed multi-agent attenuation model
+    fallback_controls:
+      - Use local group authority with aggregate and per-member bounds
+    responsible_domain: multi-agent-authorization
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.2", "20.4"]
+    match_terms: ["draft-song-oauth-ai-agent-collaborate-authz", "collaborative-authorization"]
+
+  - id: transaction-tokens-agents-02
+    title: Transaction Tokens for Agents
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 02; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-araut-oauth-transaction-tokens-for-agents/
+    current_dr_use:
+      - Design signal separating authorization identity from evolving execution-chain context
+    non_claims:
+      - Standardized cross-vendor agentic context
+      - Authority for application objects
+    adoption_triggers:
+      - Working-group adoption and stable relationship to the base Transaction Tokens draft
+    fallback_controls:
+      - Preserve subject and actor authority separately from local execution-lineage evidence
+    responsible_domain: transaction-identity
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.3", "20.6"]
+    match_terms: ["draft-araut-oauth-transaction-tokens-for-agents", "Transaction Tokens for Agents"]
+
+  - id: authorization-evidence-01
+    title: Authorization Evidence and Audit Trail for OAuth 2.0 Access Tokens
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 01; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-liu-oauth-authorization-evidence/
+    current_dr_use:
+      - Vocabulary signal for AS-signed display and audit references
+    non_claims:
+      - Independent proof of user perception
+      - Execution binding or production token requirement
+    adoption_triggers:
+      - Working-group adoption and a privacy-bounded evidence model
+    fallback_controls:
+      - Keep request, display, grant, and execution evidence as correlated typed records
+    responsible_domain: authorization-evidence
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.6"]
+    match_terms: ["draft-liu-oauth-authorization-evidence"]
+
+  - id: entity-profiles-01
+    title: OAuth 2.0 Entity Profiles
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 01; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/
+    current_dr_use:
+      - Candidate classification vocabulary for clients, subjects, and actors
+    non_claims:
+      - Delegation or permission
+      - Production interoperability target
+    adoption_triggers:
+      - Working-group adoption and stable registries and claim processing
+    fallback_controls:
+      - Derive local entity classification from trusted registration or attestation evidence
+    responsible_domain: entity-classification
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.6"]
+    match_terms: ["draft-mora-oauth-entity-profiles"]
+
+  - id: webbot-httpsig-00
+    title: HTTP Message Signatures for Automated Traffic
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 00; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-meunier-webbotauth-httpsig-protocol/
+    current_dr_use:
+      - Separate website-edge bot identity and traffic-policy signal
+    non_claims:
+      - MCP OAuth authorization
+      - User delegation or application permission
+    adoption_triggers:
+      - Working-group adoption and interoperable key discovery and replay controls
+    fallback_controls:
+      - Keep website bot verification separate from MCP token and application authorization
+    responsible_domain: web-edge-security
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.7"]
+    match_terms: ["draft-meunier-webbotauth-httpsig-protocol"]
+
+  - id: webbot-use-cases-02
+    title: Use Cases for Authentication of Web Bots
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 02; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-nottingham-webbotauth-use-cases/
+    current_dr_use:
+      - Website-layer abuse, auditing, and differentiated-access problem taxonomy
+    non_claims:
+      - Protocol standard or MCP authorization profile
+    adoption_triggers:
+      - Working-group adoption and a concrete protocol mapping
+    fallback_controls:
+      - Apply ordinary site traffic controls independently from MCP authorization
+    responsible_domain: web-edge-security
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.7"]
+    match_terms: ["draft-nottingham-webbotauth-use-cases"]
+
+  - id: anonymous-webbotauth-01
+    title: Anonymous Bot Authentication
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 01; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-rescorla-anonymous-webbotauth/
+    current_dr_use:
+      - Directional signal for site policy without stable cross-site bot identity
+    non_claims:
+      - MCP identity, delegated authority, or production standard
+    adoption_triggers:
+      - Working-group adoption and an interoperable privacy and authorization model
+    fallback_controls:
+      - Use independent rate limits and traffic policy without converting bot proof into MCP authority
+    responsible_domain: web-edge-security
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.7"]
+    match_terms: ["draft-rescorla-anonymous-webbotauth"]
+
+  - id: aauth-protocol-09
+    title: AAuth Protocol
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 09; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-hardt-oauth-aauth-protocol/
+    current_dr_use:
+      - Directional signal for non-browser interaction, proof, resource-managed access, and federation
+    non_claims:
+      - Approved production protocol or IETF consensus
+    adoption_triggers:
+      - Working-group adoption and multi-implementation security evidence
+    fallback_controls:
+      - Use current OAuth and HTTP-signature standards under explicit interaction and permission profiles
+    responsible_domain: agent-authorization-research
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.8"]
+    match_terms: ["AAuth"]
+
+  - id: aiagent-auth-03
+    title: AI Agent Authentication and Authorization
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 03; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/
+    current_dr_use:
+      - Directional AIMS vocabulary and existing-standards composition analysis
+    non_claims:
+      - Working-group consensus or production protocol
+    adoption_triggers:
+      - Working-group adoption and stable relationship to WIMSE and OAuth profiles
+    fallback_controls:
+      - Compose published OAuth with revision-pinned workload identity and local agent governance
+    responsible_domain: agent-identity-research
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.4", "20.8"]
+    match_terms: ["AIMS", "agent identity/management"]
+
+  - id: wimse-ect-00
+    title: Execution Context Tokens for Distributed Agentic Workflows
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 00; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-nennemann-wimse-ect/
+    current_dr_use:
+      - Directional execution-lineage and distributed-audit vocabulary
+    non_claims:
+      - WIMSE WG adoption or application authority
+    adoption_triggers:
+      - Working-group adoption and stable privacy, replay, and graph semantics
+    fallback_controls:
+      - Use local immutable execution evidence linked to separately verified authority
+    responsible_domain: execution-evidence
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.6", "20.8"]
+    match_terms: ["execution-context tokens", "Execution Context Token"]
+
+  - id: wimse-ai-agent-identity-02
+    title: WIMSE Applicability for AI Agents
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Revision 02; active individual I-D with no formal IETF standing
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ni-wimse-ai-agent-identity/
+    current_dr_use:
+      - Directional mapping of WIMSE identity and credential management to AI agents
+    non_claims:
+      - WIMSE WG adoption or application authorization
+    adoption_triggers:
+      - Working-group adoption and a stable agent applicability profile
+    fallback_controls:
+      - Treat agents as workloads only where runtime identity semantics actually match
+    responsible_domain: agent-identity-research
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.4", "20.8"]
+    match_terms: ["WIMSE", "agent identity/management"]
+
+  - id: oidc-a-1-0
+    title: OpenID Connect for Agents (OIDC-A) 1.0
+    artifact_type: independent_research
+    lifecycle_decision: monitor
+    external_status: Independent arXiv research proposal, version 1 submitted 2025-09-30
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://arxiv.org/abs/2509.25974
+    current_dr_use:
+      - Directional vocabulary for richer agent metadata and delegation claims
+    non_claims:
+      - OpenID Foundation specification
+      - Production interoperability or standards consensus
+    adoption_triggers:
+      - Adoption by a recognized standards body and interoperable implementations
+    fallback_controls:
+      - Use issuer-governed local agent metadata with explicit semantics and trust
+    responsible_domain: agent-identity-research
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.4", "20.8"]
+    match_terms: ["OIDC-A"]
+
+  - id: nist-ai-800-1
+    title: NIST AI 800-1 Managing Misuse Risk for Dual-Use Foundation Models
+    artifact_type: nist_public_draft
+    lifecycle_decision: monitor
+    external_status: Second public draft, published 2025-01-15; comment period closed
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://www.nist.gov/news-events/news/2025/01/updated-guidelines-managing-misuse-risk-dual-use-foundation-models
+    current_dr_use:
+      - Misuse-risk and evaluation input for in-scope foundation-model and supply-chain contexts
+    non_claims:
+      - Final NIST publication
+      - Applicability to every MCP deployment
+    adoption_triggers:
+      - Final publication or explicit organizational or contractual adoption
+    fallback_controls:
+      - Use AI RMF and AI 600-1 with local secure-development and evaluation controls
+    responsible_domain: ai-risk
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NIST AI 800-1"]
+
+  - id: nist-ai-800-2
+    title: NIST AI 800-2 Practices for Automated Benchmark Evaluations
+    artifact_type: nist_public_draft
+    lifecycle_decision: monitor
+    external_status: Initial public draft, published 2026-01-30; comment period closed
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://www.nist.gov/news-events/news/2026/01/towards-best-practices-automated-benchmark-evaluations
+    current_dr_use:
+      - Candidate benchmark-evidence fields and reproducibility practices
+    non_claims:
+      - Final NIST guidance
+      - Complete human, security, integration, or post-deployment evaluation method
+    adoption_triggers:
+      - Final publication or accepted evaluation profile
+    fallback_controls:
+      - Use a versioned local evaluation protocol with independent and reproducible tests
+    responsible_domain: evaluation-assurance
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NIST AI 800-2"]
+
+  - id: nist-ir-8587
+    title: NIST IR 8587 Protecting Tokens and Assertions
+    artifact_type: nist_public_draft
+    lifecycle_decision: monitor
+    external_status: Initial public draft, published 2025-12-22; comment period closed
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://csrc.nist.gov/pubs/ir/8587/ipd
+    current_dr_use:
+      - Candidate token, assertion, key, lifecycle, and monitoring controls
+    non_claims:
+      - Final NIST report
+      - NGAC or ABAC standard
+    adoption_triggers:
+      - Final IR, agency adoption, or contract/control-baseline incorporation
+    fallback_controls:
+      - Use OAuth security profiles, audience validation, short lifetimes, revocation, and negative tests
+    responsible_domain: token-security
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NIST IR 8587"]
+
+  - id: nist-ai-800-5
+    title: NIST AI 800-5 AI Agent Security RFI Response Analysis
+    artifact_type: nist_published_analysis
+    lifecycle_decision: monitor
+    external_status: Published analysis of RFI responses, 2026-05-18
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://www.nist.gov/publications/summary-analysis-responses-request-information-regarding-security-considerations-ai
+    current_dr_use:
+      - Threat-taxonomy and research-priority input
+    non_claims:
+      - NIST consensus guidance
+      - Validation of a control based on commenter frequency
+    adoption_triggers:
+      - Follow-on NIST guidance, evaluation method, or adopted profile
+    fallback_controls:
+      - Use the report's threat signals within the DR-0001 threat model and local tests
+    responsible_domain: agent-security
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NIST AI 800-5"]
+
+  - id: nccoe-agent-identity
+    title: NCCoE Software and AI Agent Identity and Authorization
+    artifact_type: nccoe_concept_project
+    lifecycle_decision: monitor
+    external_status: Concept paper; Reviewing Comments
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://www.nccoe.nist.gov/projects/software-and-ai-agent-identity-and-authorization
+    current_dr_use:
+      - Problem taxonomy and candidate evidence fields
+    non_claims:
+      - Selected technology
+      - Conformance or practice-guide alignment
+    adoption_triggers:
+      - NCCoE publishes a draft project description
+      - Deployment profile and technologies are named
+    fallback_controls:
+      - Use the five-plane architecture in §21.4
+      - Apply the current standards profiles in §20 and local conformance tests
+    responsible_domain: identity-architecture
+    next_review_on: 2026-08-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NCCoE Software and AI Agent Identity and Authorization"]
+
+  - id: nist-agent-standards-initiative
+    title: NIST AI Agent Standards Initiative
+    artifact_type: standards_initiative
+    lifecycle_decision: monitor
+    external_status: Active NIST initiative, created 2026-02-17 and updated 2026-04-20
+    verified_on: 2026-07-25
+    primary_sources:
+      - https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative
+    current_dr_use:
+      - Agenda-setting signal for standards, protocol ecosystems, research, and evaluation
+    non_claims:
+      - Runtime control
+      - Conformance suite or procurement requirement
+    adoption_triggers:
+      - Named publication, standard, protocol release, evaluation, or procurement requirement
+    fallback_controls:
+      - Continue the standards watch and authority register
+      - Evaluate concrete outputs rather than the initiative label
+    responsible_domain: standards-governance
+    next_review_on: 2026-09-25
+    affected_sections:
+      - document: DR-0001
+        sections: ["24.3"]
+    match_terms: ["NIST AI Agent Standards Initiative"]

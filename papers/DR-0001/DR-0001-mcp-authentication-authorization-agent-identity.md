@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-25 · ~26,000 lines
+**DR-0001** · Published · Last updated 2026-07-25 · ~25,700 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -16748,109 +16748,51 @@ The appendices remain the source of product detail. §22 compares only dimension
 
 #### 21.4 Implementation-Evidence Manifest
 
-The deployment should carry its selected composition forward as a versioned evidence manifest. The object below is **illustrative and deployment-local**: it records claims and evidence about an implementation, but it is not an MCP message, certification, conformance result, or procurement approval.
+The deployment should carry its selected composition forward as a versioned evidence manifest. The worked manifest below is **illustrative and deployment-local**: it records claims and evidence about an implementation, but it is not an MCP message, certification, conformance result, or procurement approval. Manifest version 1.0 covers deployment `claims-agent-eu-prod`; its evidence was checked at 2026-07-25 16:00 UTC.
 
-```yaml
-manifest_version: "1.0"
-deployment_id: "claims-agent-eu-prod"
-evidence_checked_at: "2026-07-25T16:00:00Z"
+The admission summary establishes the contract before product evidence is interpreted:
 
-protocol:
-  policy_floor: "2026-07-28"
-  source_status_at_check: "release-candidate"
-  accepted_wire_revision: "2026-07-28"
-  sdk:
-    name: "selected-mcp-sdk"
-    version: "pinned-by-lockfile"
-    revision_opt_in: "explicit"
-  extensions:
-    admitted: []
-    rejected:
-      - claim: "implicit task or subscription support"
-        outcome: "not-established"
+| Admission item | Worked decision | Consequence |
+|:--|:--|:--|
+| Protocol floor and accepted wire revision | MCP `2026-07-28` | Earlier revisions are not admitted. |
+| SDK | `selected-mcp-sdk`, version pinned by the deployment lockfile | Revision opt-in must be explicit rather than inferred from package freshness. |
+| Extensions | None admitted | Implicit Task or subscription support is **not established** and therefore unavailable. |
 
-planes:
-  identity_lifecycle:
-    component: "enterprise-authorization-server"
-    product_surface: "client/resource identity and token issuance"
-    maturity: "production"
-    owner: "identity-platform"
-    evidence:
-      - "ev://identity/agent-registration/2026-07-25"
-      - "ev://identity/revocation-negative-test/2026-07-25"
-  registry_composition:
-    component: "signed-deployment-allowlist"
-    source_candidate: "technology-preview registry"
-    maturity: "deployment-local production control"
-    owner: "platform-engineering"
-    selected_server_digest: "sha256:<redacted-example>"
-    evidence:
-      - "ev://composition/review/cr-1842"
-  credential_custody_exchange:
-    component: "obo-token-exchange"
-    custody: "non-exportable reference; no model-context release"
-    target_audience: "https://claims-api.example"
-    owner: "identity-platform"
-    evidence:
-      - "ev://exchange/audience-negative-test/2026-07-25"
-      - "ev://exchange/replay-negative-test/2026-07-25"
-  inline_enforcement:
-    component: "mcp-policy-gateway"
-    product_surface: "pinned MCP configuration"
-    maturity: "evolving upstream surface; locally acceptance-tested"
-    owner: "security-platform"
-    evidence:
-      - "ev://mcp/core-contract/2026-07-28"
-      - "ev://mcp/tool-argument-negative-tests/2026-07-25"
-  backend_entitlement:
-    component: "claims-service"
-    resource_owner: "claims-operations"
-    decision_owner: "claims-authorization"
-    evidence:
-      - "ev://backend/regional-entitlement/fixture-set-9"
+The five-plane view then states which component is relied on, who owns the assertion, and which illustrative evidence reference supports it:
 
-authority_paths:
-  identity_registration: "agent-record -> sponsor -> client/resource grant"
-  credential_release: "grant -> OBO exchange -> claims-api audience"
-  request_decision: "contract admission -> token -> tool/arguments -> policy"
-  backend_decision: "claim version -> regional entitlement -> outcome"
-  handles:
-    owner: "claims-service"
-    authorization: "per operation; no connection-derived authority"
-  revocation_termination:
-    path: "identity disable -> grant revoke -> token reject -> handle deny"
-    convergence_evidence: "ev://termination/epoch-2026-07-25-04"
+| Plane | Selected component and maturity | Owner | Illustrative evidence reference |
+|:--|:--|:--|:--|
+| Identity lifecycle | Enterprise authorization server; production client/resource identity and token issuance | Identity platform | Agent-registration record `ev://identity/agent-registration/2026-07-25`; revocation negative test `ev://identity/revocation-negative-test/2026-07-25` |
+| Registry and composition | Signed deployment allowlist; production deployment-local control sourced from a Technology Preview registry candidate | Platform engineering | Selected server digest `sha256:<redacted-example>`; composition review `ev://composition/review/cr-1842` |
+| Credential custody and exchange | OBO token exchange for audience `https://claims-api.example`; non-exportable reference with no model-context release | Identity platform | Audience negative test `ev://exchange/audience-negative-test/2026-07-25`; replay negative test `ev://exchange/replay-negative-test/2026-07-25` |
+| Inline enforcement | MCP policy gateway with a pinned configuration; evolving upstream surface, locally acceptance-tested | Security platform | Core-contract fixture `ev://mcp/core-contract/2026-07-28`; tool-argument negative tests `ev://mcp/tool-argument-negative-tests/2026-07-25` |
+| Backend entitlement | Claims service, with claims operations as resource owner | Claims authorization | Regional-entitlement fixture set `ev://backend/regional-entitlement/fixture-set-9` |
 
-conformance:
-  public_suite_scope: "not-established-for-complete-composition"
-  deployment_tests:
-    core_contract: "verified"
-    wrong_audience: "denied"
-    cross_tenant_handle: "denied"
-    revoked_grant: "denied"
-    backend_entitlement: "verified-with-allow-and-deny-fixtures"
-    authority_outage: "fail-closed"
+Authority remains traceable as an ordered path rather than a property of the connection:
 
-degraded_mode:
-  outcome: "read-only claims/status with still-valid cached evidence"
-  prohibited: ["claims/approve", "claims/pay", "credential exchange"]
-  maximum_evidence_age_seconds: 300
-  owner: "security-platform"
+| Authority concern | Trace or decision rule | Evidence or owner |
+|:--|:--|:--|
+| Identity registration | Agent record → sponsor → client/resource grant | Identity-platform records |
+| Credential release | Grant → OBO exchange → claims-API audience | Exchange evidence above |
+| Request decision | Contract admission → token → tool and arguments → policy | Security-platform policy decision |
+| Backend decision | Claim version → regional entitlement → outcome | Claims authorization |
+| Handles | Authorize every operation; never infer authority from the connection | Claims service |
+| Revocation and termination | Identity disable → grant revoke → token reject → handle deny | Convergence evidence `ev://termination/epoch-2026-07-25-04` |
 
-unresolved_claims:
-  - id: "gap-001"
-    claim: "upstream public conformance for the complete selected stack"
-    state: "not-established"
-    owner: "platform-engineering"
-    release_effect: "named exception or block"
-  - id: "gap-002"
-    claim: "production maturity of optional source registry"
-    state: "preview"
-    owner: "platform-engineering"
-    release_effect: "registry excluded from runtime trust path"
-```
+No public suite is claimed to establish conformance for the complete composition. The deployment instead carries the following acceptance results:
 
-The manifest deliberately separates `verified`, `denied`, `not-established`, and `preview`. It links to evidence without embedding tokens, secrets, raw handles, or sensitive request bodies. §22 consumes this manifest as the input to protocol admission, peer comparison, supplier review, replacement rehearsal, and the final architecture/procurement decision record.
+| Test | Worked result |
+|:--|:--|
+| Core contract | **Verified** |
+| Wrong audience | **Denied** |
+| Cross-tenant handle | **Denied** |
+| Revoked grant | **Denied** |
+| Backend entitlement | **Verified** with allow and deny fixtures |
+| Authority outage | **Fail closed** |
+
+A bounded degraded mode permits only read-only `claims/status` operations backed by evidence no more than 300 seconds old, under the security-platform owner's control. It prohibits `claims/approve`, `claims/pay`, and credential exchange. Two unresolved claims remain: upstream public conformance for the complete selected stack is **not established** and requires a named exception or release block; the optional source registry remains **preview**, so it is excluded from the runtime trust path.
+
+The manifest deliberately separates **verified**, **denied**, **not established**, and **preview**. Its evidence references must not expose tokens, secrets, raw handles, or sensitive request bodies. §22 consumes this manifest as the input to protocol admission, peer comparison, supplier review, replacement rehearsal, and the final architecture/procurement decision record.
 
 ---
 
@@ -16993,72 +16935,31 @@ Product documentation identifies a candidate. Production acceptance requires a d
 <details>
 <summary><strong>Solved acceptance packet — claims-agent composition</strong></summary>
 
-```yaml
-packet_id: "acceptance-claims-agent-2026-07-25"
-deployment_manifest: "manifest://claims-agent-eu-prod/1.0"
-decision_state: "conditional"
-review_due: "2026-08-25"
+Acceptance packet `acceptance-claims-agent-2026-07-25` applies to deployment manifest `manifest://claims-agent-eu-prod/1.0`. Its overall decision is **conditional**, with review due 2026-08-25.
 
-results:
-  supplier_due_diligence:
-    state: "verified"
-    evidence: ["ev://supplier/review-447"]
-  secure_development_attestation:
-    state: "partial"
-    reason: "supplier exception excludes one hosted build service"
-    owner: "supplier-risk"
-    remediation_due: "2026-08-15"
-  release_provenance:
-    state: "verified"
-    artifact_digest: "sha256:<redacted-example>"
-    verification: "signature-and-provenance-policy-pass"
-  sbom:
-    state: "verified"
-    scope: "gateway release and bundled runtime dependencies"
-    gap: "supplier-hosted control-plane transitive services not enumerated"
-  vex:
-    state: "not-assessed"
-    release_effect: "vulnerability review remains open"
-  source_registry:
-    state: "preview"
-    release_effect: "excluded from production trust path"
-  core_and_authorization_tests:
-    state: "verified"
-    expected_failures:
-      - "wrong issuer"
-      - "wrong audience"
-      - "revoked grant"
-      - "cross-tenant handle"
-      - "unknown extension"
-      - "backend entitlement denial"
-  credential_passthrough_test:
-    state: "failed"
-    finding: "incoming bearer token observed at a non-target backend"
-    release_effect: "hard block until fixed and retested"
-  degraded_mode:
-    state: "exception-accepted"
-    permitted: ["claims/status"]
-    prohibited: ["claims/approve", "claims/pay", "credential exchange"]
-    compensating_control: "still-valid cached decision; 300-second ceiling"
-    owner: "security-platform"
-    expires: "2026-08-08T00:00:00Z"
-  independent_evaluation:
-    state: "verified"
-    baseline: "eval://claims-agent/real-environment/v7"
-    rerun_trigger: "model, prompt-policy, gateway, tool-contract, or backend change"
-  replacement_rehearsal:
-    state: "partial"
-    passed: ["policy export", "registry allowlist", "credential rotation"]
-    open: ["historical evidence-ID import"]
-    owner: "platform-engineering"
+| Evidence category | State | Evidence, gap, or accepted boundary | Release effect | Owner and deadline |
+|:--|:--|:--|:--|:--|
+| Supplier due diligence | **Verified** | Illustrative supplier review `ev://supplier/review-447` | Accepted for this packet | — |
+| Secure-development attestation | **Partial** | A supplier exception excludes one hosted build service | Remediation remains open | Supplier risk; due 2026-08-15 |
+| Release provenance | **Verified** | Artifact digest `sha256:<redacted-example>` passed signature and provenance policy | Accepted for the named release | — |
+| SBOM | **Verified** | Covers the gateway release and bundled runtime dependencies; supplier-hosted control-plane transitive services are not enumerated | The named scope is accepted; the gap remains visible | — |
+| VEX | **Not assessed** | No completed applicability assessment | Vulnerability review remains open | — |
+| Source registry | **Preview** | Upstream maturity is not production | Excluded from the production trust path | — |
+| Core and authorization tests | **Verified** | Expected denials observed for wrong issuer, wrong audience, revoked grant, cross-tenant handle, unknown extension, and backend entitlement | Accepted for the tested contract | — |
+| Credential-passthrough test | **Failed** | An incoming bearer token reached a non-target backend | **Hard block until fixed and retested** | Security |
+| Degraded mode | **Exception accepted** | Only `claims/status` is permitted; `claims/approve`, `claims/pay`, and credential exchange are prohibited. A still-valid cached decision has a 300-second ceiling | Bounded exception only | Security platform; expires 2026-08-08 00:00 UTC |
+| Independent evaluation | **Verified** | Illustrative real-environment baseline `eval://claims-agent/real-environment/v7` | Rerun after a model, prompt-policy, gateway, tool-contract, or backend change | — |
+| Replacement rehearsal | **Partial** | Policy export, registry allowlist, and credential rotation passed; historical evidence-ID import remains open | Exit readiness is incomplete | Platform engineering |
 
-approvals:
-  architecture: "approved-with-hard-block"
-  security: "blocked-pending-credential-passthrough-fix"
-  product_owner: "approved-for-retest"
-  supplier_risk: "conditional"
-  legal_governance: "scope-review-complete"
-```
+The approval surface exposes the unresolved conflict rather than averaging it away:
+
+| Approver | Decision |
+|:--|:--|
+| Architecture | **Approved with hard block** |
+| Security | **Blocked pending credential-passthrough fix** |
+| Product owner | **Approved for retest** |
+| Supplier risk | **Conditional** |
+| Legal and governance | Scope review complete |
 
 The packet is not approved for production while `credential_passthrough_test` is `failed`. `Exception-accepted` is not a synonym for success: it names the bounded behavior, compensating control, owner, and expiry. The packet expires when a product surface, model, policy, tool contract, supplier condition, or applicable authority changes.
 
@@ -17118,77 +17019,45 @@ Open source, standards use, and declarative configuration improve inspectability
 
 The decision record joins the role-normalized comparison to an accountable release outcome. It does not repeat every artifact; it pins the exact evidence packet, records why alternatives were rejected, and exposes the assumptions or changes that invalidate the decision.
 
-```yaml
-decision_id: "adr-ai-0047"
-title: "Claims-agent MCP control-plane composition"
-decided_at: "2026-07-25"
-state: "rejected-pending-remediation"
+The worked decision is `adr-ai-0047`, **Claims-agent MCP control-plane composition**, decided 2026-07-25. Its state is **rejected pending remediation**. Admission is pinned to the MCP `2026-07-28` floor, with no extensions admitted, deployment manifest `manifest://claims-agent-eu-prod/1.0`, and acceptance packet `packet://acceptance-claims-agent-2026-07-25`.
 
-selected_planes:
-  identity_lifecycle:
-    surface: "enterprise authorization server"
-    reason: "verified client/resource/grant and revocation path"
-  registry_composition:
-    surface: "signed deployment allowlist"
-    reason: "source registry remains preview and is excluded from runtime trust"
-  credential_custody_exchange:
-    surface: "audience-bound OBO exchange"
-    reason: "no incoming-token passthrough permitted"
-  inline_enforcement:
-    surface: "pinned MCP gateway configuration"
-    reason: "local core, authorization, handle, and outage fixtures available"
-  backend_entitlement:
-    surface: "claims service"
-    reason: "authoritative regional and claim-state decision"
+| Plane | Selected surface | Selection reason |
+|:--|:--|:--|
+| Identity lifecycle | Enterprise authorization server | The client/resource/grant and revocation path is verified. |
+| Registry and composition | Signed deployment allowlist | The source registry remains preview and is excluded from runtime trust. |
+| Credential custody and exchange | Audience-bound OBO exchange | Incoming-token passthrough is prohibited. |
+| Inline enforcement | Pinned MCP gateway configuration | Local core, authorization, handle, and outage fixtures are available. |
+| Backend entitlement | Claims service | It makes the authoritative regional and claim-state decision. |
 
-alternatives_rejected:
-  - candidate: "preview registry as production trust root"
-    reason: "maturity and replacement evidence do not satisfy the hard gate"
-  - candidate: "gateway-only authorization"
-    reason: "cannot establish claims-system business entitlement"
-  - candidate: "incoming token forwarded to claims API"
-    reason: "wrong audience and credential-separation violation"
+Rejected alternatives remain part of the record so the boundary cannot silently drift:
 
-admission:
-  protocol_floor: "2026-07-28"
-  source_status_at_decision: "release-candidate"
-  extensions_admitted: []
-  evidence_manifest: "manifest://claims-agent-eu-prod/1.0"
-  acceptance_packet: "packet://acceptance-claims-agent-2026-07-25"
+| Rejected alternative | Reason |
+|:--|:--|
+| Preview registry as the production trust root | Maturity and replacement evidence do not satisfy the hard gate. |
+| Gateway-only authorization | The gateway cannot establish claims-system business entitlement. |
+| Forward the incoming token to the claims API | This creates a wrong-audience and credential-separation violation. |
 
-release_conditions:
-  hard_block:
-    - "fix and retest credential passthrough"
-  required_before_production:
-    - "every required plane verified or covered by a named exception"
-    - "final core source status rechecked"
-    - "replacement evidence-ID import completed or excepted"
-  time_bounded_exception:
-    id: "exc-degraded-read-only-004"
-    owner: "security-platform"
-    expires: "2026-08-08T00:00:00Z"
-    permitted: ["claims/status"]
-    prohibited: ["claims/approve", "claims/pay", "credential exchange"]
+The following conditions control whether the selected design may enter production:
 
-performance_and_change:
-  accepted_baseline: "eval://claims-agent/real-environment/v7"
-  rollback_trigger: "accepted outcome, latency, safety, or security threshold missed"
-  reevaluate_on:
-    - "core, extension, SDK, model, prompt-policy, tool, gateway, backend, supplier, or authority change"
+| Condition class | Requirement | Consequence or owner |
+|:--|:--|:--|
+| Hard block | Fix and retest credential passthrough | Production remains denied until the test passes. |
+| Required before production | Verify every required plane or cover it with a named exception | An unnamed or unbounded gap blocks release. |
+| Required before production | Recheck the final core source status | The admitted contract must match the intended floor. |
+| Required before production | Complete or explicitly except replacement evidence-ID import | Exit evidence must not be assumed. |
+| Time-bounded exception | `exc-degraded-read-only-004` permits only `claims/status`; it prohibits `claims/approve`, `claims/pay`, and credential exchange | Security platform owns the exception; it expires 2026-08-08 00:00 UTC. |
 
-exit:
-  trigger: "support sunset, unresolved critical vulnerability, failed control, or strategic replacement"
-  closeout_owner: "platform-engineering"
-  usable_format_transfer: "required"
-  supplier_access_expiry: "required at cutover"
+The accepted performance baseline is the illustrative record `eval://claims-agent/real-environment/v7`. Missing an accepted outcome, latency, safety, or security threshold triggers rollback. Any change to the core, extension, SDK, model, prompt policy, tool, gateway, backend, supplier, or applicable authority triggers reevaluation.
 
-approvals:
-  architecture: "approved design"
-  security: "release blocked"
-  product: "retest authorized"
-  procurement: "conditional"
-  legal_governance: "applicability scope recorded"
-```
+Exit begins at support sunset, an unresolved critical vulnerability, a failed control, or a strategic replacement decision. Platform engineering owns closeout; transfer in a usable format is required, and supplier access must expire at cutover.
+
+| Approver | Recorded outcome |
+|:--|:--|
+| Architecture | Design approved |
+| Security | **Release blocked** |
+| Product | Retest authorized |
+| Procurement | Conditional |
+| Legal and governance | Applicability scope recorded |
 
 **Release gate.** Production is denied until the hard block is cleared and every required plane is `verified` or covered by a named, time-bounded exception. Documentation-only, preview, partial, failed, and not-assessed claims remain visible. Approval expires when an evidence source, product surface, supplier condition, protocol/extension, evaluated use, applicable authority, or replacement assumption changes.
 
@@ -17759,16 +17628,19 @@ stateDiagram-v2
 
 The host joins the original Article 50(1) presentation receipt to the request, gateway, content-treatment, delivery, and result evidence without claiming that one receipt substitutes for another.
 
-```yaml
-evidence_join:
-  interaction_presentation: tpr-host-7812
-  request: req-987abc
-  gateway_decision: gwd-50-4891
-  content: cnt-email-7331
-  treatment_receipts: [tmr-content-551, tdr-detector-552, tlr-label-553]
-  delivery_attempt: mail-delivery-884
-  outcome: verified_complete
-```
+The worked evidence chain joins each independently meaningful record:
+
+| Evidence class | Illustrative reference |
+|:--|:--|
+| Interaction presentation | `tpr-host-7812` |
+| Originating request | `req-987abc` |
+| Gateway decision | `gwd-50-4891` |
+| Treated content | `cnt-email-7331` |
+| Marking receipt | `tmr-content-551` |
+| Detector receipt | `tdr-detector-552` |
+| Label receipt | `tlr-label-553` |
+| Delivery attempt | `mail-delivery-884` |
+| Joined outcome | **Verified complete** |
 
 **Boundary:** retention preserves reconstruction under the applicable record policy; it does not extend the underlying authority or create a new retention basis.
 
@@ -18053,23 +17925,19 @@ The deployment may select in-session confirmation, stronger/fresher authenticati
 
 An oversight release record can remain small while preserving those joins:
 
-```yaml
-oversight_release:
-  ai_system: hiring-assistant@7.4
-  intended_purpose: candidate-shortlist-support
-  provider_control_profile: oversight-profile@12
-  deployer_assignment:
-    role: trained-recruiter
-    competence_record: training/recruiter-ai/2026-04
-    authority_policy: hr-decision-rights@31
-  runtime:
-    operation_digest: sha256:28bf...
-    presentation_receipt: ovp-8841
-    decision_receipt: ovd-8842
-    downstream_state_receipt: ovs-8843
-  outcome: result_withheld_pending_independent_review
-  monitoring_case: aimon-229
-```
+| Record element | Worked value | What it establishes |
+|:--|:--|:--|
+| AI system and intended purpose | `hiring-assistant@7.4`; candidate-shortlist support | Which system and bounded use the oversight decision covers |
+| Provider control profile | `oversight-profile@12` | The versioned oversight measures designed into the system |
+| Deployer assignment | Trained recruiter | The natural-person role assigned to exercise oversight |
+| Competence record | `training/recruiter-ai/2026-04` | The assignment is linked to role-specific training evidence |
+| Authority policy | `hr-decision-rights@31` | The reviewer has the organizational right to intervene |
+| Exact operation | Digest `sha256:28bf...` | The decision is bound to one immutable operation |
+| Presentation receipt | `ovp-8841` | The material runtime context was presented |
+| Decision receipt | `ovd-8842` | The assigned person made the recorded decision |
+| Downstream-state receipt | `ovs-8843` | The enforcement consequence was observed rather than assumed |
+| Outcome | **Result withheld pending independent review** | The decision's operational effect |
+| Monitoring case | `aimon-229` | The event remains joined to monitoring and improvement work |
 
 This record contributes to Articles 14, 17, and 26 evidence only when the referenced controls exist and the provider/deployer role analysis is correct. Where [GDPR Article 22](https://eur-lex.europa.eu/eli/reg/2016/679/oj) also applies, the deployment separately establishes its legal basis, exception, meaningful information, human intervention, expression-of-view, and contest safeguards.
 
@@ -18237,26 +18105,16 @@ Each right resolves against the affected record classes and purposes, so one ope
 
 Use one record register across operational and restricted evidence:
 
-```yaml
-record_class:
-  id: agent-memory.customer-preference
-  controller: travelcorp-eu
-  processor: agent-platform
-  purposes: [trip-planning-personalization]
-  lawful_basis: contract
-  data_categories: [preference, controlled-subject-reference]
-  systems_and_recipients: [memory-store-eu, itinerary-tool-eu]
-  retention:
-    review_at: 2026-10-25
-    maximum_until: 2027-07-25
-    legal_hold: null
-  rights:
-    index: dsr-index-eu
-    rectification: supported
-    restriction: supported
-    deletion_receipt: required
-  transfer_route: intra-eea
-```
+| Record property | Worked registration | Lifecycle consequence |
+|:--|:--|:--|
+| Record class | `agent-memory.customer-preference` | Every copy and derived event inherits the class until a documented transformation changes it. |
+| Controller and processor | `travelcorp-eu` is controller; `agent-platform` is processor | Responsibility and instruction boundaries remain explicit. |
+| Purpose and lawful basis | Trip-planning personalization; contract | Use outside that purpose requires a separate decision rather than scope expansion by convenience. |
+| Data categories | Preference and controlled subject reference | Raw identity and unrelated conversational content are not part of the class. |
+| Systems and recipients | `memory-store-eu` and `itinerary-tool-eu` | Disclosure to another system or recipient requires an updated record. |
+| Retention | Review on 2026-10-25; maximum retention until 2027-07-25; no legal hold | Review may shorten retention; the maximum date is not a default entitlement to keep the data. |
+| Rights handling | Index `dsr-index-eu`; rectification and restriction supported; deletion receipt required | Rights actions must locate the record and produce observable completion evidence. |
+| Transfer route | Intra-EEA | A route change requires the separate transfer analysis in [§23.12](#2312-cross-border-transfers-and-data-sovereignty-controls). |
 
 Minimize at collection: keep stable references and digests instead of complete tokens, prompts, approval text or tool payloads unless the purpose needs the content. Separate identity mappings and sensitive evidence from operational events, encrypt both, and restrict correlation access.
 
@@ -18296,29 +18154,21 @@ Neither answer substitutes for the other.
 
 Residence, server region and agent-operator location are inputs—not standalone legal conclusions. For every route, record the exporter/importer roles, controller/processor chain, data subjects/categories, remote-access facts, origin/destination, onward recipients, processing purpose, GDPR territorial analysis, AI Act actor/scope analysis and local-law constraints.
 
-```yaml
-cross_border_route:
-  id: route-eu-us-support-17
-  operation: customer_case.summarize
-  exporter: travelcorp-eu-controller
-  importer: support-platform-us-processor
-  data: [customer-message, pseudonymous-account-reference]
-  origin: NL
-  destinations: [US]
-  remote_access: [support-operator-us]
-  onward_transfers: [subprocessor-us]
-  gdpr:
-    processing_basis: contract
-    chapter_v_mechanism: eu_us_dpf
-    recipient_scope_verified_at: 2026-07-25
-    transfer_assessment: tia-881
-    supplementary_measures: [claim-minimization, encrypted-channel, restricted-operator-access]
-  ai_act:
-    scope_decision: aia-scope-177
-  owner: privacy-engineering-eu
-  recheck_at: 2026-08-25
-  failure: deny_route
-```
+The worked route `route-eu-us-support-17` applies to `customer_case.summarize`:
+
+| Decision element | Worked route decision | Enforcement meaning |
+|:--|:--|:--|
+| Parties and roles | `travelcorp-eu-controller` exports to `support-platform-us-processor` | Controller/processor responsibility is bound to the route rather than inferred from hosting location. |
+| Data | Customer message and pseudonymous account reference | No additional fields are admitted without a route update. |
+| Geography and access | Origin NL; destination US; remote access by `support-operator-us` | Both transfer and remote-access facts enter the applicability analysis. |
+| Onward transfer | `subprocessor-us` | An unapproved subprocessor or destination invalidates the route. |
+| Processing basis | Contract | The basis is scoped to this processing purpose; it is not a general transfer permission. |
+| Chapter V mechanism | EU–US Data Privacy Framework | Recipient scope was verified on 2026-07-25 and remains subject to certification coverage. |
+| Transfer assessment | `tia-881` | The route is joined to its reviewed legal and factual assessment. |
+| Supplementary measures | Claim minimization, encrypted channel, restricted operator access | These controls reduce exposure but do not replace the Chapter V mechanism. |
+| AI Act scope | Decision `aia-scope-177` | AI Act actor and scope analysis remains separately reviewable. |
+| Ownership and freshness | Privacy engineering EU; recheck on 2026-08-25 | Expiry or a material route fact change requires review. |
+| Failure action | **Deny route** | Unknown, expired, or mismatched applicability state stops the operation. |
 
 The example is a deployment decision, not a reusable legal conclusion. A US destination does not automatically qualify for the EU–US Data Privacy Framework: the recipient and relevant data/activities must be within its certification, and onward-transfer and other GDPR duties remain.
 
@@ -18438,34 +18288,25 @@ Contracts should allocate operational responsibility and recourse without invent
 | Indemnity, limitation, defence and recourse | Covered claim/event, control standard, exclusions, notice, defence, settlement, caps/carve-outs and contribution chain | Contract purports to exclude liability toward an injured person where Article 15 forbids it |
 | Insurance | Named policy, covered operations/losses, exclusions, limits, territory, notice and continuity | Marketing statement substitutes for reviewing the actual policy and autonomous-agent exclusions |
 
-A solved allocation record remains linked to the technical manifest rather than embedded in prose:
+A solved allocation record remains linked to the technical manifest. For deployment `travel-agent-eu@12`, the product and service classification is:
 
-```yaml
-liability_allocation:
-  deployment: travel-agent-eu@12
-  products_and_services:
-    - artifact: agent-runtime@8.1
-      supplier: vendor-x
-      classification: pending-national-pld-analysis
-    - artifact: mcp-gateway@6.4
-      supplier: vendor-y
-      classification: software-product-candidate
-    - artifact: booking-tool-service@3
-      supplier: vendor-z
-      classification: service-component-analysis-required
-  responsibility_owners:
-    authorization_policy: travelcorp
-    gateway_enforcement: vendor-y
-    backend_entitlement: vendor-z
-    agent_evaluation: [vendor-x, travelcorp]
-    incident_coordination: travelcorp
-  evidence_access_test: pass
-  open_gaps:
-    - national PLD transposition not yet effective
-    - related-service/manufacturer-control analysis unresolved
-  release: conditional_denial_for_purchase_actions
-  recheck_at: 2026-12-09
-```
+| Artifact | Supplier | Worked classification |
+|:--|:--|:--|
+| `agent-runtime@8.1` | `vendor-x` | Pending national PLD analysis |
+| `mcp-gateway@6.4` | `vendor-y` | Software-product candidate |
+| `booking-tool-service@3` | `vendor-z` | Service/component analysis required |
+
+Operational responsibility is allocated separately from the still-open legal classification:
+
+| Responsibility | Accountable party |
+|:--|:--|
+| Authorization policy | TravelCorp |
+| Gateway enforcement | `vendor-y` |
+| Backend entitlement | `vendor-z` |
+| Agent evaluation | `vendor-x` and TravelCorp |
+| Incident coordination | TravelCorp |
+
+The evidence-access test **passes**, but two gaps remain: national PLD transposition is not yet effective, and the related-service/manufacturer-control analysis is unresolved. The resulting release posture is **conditional denial for purchase actions** until those boundaries are resolved or a narrower approved control applies. Recheck the allocation on 2026-12-09.
 
 The CSA Agentic Trust Framework ([§7.8](#78-risk-and-governance-crosswalk)) can structure governance discussion, but an autonomy label is not identity assurance, legal classification, a liability rule or a substitute for these contracts and facts.
 
@@ -18486,40 +18327,19 @@ This chapter is a policy as well as an explanation: a production release proceed
 | Supplier, product and liability allocation | Procurement/product/legal owners | [§22](#22-consolidated-comparison-thirteen-architectural-models) acceptance packet, SBOM/provenance, evidence access, change/exit tests, [§23.14](#2314-liability-apportionment-in-multi-vendor-agent-chains) allocation | Required supplier evidence and recourse are usable; open classification gaps constrain release | Reject supplier/surface or accept named exception with expiry |
 | Monitoring, incident, correction and exit | Operations, security, QMS and vendor owners | Monitoring/incident routes, authority export, termination convergence, replacement and evidence-continuity tests | Owners can detect, stop, notify, correct, export and exit within policy targets | Suspend, contain, notify or execute replacement/exit playbook |
 
-```yaml
-eu_release_decision:
-  deployment: travel-agent-eu@12
-  authority_register: eu-authority-register@2026-07-25
-  system_role_decision: aia-roles-441
-  applicability_decisions:
-    high_risk: aia-scope-177
-    article_50: a50-scope-2041
-    gdpr: gdpr-scope-881
-    transfer: route-eu-us-support-17
-  evidence_packet:
-    controls: controls-eu-12
-    transparency_receipts: tr-bundle-2041
-    supplier_acceptance: supplier-packet-31
-    termination_rehearsal: term-test-2026-07
-  status:
-    authority: verified
-    actors_and_scope: verified
-    controls: verified
-    transparency: verified
-    privacy_and_rights: verified
-    cross_border: conditional
-    supplier_and_exit: verified
-  open_gap:
-    owner: privacy-engineering-eu
-    issue: US subprocessor addition not yet approved
-    consequence: US support route denied
-    expires_at: 2026-08-25
-  release:
-    ordinary_eu_routes: allow
-    us_support_route: deny
-  approved_by: eu-ai-governance-board
-  decided_at: 2026-07-25T18:00:00Z
-```
+For deployment `travel-agent-eu@12`, the EU AI Governance Board made the following worked decision at 2026-07-25 18:00 UTC:
+
+| Gate surface | Decision or evidence reference | Status | Release consequence |
+|:--|:--|:--|:--|
+| Authority | `eu-authority-register@2026-07-25` | **Verified** | The authority baseline is admitted. |
+| Actors and system scope | System-role decision `aia-roles-441`; high-risk decision `aia-scope-177` | **Verified** | The classified systems, actors, and uses may proceed to their remaining gates. |
+| Article 50 transparency scope and execution | Scope decision `a50-scope-2041`; transparency receipt bundle `tr-bundle-2041` | **Verified** | The released transparency surface has the required evidence. |
+| GDPR processing and rights | Scope decision `gdpr-scope-881` | **Verified** | Approved processing paths remain available. |
+| Risk and technical controls | Evidence packet `controls-eu-12` | **Verified** | The accepted control surface may be released. |
+| Cross-border route | Route decision `route-eu-us-support-17` | **Conditional** | Ordinary EU routes are **allowed**; the US support route is **denied**. |
+| Supplier and exit | Supplier packet `supplier-packet-31`; termination rehearsal `term-test-2026-07` | **Verified** | Accepted supplier surfaces and the tested exit path may be used. |
+
+The open cross-border gap belongs to privacy engineering EU: a US subprocessor addition has not been approved. The gap expires for review on 2026-08-25 and keeps the US support route denied until it closes and the gate is rerun.
 
 The release result is surface-specific: one denied transfer route does not require fabricating evidence for it or describing the entire deployment as compliant/noncompliant. The allowed EU routes remain governed by their own current evidence; the blocked US route stays unavailable until its gap closes and the gate is rerun.
 
@@ -18579,33 +18399,22 @@ The current federal baseline is not Executive Order 14110: it was revoked on 20 
 
 ##### 24.1.4 Scoped Federal Release Record
 
-```yaml
-us_federal_release:
-  agency: example-department
-  use_case: case-intake-agent@4
-  authorities:
-    use_governance: OMB-M-25-21
-    acquisition: OMB-M-25-22
-    contract: award-47Q-2026-118
-    voluntary_profile: NIST-AI-RMF-1.0
-  determinations:
-    high_impact: true
-    owner: agency-caio-office
-    impact_assessment: aia-fed-204
-    independent_review: air-991
-    risk_acceptance: pending
-  acquisition_evidence:
-    real_environment_test: pass
-    reproducible_evaluation: partial
-    ato: pass
-    rollback_test: pass
-    exit_rehearsal: pass
-  release: deny
-  blockers:
-    - signed high-impact risk acceptance absent
-    - protected evaluation rerun access incomplete
-  recheck_at: 2026-08-08
-```
+The worked record below applies to the `example-department` use case `case-intake-agent@4`:
+
+| Decision surface | Authority, evidence, or outcome | Release meaning |
+|:--|:--|:--|
+| Use governance | OMB M-25-21 | The covered agency-use requirements govern the example. |
+| Acquisition | OMB M-25-22 and contract `award-47Q-2026-118` | Acquisition duties are enforceable through their scoped authority and contract. |
+| Voluntary profile | NIST AI RMF 1.0 | The profile structures evidence but does not replace the governing authorities. |
+| High-impact determination | **True**; owner `agency-caio-office` | High-impact safeguards and accountable acceptance are required. |
+| Impact assessment and independent review | `aia-fed-204` and `air-991` | The decision is joined to its review evidence. |
+| Risk acceptance | **Pending** | Signed high-impact risk acceptance is absent and blocks release. |
+| Real-environment test | **Pass** | Accepted for the tested environment. |
+| Reproducible evaluation | **Partial** | Protected evaluation rerun access is incomplete and blocks release. |
+| Authorization to operate | **Pass** | The scoped ATO gate is satisfied. |
+| Rollback test | **Pass** | The tested rollback path is available. |
+| Exit rehearsal | **Pass** | The tested closeout path is available. |
+| Final decision | **Deny**; recheck on 2026-08-08 | Release remains denied until both blockers close and the gate is rerun. |
 
 [NIST AI RMF](https://www.nist.gov/itl/ai-risk-management-framework) adoption can structure this packet, but [M-25-21](https://www.whitehouse.gov/wp-content/uploads/2025/02/M-25-21-Accelerating-Federal-Use-of-AI-through-Innovation-Governance-and-Public-Trust.pdf), [M-25-22](https://www.whitehouse.gov/wp-content/uploads/2025/02/M-25-22-Driving-Efficient-Acquisition-of-Artificial-Intelligence-in-Government.pdf), the agency decision and the contract are the authority records that make particular outcomes mandatory for this example. A private deployment can adopt the same fields as architecture policy without falsely claiming federal coverage.
 
@@ -18697,31 +18506,11 @@ The concept paper identifies useful problem areas and candidate technologies, in
 | Data-flow tracking | Data classification, resource/task references, taint/egress/recipient and cross-border route decisions (§§13, 17, 23.12) | Source/destination/purpose/data class, transformations, recipient and transfer decision | Can a future build trace model context and tool outputs without over-collecting sensitive content? |
 | Prompt/tool injection | Trusted registry, instruction/data separation, taint and high-consequence dispatch gates (§§13.2.9, 17.8) | Adversarial corpus, bypass rate, decision/output state and incident/rollback | Which measurable protections remain effective across model/tool changes? |
 
-##### 24.3.3 Maturity Decision Record
+##### 24.3.3 Maturity Decision Rule
 
-```yaml
-standards_watch:
-  item: NIST-NCCoE-agent-identity
-  status: concept-paper-reviewing-comments
-  checked_at: 2026-07-25
-  current_use:
-    - problem taxonomy
-    - candidate-evidence fields
-  not_claimed:
-    - selected technology
-    - conformance
-    - practice-guide alignment
-  adoption_trigger:
-    - NCCoE publishes draft project description
-    - deployment profile and technologies are named
-  fallback:
-    profile: DR-0001-five-plane@2026-07-28
-    tests: local-agent-identity-suite@18
-  owner: identity-architecture
-  recheck_at: 2026-08-25
-```
+At the 2026-07-25 verification point, the [NCCoE agent-identity project](https://www.nccoe.nist.gov/projects/software-and-ai-agent-identity-and-authorization) remained a concept project reviewing comments. DR-0001 may use its problem taxonomy and candidate evidence fields, but does not claim that it selects technology, establishes conformance, or aligns a completed practice guide. Reconsider adoption when NCCoE publishes a draft project description that names a deployment profile and technologies; until then, the five-plane architecture in [§21](#21-product-implementation-landscape) and the deployment acceptance tests in [§22](#22-consolidated-comparison-thirteen-architectural-models) remain the policy fallback.
 
-The same record shape applies to [AI 800-1](https://www.nist.gov/news-events/news/2025/01/updated-guidelines-managing-misuse-risk-dual-use-foundation-models), [AI 800-2](https://www.nist.gov/news-events/news/2026/01/towards-best-practices-automated-benchmark-evaluations), [IR 8587](https://csrc.nist.gov/pubs/ir/8587/ipd), [AI 800-5](https://www.nist.gov/publications/summary-analysis-responses-request-information-regarding-security-considerations-ai) and the [Agent Standards Initiative](https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative). A status change triggers comparison and a deliberate profile decision; it does not silently rewrite deployed controls.
+Apply the same maturity discipline to [AI 800-1](https://www.nist.gov/news-events/news/2025/01/updated-guidelines-managing-misuse-risk-dual-use-foundation-models), [AI 800-2](https://www.nist.gov/news-events/news/2026/01/towards-best-practices-automated-benchmark-evaluations), [IR 8587](https://csrc.nist.gov/pubs/ir/8587/ipd), [AI 800-5](https://www.nist.gov/publications/summary-analysis-responses-request-information-regarding-security-considerations-ai), and the [Agent Standards Initiative](https://www.nist.gov/artificial-intelligence/ai-agent-standards-initiative). The tracked standards-watch registry records status, sources, review ownership, adoption triggers, fallback controls, and affected sections; a status change triggers primary-source comparison and a deliberate profile decision, never an automatic rewrite of deployed controls or this article.
 
 #### 24.4 Zero Trust for Agent and Service Access
 
@@ -18855,30 +18644,19 @@ The joins are deliberate:
 | Runtime → review | Monitoring period, incidents, drift, sampled/complete evidence state, corrective action and closure | Missing or biased telemetry cannot support a complete effectiveness conclusion |
 | Certification → relying party | Certificate, certifier/accreditation, scope, sites, standard/version, status/expiry and exclusions | A valid 42001 certificate is organization/AIMS assurance—not an agent or request certificate |
 
-```yaml
-iso_assurance_reference:
-  organization: travelcorp-ai
-  aims:
-    standard: ISO/IEC-42001:2023
-    scope: eu-customer-agent-development-and-operation
-    certificate: aims-cert-771
-    certification_body: certifier-example
-    status: valid
-    expires_at: 2027-05-31
-  risk_process: ISO/IEC-23894:2023-profile@4
-  impact_assessment:
-    method: ISO/IEC-42005:2025-profile@2
-    assessment: impact-travel-agent-12
-  deployment_release: travel-agent-eu@12
-  runtime_evidence: evidence-bundle-2026-07-25
-  reliance:
-    accepted_for: organizational-management-system-assurance
-    not_accepted_for:
-      - legal-compliance-conclusion
-      - product-conformity
-      - per-request-authorization
-  recheck_at: 2026-08-25
-```
+The worked assurance reference makes each reliance boundary readable:
+
+| Assurance element | Worked reference | Reliance boundary |
+|:--|:--|:--|
+| Organization | `travelcorp-ai` | Identifies the organization whose management system is assessed. |
+| AIMS standard and scope | ISO/IEC 42001:2023; `eu-customer-agent-development-and-operation` | Assurance does not extend beyond the named organizational, product/service, site, and process scope. |
+| Certificate | `aims-cert-771`, issued by `certifier-example`; **valid** until 2027-05-31 | Certificate status supports the scoped AIMS assurance only. |
+| Risk process | `ISO/IEC-23894:2023-profile@4` | The local profile, not the standard's title alone, identifies the implemented method. |
+| Impact assessment | Method `ISO/IEC-42005:2025-profile@2`; assessment `impact-travel-agent-12` | The assessment remains bounded to its method, affected parties, evidence, and deployment facts. |
+| Deployment and runtime evidence | Release `travel-agent-eu@12`; bundle `evidence-bundle-2026-07-25` | Joins management-system assurance to a named release and observed evidence without turning runtime receipts into certification. |
+| Accepted reliance | Organizational management-system assurance | This is the affirmative purpose for which the reference may be used. |
+| Excluded reliance | Legal-compliance conclusion, product conformity, and per-request authorization | None of these outcomes follows from the AIMS certificate. |
+| Recheck | 2026-08-25 | Scope, certificate status, method, release, or evidence change can require an earlier review. |
 
 The organization may voluntarily adopt these standards or make them contractual. The adopting policy identifies required clauses/outcomes, evidence and exceptions. A standard reference without the licensed implementation detail, scoped profile and local decision is not an executable control.
 
@@ -18899,45 +18677,27 @@ One technical artifact can support several governance systems, but every reuse k
 
 The solved packet demonstrates evidence reuse while preserving a separate applicability, outcome, owner, assurance boundary, and recheck date for every authority.
 
-```yaml
-reusable_evidence:
-  packet_id: agent-release-2041
-  subject:
-    deployment: case-intake-agent@4
-    system_boundary: sys-map-81
-    intended_purpose: public-benefit-intake-support
-  core:
-    actor_supplier_register: actors-44
-    risk_impact_register: risk-impact-71
-    evaluation: eval-real-context-91
-    authorization_negative_tests: authz-neg-33
-    oversight_stop_test: oversight-stop-19
-    incident_exit_test: exit-12
-  uses:
-    - authority: EU-AI-Act
-      applicability: out_of_scope_no_eu_market_or_output
-      outcome: not_applicable
-      decision_owner: eu-regulatory-owner
-    - authority: OMB-M-25-21
-      applicability: covered_federal_high_impact_use
-      outcome: blocked_pending_signed_risk_acceptance
-      decision_owner: agency-caio-office
-    - authority: NIST-AI-RMF-1.0
-      applicability: organization_adopted_profile
-      outcome: partial
-      gap: affected-community feedback not closed
-      decision_owner: agency-ai-risk-board
-    - authority: ISO/IEC-42001:2023
-      applicability: within_certified_aims_scope
-      outcome: evidence_available_for_control_review
-      gap: no_product_or_request_conformity_claimed
-      decision_owner: aims-manager
-  assurance:
-    integrity: verified
-    completeness: partial
-    independent_review: air-991
-  recheck_at: 2026-08-08
-```
+Packet `agent-release-2041` covers deployment `case-intake-agent@4`, system boundary `sys-map-81`, and the intended purpose of public-benefit intake support. Its shared evidence core is:
+
+| Evidence core | Illustrative reference | Reusable fact |
+|:--|:--|:--|
+| Actor and supplier register | `actors-44` | Named actors, suppliers, roles, and boundaries |
+| Risk and impact register | `risk-impact-71` | Assessed scenarios, impacts, treatments, and owners |
+| Real-context evaluation | `eval-real-context-91` | Performance and risk evidence for the assessed context |
+| Authorization negative tests | `authz-neg-33` | Observed rejection behavior for tested authorization failures |
+| Oversight stop test | `oversight-stop-19` | Observed human-intervention and stop behavior |
+| Incident and exit test | `exit-12` | Observed incident/closeout behavior |
+
+Each authority reaches its own outcome from that shared core:
+
+| Authority | Applicability | Outcome | Decision owner and residual gap |
+|:--|:--|:--|:--|
+| EU AI Act | Out of scope: no EU market or output | **Not applicable** | EU regulatory owner |
+| OMB M-25-21 | Covered federal high-impact use | **Blocked pending signed risk acceptance** | Agency CAIO office |
+| NIST AI RMF 1.0 | Organization-adopted profile | **Partial** | Agency AI risk board; affected-community feedback is not closed |
+| ISO/IEC 42001:2023 | Within certified AIMS scope | **Evidence available for control review** | AIMS manager; no product or per-request conformity is claimed |
+
+Packet integrity is **verified**, completeness is **partial**, and independent review is recorded as `air-991`. Recheck the packet on 2026-08-08.
 
 The EU row remains visible even when `not_applicable`; the NIST row can be `partial` while federal release is `blocked`; and the ISO row is limited to AIMS control review. This asymmetric result is more useful than a single “compliance score.”
 
@@ -19003,85 +18763,27 @@ flowchart LR
 
 The pack below is illustrative. The deployment reuses its authorization, evaluation and transparency evidence, but reaches different results because the authorities and gaps differ.
 
-```yaml
-governance_decision:
-  decision_id: gov-2026-07-25-042
-  deployment:
-    release: claims-agent-4.2
-    service_boundary: eu-and-us-federal-pilot
-    configuration_digest: sha256:2e2c...f941
-    assessed_at: 2026-07-25T16:40:00Z
+Decision `gov-2026-07-25-042` covers release `claims-agent-4.2`, the EU-and-US-federal-pilot service boundary, and configuration digest `sha256:2e2c...f941`. It was assessed at 2026-07-25 16:40 UTC.
 
-  shared_evidence:
-    - control: primitive-argument-and-handle-authorization
-      evidence: authz-negative-suite-441
-      owner: authorization-platform-owner
-      integrity: verified
-      outcome: verified
-      limitation: excludes provider-side entitlement behavior
-    - control: human-stop-override-and-reversal
-      evidence: oversight-rehearsal-118
-      owner: operations-owner
-      integrity: verified
-      outcome: partial
-      limitation: weekend escalation target missed in one region
-    - control: transparency-presentation-and-provenance
-      evidence: transparency-receipts-2026-07-25
-      owner: application-and-content-pipeline-owners
-      integrity: verified
-      outcome: verified
-      limitation: no China propagation-metadata assessment
+| Shared control evidence | Evidence and owner | Integrity and outcome | Limitation |
+|:--|:--|:--|:--|
+| Primitive, argument, and handle authorization | `authz-negative-suite-441`; authorization platform owner | Integrity **verified**; outcome **verified** | Excludes provider-side entitlement behavior |
+| Human stop, override, and reversal | `oversight-rehearsal-118`; operations owner | Integrity **verified**; outcome **partial** | Weekend escalation target missed in one region |
+| Transparency presentation and provenance | `transparency-receipts-2026-07-25`; application and content-pipeline owners | Integrity **verified**; outcome **verified** | No China propagation-metadata assessment |
 
-  authority_outcomes:
-    - authority: EU-AI-Act
-      applicability: applicable_high_risk_deployer_use
-      outcome: blocked
-      gap: human-oversight weekend escalation evidence incomplete
-      gap_owner: eu-deployer-operations-owner
-      acceptance_authority: eu-release-committee
-      remediation_due: 2026-07-29
-    - authority: OMB-M-25-21
-      applicability: covered_federal_high_impact_use
-      outcome: blocked
-      gap: signed impact-risk acceptance absent
-      gap_owner: agency-caio-office
-      acceptance_authority: agency-designated-official
-    - authority: NIST-AI-RMF-1.0
-      applicability: organization_adopted_profile
-      outcome: partial
-      gap: affected-community feedback remains open
-      gap_owner: ai-risk-board
-      acceptance_authority: organization-ai-governance-board
-    - authority: Singapore-Agentic-AI-Framework
-      applicability: not_applicable_no_singapore-deployment
-      outcome: not_applicable
-      decision_owner: regional-governance-owner
-    - authority: China-AIGC-Labeling-Measures
-      applicability: not_applicable_no_covered-china-surface
-      outcome: not_applicable
-      decision_owner: china-regulatory-owner
+Those shared facts produce separate authority outcomes:
 
-  assurance:
-    reviewer: internal-assurance-team
-    independence: independent_of_control_owners
-    outcome: qualified
-    qualifications:
-      - oversight rehearsal incomplete
-      - federal acceptance signature unavailable
+| Authority | Applicability | Outcome | Gap, owner, and acceptance authority |
+|:--|:--|:--|:--|
+| EU AI Act | Applicable high-risk deployer use | **Blocked** | Human-oversight weekend-escalation evidence is incomplete; EU deployer operations owner; EU release committee; remediation due 2026-07-29 |
+| OMB M-25-21 | Covered federal high-impact use | **Blocked** | Signed impact-risk acceptance is absent; agency CAIO office; agency-designated official |
+| NIST AI RMF 1.0 | Organization-adopted profile | **Partial** | Affected-community feedback remains open; AI risk board; organization AI governance board |
+| Singapore Agentic AI Framework | Not applicable: no Singapore deployment | **Not applicable** | Regional governance owner |
+| China AIGC Labeling Measures | Not applicable: no covered China surface | **Not applicable** | China regulatory owner |
 
-  release:
-    outcome: hold
-    owner: enterprise-release-authority
-    blocking_outcomes:
-      - EU-AI-Act
-      - OMB-M-25-21
-    rollback_owner: platform-operations-owner
-    recheck_at: 2026-07-29T09:00:00Z
-    recheck_triggers:
-      - new jurisdiction or market
-      - model, tool, data-flow, supplier, or policy change
-      - incident, monitoring breach, exception expiry, or source update
-```
+The internal assurance team is independent of the control owners and records a **qualified** result: the oversight rehearsal is incomplete and the federal acceptance signature is unavailable.
+
+The enterprise release authority therefore places the deployment on **hold**, with the EU AI Act and OMB M-25-21 rows as the blocking outcomes. Platform operations owns rollback. Recheck at 2026-07-29 09:00 UTC, or earlier after a new jurisdiction or market; a model, tool, data-flow, supplier, or policy change; an incident or monitoring breach; an exception expiry; or a source update.
 
 Here the shared authorization test is reusable evidence, not a universal compliance conclusion. The EU row remains blocked by oversight evidence; the federal row remains blocked by its own acceptance authority; the voluntary NIST profile remains partial; and absent regional surfaces remain explicitly not applicable rather than silently omitted. The final `hold` is therefore explainable, reversible and attributable to named owners.
 
