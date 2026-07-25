@@ -4,7 +4,8 @@ import arfTopicReference from './data/arf-topics-v2.8.0.js';
 
 const LOOKBACK_LIMIT = 96;
 const EXTERNAL_CITATION_LOOKBACK_TOKENS = 6;
-const XREF_RANGE_TOKEN_RE = /(§(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*))(?![A-Za-z0-9])(\s*[-–—]\s*(?:§\s*)?(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9]))/g;
+const XREF_RANGE_TOKEN_RE = /(§{1,2}([A-Z](?:\.\d+)*|\d+(?:\.\d+)*))(?![A-Za-z0-9])(\s*(?:[-–—]|\bto\b)\s*(?:§{1,2}\s*)?(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9]))/gi;
+const XREF_NAMED_RANGE_TOKEN_RE = /\b((?:Sections?|Chapters?)\s+)([A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9])(\s*(?:[-–—]|\bto\b)\s*(?:(?:Sections?|Chapters?)\s+)?(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9]))/gi;
 const XREF_TOKEN_RE = /§(?:[A-Z](?:\.\d+)*|\d+(?:\.\d+)*)(?![A-Za-z0-9])/g;
 const ARF_TOPIC_TOKEN_RE = /\bARF(?:(?:\s+Discussion(?:\s+Paper)?)|(?:\s+Annex\s+2,?))?\s*(?:[—-]\s*)?Topic\s+(?:[A-Z]{1,2}|\d+)\b/g;
 const BARE_ARF_TOPIC_TOKEN_RE = /\b(?:(?:Annex(?:\s+2)?|Discussion(?:\s+Paper)?)\s+)?Topic\s+(?:[A-Z]{1,2}|\d+)\b(?!\s*\/\s*(?:Topic\s+)?[A-Z]{1,2}\b)/g;
@@ -53,6 +54,7 @@ const EXTERNAL_CITATION_PATTERNS = [
   /\bOpenID4VP\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bOpenID\s+Connect\s+Core\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bPID\s+Rulebook\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
+  /\bRulebook\s*$/i,
   /\bSD-JWT\s+VC\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\bCSC\s+API\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
   /\b(?:SAMLCore|SAMLProf)\b(?:[\s,./()-]+\w[\w.-]*){0,8}\s*$/i,
@@ -797,7 +799,7 @@ function findNextRegexMatch(regex, value, cursor) {
 }
 
 function parseSectionRangeTail(rangeTailText) {
-  const match = rangeTailText.match(/^(\s*[-–—]\s*)(?:§\s*)?([A-Z](?:\.\d+)*|\d+(?:\.\d+)*)$/);
+  const match = rangeTailText.match(/^(\s*(?:[-–—]|\bto\b)\s*)(?:(?:§{1,2}|Sections?|Chapters?)\s*)?([A-Z](?:\.\d+)*|\d+(?:\.\d+)*)$/i);
   if (!match) {
     return null;
   }
@@ -811,6 +813,7 @@ function parseSectionRangeTail(rangeTailText) {
 
 function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = {}) {
   const sectionRangeMatch = findNextRegexMatch(XREF_RANGE_TOKEN_RE, value, cursor);
+  const namedSectionRangeMatch = findNextRegexMatch(XREF_NAMED_RANGE_TOKEN_RE, value, cursor);
   const sectionMatch = findNextRegexMatch(XREF_TOKEN_RE, value, cursor);
   const topicMatch = findNextRegexMatch(ARF_TOPIC_TOKEN_RE, value, cursor);
   const bareTopicMatch = allowBareArfTopics
@@ -823,9 +826,20 @@ function findNextReferenceToken(value, cursor, { allowBareArfTopics = false } = 
       kind: 'sectionRange',
       tokenText: sectionRangeMatch.match[0],
       firstTokenText: sectionRangeMatch.match[1],
-      rangeTailText: sectionRangeMatch.match[2],
+      firstSectionNumber: sectionRangeMatch.match[2],
+      rangeTailText: sectionRangeMatch.match[3],
       start: sectionRangeMatch.start,
       end: sectionRangeMatch.end,
+    } : null,
+    namedSectionRangeMatch ? {
+      kind: 'sectionRange',
+      tokenText: namedSectionRangeMatch.match[0],
+      rangePrefixText: namedSectionRangeMatch.match[1],
+      firstTokenText: namedSectionRangeMatch.match[2],
+      firstSectionNumber: namedSectionRangeMatch.match[2],
+      rangeTailText: namedSectionRangeMatch.match[3],
+      start: namedSectionRangeMatch.start,
+      end: namedSectionRangeMatch.end,
     } : null,
     sectionMatch ? {
       kind: 'section',
@@ -922,9 +936,10 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
 
     if (kind === 'section' || kind === 'sectionRange') {
       const firstTokenText = nextToken.firstTokenText ?? tokenText;
+      const rangePrefixText = nextToken.rangePrefixText ?? '';
       const rangeTailText = nextToken.rangeTailText ?? '';
       const rangeTail = rangeTailText ? parseSectionRangeTail(rangeTailText) : null;
-      const sectionNumber = firstTokenText.slice(1);
+      const sectionNumber = nextToken.firstSectionNumber ?? firstTokenText.slice(1);
       const trailingTextForReference = kind === 'sectionRange' ? value.slice(end) : trailingText;
 
       if (hasExplicitArfMainReferenceCue({ lookback: lookbackBeforeToken, trailingText: trailingTextForReference })) {
@@ -950,6 +965,9 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
           continue;
         }
 
+        if (rangePrefixText) {
+          parts.push({ type: 'text', value: rangePrefixText });
+        }
         parts.push({
           type: 'link',
           href: arfHref,
@@ -1107,6 +1125,9 @@ export function linkifyTextValue(value, { buildHref, diagnosticBase = {}, lookba
         continue;
       }
 
+      if (rangePrefixText) {
+        parts.push({ type: 'text', value: rangePrefixText });
+      }
       parts.push({
         type: 'link',
         href,

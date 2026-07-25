@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-28
-date_updated: 2026-05-11
+date_updated: 2026-07-25
 tags: [agentic-ai, coding-assistants, claude-code, github-copilot, cursor, cline, roo-code, kilo-code, goose, opencode, crush, aider, mcp, agentic-harnesses, privacy, security, data-sovereignty, byok, agents-md]
 related: []
 ---
@@ -14,7 +14,7 @@ related: []
 
 # Agentic Harnesses: Architecture, Privacy, and Evaluation of AI-Powered Coding Assistants
 
-**DR-0004** · Published · Last updated 2026-05-11 · ~8,600 lines
+**DR-0004** · Published · Last updated 2026-07-25 · ~8,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0004-agentic-harnesses/executive-decision-summary)
@@ -7328,7 +7328,7 @@ The hidden cost of subscriptions is *model lock-in*. Claude Code is restricted t
 
 ##### 39.5 Model Tiering: The Optimal Cost-Performance Architecture
 
-The data from §§44.2–44.4 converges on a three-tier model-tiering strategy:
+The data from [§§44.2](#442-codex-desktop-app-the-multi-agent-command-centre)–[44.4](#444-desktop-vs-ide-vs-terminal-a-tradeoff-analysis) converges on a three-tier model-tiering strategy:
 
 **Tier 1 — High-volume, low-complexity (~60% of agentic interactions):** Commit messages, test scaffolding, documentation generation, simple refactoring, lint fix application. Models: Claude Haiku 4.5, Gemini 3 Flash, DeepSeek V3.2 Chat, GPT-5 mini. Per-task cost: $0.01–$0.10. These models handle routine tasks nearly as well as premium models at 5–50× lower cost. The reasoning gap is negligible for well-scoped, deterministic tasks.
 

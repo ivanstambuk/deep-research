@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-16
-date_updated: 2026-07-23
+date_updated: 2026-07-25
 tags: [eudi-wallet, eidas-2, relying-party, openid4vp, sd-jwt-vc, mdoc, iso-18013-5, haip, dcql, sca, psd2, oid4vci, trust-model, registration, proximity, remote-presentation, webauthn, pseudonyms, vendor-evaluation, security-threats, monitoring, cross-border, w3c-dc-api, status-list, aml-kyc, dora, qes, csc-api, pades, document-signing, qtsp, rqes]
 related: []
 
@@ -15,7 +15,7 @@ related: []
 
 # EUDI Wallet: Relying Party Integration Flows
 
-**DR-0002** · Published · Last updated 2026-07-23 · ~41,400 lines
+**DR-0002** · Published · Last updated 2026-07-25 · ~41,400 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0002-eudi-wallet-relying-party-integration/reader-orientation)
@@ -29480,7 +29480,7 @@ The register preserves the original open-question IDs but groups them by the imp
 | <a id="oq-60"></a> 60 | When will EN 319 486 provide a stable European-Standard profile for the RP registry API? | EC TS05 V1.3; draft EN 319 486 V0.0.1 | Implement against TS05 and the Registrar's published OpenAPI now; monitor the early EN draft and the current prose/OpenAPI parameter-name mismatch. ([§4.4](#44-registrar-rest-api)) |
 | <a id="oq-61"></a> 61 | Which proof system and verifier contract will TS 119 476-2 eventually standardise? | ETSI TS 119 476-2 V0.0.4; [Annex Topic 53](https://eudi.dev/2.8.0/annexes/annex-2/annex-2.02-high-level-requirements-by-topic/#a2331-topic-53-zero-knowledge-proofs); EC TS13/TS14 | V0.0.4 is early draft. Do not mandate a scheme, predicate syntax, payload, setup, or deployment date until a published profile and conformance vectors exist. ([§13.9.5](#1395-zero-knowledge-proofs-zkp-and-the-evolving-verification-pipeline)) |
 | <a id="oq-62"></a> 62 | When will EN 319 487 replace EC TS01 for the Wallet Trust Mark? | EC TS01 V1.2; draft EN 319 487 V0.0.1 | TS01 is the published Wallet-side baseline; the early EN draft does not create an RP credential or runtime validation substitute. ([§30.5](#305-eudi-wallet-trust-mark-ts1)) |
-| <a id="oq-63"></a> 63 | When will EN 319 482-1 through -6 stabilise the six additional interface families? | EC TS08/TS07/TS11/TS09/TS02/TS10; EN 319 482 work items | Continue with the current EC TS versions. Parts 3, 4, and 6 have public draft versions; Parts 1, 2, and 5 have started work. Preserve the RP boundary for each interface. ([§2.4](#24-technical-specifications-and-standards-sts), §§5.5–5.6, [§16](#16-w2w-presentation-flow-ec-ts09en-319-482-4), [§22](#22-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)) |
+| <a id="oq-63"></a> 63 | When will EN 319 482-1 through -6 stabilise the six additional interface families? | EC TS08/TS07/TS11/TS09/TS02/TS10; EN 319 482 work items | Continue with the current EC TS versions. Parts 3, 4, and 6 have public draft versions; Parts 1, 2, and 5 have started work. Preserve the RP boundary for each interface. ([§2.4](#24-technical-specifications-and-standards-sts), [§§5.5](#55-trusted-lists-and-lists-of-trusted-entities)–[5.6](#56-credential-rotation-and-re-issuance), [§16](#16-w2w-presentation-flow-ec-ts09en-319-482-4), [§22](#22-rp-obligations-data-deletion-dpa-reporting-and-disclosure-policy)) |
 | <a id="oq-64"></a> 64 | Which published profile will reconcile CIR 2024/2982's RP-requested WUA with issuance-oriented WIA/KA/WKA standards? | CIR 2024/2982 Art. 3(8); EC TS03 V1.5.2; ETSI TS 119 476-3 V0.0.9 | TS 119 476-3 is a stable draft, not a published RP verifier profile. Keep explicit RP wallet-attestation checks disabled until the role and full verifier contract are defined. ([§5.4](#54-wallet-unit-attestation-wua-rp-perspective), [§13.9.2](#1392-wallet-unit-attestation-wua-and-wallet-trust)) |
 | <a id="oq-65"></a> 65 | Will EN 319 401 V3.2.2 change the provider-assurance evidence RPs should request? | EN 319 401 V3.2.1; V3.2.2 stable draft | V3.2.1 remains the published service-independent TSP baseline. Reassess provider due-diligence templates when V3.2.2 publishes, while retaining service-specific overlays. ([§5.1](#51-certificate-hierarchy-and-trust-chains), [§35.5](#355-trust-verification-for-qesrcs)) |
 | <a id="oq-29"></a> 29 | Will the third edition of ISO 18013-7 Annex B strictly align with OID4VP 1.0 Final, or create a new profile divergence? | ISO/IEC JTC 1/SC 17/WG 10 | The committee committed to updating Annex B targeting Q2 2026; no draft is yet publicly available. ([§10.8](#108-iso-18013-7-and-oid4vp-version-alignment)) |

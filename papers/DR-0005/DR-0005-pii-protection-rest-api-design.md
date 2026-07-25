@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-04-08
-date_updated: 2026-05-02
+date_updated: 2026-07-25
 tags: [gdpr, pii, rest-api, encryption, tokenization, pseudonymization, fpe, owasp, data-protection, auditability, key-management, right-to-erasure]
 related: []
 reader_allow_h3_chapter_split: false
@@ -14,7 +14,7 @@ reader_allow_h3_chapter_split: false
 <!-- AUTO-GENERATED FROM src/papers/DR-0005/DR-0005-pii-protection-rest-api-design.mdx. DO NOT EDIT. -->
 
 # PII Protection in REST API Design: GDPR-Compliant Patterns for URL Payloads and Beyond
-**DR-0005** · Published · Last updated 2026-05-02
+**DR-0005** · Published · Last updated 2026-07-25
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0005-pii-protection-rest-api-design/reader-orientation)
@@ -1114,7 +1114,7 @@ timeline
 
 ## 3. Architectural Patterns
 
-This chapter analyses the five principal architectural patterns for removing PII from URL query parameters and path segments. Unlike cryptographic or tokenization approaches (covered in Chapters 4–5), these patterns restructure the HTTP request itself — changing *where* PII travels rather than *how* it is encoded. Each pattern trades off REST purity, caching behaviour, operational complexity, and implementation cost against varying levels of PII protection.
+This chapter analyses the five principal architectural patterns for removing PII from URL query parameters and path segments. Unlike cryptographic or tokenization approaches (covered in Chapters [4](#4-cryptographic-patterns)–[5](#5-pseudonymization-and-tokenization-patterns)), these patterns restructure the HTTP request itself — changing *where* PII travels rather than *how* it is encoded. Each pattern trades off REST purity, caching behaviour, operational complexity, and implementation cost against varying levels of PII protection.
 
 The patterns are presented in rough order of implementation complexity, from the simplest (POST body migration) to the most involved (single-use tokens). A comparative analysis in [§3.6](#36-comparative-analysis-architectural-patterns) provides a decision matrix for selecting the right pattern — or combination of patterns — for a given use case.
 
@@ -4634,7 +4634,7 @@ In practice, generalized datasets with k ≥ 5 or even k ≥ 11 have been re-ide
 
 ### §5.7 Product Landscape: Tokenization and Pseudonymization Platforms
 
-The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–[§5.6](#56-k-anonymity-and-generalization) are implemented by a range of commercial and open-source platforms. The following table consolidates the key products referenced across this chapter, providing a side-by-side comparison of capabilities, licensing models, and suitability for different PII protection requirements. Detailed technical analysis of each vendor appears in Chapters 10–11.
+The tokenization and pseudonymization techniques analysed in [§5.1](#51-pseudonymization-and-tokenization-concepts-and-gdpr-spectrum)–[§5.6](#56-k-anonymity-and-generalization) are implemented by a range of commercial and open-source platforms. The following table consolidates the key products referenced across this chapter, providing a side-by-side comparison of capabilities, licensing models, and suitability for different PII protection requirements. Detailed technical analysis of each vendor appears in Chapters [10](#10-tokenization-and-encryption-platforms)–[11](#11-cloud-native-and-api-gateway-solutions).
 
 | Product | Vendor | Techniques | FPE | Tokenization | Key Management | Licensing | Covered In |
 |:--------|:-------|:-----------|:---:|:------------:|:--------------:|:---------:|:----------:|
@@ -4755,7 +4755,7 @@ For most REST API use cases, this standard is not achievable without such aggres
 
 ## 6. Infrastructure and Operational Patterns
 
-This chapter examines the infrastructure-level controls that organisations deploy to mitigate PII exposure in REST API interactions. Unlike the architectural patterns in [§3](#3-architectural-patterns) (which restructure the request) or the cryptographic approaches in Chapters 4–5 (which transform the data), the patterns in this chapter operate at the network perimeter — API gateways, reverse proxies, and HTTP headers — to mask, redact, or prevent the persistence of PII after it has entered the HTTP request pipeline.
+This chapter examines the infrastructure-level controls that organisations deploy to mitigate PII exposure in REST API interactions. Unlike the architectural patterns in [§3](#3-architectural-patterns) (which restructure the request) or the cryptographic approaches in Chapters [4](#4-cryptographic-patterns)–[5](#5-pseudonymization-and-tokenization-patterns) (which transform the data), the patterns in this chapter operate at the network perimeter — API gateways, reverse proxies, and HTTP headers — to mask, redact, or prevent the persistence of PII after it has entered the HTTP request pipeline.
 
 Infrastructure patterns are inherently *defence-in-depth* measures. They do not eliminate PII from the URL during transit — that requires the architectural or cryptographic patterns covered earlier. Instead, they reduce the *blast radius* of PII exposure by controlling what gets logged, cached, forwarded, or leaked through referrer chains. In a mature PII protection strategy, these patterns complement (not replace) request-level and data-level controls.
 
@@ -5042,7 +5042,7 @@ Log redaction is a valuable but inherently incomplete control. Its limitations m
 
 - **Redaction does not prevent access.** If an attacker gains access to the logging pipeline *before* the redaction step (e.g., by compromising a log shipper or tapping into the log stream), the PII is already exposed. The redaction must be applied as early as possible in the logging pipeline — ideally at the point of log generation, not at the point of log storage.
 
-Log redaction should be treated as one layer in a defence-in-depth strategy. It reduces the PII footprint in long-term log storage and downstream analytics, but it does not eliminate PII from the HTTP request itself. For that, the architectural and cryptographic patterns in Chapters 3–5 are required.
+Log redaction should be treated as one layer in a defence-in-depth strategy. It reduces the PII footprint in long-term log storage and downstream analytics, but it does not eliminate PII from the HTTP request itself. For that, the architectural and cryptographic patterns in Chapters [3](#3-architectural-patterns)–[5](#5-pseudonymization-and-tokenization-patterns) are required.
 
 ---
 
@@ -5524,7 +5524,7 @@ Proxy-level masking is least appropriate when:
 - End-to-end encryption prevents the proxy from inspecting request contents
 - The backend services need the original PII values for processing (not just hashes or placeholders)
 
-In such cases, the request-level patterns from [§3](#3-architectural-patterns) (moving PII out of URLs) or the cryptographic approaches from Chapters 4–5 (encrypting or tokenizing PII) may be more appropriate.
+In such cases, the request-level patterns from [§3](#3-architectural-patterns) (moving PII out of URLs) or the cryptographic approaches from Chapters [4](#4-cryptographic-patterns)–[5](#5-pseudonymization-and-tokenization-patterns) (encrypting or tokenizing PII) may be more appropriate.
 
 ---
 
@@ -9324,7 +9324,7 @@ The ecosystem of open-source tools has matured significantly, reducing the barri
 
 #### §12.2.3 Engineering Effort Estimation
 
-Based on the patterns analyzed in Chapters 3–7 and the vendor capabilities surveyed in Chapters 10–11, the following effort estimates apply to a team of experienced backend engineers (mid-to-senior level, familiar with cryptography fundamentals):
+Based on the patterns analyzed in Chapters [3](#3-architectural-patterns)–[7](#7-design-time-api-governance-and-contract-enforcement) and the vendor capabilities surveyed in Chapters [10](#10-tokenization-and-encryption-platforms)–[11](#11-cloud-native-and-api-gateway-solutions), the following effort estimates apply to a team of experienced backend engineers (mid-to-senior level, familiar with cryptography fundamentals):
 
 
 

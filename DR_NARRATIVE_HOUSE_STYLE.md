@@ -462,6 +462,15 @@ Avoid:
 
 Use bare section ids only in indexes, coverage matrices, or places where the section number itself is the key.
 
+Treat an internal section or chapter range as two explicit navigation boundaries. Link the printed first and last endpoints independently, leave the separator unlinked, and do not invent links for intermediate sections that are not shown:
+
+```markdown
+[§§2.1](#first-boundary)–[2.3](#last-boundary)
+Chapters [16](#chapter-16)–[18](#chapter-18)
+```
+
+Do not make the entire range one link because a single destination is ambiguous. The shared cross-reference generator applies this rule to `§N–N`, `§§N–N`, `Sections N–N`, and `Chapters N–N` forms—including `to` in place of the dash—in both the Markdown mirror and the reader.
+
 When several references are needed, separate them with semicolons:
 
 ```markdown

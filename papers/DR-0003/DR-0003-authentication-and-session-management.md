@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-25
-date_updated: 2026-07-23
+date_updated: 2026-07-25
 tags: [authentication, session-management, passwords, fido2, webauthn, passkeys, totp, hotp, ocra, biometrics, ciba, oauth, oidc, saml, spiffe, mtls, kerberos, jwt, cookies, device-binding, zkp, anonymous-credentials, ciam, wiam, cross-device, qr-code, ble, device-attestation, caep, ssf, adaptive-auth, nhi, dpop, dbsc, fapi, private-key-jwt, fips-140, common-criteria, aal, loa, openid-federation, scim, psd2, psd3, openid4vp, openid4vci, did, vc, sd-jwt]
 related: []
 
@@ -13,7 +13,7 @@ related: []
 
 <!-- AUTO-GENERATED FROM src/papers/DR-0003/DR-0003-authentication-and-session-management.mdx. DO NOT EDIT. -->
 
-**DR-0003** · Published · Last updated 2026-07-23 · ~50,600 lines
+**DR-0003** · Published · Last updated 2026-07-25 · ~50,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0003-authentication-and-session-management/reader-orientation)
@@ -48994,7 +48994,7 @@ Authentication is a gatekeeper — inaccessible authentication means inaccessibl
 
 NIST published the first post-quantum cryptographic standards in August 2024: ML-KEM (FIPS 203, lattice-based key encapsulation), ML-DSA (FIPS 204, lattice-based digital signature), SLH-DSA (FIPS 205, hash-based signature), and FN-DSA (FIPS 206, FFT-based signature). These algorithms address the threat that quantum computers pose to the asymmetric cryptography underpinning every authentication protocol covered in this document. The most pressing concern is "harvest now, decrypt later" — adversaries collecting encrypted authentication traffic today for future decryption once cryptographically relevant quantum computers (CRQC) become available.
 
-This section consolidates the post-quantum references scattered across Chapters 1–42 into a single migration analysis, identifying which authentication components are vulnerable, the recommended hybrid migration strategy per protocol, and current vendor readiness.
+This section consolidates the post-quantum references scattered across Chapters [1](#1-authentication-assurance-levels)–[42](#42-regulatory-compliance-for-authentication) into a single migration analysis, identifying which authentication components are vulnerable, the recommended hybrid migration strategy per protocol, and current vendor readiness.
 
 #### 42b.1 Authentication Component Vulnerability Assessment
 

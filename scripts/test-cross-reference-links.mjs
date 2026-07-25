@@ -621,15 +621,29 @@ function testTargetHeadingCueOverridesExternalCitationSkip() {
 
 function testSectionRangesLinkBothEndpointsWhenResolvable() {
   const targetIndex = buildIndex([
+    { headingId: '21-section', text: '2.1 Section' },
+    { headingId: '23-section', text: '2.3 Section' },
     { headingId: '5-section', text: '5 Section' },
     { headingId: '6-section', text: '6 Section' },
+    { headingId: '15-section', text: '1.5 Section' },
+    { headingId: '17-section', text: '1.7 Section' },
     { headingId: '231-section', text: '23.1 Section' },
     { headingId: '244-section', text: '24.4 Section' },
     { headingId: '10-section', text: '10 Section' },
     { headingId: '12-section', text: '12 Section' },
+    { headingId: '16-section', text: '16 Section' },
+    { headingId: '18-section', text: '18 Section' },
+    { headingId: '2073-section', text: '20.7.3 Mandate Scope Verification' },
     { headingId: '164312-security', text: '164.312 Security' },
   ]);
 
+  const pluralSectionSignResult = linkifyTextValue('See §§2.1–2.3.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
   const rangeResult = linkifyTextValue('See §5–§6.', {
     buildHref: (target) => `#${target.headingId}`,
     diagnosticBase: {
@@ -644,7 +658,35 @@ function testSectionRangesLinkBothEndpointsWhenResolvable() {
     },
     targetIndex,
   });
+  const namedRangeResult = linkifyTextValue('Sections 1.5 to 1.7 lead into Chapters 16–18.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
   const externalRangeResult = linkifyTextValue('OpenID Connect Client-Initiated Backchannel Authentication (CIBA) Core 1.0 (§10–12):', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
+  const externalNamedRangeResult = linkifyTextValue('RFC 9449 Sections 10–12 define the external requirements.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
+  const externalRulebookRangeResult = linkifyTextValue('Read Rulebook Chapters 3–6 before configuring obligations.', {
+    buildHref: (target) => `#${target.headingId}`,
+    diagnosticBase: {
+      documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
+    },
+    targetIndex,
+  });
+  const internalAfterRulebookMentionResult = linkifyTextValue('Upgrade when the Rulebook publishes; see §20.7.3 for the current rule.', {
     buildHref: (target) => `#${target.headingId}`,
     diagnosticBase: {
       documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
@@ -658,6 +700,13 @@ function testSectionRangesLinkBothEndpointsWhenResolvable() {
     },
     targetIndex,
   });
+
+  assert.equal(pluralSectionSignResult.changed, true);
+  assert.equal(pluralSectionSignResult.diagnostics.length, 0);
+  assert.deepEqual(
+    pluralSectionSignResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
+    ['See ', '[§§2.1](#21-section)', '–', '[2.3](#23-section)', '.'],
+  );
 
   assert.equal(rangeResult.changed, true);
   assert.equal(rangeResult.diagnostics.length, 0);
@@ -673,9 +722,28 @@ function testSectionRangesLinkBothEndpointsWhenResolvable() {
     ['See ', '[§23.1](#231-section)', '–', '[24.4](#244-section)', ' and ', '[§10](#10-section)', '–', '[12](#12-section)', '.'],
   );
 
+  assert.equal(namedRangeResult.changed, true);
+  assert.equal(namedRangeResult.diagnostics.length, 0);
+  assert.deepEqual(
+    namedRangeResult.parts.map((part) => part.type === 'link' ? `[${part.text}](${part.href})` : part.value),
+    ['Sections ', '[1.5](#15-section)', ' to ', '[1.7](#17-section)', ' lead into ', 'Chapters ', '[16](#16-section)', '–', '[18](#18-section)', '.'],
+  );
+
   assert.equal(externalRangeResult.changed, false);
   assert.equal(externalRangeResult.diagnostics.length, 1);
   assert.equal(externalRangeResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(externalNamedRangeResult.changed, false);
+  assert.equal(externalNamedRangeResult.diagnostics.length, 1);
+  assert.equal(externalNamedRangeResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(externalRulebookRangeResult.changed, false);
+  assert.equal(externalRulebookRangeResult.diagnostics.length, 1);
+  assert.equal(externalRulebookRangeResult.diagnostics[0].category, 'skipped_external_citation');
+  assert.equal(internalAfterRulebookMentionResult.changed, true);
+  assert.equal(internalAfterRulebookMentionResult.diagnostics.length, 0);
+  assert.equal(
+    internalAfterRulebookMentionResult.parts.some((part) => part.type === 'link' && part.href === '#2073-section'),
+    true,
+  );
   assert.equal(legalResult.changed, false);
   assert.equal(legalResult.diagnostics[0].category, 'skipped_unsupported_xref_shape');
 }
@@ -766,6 +834,55 @@ function testHastRewriteOnlyLinksInternalReferences() {
   assert.equal(paragraphChildren[1].properties.href, '/DR-0002-eudi-wallet-relying-party-integration/5-trust-infrastructure-certificates-attestations-and-trusted-lists#522-wrpac-structure');
   assert.equal(paragraphChildren.slice(2).map((node) => node.value ?? '').join(''), ' and RFC 9449 §4.');
   assert.equal(diagnostics.some((entry) => entry.category === 'skipped_external_citation'), true);
+}
+
+function testHastRewriteLinksBothNamedRangeEndpoints() {
+  const tree = {
+    type: 'root',
+    children: [
+      {
+        type: 'element',
+        tagName: 'td',
+        properties: {},
+        children: [
+          { type: 'text', value: 'Chapters 16–18' },
+        ],
+      },
+    ],
+  };
+
+  const diagnostics = rewriteHastCrossReferences(tree, {
+    diagnosticBase: {
+      documentSlug: 'DR-0001-mcp-authentication-authorization-agent-identity',
+    },
+    slug: 'DR-0001-mcp-authentication-authorization-agent-identity',
+    targetIndex: buildIndex([
+      {
+        chapterId: '16-resource-level-authorization-patterns',
+        headingId: '16-resource-level-authorization-patterns',
+        slug: 'DR-0001-mcp-authentication-authorization-agent-identity',
+        text: '16. Resource-Level Authorization Patterns',
+      },
+      {
+        chapterId: '18-policy-enforcement-and-decision-architecture',
+        headingId: '18-policy-enforcement-and-decision-architecture',
+        slug: 'DR-0001-mcp-authentication-authorization-agent-identity',
+        text: '18. Policy Enforcement and Decision Architecture',
+      },
+    ]),
+  });
+
+  const tableCellChildren = tree.children[0].children;
+  const links = tableCellChildren.filter((node) => node.tagName === 'a');
+
+  assert.equal(diagnostics.length, 0);
+  assert.equal(links.length, 2);
+  assert.deepEqual(links.map((node) => node.children[0].value), ['16', '18']);
+  assert.deepEqual(
+    links.map((node) => node.properties['data-doc-heading-id']),
+    ['16-resource-level-authorization-patterns', '18-policy-enforcement-and-decision-architecture'],
+  );
+  assert.equal(tableCellChildren.map((node) => node.children?.[0]?.value ?? node.value ?? '').join(''), 'Chapters 16–18');
 }
 
 function testHastRewriteSupportsArfExternalReferences() {
@@ -1037,7 +1154,7 @@ function testMarkdownRewritesSupportBareArfTopicReferencesForDr0002() {
 }
 
 function testMarkdownRewritesSupportSectionRanges() {
-  const source = 'Use **§8–§11** for remote flows and §34–§35 for conclusions.\n';
+  const source = 'Use **§8–§11** for remote flows, §§2.1–2.3 for admission, and Chapters 34–35 for conclusions.\n';
   const parser = unified().use(remarkParse).use(remarkGfm);
   const tree = parser.parse(source);
   const result = collectMarkdownCrossReferenceReplacements(tree, {
@@ -1045,8 +1162,11 @@ function testMarkdownRewritesSupportSectionRanges() {
       documentSlug: 'DR-0002-eudi-wallet-relying-party-integration',
     },
     targetIndex: buildIndex([
+      { headingId: '21-admission-start', text: '2.1 Admission start' },
+      { headingId: '23-admission-end', text: '2.3 Admission end' },
       { headingId: '8-openid4vp', text: '8 OpenID4VP' },
       { headingId: '34-findings', text: '34 Findings' },
+      { headingId: '35-recommendations', text: '35 Recommendations' },
     ]),
   });
   const linked = applyTextReplacements(source, result.replacements);
@@ -1054,7 +1174,7 @@ function testMarkdownRewritesSupportSectionRanges() {
   assert.equal(result.diagnostics.length, 0);
   assert.equal(
     linked,
-    'Use **[§8](#8-openid4vp)–§11** for remote flows and [§34](#34-findings)–§35 for conclusions.\n',
+    'Use **[§8](#8-openid4vp)–§11** for remote flows, [§§2.1](#21-admission-start)–[2.3](#23-admission-end) for admission, and Chapters [34](#34-findings)–[35](#35-recommendations) for conclusions.\n',
   );
 }
 
@@ -1117,6 +1237,7 @@ testSectionRangesLinkBothEndpointsWhenResolvable();
 testExactMatchDoesNotGuessDescendants();
 testDashPunctuationReferencesLinkNormally();
 testHastRewriteOnlyLinksInternalReferences();
+testHastRewriteLinksBothNamedRangeEndpoints();
 testHastRewriteSupportsArfExternalReferences();
 testMarkdownRewritesRespectExistingFormatting();
 testMarkdownRewritesSupportExplicitArfReferences();
