@@ -13,6 +13,7 @@ const LAYOUT_WIDTH_STORAGE_KEY = 'dr-reader-layout-width';
 const MERMAID_GLOBAL_ZOOM_STORAGE_KEY = 'dr-reader-mermaid-global-zoom';
 const TEXT_SIZE_OPTIONS = ['small', 'standard', 'large'];
 const LAYOUT_WIDTH_OPTIONS = ['standard', 'wide', 'comfort'];
+const LAYOUT_WIDTH_PREFERENCE_OPTIONS = ['recommended', ...LAYOUT_WIDTH_OPTIONS];
 const DEFAULT_MERMAID_ZOOM_PERCENT = 60;
 const MIN_MERMAID_ZOOM_PERCENT = 50;
 const MAX_MERMAID_ZOOM_PERCENT = 200;
@@ -109,14 +110,6 @@ function readInitialTextSize() {
   return 'standard';
 }
 
-function resolveRecommendedLayoutWidth(viewportWidth) {
-  if (viewportWidth >= 1400) {
-    return 'wide';
-  }
-
-  return 'standard';
-}
-
 function normalizeLayoutWidthPreference(value) {
   if (value === 'recommended' || LAYOUT_WIDTH_OPTIONS.includes(value)) {
     return value;
@@ -208,17 +201,13 @@ function AppShell() {
   const [globalMermaidZoomPercent, setGlobalMermaidZoomPercent] = useState(() => readInitialGlobalMermaidZoom());
   const [textMenuOpen, setTextMenuOpen] = useState(false);
   const textMenuRef = useRef(null);
-  const recommendedLayoutWidth = useMemo(
-    () => resolveRecommendedLayoutWidth(window.innerWidth),
-    [],
-  );
   const layoutWidthMode = useMemo(() => {
     if (layoutWidthPreference === 'recommended') {
-      return recommendedLayoutWidth;
+      return 'adaptive';
     }
 
     return layoutWidthPreference;
-  }, [layoutWidthPreference, recommendedLayoutWidth]);
+  }, [layoutWidthPreference]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) {
@@ -330,9 +319,11 @@ function AppShell() {
                   <section className="display-settings-section" aria-labelledby="display-settings-layout-width">
                     <div id="display-settings-layout-width" className="toolbar-popover-title">Layout Width</div>
                     <div className="text-size-options">
-                      {LAYOUT_WIDTH_OPTIONS.map((option) => {
-                        const checked = layoutWidthMode === option;
-                        const label = option.charAt(0).toUpperCase() + option.slice(1);
+                      {LAYOUT_WIDTH_PREFERENCE_OPTIONS.map((option) => {
+                        const checked = layoutWidthPreference === option;
+                        const label = option === 'recommended'
+                          ? 'Adaptive'
+                          : option.charAt(0).toUpperCase() + option.slice(1);
 
                         return (
                           <button
@@ -350,17 +341,10 @@ function AppShell() {
                         );
                       })}
                     </div>
-                    <button
-                      type="button"
-                      className={`display-settings-reset${layoutWidthPreference === 'recommended' ? ' is-selected' : ''}`}
-                      onClick={() => setLayoutWidthPreference('recommended')}
-                    >
-                      Use recommended
-                    </button>
                     <div className="display-settings-caption">
                       {layoutWidthPreference === 'recommended'
-                        ? `Recommended for this screen: ${layoutWidthMode.charAt(0).toUpperCase()}${layoutWidthMode.slice(1)}`
-                        : `Current recommendation for this screen: ${recommendedLayoutWidth.charAt(0).toUpperCase()}${recommendedLayoutWidth.slice(1)}`}
+                        ? 'Recommended: reclaims available space while keeping prose readable.'
+                        : `Fixed ${layoutWidthPreference} width. Choose Adaptive to respond to the navigation rails.`}
                     </div>
                   </section>
                 </div>

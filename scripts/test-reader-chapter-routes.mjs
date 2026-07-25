@@ -479,12 +479,12 @@ async function assertLayoutWidthControls(page) {
 
   await openDisplaySettings();
   await page.waitForFunction(() => (
-    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'adaptive' &&
     window.localStorage.getItem('dr-reader-layout-width') === 'recommended' &&
     [...document.querySelectorAll('.display-settings-section')]
       .find((section) => section.textContent?.includes('Layout Width'))
       ?.querySelector('.text-size-option.is-selected')
-      ?.textContent?.trim() === 'Wide'
+      ?.textContent?.trim() === 'Adaptive'
   ), null, { timeout: 20_000 });
 
   const recommendedMetrics = await readReaderMetrics();
@@ -511,16 +511,15 @@ async function assertLayoutWidthControls(page) {
     throw new Error(`comfort layout did not broaden desktop shell: comfort=${JSON.stringify(comfortMetrics)}, standard=${JSON.stringify(standardMetrics)}`);
   }
 
-  await openDisplaySettings();
-  await page.locator('button.display-settings-reset').click();
+  await clickLayoutOption('Adaptive');
   await openDisplaySettings();
   await page.waitForFunction(() => (
-    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'adaptive' &&
     window.localStorage.getItem('dr-reader-layout-width') === 'recommended' &&
     [...document.querySelectorAll('.display-settings-section')]
       .find((section) => section.textContent?.includes('Layout Width'))
       ?.querySelector('.text-size-option.is-selected')
-      ?.textContent?.trim() === 'Wide'
+      ?.textContent?.trim() === 'Adaptive'
   ), null, { timeout: 20_000 });
   await closeDisplaySettings();
 }
@@ -556,9 +555,9 @@ async function assertLayoutWidthRespectsExplicitNavResize(page) {
   }, explicitWidth, { timeout: 20_000 });
 
   await openDisplaySettings();
-  await page.locator('button.display-settings-reset').click();
+  await page.locator('.display-settings-section').filter({ hasText: 'Layout Width' }).locator('button.text-size-option', { hasText: 'Adaptive' }).click();
   await page.waitForFunction(() => (
-    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'wide' &&
+    document.querySelector('.chapter-reader')?.getAttribute('data-layout-width') === 'adaptive' &&
     window.localStorage.getItem('dr-reader-layout-width') === 'recommended'
   ), null, { timeout: 20_000 });
   await closeDisplaySettings();

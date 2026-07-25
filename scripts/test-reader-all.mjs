@@ -5,6 +5,7 @@ const STEPS = [
   ['node', ['scripts/test-cross-reference-links.mjs']],
   ['node', ['scripts/test-reader-inline-directives.mjs']],
   ['node', ['scripts/test-reader-chapter-routes.mjs']],
+  ['node', ['scripts/test-reader-adaptive-layout.mjs']],
 ];
 
 async function main() {
