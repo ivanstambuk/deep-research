@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-07-25
+date_updated: 2026-07-26
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 
@@ -14,7 +14,7 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-25 · ~27,900 lines
+**DR-0001** · Published · Last updated 2026-07-26 · ~28,600 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
@@ -79,7 +79,8 @@ related: []
     - [5.3 Request, Response, and Failure Semantics](#53-request-response-and-failure-semantics)
     - [5.4 Current Actor and Delegation History](#54-current-actor-and-delegation-history)
     - [5.5 Derivation, Lifecycle, and Cross-Domain Boundary](#55-derivation-lifecycle-and-cross-domain-boundary)
-    - [5.6 When Token Exchange Is Not the Answer](#56-when-token-exchange-is-not-the-answer)
+    - [5.6 Identity and Authorization Chaining Across Trust Domains](#56-identity-and-authorization-chaining-across-trust-domains)
+    - [5.7 When Token Exchange Is Not the Answer](#57-when-token-exchange-is-not-the-answer)
   </details>
   - <details><summary><a href="#6-agent-identity-vs-user-identity">6 Agent Identity vs. User Identity</a></summary>
 
@@ -762,7 +763,7 @@ The architecture preserves the following artifacts and proof limits at those bou
 | **Downstream authority** | Target audience, operation/scope, subject/actor context, short lifetime, custody handle, and correlation to the application decision | A separately issued or released credential may be used at the named backend boundary | Permission to pass through the MCP token, reuse the credential for another audience, or expose credential material to the model/client | [§2.3](#23-canonical-request-to-effect-flow), §5, and [§11.7](#117-brokered-credential-use-solved-walkthrough) |
 | **Provider result and MCP release** | Provider outcome, classification/redaction result, safe decision correlation, and final typed MCP result | The returned content passed the recipient and release obligations for this request | A right to retain raw provider data, disclose redacted fields, or reuse the result outside its cache/recipient policy | [§§2.2](#22-explicit-application-state-and-result-boundaries)–[2.3](#23-canonical-request-to-effect-flow) and [§17.7](#177-cache-authority) |
 
-Every metadata or client-document fetch is an untrusted network operation: enforce HTTPS, redirect and DNS/IP policy, response-size and content-type limits, issuer consistency, and cache/change control before using the response. Raw authorization codes, bearer credentials, private keys, secrets, and unredacted provider data remain outside evidence records. The complete wire ceremonies now live only in §§1.3 and 1.5–1.7; request-to-effect authorization lives in [§2.3](#23-canonical-request-to-effect-flow); generic downstream derivation lives in §5.
+Every metadata or client-document fetch is an untrusted network operation: enforce HTTPS, redirect and DNS/IP policy, response-size and content-type limits, issuer consistency, and cache/change control before using the response. Under the queued [Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) BCP, any request carrying `Authorization`, `Proxy-Authorization`, a secret-bearing cookie, or another reusable credential must **start** on a validated HTTPS endpoint; sending it over plaintext HTTP and following a redirect cannot undo disclosure. Reject insecure credential transport without revealing whether the credential was valid, and treat a reusable credential observed on an insecure channel as potentially compromised. Raw authorization codes, bearer credentials, private keys, secrets, and unredacted provider data remain outside evidence records. The complete wire ceremonies now live only in §§1.3 and 1.5–1.7; request-to-effect authorization lives in [§2.3](#23-canonical-request-to-effect-flow); generic downstream derivation lives in §5.
 
 #### 1.3 Pre-Registration and Client ID Metadata Documents (CIMD)
 
@@ -1320,7 +1321,17 @@ The fail-closed owner and retry consequence are explicit at every layer:
 
 #### 1.6 Enterprise-Managed Authorization: Alternative Grant Profile
 
-The stable MCP [Enterprise-Managed Authorization (EMA)](https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization) extension is an alternative initial grant path for enterprise-managed clients. It uses an enterprise identity assertion and the active OAuth WG [Identity Assertion Authorization Grant (ID-JAG)](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) to obtain an MCP-resource access token after enterprise SSO and administrator policy evaluation. It is not client registration, generic issuer federation, or proof that an MCP operation is allowed.
+The stable MCP [Enterprise-Managed Authorization (EMA)](https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization) extension is an alternative initial grant path for enterprise-managed clients. It uses an enterprise identity assertion and the active OAuth WG [Identity Assertion JWT Authorization Grant (ID-JAG)](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) to obtain an MCP-resource access token after enterprise SSO and administrator policy evaluation. It is a specialized enterprise profile of the two-domain composition defined in [§5.6](#56-identity-and-authorization-chaining-across-trust-domains)—not client registration, generic issuer federation, or proof that an MCP operation is allowed.
+
+The complete flow remains here because EMA adds protocol and governance requirements beyond generic Identity Chaining:
+
+| Dimension | Generic Identity Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)) | EMA / ID-JAG delta |
+|:--|:--|:--|
+| Intermediate token type | JWT authorization grant identified as `urn:ietf:params:oauth:token-type:jwt` | ID-JAG identified as `urn:ietf:params:oauth:token-type:id-jag` with protected `typ: oauth-id-jag+jwt` |
+| Capability metadata | AS-A can publish `identity_chaining_requested_token_types_supported` | Target AS advertises `authorization_grant_profiles_supported` with the exact ID-JAG grant-profile URN |
+| Starting evidence | Any subject-token type accepted by the bilateral profile | Enterprise OIDC ID token in this solved flow; SAML requires its own ceremony/profile |
+| Governance | Bilateral AS trust, transcription, and local issuance policy | Enterprise requesting-app/resource-app relationship plus administrator policy over user, client, target resource, and scope |
+| Second leg | RFC 7523 JWT authorization grant at AS-B | Same authorization-grant mechanism, with ID-JAG-specific type, claims, and validation rules |
 
 The client may select EMA only when the target authorization server's metadata contains the exact grant-profile signal and the deployment has separately configured trust between the enterprise identity provider and target authorization server:
 
@@ -1704,7 +1715,7 @@ sequenceDiagram
 
 <details><summary><strong>1. Machine MCP Client authenticates and requests an MCP-resource token</strong></summary>
 
-The client signs a short-lived JWT assertion with the preregistered key and sends it only to the validated token endpoint. The assertion audience is that endpoint, while the OAuth `resource` parameter identifies the MCP resource. The exact scope is the minimum machine authority required.
+The client signs a short-lived JWT assertion with the preregistered key and sends it only to the validated token endpoint. Under the [queued RFC 7523 update](https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc7523bis/), the assertion's sole audience is the authorization server's RFC 8414 issuer identifier—not its token-endpoint URL—while the OAuth `resource` parameter identifies the MCP resource. The exact scope is the minimum machine authority required.
 
 ```http
 POST /token HTTP/1.1
@@ -1719,20 +1730,30 @@ resource=https%3A%2F%2Fmcp.internal.example&
 scope=system%3Ahealth%3Aread
 ```
 
-**Illustrative validated client-assertion claims:**
+**Illustrative protected header:**
+
+```json
+{
+  "typ": "client-authentication+jwt",
+  "alg": "RS256",
+  "kid": "agent-batch-001-2026-07"
+}
+```
+
+**Illustrative validated client-authentication assertion claims:**
 
 ```json
 {
   "iss": "agent-batch-001",
   "sub": "agent-batch-001",
-  "aud": "https://auth.internal.example/token",
+  "aud": "https://auth.internal.example",
   "jti": "ca-01JQ...",
   "iat": 1784973600,
   "exp": 1784973660
 }
 ```
 
-The AS rejects an unknown client/key, assertion replay, wrong audience, expired assertion, unapproved resource, or scope outside the preregistered machine policy.
+The AS rejects an unknown client/key, assertion replay, any audience other than its exact issuer identifier, an expired assertion, an unapproved resource, or scope outside the preregistered machine policy. Explicit `typ` signals the tightened profile, but the sole-audience rule is the primary protection. This direct-machine profile does not admit SAML bearer assertions for client authentication in new applications.
 
 **Artifact Produced:** A one-time client-authentication decision joined to the preregistration version, key ID, target resource, requested scope, and assertion `jti`; no private key or raw assertion enters audit evidence.
 
@@ -3313,7 +3334,7 @@ The OAuth client credential is held separately. It authenticates `client:report-
 <details>
 <summary><strong>2. AI Agent sends an authenticated token exchange request to the Authorization Server</strong></summary>
 
-The agent posts the RFC 8693 form to the token endpoint and authenticates the OAuth client with a signed client assertion. The request asks for one resource and one attenuated scope. The client assertion and actor token are profile choices; the `grant_type`, subject token, and subject-token type are the RFC-required exchange fields.
+The agent posts the RFC 8693 form to the token endpoint and authenticates the OAuth client with a signed client assertion. The request asks for one resource and one attenuated scope. The client assertion follows [§1.7](#17-oauth-client-credentials-direct-machine-authority)'s issuer-only audience and explicit-type profile; the actor token is a separate deployment choice. The `grant_type`, subject token, and subject-token type are the RFC-required exchange fields.
 
 **Profile-specific request example:**
 ```http
@@ -3610,15 +3631,582 @@ flowchart LR
 
 An optional refresh token is likewise not durable authority by itself. RFC 8693 says it is typically absent when one temporary credential is exchanged for another; a profile that issues one must state the conditions. Authorization Continuity and Durable Tasks ([§10](#10-authorization-continuity-and-durable-tasks)) supplies the authority record, expiry, revocation, and re-evaluation needed for user-not-present work.
 
-> **Note — Cross-domain chaining is close to publication, but is not yet an RFC**
+Cross-domain use adds another authorization decision and another lifecycle boundary; it does not repair RFC 8693's lack of automatic input/output linkage. The canonical two-domain composition, claim-transcription evidence, and termination consequences are defined in [§5.6](#56-identity-and-authorization-chaining-across-trust-domains).
+
+#### 5.6 Identity and Authorization Chaining Across Trust Domains
+
+[OAuth Identity and Authorization Chaining Across Domains](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) composes two existing OAuth mechanisms across an explicit trust boundary. A client in trust domain A obtains a JWT **authorization grant** from Authorization Server A through [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693.html), then presents that assertion to Authorization Server B through the authorization-grant form of [RFC 7523](https://www.rfc-editor.org/rfc/rfc7523.html). Authorization Server B makes a new local decision and issues an access token for Resource Server B.
+
+As of **July 26, 2026**, revision `-17` is an intended Proposed Standard in the RFC Editor queue. This report adopts the profile as the forward cross-domain pattern while retaining its dated draft status and requiring conformance revalidation when the RFC is published.
+
+> **Important — Chaining creates a new domain-B decision; it does not forward domain-A authority**
 >
-> As of **July 24, 2026**, [OAuth Identity and Authorization Chaining Across Domains `-17`](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) is in the RFC Editor queue. It combines an RFC 8693 exchange in trust domain A with an RFC 7523 JWT authorization grant presented to the authorization server in trust domain B. It allows controlled claim transcription and recommends a single target-AS audience where possible. Until publication, treat it as a dated profile, not as proof that ordinary nested `act` claims solve federation.
+> The intermediate JWT is an authorization grant for Authorization Server B, not an access token for Resource Server B. A nested `act` claim can describe an actor, but it cannot establish inter-domain issuer trust, authorize claim transcription, or replace either authorization-server decision.
 
-Cross-domain claim transcription can add, remove, change, or map claims, including subject identifiers. The evidence record must therefore show which authority transformed each claim and why the target domain trusted that transformation. Data minimization is a feature of the boundary, not a loss of required audit state: detailed provenance can remain in protected records while the foreign-domain token carries only what its resource needs.
+##### 5.6.1 Preconditions and Trust Boundary
 
-#### 5.6 When Token Exchange Is Not the Answer
+The worked example uses four runtime parties and two independently governed authorization domains:
+
+```mermaid
+flowchart LR
+    Client["`**Client in Domain A**
+    report-agent
+    holds accepted subject evidence`"]
+    ASA["`**Authorization Server A**
+    https://idp.alpha.example
+    exchange + transcription policy`"]
+    ASB["`**Authorization Server B**
+    https://auth.partner.example
+    assertion + local-access policy`"]
+    RSB["`**Resource Server B**
+    https://mcp.partner.example
+    MCP tool enforcement`"]
+
+    Client -->|"1 · RFC 8693 subject evidence"| ASA
+    ASA -->|"2 · JWT authorization grant<br/>aud = AS-B"| Client
+    Client -->|"3 · RFC 7523 assertion"| ASB
+    ASB -->|"4 · domain-B access token<br/>aud = RS-B"| Client
+    Client -->|"5 · MCP request"| RSB
+    ASA -.->|"pre-established issuer,<br/>key, claim, and policy trust"| ASB
+
+    style Client text-align:left
+    style ASA text-align:left
+    style ASB text-align:left
+    style RSB text-align:left
+```
+
+The dashed relationship is configuration and governance established before the runtime exchange. It must not be implemented as a blind first-use key fetch initiated by an untrusted assertion.
+
+| Precondition | Required deployment decision | Fail-closed consequence |
+|:--|:--|:--|
+| **Resource-to-AS mapping** | The client discovers Authorization Server B through [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) Protected Resource Metadata, an administratively pinned mapping, or another trusted mechanism | Do not guess an issuer from a hostname, challenge string, or model-supplied URL |
+| **Inter-AS issuer trust** | Authorization Server B pins Authorization Server A's exact issuer, accepted signing algorithms and keys, key-rotation process, and authority to issue this grant class | Unknown issuer, untrusted key, algorithm downgrade, or ambiguous key ownership denies the assertion |
+| **Client registrations** | The client has separately governed credentials and permitted authentication methods at Authorization Server A and Authorization Server B | A credential registered for one AS is never replayed to the other |
+| **Subject-token policy** | Authorization Server A defines accepted token types, issuers, audiences, presenters, and the client's authority to exchange the token | Possession of a stolen domain-A token is insufficient to obtain a cross-domain grant |
+| **Target binding** | The exchange names one Authorization Server B with `resource` or `audience`; the issued JWT grant binds its `aud` to that AS | Missing, unknown, multiple, or overbroad targets are rejected |
+| **Claim contract** | Both domains agree on the semantics, minimization, transformation, and provenance of every transcribed claim | Unmapped subjects, conflicting semantics, or unsupported assurance values deny issuance |
+| **Replay and lifetime** | The grant is short-lived; Authorization Server B defines `jti`/fingerprint replay handling, permitted reuse, clock skew, and client/key binding | Replayed, expired, not-yet-valid, or already-consumed grants fail without fallback to forwarding |
+| **Domain-B authorization** | Authorization Server B maps the transcribed identity and authority into local resource, scope, tenant, and policy rules | Successful grant validation does not compel access-token issuance |
+| **Lifecycle and evidence** | Both decisions record correlation, policy version, input/output fingerprints, and termination signals without logging bearer values | An uncorrelated or unevidenced chain is not released for consequential operations |
+
+Discovery metadata is capability evidence, not trust by itself. Authorization Server A can advertise `identity_chaining_requested_token_types_supported`; absence of the optional member does not prove that a type is unsupported, and presence does not authorize a particular client, subject token, target AS, or scope.
+
+##### 5.6.2 Canonical Two-Domain Wire Flow
+
+The flow deliberately expands discovery, both token transactions, and the protected-resource call into separate messages. The trust relationship between the authorization servers is a prerequisite from [§5.6.1](#561-preconditions-and-trust-boundary), not an extra runtime exchange.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 Client<br/>(Domain A)
+    participant RSB as 🛠️ MCP Resource Server<br/>(Domain B)
+    participant ASA as 🔑 Authorization Server A
+    participant ASB as 🔐 Authorization Server B
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Discover the target authority
+    Client->>RSB: GET protected-resource metadata
+    RSB-->>Client: Return resource identifier + AS-B
+    Client->>ASB: GET AS-B authorization-server metadata
+    ASB-->>Client: Return issuer, endpoints, keys, grants
+    Client->>ASA: GET AS-A authorization-server metadata
+    ASA-->>Client: Return exchange endpoint + chaining types
+    Note right of ASB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Obtain a domain-B authorization grant
+    Client->>ASA: POST RFC 8693 token exchange<br/>subject evidence + AS-B target
+    ASA-->>Client: Return short-lived JWT authorization grant<br/>audience = AS-B
+    Note right of ASB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(52, 152, 219, 0.14)
+    Note right of Client: Phase 3: Obtain local domain-B authority
+    Client->>ASB: POST RFC 7523 JWT-bearer grant<br/>assertion = intermediate JWT
+    ASB-->>Client: Return domain-B access token<br/>resource = MCP Server B
+    Note right of ASB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 4: Execute under domain-B enforcement
+    Client->>RSB: POST MCP tools/call<br/>domain-B access token
+    RSB-->>Client: Return MCP result + correlation
+    Note right of ASB: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. Client requests Protected Resource Metadata from Resource Server B</strong></summary>
+
+The client starts from the resource it intends to call. For the resource identifier `https://mcp.partner.example/mcp`, the path-aware [RFC 9728](https://www.rfc-editor.org/rfc/rfc9728.html) well-known request is:
+
+```http
+GET /.well-known/oauth-protected-resource/mcp HTTP/1.1
+Host: mcp.partner.example
+Accept: application/json
+```
+
+The fetch follows the same SSRF, DNS/IP, redirect, size, content-type, and TLS controls as the canonical bootstrap in [§1.2](#12-trust-boundaries-and-authorization-artifacts). No credential or subject token accompanies this discovery request.
+
+</details>
+<details>
+<summary><strong>2. Resource Server B returns its resource identifier and Authorization Server B</strong></summary>
+
+Resource Server B identifies both itself and the authorization server permitted to issue its access tokens:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=300
+
+{
+  "resource": "https://mcp.partner.example/mcp",
+  "authorization_servers": [
+    "https://auth.partner.example"
+  ],
+  "bearer_methods_supported": ["header"],
+  "scopes_supported": [
+    "tools:records.read"
+  ]
+}
+```
+
+The client requires an exact resource match and validates each authorization-server identifier independently. A model-generated, redirected, suffix-matched, or merely similar issuer is not an acceptable substitute.
+
+**Artifact Produced:** Validated resource→AS-B binding with source URL, fetch time, response fingerprint, cache lifetime, and network-policy result.
+
+</details>
+<details>
+<summary><strong>3. Client requests Authorization Server B metadata</strong></summary>
+
+Because the selected issuer has no path component, the client requests the [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414.html) authorization-server metadata location:
+
+```http
+GET /.well-known/oauth-authorization-server HTTP/1.1
+Host: auth.partner.example
+Accept: application/json
+```
+
+This request discovers AS-B's exact issuer, token endpoint, keys, and supported grant/authentication methods. It does not yet send the intermediate grant or client credential.
+
+</details>
+<details>
+<summary><strong>4. Authorization Server B returns issuer, endpoint, key, and grant metadata</strong></summary>
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=300
+
+{
+  "issuer": "https://auth.partner.example",
+  "token_endpoint": "https://auth.partner.example/token",
+  "jwks_uri": "https://auth.partner.example/jwks.json",
+  "grant_types_supported": [
+    "urn:ietf:params:oauth:grant-type:jwt-bearer"
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "private_key_jwt"
+  ]
+}
+```
+
+The client rejects issuer inconsistency before constructing a token request. It retains the AS-B issuer separately from the token endpoint because the issuer is the sole audience of a JWT used for client authentication under the queued RFC 7523 update.
+
+**Artifact Produced:** Validated AS-B metadata snapshot and issuer-bound client-registration selection.
+
+</details>
+<details>
+<summary><strong>5. Client requests Authorization Server A metadata</strong></summary>
+
+The client independently discovers its home-domain authorization server:
+
+```http
+GET /.well-known/oauth-authorization-server HTTP/1.1
+Host: idp.alpha.example
+Accept: application/json
+```
+
+AS-A is selected from local enterprise configuration or the authority record governing the domain-A subject token—not from AS-B's assertion or an untrusted downstream response.
+
+</details>
+<details>
+<summary><strong>6. Authorization Server A returns its exchange endpoint and chaining token types</strong></summary>
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: max-age=300
+
+{
+  "issuer": "https://idp.alpha.example",
+  "token_endpoint": "https://idp.alpha.example/token",
+  "jwks_uri": "https://idp.alpha.example/jwks.json",
+  "grant_types_supported": [
+    "urn:ietf:params:oauth:grant-type:token-exchange"
+  ],
+  "token_endpoint_auth_methods_supported": [
+    "private_key_jwt"
+  ],
+  "identity_chaining_requested_token_types_supported": [
+    "urn:ietf:params:oauth:token-type:jwt"
+  ]
+}
+```
+
+The optional chaining member advertises requestable output token types. Local policy still decides whether `agent-client-a` may exchange this subject token for this target authorization server and scope.
+
+**Artifact Produced:** Validated AS-A metadata snapshot and selected exchange/client-authentication profile.
+
+</details>
+<details>
+<summary><strong>7. Client sends an RFC 8693 exchange request to Authorization Server A</strong></summary>
+
+The request authenticates `agent-client-a`, presents domain-A subject evidence, requests a JWT authorization grant, and names exactly one target authorization server:
+
+```http
+POST /token HTTP/1.1
+Host: idp.alpha.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&client_id=agent-client-a
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJ0eXAiOiJjbGllbnQtYXV0aGVudGljYXRpb24rand0iLC...
+&subject_token=eyJhbGciOiJFUzI1NiIs...
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:jwt
+&resource=https%3A%2F%2Fauth.partner.example
+&scope=tools%3Arecords.read
+```
+
+The client-authentication assertion is a different JWT from the subject token. Its protected header and audience follow the forward RFC 7523 client-authentication profile:
+
+```json
+{
+  "typ": "client-authentication+jwt",
+  "alg": "ES256",
+  "kid": "agent-client-a-2026-07"
+}
+```
+
+```json
+{
+  "iss": "agent-client-a",
+  "sub": "agent-client-a",
+  "aud": "https://idp.alpha.example",
+  "iat": 1785067200,
+  "exp": 1785067260,
+  "jti": "client-auth:a:8f04c1"
+}
+```
+
+AS-A validates the client, subject token, authorized presenter, requested token type, single target, scope attenuation, and transcription policy before issuing anything.
+
+</details>
+<details>
+<summary><strong>8. Authorization Server A returns the intermediate JWT authorization grant</strong></summary>
+
+RFC 8693 retains the historical response-member name `access_token`, but `issued_token_type` identifies the returned value as a JWT. In this profile it is an authorization grant for AS-B, not an access token for Resource Server B:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-cache, no-store
+
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFzLWEtMjAyNi0wNyJ9...",
+  "issued_token_type": "urn:ietf:params:oauth:token-type:jwt",
+  "token_type": "N_A",
+  "expires_in": 60,
+  "scope": "tools:records.read"
+}
+```
+
+**Decoded protected header:**
+
+```json
+{
+  "alg": "ES256",
+  "kid": "as-a-2026-07"
+}
+```
+
+**Decoded JWT authorization-grant claims:**
+
+```json
+{
+  "iss": "https://idp.alpha.example",
+  "sub": "urn:alpha:subject:7f83c2",
+  "aud": "https://auth.partner.example",
+  "scope": "tools:records.read",
+  "iat": 1785067201,
+  "exp": 1785067261,
+  "jti": "chain-grant:a-b:91d72e",
+  "act": {
+    "sub": "agent:report-agent"
+  }
+}
+```
+
+The sole AS-B audience prevents presentation to another authorization domain. The pairwise subject and minimized scope cross the boundary; domain-A directory identifiers and unrelated entitlements do not.
+
+**Artifact Produced:** Short-lived JWT authorization grant plus AS-A's exchange/transcription decision record.
+
+</details>
+<details>
+<summary><strong>9. Client presents the JWT authorization grant to Authorization Server B</strong></summary>
+
+The intermediate JWT travels in the RFC 7523 `assertion` parameter. The client separately authenticates to AS-B with a new `client_assertion` created for AS-B:
+
+```http
+POST /token HTTP/1.1
+Host: auth.partner.example
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
+&assertion=eyJhbGciOiJFUzI1NiIsImtpZCI6ImFzLWEtMjAyNi0wNyJ9...
+&client_id=partner-agent-client
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=eyJ0eXAiOiJjbGllbnQtYXV0aGVudGljYXRpb24rand0iLC...
+&resource=https%3A%2F%2Fmcp.partner.example%2Fmcp
+&scope=tools%3Arecords.read
+```
+
+| Form member | Security object | Audience and job |
+|:--|:--|:--|
+| `assertion` | JWT **authorization grant** issued by AS-A | AS-B is a valid audience; conveys minimized domain-A identity/authority for a new local decision |
+| `client_assertion` | JWT **client authentication** issued by `partner-agent-client` | AS-B's RFC 8414 issuer is the sole audience; proves which registered client presents the grant |
+
+AS-B validates the grant's issuer, signature, audience, time, replay state, subject mapping, and accepted transcription contract. It then evaluates the authenticated client, requested resource/scope, local tenant and entitlement policy, and any sender-constraint requirement.
+
+</details>
+<details>
+<summary><strong>10. Authorization Server B returns the domain-B access token</strong></summary>
+
+After both assertion validation and local authorization succeed, AS-B returns a short-lived access token for Resource Server B:
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-cache, no-store
+
+{
+  "access_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFzLWItMjAyNi0wNyJ9...",
+  "token_type": "Bearer",
+  "expires_in": 300,
+  "scope": "tools:records.read"
+}
+```
+
+No refresh token is issued. When this token expires, the client must reuse an unexpired and reusable intermediate grant or return to AS-A for a new one. The client treats the access token as opaque; the following is the resource-server view under this example's JWT access-token profile:
+
+```json
+{
+  "iss": "https://auth.partner.example",
+  "sub": "urn:partner:subject:24b91d",
+  "aud": "https://mcp.partner.example/mcp",
+  "client_id": "partner-agent-client",
+  "scope": "tools:records.read",
+  "iat": 1785067202,
+  "exp": 1785067502,
+  "jti": "access:b:4a63f0",
+  "act": {
+    "sub": "agent:report-agent"
+  }
+}
+```
+
+**Artifact Produced:** Domain-B access token plus AS-B's assertion-validation, subject-mapping, and access-token decision record.
+
+</details>
+<details>
+<summary><strong>11. Client calls Resource Server B with the domain-B access token</strong></summary>
+
+Only AS-B's resource token crosses the MCP boundary. The domain-A subject token, the intermediate JWT grant, and both client-authentication assertions remain outside the model context and MCP request:
+
+```http
+POST /mcp HTTP/1.1
+Host: mcp.partner.example
+Authorization: Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImFzLWItMjAyNi0wNyJ9...
+Content-Type: application/json
+Traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-5e4d3c2b1a090807-01
+
+{
+  "jsonrpc": "2.0",
+  "id": 61,
+  "method": "tools/call",
+  "params": {
+    "name": "records.read",
+    "arguments": {
+      "record_id": "case-7841"
+    }
+  }
+}
+```
+
+Resource Server B validates AS-B's access-token profile, exact issuer and audience, lifetime, scope-to-tool mapping, current actor, local policy, and termination state. The earlier cross-domain exchange is evidence, not an instruction to bypass resource-server authorization.
+
+</details>
+<details>
+<summary><strong>12. Resource Server B returns the MCP result and records the joined evidence</strong></summary>
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-5e4d3c2b1a090807-01
+
+{
+  "jsonrpc": "2.0",
+  "id": 61,
+  "result": {
+    "resultType": "complete",
+    "content": [
+      {
+        "type": "text",
+        "text": "Record case-7841 retrieved."
+      }
+    ]
+  }
+}
+```
+
+The protected evidence graph joins the resource decision to AS-B's access-token decision and AS-A's exchange/transcription decision by decision identifiers and token fingerprints. Raw bearer tokens and intermediate grants are not retained in logs.
+
+**Artifact Produced:** MCP authorization/effect record correlated to both authorization-server decisions and the originating domain-A authority record.
+
+</details>
+
+##### 5.6.3 Claim Transcription, Provenance, and Evidence
+
+Claim transcription is the authorization-sensitive center of the profile. AS-A and AS-B may add, remove, change, or map claims—including the subject identifier—but the draft does not define a universal transformation language, evidence record, or cross-domain meaning for a claim name. Both domains must agree on semantics and access-control consequences.
+
+```mermaid
+flowchart LR
+    EvidenceA["`**Domain-A evidence**
+    local subject · actor
+    groups · assurance`"]
+    PolicyA["`**AS-A transcription**
+    minimize · pairwise-map
+    constrain target + scope`"]
+    Grant["`**JWT authorization grant**
+    issuer AS-A · audience AS-B
+    foreign subject · short lifetime`"]
+    PolicyB["`**AS-B transcription**
+    resolve local subject
+    map local entitlements`"]
+    TokenB["`**Domain-B access token**
+    issuer AS-B · audience RS-B
+    local subject + local scope`"]
+
+    EvidenceA --> PolicyA --> Grant --> PolicyB --> TokenB
+
+    style EvidenceA text-align:left
+    style PolicyA text-align:left
+    style Grant text-align:left
+    style PolicyB text-align:left
+    style TokenB text-align:left
+```
+
+The worked chain applies the following completed transformations:
+
+| Source evidence | AS-A transcription rule | JWT authorization grant | AS-B local rule | Domain-B result |
+|:--|:--|:--|:--|:--|
+| `sub = user:alice@alpha.example` | Resolve pairwise mapping for partner domain; never disclose the directory login | `sub = urn:alpha:subject:7f83c2` | Map the approved foreign subject to the partner account | `sub = urn:partner:subject:24b91d` |
+| `act.sub = agent:report-agent` | Preserve the current actor because the bilateral contract defines its semantics | `act.sub = agent:report-agent` | Require that actor for the registered client and tool family | Preserve `act.sub`; deny an absent or different actor |
+| Alpha group `records-readers` | Convert only the approved entitlement into the partner-facing scope | `scope = tools:records.read` | Map the scope to `records.read` and the requested record class | Issue exactly `tools:records.read`; no write/admin right |
+| Alpha groups `research-admin`, `payroll-readers` | Remove as unnecessary and unauthorized for this target | Absent | No input exists to map | Absent |
+| `acr = urn:alpha:loa:2`; `amr = ["pwd","otp"]` | Record the validated assurance and map it to bilateral assurance class `partner-medium`; omit raw authentication-method detail from the grant | No raw `amr`; protected decision record contains the mapping | Require at least `partner-medium` for this read operation | Access-token decision records the satisfied local assurance rule |
+| Requested target `https://auth.partner.example` | Require one configured partner AS | `aud = https://auth.partner.example` | Require exact AS-B issuer audience and a known AS-A issuer | Access token is instead bound to `aud = https://mcp.partner.example/mcp` |
+
+This produces two policy decisions, not a passive copy operation:
+
+| Evidence owner | Must retain | Must not imply |
+|:--|:--|:--|
+| **AS-A** | Input token fingerprint/type/issuer/subject, authenticated client, authorized presenter result, requested target/scope, each mapping/removal rule, policy version, grant fingerprint/`jti`, decision id | That AS-B will accept the grant or issue a particular local permission |
+| **AS-B** | Grant fingerprint/issuer/audience/subject/actor, replay result, authenticated client, foreign→local subject mapping, requested/granted resource and scope, policy version, access-token fingerprint/`jti`, decision id | That AS-A's claim names automatically carry domain-B semantics |
+| **Resource Server B** | Access-token fingerprint, local subject/current actor, resource/tool/arguments class, enforcement decision, effect/result correlation | That successful AS-B issuance alone authorizes every tool or later parameter |
+
+> **Important — Preserve provenance without copying the whole source identity**
+>
+> The foreign token should carry only claims needed by the receiving authorization decision. Detailed mapping reasons and source provenance belong in protected, correlated evidence—not in a larger bearer token and never in model context.
+
+##### 5.6.4 Failure and Lifecycle Semantics
+
+Each authority rejects failures at its own boundary. Client-visible OAuth errors remain deliberately coarse; protected records preserve the exact reason without disclosing issuer policy, subject mappings, key history, or replay detection.
+
+| Failure boundary | Rejecting component and external result | Protected evidence | Retry or termination consequence |
+|:--|:--|:--|:--|
+| Resource→AS mapping is absent, ambiguous, redirected to an unapproved host, or issuer-inconsistent | Client stops discovery before sending credentials | Requested resource, response URL/chain, resolved addresses, declared issuers, failed rule | Administrative mapping repair; never guess or silently select an issuer |
+| AS-A does not support the requested JWT token type | AS-A returns an applicable OAuth error such as `invalid_request` | Advertised/hidden capability result, requested type, client, policy/version | Select a configured profile or fail; do not reinterpret an access token as the grant |
+| Client is not authorized to present the domain-A subject token | AS-A denies the exchange | Client authentication, token fingerprint/type/issuer/audience, presenter rule | Reauthenticate or use the correct authority path; no token-forwarding fallback |
+| Target AS is unknown, forbidden, multiple, or overbroad | AS-A returns RFC 8693 `invalid_target` | Requested `resource`/`audience`, allowed partner set, decision id | Narrow to one approved AS-B or obtain policy approval |
+| AS-A cannot produce an approved transcription | AS-A denies issuance | Missing/colliding subject map, unsupported assurance/entitlement, mapping policy | Repair the bilateral mapping; do not disclose raw directory claims as fallback |
+| Grant issuer, signature, algorithm, key, audience, time, or required subject is invalid | AS-B returns RFC 7523 `invalid_grant` without detailed validation leakage | Grant fingerprint, validation stage, issuer/key id, audience, clock values, subject result | Obtain a new valid grant only after the cause is resolved |
+| Client authentication at AS-B fails | AS-B returns `invalid_client` according to the endpoint authentication method | Client id, assertion fingerprint, sole-audience check, key/method, replay result | Rotate/fix the AS-B registration; never reuse AS-A credentials |
+| Grant has multiple target audiences despite local single-target policy | AS-B denies the grant | Complete audience set, bilateral rule, decision id | Request a new AS-B-only grant |
+| Foreign subject maps to no local subject or collides with another subject | AS-B returns `invalid_grant` or a deployment-profile denial | Foreign issuer/subject pair, mapping version, collision identifiers | Quarantine the mapping and require identity-governance resolution |
+| Grant `jti`/fingerprint is replayed or already consumed | AS-B fails closed with a coarse grant error | Replay key, first/second presentation times, client/key binding, incident id | Do not retry the same grant; investigate theft or duplicate execution |
+| Sender constraint or presenting-client binding does not match | AS-B or Resource Server B denies the request | Expected/presented key thumbprint or client, token fingerprint, request binding | Reissue through the correctly bound client/key; never downgrade to bearer |
+| AS-B issues or accepts a cross-domain refresh token contrary to the selected profile | Release/conformance gate rejects the configuration | Token response/profile, issuance policy, test evidence | Disable refresh issuance; reacquire through the original chain when authority is still valid |
+| Revocation or termination reaches only one domain | Orchestrator marks the chain partially terminated and blocks new work | Affected token/grant ids, delivery acknowledgements, deadlines, remaining live artifacts | Retry propagation, shorten caches, and require negative-use tests before closure |
+| Metadata, keys, mappings, or authorization results remain stale after change | Client/AS/RS invalidates the affected cache generation and fails closed where required | Cache key/generation, source validators, change event, stale-use attempts | Refetch/re-evaluate; never extend a stale grant merely to preserve availability |
+| Logs contain a raw subject token, JWT grant, client assertion, or access token | Security control quarantines the event and starts incident handling | Redacted event pointer, affected sink, access list, retention/deletion actions | Rotate/revoke exposed credentials and fix redaction before resuming |
+
+The cross-domain chain has four independent validity clocks: the original subject evidence, the JWT authorization grant, the domain-B access token, and any durable authority/task record. The shortest applicable lifetime wins for new issuance or execution.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> SubjectValid: domain-A evidence accepted
+    SubjectValid --> GrantValid: AS-A issues JWT grant
+    GrantValid --> AccessValid: AS-B issues access token
+    AccessValid --> Reevaluate: token expires or policy/event changes
+    Reevaluate --> GrantValid: reusable grant still valid and permitted
+    Reevaluate --> SubjectValid: new grant required
+    SubjectValid --> Terminated: subject/grant authority revoked
+    GrantValid --> Terminated: trust, mapping, replay, or client invalidated
+    AccessValid --> Terminated: AS-B/RS-B policy or termination event
+    Terminated --> [*]
+```
+
+AS-B should not issue a refresh token for this cross-domain assertion flow. A reusable grant can still be dangerous: short lifetime, single-use enforcement where practical, client authentication, sender constraint, cache generation, and explicit termination propagation remain necessary.
+
+**Artifact Produced:** Joined lifecycle record for subject evidence, intermediate grant, access token, policy/mapping versions, cache generations, termination delivery, and negative-use tests.
+
+##### 5.6.5 Selection Guide and Related Profiles
+
+These mechanisms solve adjacent but different problems:
+
+| Mechanism | Use it for | Trust prerequisite and wire shape | Do not claim |
+|:--|:--|:--|:--|
+| **Ordinary RFC 8693 token exchange ([§§5.1](#51-standards-boundary-and-evidence-map)–[5.5](#55-derivation-lifecycle-and-cross-domain-boundary))** | Deriving a target-appropriate token under one STS/AS policy | Client→AS token exchange→issued token; accepted input types and semantics are deployment-profiled | That one exchange establishes a second authorization domain or universal delegation history |
+| **Identity and Authorization Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains))** | Crossing from domain A to domain B while preserving minimized identity/authority for a new local decision | AS-A and AS-B have explicit issuer/key/claim trust; RFC 8693 returns a JWT authorization grant, then RFC 7523 obtains an AS-B access token | That the intermediate grant is a resource token, that nested `act` establishes federation, or that claim names have universal meaning |
+| **Enterprise-Managed Authorization / ID-JAG / Cross App Access ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile))** | A specialized enterprise cross-app profile with its own identity-assertion token type, metadata, policy, and product ecosystem | Two token legs resemble chaining, but the ID-JAG token/profile and application-connection governance are specific | That every generic Identity Chaining implementation supports ID-JAG/XAA, or vice versa |
+| **RFC 7523 JWT client authentication ([§1.7](#17-oauth-client-credentials-direct-machine-authority))** | Authenticating an OAuth client to an authorization-server endpoint | Client signs a JWT whose issuer/subject identify the client and whose sole audience is the AS issuer under the forward update | That client authentication carries a user's authorization grant; the `client_assertion` and grant `assertion` are separate objects |
+| **OpenID Federation ([§8.7](#87-cross-organization-agent-federation))** | Establishing metadata, keys, entity statements, trust chains, and policy for federated entities | Trust anchors and signed entity statements can establish part of the AS-A→AS-B prerequisite | That federation metadata itself issues the runtime grant/access token or authorizes the MCP operation |
+| **Vendor-specific OBO** | Using a provider's supported user-delegation exchange where its contract fits | Provider-specific token endpoint, subject-token rules, claims, consent/admin policy, and resource identifiers | RFC 8693 or Identity Chaining conformance unless the provider explicitly documents it |
+| **Credential forwarding** | Only when the same credential is explicitly valid at the next hop and the protocol/security policy permits it | No derivation; the receiver sees the original credential | Token exchange, audience narrowing, claim transcription, or MCP upstream-token safety |
+| **Workload federation** | Converting workload/environment evidence into a service/workload identity or token | Trust in the workload attester/issuer and a machine-identity policy | Preservation of end-user delegated authority or cross-app consent |
+
+The architecture uses the smallest mechanism that matches the authority relationship. A same-domain audience change may need only RFC 8693; a true AS boundary needs Identity Chaining or an explicitly governed profile; a machine acting solely as itself should use direct workload authority instead of manufacturing a user chain.
+
+#### 5.7 When Token Exchange Is Not the Answer
 
 Token exchange is one derivation mechanism, not the universal solution to every agent credential problem:
+
+Identity Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)) extends derivation across two authorization domains, but it still cannot manufacture consent, durable authority, a workload identity, or a provider credential that the target system does not support.
 
 | Need | Better-fit mechanism | Why it is different |
 |:-----|:---------------------|:--------------------|
@@ -5905,7 +6493,9 @@ Four models exist for establishing trust between organizations for agent communi
 | **Metadata Policy** | Hierarchical JSON policy that superiors impose on subordinates | Trust Anchor mandates DPoP, issuer metadata constraints, signing algorithms, or required assurance properties |
 | **Resolve Flow** | Resolution of the leaf entity's metadata and applicable policies via subordinate statements or a federation resolve endpoint | Org Y's gateway bootstraps trust in Org X's issuer without hand-managed key exchange |
 
-OIDC Federation does **not** define the cross-domain access token itself. It establishes that Org Y can trust Org X's issuer metadata, keys, and inherited policy posture. The runtime token still comes from ordinary OAuth mechanisms: local issuance, Identity Chaining ([§20.4](#204-delegation-and-identity-chains)), Enterprise-Managed Authorization / ID-JAG ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)), or another accepted profile.
+OIDC Federation does **not** define the cross-domain access token itself. It establishes that Org Y can trust Org X's issuer metadata, keys, and inherited policy posture. The runtime token still comes from ordinary OAuth mechanisms: local issuance, Identity Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains); maturity in [§20.4](#204-delegation-and-identity-chains)), Enterprise-Managed Authorization / ID-JAG ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)), or another accepted profile.
+
+When [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) is selected, a validated federation chain can satisfy part of AS-B's prerequisite trust in AS-A's issuer metadata, keys, and inherited constraints. It does not by itself authorize AS-A to issue the accepted grant class, define claim-transcription semantics, register/authenticate the presenting client, bind the AS-B audience and target resource, or solve replay and termination. Those remain explicit bilateral/profile decisions.
 
 **How OIDC Federation fits cross-org MCP tool calls**:
 
@@ -5946,8 +6536,8 @@ sequenceDiagram
 
     rect rgba(46, 204, 113, 0.14)
     Note right of Agent: Phase 3: Runtime Authorization
-    Agent->>AS_X: Obtain cross-domain token<br/>(local OAuth, Identity Chaining,<br/>or ID-JAG profile)
-    AS_X-->>Agent: Access token
+    Agent->>AS_X: RFC 8693 exchange for<br/>Org Y resource
+    AS_X-->>Agent: Org-X-issued resource token
     Agent->>GW_Y: Tool call + token (+ DPoP if required)
     Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
     end
@@ -6109,7 +6699,9 @@ This record is local evidence, not an OpenID Federation wire object. When a depl
 <details>
 <summary><strong>7. Agent A obtains a runtime token from Org X through a separate OAuth path</strong></summary>
 
-Only after the issuer-trust question is solved does the runtime authorization mechanism matter. This worked branch uses the RFC 8693 profile from [§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation): Agent A exchanges an Org X subject token for an attenuated token targeting Org Y's MCP resource. Identity Chaining or enterprise ID-JAG can be selected by another deployment, but they have different requests and must not be inferred from this example.
+Only after the issuer-trust question is solved does the runtime authorization mechanism matter. This worked branch uses the ordinary RFC 8693 profile from [§§5.1](#51-standards-boundary-and-evidence-map)–[5.5](#55-derivation-lifecycle-and-cross-domain-boundary): Agent A exchanges an Org X subject token for an Org-X-issued, attenuated token that Org Y has explicitly agreed to accept for its MCP resource.
+
+If Identity Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)) is selected instead, AS-X returns an intermediate JWT authorization grant addressed to Org Y's authorization server; the agent then performs the separate RFC 7523 grant request and receives an Org-Y-issued resource token. EMA/ID-JAG ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile)) supplies another profile-specific two-leg branch. Neither branch may be inferred from the one-exchange request shown here.
 
 ```http
 POST /token HTTP/1.1
@@ -8425,6 +9017,16 @@ The patterns are building blocks, not a weakest-to-strongest ladder:
 
 Compositions are normal. A workload identity may authenticate the agent to a broker; the broker may validate delegated-user authority; a vault may retain the provider refresh token; and the gateway may use a short-lived provider token without returning it to the agent.
 
+For browser-facing applications, the queued [OAuth 2.0 for Browser-Based Applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/) BCP makes token custody an explicit architectural choice. As of 2026-07-26, revision 27 is in the RFC Editor queue. Its three patterns fit this chapter as follows:
+
+| Browser application pattern | OAuth material retained outside the browser | Browser-visible authority | Residual compromise consequence |
+|:--|:--|:--|:--|
+| **Backend for Frontend (BFF)** | The confidential backend holds access and refresh tokens and proxies resource requests | A hardened application session; no OAuth token is returned to browser code | Malicious JavaScript can still ride the user's session and cause authorized requests; backend compromise exposes the token custodian |
+| **Token-Mediating Backend** | The backend retains the refresh token | The access token is returned to browser code for direct resource calls | Malicious JavaScript can steal the access token or invoke resources as the user; the refresh token has a narrower custody boundary |
+| **Browser-Based OAuth Client** | None | Browser code owns the complete authorization-code/PKCE flow and resulting tokens | Malicious JavaScript has the application's OAuth privileges and can steal or misuse all browser-held token material |
+
+Within this application class, BFF custody minimizes browser token exposure; it does not make browser compromise harmless. Session cookies need `Secure`, `HttpOnly`, and appropriate `SameSite` policy, state-changing requests need CSRF defenses, and the backend must enforce origin, session, authorization, and destination policy rather than becoming an unconstrained token oracle.
+
 #### 11.4 Material Possession, Use Authority, and the Credential-Capability Matrix
 
 “Has access to the credential” is too coarse for design review. Record the actual capability:
@@ -9014,7 +9616,26 @@ The protected denial event records proof `jti`, proof-key thumbprint, token fing
 
 [RFC 8693](https://www.rfc-editor.org/rfc/rfc8693) token exchange does not invalidate its input token or create a tight input/output lifecycle linkage. Nested `act` claims can support attribution and policy; they are not a revocation dependency graph.
 
-The OAuth [Token Status List](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) work is in publication processing as of 2026-07-24. Treat it as a monitor-stage mechanism for suitable tokens, with its final publication status rechecked before implementation.
+The OAuth [Token Status List](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) work is in the RFC Editor queue at revision 21 as of 2026-07-26. A referenced JOSE/COSE token carries a `status.status_list` pointer containing a list URI and integer index. The status provider returns one signed or MAC-protected JWT/CWT whose DEFLATE-compressed byte array assigns 1, 2, 4, or 8 bits to each indexed token. Registered values include `VALID`, `INVALID`, and `SUSPENDED`; the referenced token's own processing rules still win—for example, an expired token is not revived by a `VALID` list entry.
+
+```json
+{
+  "status": {
+    "status_list": {
+      "idx": 42,
+      "uri": "https://status.example.com/lists/2026-07"
+    }
+  }
+}
+```
+
+```http
+GET /lists/2026-07 HTTP/1.1
+Host: status.example.com
+Accept: application/statuslist+jwt
+```
+
+The verifier validates the Status List Token's media type, signature or MAC, trusted status-issuer relationship, `exp`, `ttl`, and compressed-array bounds before reading the indexed value. It bounds both `exp` and `ttl` locally: a long cache interval creates a stale-status window, while an attacker-controlled short interval can amplify requests against the status provider. Large shared lists reduce issuer visibility into which particular token was checked (“herd privacy”), but unique list URIs, small lists, source IP addresses, and expressive non-binary status values can reintroduce tracking or disclose sensitive state. Token Status List is therefore a scalable status input—not a grant, consent, session, task, effect, or descendant-revocation graph.
 
 Product evidence shows why read-back matters. Amazon Bedrock AgentCore [documents](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/identity-authentication.html) that provider-side revocation may be undetectable and a cached provider token is not guaranteed to remain valid. HashiCorp Vault’s [lease API](https://developer.hashicorp.com/vault/api-docs/system/leases) documents queued revocation behavior and warns that force revocation can ignore backend errors, leaving Vault unable to ensure backend cleanup. A vault record or accepted control-plane response is therefore not authoritative provider status.
 
@@ -12846,6 +13467,8 @@ Regulatory duties attach only when their scope conditions are met. The table ide
 
 Elicitation lets a server request user input while processing an originating client request. **Form mode** returns reviewed structured input through the MCP client; **URL mode** hands sensitive interaction to an external browser so passwords, API keys, payment credentials, and third-party OAuth tokens do not pass through the client or model context. URL mode remains distinct from MCP authorization: MCP authorization controls the client's access to the MCP server, while URL elicitation lets that already-authorized server obtain separate user input or third-party authorization.
 
+When the external page performs OAuth and the MCP server retains the resulting provider tokens, URL mode has a **BFF-like custody boundary** under the queued [OAuth 2.0 for Browser-Based Applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/) BCP: the browser carries navigation and a hardened application session, while the server owns the confidential OAuth client and token store. The browser must not receive the provider access or refresh token. This reduces token theft by browser JavaScript but does not prevent session riding, CSRF, malicious browser extensions, backend compromise, or authorization of a different transaction. If the server returns a provider access token to browser or client code, the design has crossed into a token-mediating or browser-held pattern and must be assessed under that more exposed custody model.
+
 The `2026-07-28` core carries Elicitation through a multi-round-trip `InputRequiredResult`: the client receives one or more keyed `inputRequests`, obtains the user's responses, and retries the **original method** with a new JSON-RPC request ID, matching `inputResponses`, and the opaque `requestState`. Completion therefore stays bound to the retried request and its opaque request state.
 
 ##### 14.8.1 Current Protocol Flow
@@ -13648,7 +14271,7 @@ sequenceDiagram
 <details>
 <summary><strong>1. AI Agent sends a CIBA Backchannel Authentication Request to the IdP</strong></summary>
 
-The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent uses OpenID Connect CIBA (Core §7.1) through its confidential OAuth client. The client sends an authenticated server-to-server request to the OP; a malformed subject hint produces the applicable authentication error.
+The AI Agent encounters a high-risk operation (e.g., wiring funds). Lacking a browser UI to redirect the user through a standard OAuth flow, the agent uses OpenID Connect CIBA (Core §7.1) through its confidential OAuth client. The client sends an authenticated server-to-server request to the OP; a malformed subject hint produces the applicable authentication error. Each omitted client-authentication JWT in this walkthrough uses the OP's issuer identifier as its sole `aud` and `typ: client-authentication+jwt`; the CIBA request object shown separately below has its own type and claims.
 
 ```http
 POST /bc-authorize HTTP/1.1
@@ -14351,6 +14974,16 @@ Upon successful CIBA authentication and authorization, the OP returns the OpenID
 
 For agent-initiated, high-consequence use, prefer the [signed authentication request defined by CIBA Core §7.1.1](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html#signed_authentication_request). It places every CIBA request parameter inside one asymmetrically signed JWT with `iss`, `aud`, `iat`, `nbf`, `exp`, and unique `jti`; parameters must not also appear outside the JWT. The [FAPI CIBA Profile](https://openid.net/specs/openid-financial-api-ciba.html) requires this form. The OP validates the exact registered client and algorithm, prevents `jti` replay for the request lifetime, accepts only one subject hint, and rejects duplicate or conflicting parameter representations.
 
+The queued [Cross-Device Flows: Security Best Current Practice](https://datatracker.ietf.org/doc/draft-ietf-oauth-cross-device-security/) revision 16 applies directly to CIBA. As of 2026-07-26 it is in the RFC Editor queue. It distinguishes cross-device consent phishing, where an attacker induces a user to approve the attacker's authorization request, from cross-device session phishing, where an attacker captures session-transfer material. CIBA removes a scanned QR/user-code channel but remains vulnerable when an attacker can learn or guess a user identifier and initiate a plausible unsolicited request.
+
+Before admitting CIBA, the deployment performs a flow-specific risk assessment and avoids it where the remaining cross-device risk cannot be mitigated. Controls must cover prevention, disruption, and recovery rather than expecting the user to authenticate the channel alone:
+
+| Objective | Agent/CIBA control | Limit that remains |
+|:--|:--|:--|
+| **Prevent initiation** | Admit only registered clients, allowed user populations, trusted devices/networks, and expected action classes; use authenticate-then-initiate or explicit initiation verification where feasible | A compromised trusted client or guessed identifier can still create a plausible prompt |
+| **Disrupt the attempt** | Bind exact transaction context, use short-lived one-time request IDs/codes, rate limits, deduplication, recognizable context, and an equally prominent deny/report action | A well-prepared attacker can coach a user through visual or out-of-band checks |
+| **Reduce impact and recover** | Issue least-scope, short-lived, sender-constrained tokens; detect anomalies; revoke tokens and terminate dependent sessions/tasks; retain reportable evidence | Sender constraint limits token movement but cannot stop an attacker controlling the authorized consumption device from exercising its key |
+
 Ping and Push add a separate callback trust boundary:
 
 | Boundary | Required control |
@@ -14645,7 +15278,7 @@ Ping's current documentation connects existing standards-based controls to agent
 
 ##### 15.5.7 CIBA Operational Constraints
 
-CIBA's decoupled OP interaction introduces **human response latency** into every gated action. That tradeoff is useful when the subject must authenticate away from the consumption device, but it is not a universal strength ranking. This section describes the operational consequences.
+CIBA's decoupled OP interaction introduces **human response latency** into every gated action. That tradeoff is useful when the subject must authenticate away from the consumption device, but it is not a universal strength ranking. For cross-device authentication, the queued security BCP prefers FIDO2/WebAuthn cross-device authentication when both devices support the required browser/platform and BLE capabilities; CIBA is the next fit when the authorization server can contact a registered user device, and the Device Authorization Grant is the least-common-denominator fallback with additional mitigations. That protocol ordering concerns resistance to the unauthenticated cross-device channel—it does not turn authentication into business approval or authorize a changed operation. This section describes the operational consequences.
 
 ##### 15.5.7.1 Latency Analysis
 
@@ -14654,9 +15287,9 @@ CIBA's decoupled OP interaction introduces **human response latency** into every
 | CIBA request → IdP acknowledgement | &lt; 100 ms | Server-to-server backchannel call; immediate |
 | Push notification delivery (FCM/APNs) | 1–5 seconds | Depends on mobile network, FCM/APNs infrastructure, device state |
 | Human processing time | 5–120 seconds | Read binding message / consent screen, review context, authenticate (biometric/PIN) |
-| Poll mode minimum interval | 30 seconds (recommended) | Per CIBA Core 1.0 specification |
+| Poll request cadence | OP-provided `interval`; 5-second default when omitted | Requests must not overlap; `slow_down`, expiry, and backoff remain authoritative |
 | **Total (push mode, fast user)** | **~10 seconds** | Best case: push delivered instantly → user approves immediately |
-| **Total (poll mode, slow user)** | **~2–5 minutes** | Worst case: slow user + 30-second polling interval + multiple polls |
+| **Total (poll mode, slow user)** | **~2–5 minutes** | Slow user plus repeated interval-respecting polls before expiry |
 | Token expiry (`expires_in`) | 300 seconds (typical) | Request fails if user doesn't respond within this window |
 
 The **dominant latency factor is human response time** (5–120 seconds), not protocol overhead (&lt; 5 seconds). No amount of infrastructure optimization can eliminate the human-in-the-loop latency — this is by design.
@@ -16790,7 +17423,7 @@ type tool
 
 ##### 18.3.8 OpenID Authorization API 1.0: PEP/PDP Interoperability
 
-The OpenID Foundation approved [Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html), produced by the AuthZEN Working Group, as a Final Specification in January 2026. It defines an HTTPS/JSON contract through which a Policy Enforcement Point (PEP) asks a Policy Decision Point (PDP) for boolean access decisions without depending on the PDP's internal policy language.
+The OpenID Foundation approved [Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html), produced by the AuthZEN Working Group, as a Final Specification in January 2026. It defines an HTTPS/JSON contract through which a Policy Enforcement Point (PEP) asks a Policy Decision Point (PDP) for boolean access decisions without depending on the PDP's internal policy language. Under the queued [Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) BCP, an authenticated evaluation call must begin on a validated HTTPS endpoint: the PEP never sends `Authorization`, cookies, or another secret over plaintext HTTP expecting a redirect to repair the connection. PDP metadata, endpoint redirects, DNS/IP resolution, and credential destination remain subject to the same origin and safe-fetch policy as authorization-server metadata.
 
 **Final 1.0 surfaces**:
 
@@ -17887,13 +18520,13 @@ Delegation requires three different relationships that are often collapsed:
 
 No single current standard supplies all three.
 
-The base identity-chaining document reached revision 17 and entered the RFC Editor queue on 2026-07-22. That is advanced working-group maturity, not publication. Production use must pin `draft-ietf-oauth-identity-chaining-17` until an RFC number is assigned, then evaluate the published text before changing the deployed profile.
+As of **July 26, 2026**, [OAuth Identity and Authorization Chaining Across Domains `-17`](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) is an intended Proposed Standard with IESG state **RFC Ed Queue** and RFC Editor state **In Progress**. That is advanced maturity, not publication. Deployments pin the draft lineage until an RFC number is assigned, then evaluate the published text before changing the deployed profile. The canonical technical flow and controls are in [§5.6](#56-identity-and-authorization-chaining-across-trust-domains); this section tracks maturity and adoption.
 
 | Need | Current or near-term mechanism | What it proves | What it does not prove |
 |:--|:--|:--|:--|
 | Organizational issuer/client trust | OpenID Federation 1.1 Final | A trust chain and policy for federation entities and metadata. | Runtime delegated authority for a tool call. |
 | Token attenuation and actor context | RFC 8693 Token Exchange | A standardized exchange protocol and token response; deployments can profile subject/actor semantics. | A universal multi-agent delegation ontology. |
-| Cross-domain token issuance | OAuth Identity and Authorization Chaining | A foreign domain can issue its own token after validating a chained identity/authorization assertion. | Automatic trust in the upstream issuer or permission for a specific MCP handle. |
+| Cross-domain token issuance | OAuth Identity and Authorization Chaining ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)) | A foreign domain can issue its own token after validating a chained identity/authorization assertion. | Automatic trust in the upstream issuer or permission for a specific MCP handle. |
 | Enterprise-managed MCP grant | Identity Assertion JWT Authorization Grant / MCP Enterprise-Managed Authorization profile | An enterprise identity assertion can drive authorization at the MCP authorization server. | Open-ended federation or arbitrary agent-chain semantics. |
 | Verified natural-person authority | OpenID Authority Claims WG Draft | Structured verified claims about a natural person’s authority to act for another entity. | Software-agent authority; applying it to agents is a local extension. |
 | Workload identity | SPIFFE, WIMSE, or another attested workload credential | Which workload key and trust domain authenticated. | Which user delegated, which tool is allowed, or which object belongs to the caller. |
@@ -17918,6 +18551,17 @@ flowchart LR
 
     Federation --> OriginAS --> Assertion --> ForeignAS --> LocalToken --> MCP
 ```
+
+Current product evidence demonstrates both released and pre-GA realizations, but not one uniform profile:
+
+| Product surface | Verified role | Lifecycle checked 2026-07-26 | Boundary |
+|:--|:--|:--|:--|
+| [PingFederate 13.1](https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes_131.html) | Issues ID-JAG through OAuth token exchange and accepts ID-JAG through JWT-bearer grant requests; metadata exposes the relevant chaining/grant-profile capabilities | **Released**; [13.1.1](https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes_1311.html) fixes an ID-JAG-specific validation defect | Version-specific PingFederate evidence; it does not transfer to PingGateway, PingOne, or earlier releases |
+| [agentgateway `crossAppAccess`](https://agentgateway.dev/docs/standalone/main/configuration/security/backend-authn/cross-app-access/) | Validates an inbound OIDC ID token, performs the ID-JAG RFC 8693 leg, then performs the RFC 7523 resource-AS leg with separate registrations/endpoints | **Documented on current/main; GA label not stated** | Current limitations include no DPoP, well-known endpoint discovery, SAML subject, or refresh-token subject |
+| [Okta Cross App Access](https://developer.okta.com/blog/2025/09/03/cross-app-access) | Enterprise IdP/policy side can govern requesting/resource app connections and issue ID-JAG | **Early Access** | Do not generalize to all Okta tenants, applications, or ordinary OAuth grants |
+| [Auth0 Cross App Access](https://auth0.com/docs/ai-agents-mcp/cross-app-access) | Resource authorization-server side accepts ID-JAG and issues the local resource token | **Beta** | Beta topology, enrollment, client class, organization, rate, and refresh-token constraints remain release inputs |
+
+Kong, ContextForge, WSO2, and LiteLLM document useful RFC 8693 exchange components; Traefik documents a server-side OBO responsibility pattern; Red Hat documents preview exchange infrastructure. Those are not evidence of the complete generic Identity Chaining or ID-JAG/XAA profile unless the second RFC 7523 leg, profile metadata, and lifecycle are explicitly documented.
 
 The receiver must validate the complete trust and authorization chain, not merely decode a nested claim. It then issues a local token for its own resource and still authorizes the requested primitive, arguments, and explicit handles. If the upstream assertion is valid but local policy denies the operation, the chain has authenticated provenance without granting execution.
 
@@ -18064,7 +18708,7 @@ The architecture decision is therefore compositional: select the required contro
 
 The inventory below classifies what each offering demonstrably supplies and how mature that exact surface is; it does not select a product or infer full-stack coverage from an adjacent capability.
 
-| Offering | Primary Role in This Study | Adjacent Role | Current Lifecycle Evidence (25 July 2026) | Highest Explicit Core Evidence |
+| Offering | Primary Role in This Study | Adjacent Role | Current Lifecycle Evidence (26 July 2026) | Highest Explicit Core Evidence |
 |:--|:--|:--|:--|:--|
 | **Azure APIM ([§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive))** | Gateway/runtime | Azure API Center discovery; Entra Agent ID identity/lifecycle | Portal-managed MCP capability available; programmatic resource management uses `2025-09-01-preview`; adjacent Entra Agent ID platform GA while agent-identity governance remains preview | Exact dated revision not published |
 | **PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive))** | Gateway/runtime | Ping IdP/AS and risk services | Identity for AI GA; MCP interface stability **Evolving** | `2025-06-18` and `2025-11-25` |
@@ -18086,6 +18730,17 @@ Two newly verified signals affect specific pipeline stages rather than the whole
 |:-------------------------|:------------------------------|:---------------------------|
 | **[Okta Agent Gateway](https://www.okta.com/en-sg/blog/product-innovation/agent-gateway-runtime-governance/)** — select-customer beta/research release, 23 July 2026 | Runtime credential brokerage and execution enforcement: short-lived isolated credentials, human/agent attribution, XAA for Okta-enabled resources, and “brokered consent” through Okta STS for external systems | A standardized approval record, CIBA/RAR composition, exact operation binding, or production maturity; Okta positions the service as complementary to existing MCP/API gateways |
 | **[Microsoft Entra Agent ID](https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id)** — platform GA; identity-governance surface preview, verified 25 July 2026 | Identity and lifecycle: blueprints, distinct agent identities, owners/sponsors, access packages, lifecycle workflows, disable/delete controls, Conditional Access, and risk policy | [OIDC CIBA](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html), RFC 9396 RAR, or proof that lifecycle governance authorizes a particular tool invocation |
+
+Cross-domain delegation evidence needs a second normalization because an authorization server, a gateway, and a downstream MCP server can implement different legs of the same composition:
+
+| Product evidence checked 2026-07-26 | Implemented role or leg | Lifecycle | Classification and non-claim |
+|:--|:--|:--|:--|
+| **PingFederate 13.1 / 13.1.1** | Issues an ID-JAG through OAuth token exchange and accepts it through an RFC 7523 JWT-bearer grant; advertises both profile metadata surfaces | **Released**, with an ID-JAG validation fix in 13.1.1 | Exact two-leg product support; version-specific to PingFederate, not inherited by PingGateway or PingOne |
+| **agentgateway `crossAppAccess`** | Validates an inbound OIDC identity token, performs the ID-JAG exchange, then obtains the resource-AS token through the second grant leg | Documented on the current/main track; **GA label not stated** | Exact two-leg implementation evidence with stated limitations; not a claim about every agentgateway release |
+| **Okta + Auth0 Cross App Access** | Okta supplies the upstream enterprise IdP/policy/ID-JAG side; Auth0 supplies the resource authorization-server side | **Okta Early Access; Auth0 Beta** | Exact cross-vendor profile topology; neither lifecycle applies to ordinary Okta/Auth0 OAuth features |
+| **Kong, ContextForge, WSO2, LiteLLM** | Document one RFC 8693 exchange leg or gateway component | Product/version-specific | Component support only; no RFC 7523 second leg or generic Identity Chaining conformance is inferred |
+| **Traefik Hub** | Forwards or strips the inbound MCP credential; its guide assigns RFC 8693 exchange to the MCP server | MCP capability GA | Responsibility guidance, not a gateway exchange implementation |
+| **Red Hat AuthBridge / MCP Gateway evidence** | Developer/Technology Preview exchange infrastructure on separate product surfaces | **Non-production preview** | Adjacent component evidence; not exact Identity Chaining and not production acceptance |
 
 #### 21.2 Control-Plane Boundaries
 
@@ -20323,11 +20978,11 @@ RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, PKCE, audien
 ##### 25.2.1 Key Finding 3: Each Operation Must Preserve Its Actual Authority Relationship
 <a id="finding-3"></a>
 
-When an actor exercises a user's authority, collapsing the actor into the user destroys attribution and collapsing the user into a service identity destroys delegated-authority context. RFC 8693 token exchange and the OAuth `act` claim provide established vocabulary for a token subject and current actor. Direct organizational or autonomous workload operations are different: they require an authentic machine or organization subject and must not invent a human principal. The design requirement is therefore operation-specific: preserve the real subject and current actor where delegation exists, authenticate the client and workload separately where policy needs them, and bind every derived credential to its intended audience and granted rights.
+When an actor exercises a user's authority, collapsing the actor into the user destroys attribution and collapsing the user into a service identity destroys delegated-authority context. RFC 8693 token exchange and the OAuth `act` claim provide established vocabulary inside one trust domain. Crossing into another domain needs an explicit bridge: the queued Identity Chaining profile uses an RFC 8693 exchange in Domain A followed by an RFC 7523 authorization grant to Domain B, with controlled claim transcription rather than blind token forwarding. Direct organizational or autonomous workload operations are different: they require an authentic machine or organization subject and must not invent a human principal. The design requirement is therefore operation-specific: preserve the real subject and current actor where delegation exists, authenticate the client and workload separately where policy needs them, and bind every derived credential to its intended issuer, audience, granted rights, and trust-domain transition.
 
 **Applicability:** Contract — external OAuth and workload-identity standards; surface — delegation and downstream credentials; evidence — final RFCs, active WG work, and analytical inference; product role — IdP/AS, gateway/runtime, and backend service.
 
-**Evidence trail:** OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); OAuth Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)); Identity Chaining ([§20.4](#204-delegation-and-identity-chains)).
+**Evidence trail:** OBO Token Exchange ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation)); canonical two-domain Identity Chaining profile ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); OAuth Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)); standards maturity and product evidence ([§20.4](#204-delegation-and-identity-chains)).
 
 ##### 25.2.2 Key Finding 4: Refresh Tokens from Token Exchange Are Policy-Dependent, Not Guaranteed
 <a id="finding-4"></a>
@@ -20530,11 +21185,11 @@ Agent-scale systems need ownership, sponsorship, issuance, rotation, suspension,
 ##### 25.8.1 Key Finding 24: Credential Custody and Delegated Authority Are Composable, Not a Single Vendor Feature
 <a id="finding-24"></a>
 
-Client-held tokens, managed connections, gateway/broker custody, runtime delivery, workload identity, and transaction-scoped derivatives place material and use capability at different boundaries. They are composable, but none is interchangeable proof of delegation: authority, possession, export, invocation, derivation, renewal, revocation, and purge remain distinct capabilities. No surveyed composition establishes the entire lifecycle without explicit integration across issuance, custody, use, rotation, status, recovery, and evidence.
+Client-held tokens, browser-held tokens, BFF or token-mediating backends, managed connections, gateway/broker custody, runtime delivery, workload identity, and transaction-scoped derivatives place material and use capability at different boundaries. They are composable, but none is interchangeable proof of delegation: authority, possession, export, invocation, derivation, renewal, status, revocation, and purge remain distinct capabilities. Identity Chaining can preserve selected subject and authorization context across two trust domains, while a Token Status List can distribute status for referenced tokens; neither supplies custody, renewal, recovery, or evidence policy for the deployment. No surveyed composition establishes the entire lifecycle without explicit integration across those controls.
 
 **Applicability:** Contract — current OAuth delegation and product credential treatment; surface — credential lifecycle; evidence — normative standards, implementation evidence, and analysis; product role — IdP/AS, gateway/runtime, host/runtime, and backend service.
 
-**Evidence trail:** Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); sender constraint ([§12.3](#123-sender-constraint-and-key-custody-boundaries)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)); Appendices A–M.
+**Evidence trail:** canonical two-domain Identity Chaining profile ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)); Credential Custody and Release Patterns ([§11](#11-credential-custody-and-release-patterns)); sender constraint ([§12.3](#123-sender-constraint-and-key-custody-boundaries)); token status ([§12.4](#124-token-and-authorization-status)); Architectural Model Summary ([§22.2](#222-architectural-model-summary)); Appendices A–M.
 
 
 #### 25.9 Cross-Organization Federation
@@ -20542,11 +21197,11 @@ Client-held tokens, managed connections, gateway/broker custody, runtime deliver
 ##### 25.9.1 Key Finding 25: Cross-Organization Agent Federation Requires a Multi-Layer Trust Architecture, Not a Single Protocol
 <a id="finding-25"></a>
 
-Cross-organization calls need separate evidence for organizational federation, workload or agent identity, delegated user authority, runtime endpoint identity, and observed behavior. OpenID Federation 1.1 is Final for federation; WIMSE and SPIFFE cover workload layers at different maturity levels; RFC 8693 covers token exchange; A2A Agent Cards and external agent-claim proposals cover other slices. None makes another layer transitive, and OIDC-A remains independent research rather than an OpenID Foundation specification.
+Cross-organization calls need separate evidence for organizational federation, workload or agent identity, delegated user authority, runtime endpoint identity, and observed behavior. OpenID Federation 1.1 is Final for establishing federation trust; WIMSE and SPIFFE cover workload layers at different maturity levels; the queued Identity Chaining profile defines a concrete RFC 8693-to-RFC 7523 bridge for selected identity and authorization context; and A2A Agent Cards and external agent-claim proposals cover other slices. Identity Chaining does not create organizational trust, choose a workload identity, or make all upstream claims admissible in the target domain. None of these layers makes another transitive, and OIDC-A remains independent research rather than an OpenID Foundation specification.
 
 **Applicability:** Contract — current federation, workload identity, delegation, and maturity-labelled agent work; surface — cross-organization trust; evidence — final specifications, WG drafts, monitored proposals, and analysis; product role — IdP/AS, workload platform, registry/discovery, and gateway/runtime.
 
-**Evidence trail:** Cross-Organization Federation ([§8.7](#87-cross-organization-agent-federation)); Standards Inventory ([§20](#20-emerging-standards-for-ai-agent-authorization)); Server Identity Layers ([§13.7](#137-mcp-tool-supply-chain-security)).
+**Evidence trail:** canonical two-domain Identity Chaining profile ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains)); Cross-Organization Federation ([§8.7](#87-cross-organization-agent-federation)); Standards Inventory ([§20](#20-emerging-standards-for-ai-agent-authorization)); Server Identity Layers ([§13.7](#137-mcp-tool-supply-chain-security)).
 
 ##### 25.9.2 Key Finding 26: Explicit Handle Authorization Is the Current Cross-Product Gap
 <a id="finding-26"></a>
@@ -20731,7 +21386,7 @@ Product features such as circuit breakers, `failure_mode_allow`, cached JWKS, st
 
 The current `InputRequiredResult`, keyed `inputRequests`, opaque `requestState`, and retry of the original method are visible to an inline gateway. That creates policy hooks for capability checks, input-key validation, URL allowlists, host normalization, state size, rate limits, and audit. The external browser interaction remains a separate trust boundary that the gateway cannot observe merely by correlating protocol state.
 
-The external browser remains a separate trust boundary. The client must show the requesting server and full URL, require explicit consent, open a secure isolated context, and avoid prefetching; the server-controlled connect endpoint must authenticate the browser user and bind that identity to the MCP authorization subject before third-party redirect. Acceptance proves only consent to navigate, not completion or transaction authorization. Before a task exists, continuation retries the original request with a new ID; after task creation, input uses `tasks/update`.
+The external browser remains a separate trust boundary. The client must show the requesting server and full URL, require explicit consent, open a secure isolated context, and avoid prefetching; the server-controlled connect endpoint must authenticate the browser user and bind that identity to the MCP authorization subject before third-party redirect. When the server retains provider tokens, the pattern is BFF-like custody: the browser receives a hardened session rather than provider access or refresh tokens, but session riding, CSRF, malicious extensions, and backend compromise remain in scope. Acceptance proves only consent to navigate, not completion or transaction authorization. Before a task exists, continuation retries the original request with a new ID; after task creation, input uses `tasks/update`.
 
 **Applicability:** Contract — current multi-round-trip results and URL Elicitation; surface — request-state and external-browser handoff; evidence — normative requirement plus browser-boundary analysis; product role — host/client, gateway/runtime, and MCP server.
 
@@ -20782,7 +21437,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 10](#finding-10) (gateway boundary); [KF 15](#finding-15)–21 (role-normalized product evidence).
 
-3. **Preserve the operation's actual subject, actor, client, and workload roles.** For delegated calls, prefer audience-bound RFC 8693 exchange or an equivalently explicit local profile over impersonation or transparent token forwarding; carry the subject in `sub` and the current actor in `act` under the selected profile. For direct organizational or autonomous workload calls, use the real machine or organization subject instead of fabricating a user. Validate issuer, audience, granted rights, client, and workload evidence at the boundaries that rely on them; treat prior actors as reconstruction context rather than current authorization inputs; and make refresh or offline continuation a separate policy decision.
+3. **Preserve the operation's actual subject, actor, client, workload, and trust-domain roles.** For delegated calls inside one trust domain, prefer audience-bound RFC 8693 exchange or an equivalently explicit local profile over impersonation or transparent token forwarding; carry the subject in `sub` and the current actor in `act` under the selected profile. When authority crosses into another domain, use the [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) Identity Chaining profile only where both domains have agreed the issuer, client authentication, claim-transcription policy, target authorization server, and failure semantics; do not present an upstream token directly to the target resource server or infer that every nested `act` claim is admissible. For direct organizational or autonomous workload calls, use the real machine or organization subject instead of fabricating a user. Validate issuer, audience, granted rights, client, and workload evidence at the boundaries that rely on them; treat prior actors as reconstruction context rather than current authorization inputs; and make refresh or offline continuation a separate policy decision.
 
    **Applicability:** Current OAuth delegation and downstream service calls.
 
@@ -20830,7 +21485,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 34](#finding-34) (decision evidence); [KF 39](#finding-39) (composition contract); [KF 40](#finding-40) (component failure semantics).
 
-11. **Profile MCP-to-A2A identity handoff explicitly.** Preserve OAuth `sub`/`act`, issuer, audience, consent, task, and assurance semantics when an MCP workflow crosses into A2A or another orchestration framework. Negotiate and version any Transaction Token or agent-context envelope; reject the handoff when the receiver cannot preserve the required authority context.
+11. **Profile MCP-to-A2A identity handoff explicitly.** Preserve OAuth `sub`/`act`, issuer, audience, consent, task, and assurance semantics when an MCP workflow crosses into A2A or another orchestration framework. For a trust-domain crossing, select the [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) Identity Chaining bridge only when the receiving domain can validate the JWT authorization grant and apply an explicit claim-transcription policy; otherwise negotiate and version a Transaction Token or agent-context envelope suited to the service graph. Reject the handoff when the receiver cannot preserve the required authority context.
 
    **Applicability:** Current MCP/A2A and cross-framework boundaries.
 
@@ -20842,13 +21497,13 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 10](#finding-10)–21 (role-normalized product evidence); [KF 31](#finding-31) (non-transitive ecosystem trust).
 
-13. **Keep long-lived third-party credentials outside agent-controlled prompt and tool context.** Select managed custody, gateway or server injection, secretless workload identity, or audience-bound token exchange according to the downstream system. Preserve subject/actor semantics, constrain audiences, rotate and revoke credentials, and verify that custody isolation has not obscured backend authorization or protocol conformance.
+13. **Keep long-lived third-party credentials outside agent-controlled prompt and tool context.** Select managed custody, gateway or server injection, a BFF-like browser boundary, secretless workload identity, or audience-bound token exchange according to the downstream system. A BFF must keep provider access and refresh tokens out of browser JavaScript while independently controlling its hardened session, CSRF exposure, and session-riding risk. Preserve subject/actor semantics, constrain audiences, rotate and revoke credentials, distribute or query status where the token profile supports it, and verify that custody isolation has not obscured backend authorization or protocol conformance.
 
    **Applicability:** Current credential delegation and product-specific vault/injection surfaces.
 
    **Finding basis:** [KF 11](#finding-11) (custody is not conformance); [KF 16](#finding-16) (lifecycle is surface-specific); [KF 24](#finding-24) (delegation spectrum).
 
-14. **Choose human oversight from action consequence and preserve evidence of the decision.** Classify actions by reversibility, legal or financial effect, sensitivity, autonomy, and time pressure; then select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. For URL elicitation, distinguish consent to open a displayed URL from authentication at the connect endpoint, completion of the external flow, and authorization of the resulting transaction.
+14. **Choose human oversight from action consequence and preserve evidence of the decision.** Classify actions by reversibility, legal or financial effect, sensitivity, autonomy, and time pressure; then select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Treat unsolicited or attacker-induced cross-device approvals as a distinct consent-phishing risk: bind the displayed transaction, make the initiating device and relying party recognizable, rate-limit initiation, and provide a clear deny and recovery path. For URL elicitation, distinguish consent to open a displayed URL from authentication at the connect endpoint, completion of the external flow, and authorization of the resulting transaction.
 
    **Applicability:** Current human oversight and URL Elicitation where used.
 
@@ -20884,7 +21539,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 23](#finding-23) (emerging NHI requirement); [KF 30](#finding-30) (frameworks have different force).
 
-20. **Select credential treatment per trust boundary and complete its whole lifecycle.** For each downstream credential, document issuer, subject/actor semantics, audience, storage, injection or exchange point, rotation, revocation, recovery, observability, and failure mode. Test that user-specific credentials cannot cross tenants or agents and that workload credentials do not silently replace delegated user authority.
+20. **Select credential treatment per trust boundary and complete its whole lifecycle.** For each downstream credential, document issuer, subject/actor semantics, audience, storage, injection or exchange point, rotation, revocation, recovery, observability, and failure mode. Start every authenticated HTTP API call on a validated HTTPS endpoint; never send a bearer token, secret-bearing cookie, or other reusable credential over plaintext HTTP and rely on a redirect to repair the request. If a reusable credential reaches an insecure channel, reject without a validity oracle, treat it as potentially compromised, and apply a revocation response that is itself protected against credential-guessing denial of service. Test that user-specific credentials cannot cross tenants or agents and that workload credentials do not silently replace delegated user authority.
 
    **Applicability:** Current OAuth and product-specific credential patterns.
 
@@ -22192,6 +22847,18 @@ Agent Detection, delivered through **PingOne Protect**, moves beyond binary bot 
 
 **Scope differentiation.** The classification model is architecturally significant because it addresses a gap in most gateway-mediated approaches: how to handle agents that are neither internal nor malicious. Customer personal agents — the "bring your own agent" paradigm — represent a growing category that requires distinct handling: they are not registered in the enterprise IAM system, but blocking them outright fractures the user experience. Agent Detection provides a middle path: detect, classify, and apply differentiated policy rather than defaulting to block or permit.
 
+##### B.2.3 PingFederate 13.1 Identity Chaining
+
+PingFederate—not PingGateway—is the released Ping product surface with exact two-leg profile evidence. [PingFederate 13.1](https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes_131.html) can issue an Identity Assertion Authorization Grant (ID-JAG) through OAuth token exchange and can accept that grant through an RFC 7523 JWT-bearer authorization-grant request. Its [authorization-server metadata](https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_oauth_authorization_server_metadata_endpoint.html) exposes the profile's discovery controls:
+
+| PingFederate role | Product behavior | Deployment boundary |
+|:--|:--|:--|
+| **Domain-A issuer** | Advertises `identity_chaining_requested_token_types_supported` and returns ID-JAG as the requested token type from the RFC 8693 leg | Configure the sole target authorization-server audience and an explicit transcription policy; the returned JWT is a grant for AS-B, not an API access token |
+| **Domain-B consumer** | Advertises `authorization_grant_profiles_supported` and accepts the ID-JAG in an RFC 7523 JWT-bearer grant request | Validate the domain-A issuer, AS-B audience, replay/time/key constraints, client authentication, and local issuance policy before minting a resource token |
+| **Maintenance boundary** | [13.1.1](https://docs.pingidentity.com/pingfederate/13.1/release_notes/pf_release_notes_1311.html) fixes an ID-JAG-specific token-exchange validation defect | Pin and test the maintenance release; the 13.1 feature announcement alone is insufficient patch-level acceptance evidence |
+
+This is implementation evidence for the generic composition in [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) and the EMA/ID-JAG specialization in [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile). It does not establish that PingOne, PingGateway, earlier PingFederate releases, or every configured partner implements the same profile or claim-transcription contract.
+
 #### B.3 Three Dedicated MCP Filters
 
 PingGateway exposes three MCP-aware filters:
@@ -22262,6 +22929,7 @@ The gateway must bind downstream issuance to the exact backend audience and gran
 | **[§B.1](#b1-runtime-identity-conceptual-framework-for-ai-agent-identity) Runtime Identity** | Conceptual framework connecting agent/workload identity ([§6](#6-agent-identity-vs-user-identity) and [§7](#7-agent-definition-identity-and-governance-lifecycles)), explicit delegation ([§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) and [§11](#11-credential-custody-and-release-patterns)), and per-action enforcement ([§13](#13-gateway-mediated-mcp-architecture) and [§17](#17-authorization-across-mcp-primitives-and-durable-state)). The cited 2026 incident supplies a current motivating case |
 | **[§B.2.1](#b21-agent-iam-core-agent-lifecycle-and-delegation) Agent IAM Core** | Product implementation of agent identity, registration, delegated entitlements, and autonomous/on-behalf-of flows; connects to credential delegation ([§11](#11-credential-custody-and-release-patterns)), NHI governance ([§7](#7-agent-definition-identity-and-governance-lifecycles)), and DPoP ([§B.6](#b6-secretless-jit-token-injection-and-dpop)) |
 | **[§B.2.2](#b22-agent-detection-behavioral-classification) Agent Detection** | Behavioral classification extends the signal-to-authorization pipeline; connects to closed-loop behavioral trust ([§16.6](#166-dynamic-behavioral-trust-risk-adaptive-authorization)), continuous-access events and receiver processing ([§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.6](#126-receiver-processing-stream-health-and-reconciliation)), and per-request policy feedback ([§13.2.9](#1329-guardrailauthorization-feedback-the-per-request-interaction-pattern)) |
+| **[§5.6](#56-identity-and-authorization-chaining-across-trust-domains) Identity Chaining** | PingFederate 13.1 supplies released issuer and consumer roles for the ID-JAG two-leg profile; 13.1.1 is the patch-level floor for the documented validation fix. This evidence is separate from PingGateway's MCP filter contract. |
 | **[§B.5](#b5-pingauthorize-integration-fine-grained-mcp-authorization) HITL Mapping** | PingGateway and PingAuthorize can enforce policy at the PEP. Where a deployment uses PingFederate CIBA, that documented decoupled authentication/authorization ceremony may support a Tier 5 interaction; available public evidence does not establish a native Tier 6 quorum workflow, so collective approval state remains an application or workflow-service responsibility |
 
 #### B.8 Evidence Required for Forward Admission
@@ -22399,6 +23067,8 @@ The AI MCP OAuth2 plugin implements the MCP authorization specification's OAuth 
 
 **Operational patch level**: Deployments relying on AI MCP OAuth2 token exchange should track the 3.14.0.2 patch level or later. Kong's April 28, 2026 changelog records fixes for `token_exchange.cache.enabled = false` being ignored and for actor tokens not being sourced correctly from `token_exchange.request`. Those are not feature changes, but they matter for any deployment using cache-disabled token exchange or actor-token forwarding as part of its delegation semantics.
 
+Kong's plugin can therefore supply one RFC 8693 exchange component and replace the inbound token before proxying. The reviewed documentation does not establish the separate RFC 7523 authorization-grant leg, Identity Chaining discovery metadata, or a bilateral claim-transcription contract from [§5.6](#56-identity-and-authorization-chaining-across-trust-domains); plugin-level exchange and `id-jag-relay` must not be combined by inference into generic Identity Chaining conformance.
+
 #### C.4 Tool-Level Authorization: MCP ACL (GA, v3.13)
 
 Kong Gateway 3.13 (GA, December 18, 2025) ships **MCP ACL** as a built-in capability of the AI MCP Proxy plugin — not a separate plugin. This integrates tool-level authorization directly into the MCP proxy pipeline, simplifying the plugin chain:
@@ -22464,7 +23134,7 @@ Among the thirteen offerings surveyed on 23 July 2026, Kong has the broadest exp
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Kong's AI MCP OAuth2 plugin now supports plugin-level token exchange before upstream MCP access, while Kong still depends on the external IdP and plugin configuration for subject/actor semantics and consent evidence |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Kong's AI MCP OAuth2 plugin supports one RFC 8693 exchange component before upstream MCP access; the reviewed evidence does not establish [§5.6](#56-identity-and-authorization-chaining-across-trust-domains)'s separate RFC 7523 leg, chaining metadata, or bilateral transcription policy |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Kong implements the gateway responsibilities ([§13.2](#132-gateway-responsibilities)) through the broadest explicitly documented gateway-plugin ecosystem in the 23 July 2026 survey |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | Consent is handled by the external IdP (Okta, Auth0, Keycloak) via the OIDC plugin; Kong itself has no consent layer |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | MCP ACL (built-in to AI MCP Proxy, GA v3.13) provides Consumer/Consumer Group–based tool-level access control — closest to ACL-based TBAC, but lacks task/transaction context |
@@ -23123,6 +23793,17 @@ flowchart LR
 | **Native OIDC** | Authorization Code + PKCE with encrypted session cookies | Browser login without a separate OAuth2 Proxy sidecar |
 | **MCP Auth Spec** | Protected-resource metadata plus JWT validation and provider-specific handling | MCP-native clients; reviewed metadata identifies `2025-06-18` |
 
+**Cross-App Access identity chaining** — the current/main [agentgateway `crossAppAccess` guide](https://agentgateway.dev/docs/standalone/main/configuration/security/backend-authn/cross-app-access/) documents an exact two-leg backend-authentication path:
+
+| Boundary | Documented behavior | Evidence limit |
+|:--|:--|:--|
+| **Inbound identity** | Validate the user's OIDC ID token against the configured issuer/JWKS and preserve it only as the subject evidence for the chain | An ID token is not forwarded as a resource access token |
+| **ID-JAG issuer leg** | Authenticate with one client registration and call the configured ID-JAG/token-exchange endpoint to obtain the intermediate identity grant | Separate issuer endpoint, client ID, and client credential remain explicit configuration |
+| **Resource-AS leg** | Authenticate with a second registration and present the ID-JAG at the configured target authorization server to obtain the backend access token | The second client/endpoint is not inferred from the first registration |
+| **Caching and release** | Cache the target access token within its lifetime, strip the inbound identity token, and send only the target token to the backend | Cache keys and invalidation must preserve user, target, client, policy, and expiry boundaries |
+
+The documentation track does not state a GA lifecycle for this feature. Its listed limitations include no DPoP, no well-known endpoint discovery, no SAML subject token, and no refresh-token subject type. Treat it as exact documented profile evidence with explicit limitations—not as proof that the stable v1.1.0 release inventory or every agentgateway deployment contains this capability.
+
 **Authorization — MCP-aware CEL policy surfaces**:
 
 AgentGateway uses CEL expressions for fine-grained MCP authorization. Current policies can inspect authenticated JWT claims, tool names, target backends, and tool arguments:
@@ -23520,7 +24201,7 @@ This is architecturally different from PingGateway's `McpAuditFilter` (purpose-b
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | AgentGateway can authenticate clients and configure backend credentials, but available evidence does not establish that it performs RFC 8693 token exchange or supplies universal OBO semantics |
+| **[§5.6](#56-identity-and-authorization-chaining-across-trust-domains) Identity Chaining** | The current/main `crossAppAccess` path documents the ID-JAG RFC 8693 leg and the separate resource-AS grant leg, with distinct registrations/endpoints, target-token caching, and inbound identity-token stripping. Its GA lifecycle is unstated and its documented limitations remain acceptance inputs. |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | AgentGateway's data plane maps to the gateway responsibilities in [§13.2](#132-gateway-responsibilities), but delegates state management externally |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | Native OIDC can run an Authorization Code + PKCE login flow; AgentGateway then enforces post-login access through MCP-aware CEL and route policies |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | CEL `mcpAuthorization` enables request-context checks at the tool/resource level; unauthorized resources can be filtered from discovery before execution |
@@ -23642,6 +24323,8 @@ ContextForge's auth model combines conventional identity controls with newer gat
 | **Per-User Vault Credentials** | HashiCorp Vault resolution for downstream credentials across supported auth types (`v1.0.6`) |
 | **MCP Apps** | Platform support for MCP Apps (`v1.0.6`) |
 
+The accepted [identity-propagation architecture](https://ibm.github.io/mcp-context-forge/latest/architecture/adr/041-identity-propagation/) and current release evidence make this a concrete RFC 8693 OBO implementation boundary. They do not document [§5.6](#56-identity-and-authorization-chaining-across-trust-domains)'s RFC 7523 second leg, `identity_chaining_requested_token_types_supported`, or a cross-domain claim-transcription profile. Per-user Vault lookup, direct external bearer acceptance, and OBO exchange remain three distinct credential paths.
+
 The auth pattern is closest to **PingGateway ([§B](#appendix-b-pinggateway-as-mcp-ai-gateway-protocol-level-deep-dive))** — a filter chain with external IdP — but without purpose-built MCP authentication filters.
 
 > **OPA integration and current release line**: ContextForge added OPA policy-engine support before v1.0.0. The current checked release is `v1.0.6` (22 July 2026), following the initial GA release:
@@ -23692,7 +24375,7 @@ In the 23 July 2026 survey, ContextForge documents the **broadest observability 
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | `v1.0.6` adds RFC 8693 OBO token exchange for OAuth gateways, alongside per-user Vault credentials and direct credential-injection patterns; deployments must keep those modes distinct |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | `v1.0.6` adds one RFC 8693 OBO exchange leg for OAuth gateways, alongside per-user Vault credentials and direct credential-injection patterns; no [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) RFC 7523 second leg or Identity Chaining metadata is established |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | ContextForge implements all 6 gateway responsibilities ([§13.2](#132-gateway-responsibilities)) plus safety guardrails as a 7th |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | OAuth SSO consent handled by external IdP (EntraID, Google, Okta); ContextForge itself relies on admin-configured access |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | RBAC via SSO claims, not task-based — guardrails provide an orthogonal authorization layer |
@@ -24133,6 +24816,14 @@ WSO2 Identity Server 7.3 treats AI agents as **first-class digital identities** 
 | **On-Behalf-Of (OBO)** | Agent acts as delegated user | Authorization Code + PKCE → user-scoped token |
 | **M2M** | Service-to-service (no human) | Client Credentials with pre-configured scopes |
 
+WSO2 separately documents [RFC 8693 token exchange](https://is.docs.wso2.com/en/latest/guides/authentication/configure-token-exchange/) for a trusted third-party JWT. In the documented default mapping, the resulting WSO2 token copies only the upstream `sub`; other source claims do not automatically survive. That is a useful concrete transcription boundary:
+
+| Exchange fact | Consequence |
+|:--|:--|
+| Trusted external JWT is the subject token | The configured WSO2 issuer still makes a new local token decision |
+| Only `sub` is copied by the documented mapping | Actor, groups, assurance, tenant, scope, and other context require explicit mapping and policy rather than assumed preservation |
+| One RFC 8693 leg is documented | No RFC 7523 second leg, Identity Chaining metadata, or generic [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) profile conformance is established |
+
 #### G.4 Scope Enforcement and User Authorization
 
 WSO2's scope enforcement goes beyond basic JWT validation:
@@ -24192,6 +24883,7 @@ Both share the same core architecture and feature set (MCP server templates, age
 | **[§1](#1-mcp-authorization-bootstrap-client-trust-and-grant-profiles) Authorization Bootstrap and Profiles** | WSO2 IS implements the MCP auth spec by acting as the AS natively — the spec's intended architecture |
 | **[§3](#3-scope-selection-and-runtime-step-up) Scope Selection and Step-Up** | RFC 9728 discovery, exact issuer/resource binding, administrator-managed client identity, consent, and scope challenge |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | WSO2 IS directly implements Approach C (agents as first-class identities in IdP) |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | WSO2 documents a single RFC 8693 exchange for trusted third-party JWTs and a default mapping that copies only `sub`; that does not establish [§5.6](#56-identity-and-authorization-chaining-across-trust-domains)'s second leg or universal claim preservation |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | Unlike gateways ([§13.2](#132-gateway-responsibilities)–[§13.5](#135-opentelemetry-and-w3c-trace-context-for-mcp-traceability)), WSO2 IS removes the intermediary — the IdP IS the AS |
 | **[§14](#14-authorization-approval-and-consent-models) Consent** | WSO2 IS provides native consent UIs with per-scope granularity and incremental consent |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Scope-based RBAC maps to TBAC via per-tool scope definitions |
@@ -24694,7 +25386,16 @@ Auth0 is therefore strong implementation evidence for CIBA plus RAR in an agent-
 
 #### H.5 MCP Integration: Auth for MCP GA, CIMD, and Cross App Access
 
-As of the July 23, 2026 re-check, Auth0's MCP-specific story has three component-specific maturity signals. **Auth for MCP is GA** for securing arbitrary MCP servers with sign-in, client registration, resource-scoped tokens, and OBO exchange. **Token Vault** is the documented credential-brokerage layer used when MCP servers or AI agents need third-party API access on a user's behalf; its product-specific docs still mark the capability Early Access for public cloud tenants. **Cross App Access (XAA)** remains Beta. These lifecycle labels are independent.
+As of the July 26, 2026 re-check, Auth0's MCP-specific story has three component-specific maturity signals. **Auth for MCP is GA** for securing arbitrary MCP servers with sign-in, client registration, resource-scoped tokens, and OBO exchange. **Token Vault** is the documented credential-brokerage layer used when MCP servers or AI agents need third-party API access on a user's behalf; its product-specific docs still mark the capability Early Access for public cloud tenants. **Cross App Access (XAA)** remains Beta. These lifecycle labels are independent.
+
+The documented cross-vendor XAA topology also has two independent product lifecycles:
+
+| Profile role | Product evidence | Lifecycle | What not to infer |
+|:--|:--|:--|:--|
+| **Enterprise IdP / policy / ID-JAG issuer** | [Okta Cross App Access](https://developer.okta.com/blog/2025/09/03/cross-app-access) governs requesting and resource applications and issues the enterprise identity assertion | **Early Access** | Ordinary Okta OAuth/OIDC availability does not make XAA GA |
+| **Resource authorization server / local token issuer** | [Auth0 Cross App Access](https://auth0.com/docs/ai-agents-mcp/cross-app-access) accepts the ID-JAG under the configured enterprise connection and issues the resource token | **Beta** | Auth for MCP GA does not transfer to XAA, and XAA does not make Token Vault an RFC 8693 profile |
+
+The combination is exact implementation evidence for the specialized EMA/ID-JAG path in [§1.6](#16-enterprise-managed-authorization-alternative-grant-profile) and the two-domain composition in [§5.6](#56-identity-and-authorization-chaining-across-trust-domains). Each tenant still needs the bilateral issuer, client, audience, transcription, key, lifecycle, and termination policy; connecting the two products does not manufacture those decisions.
 
 **Client ID Metadata Documents (CIMD)** — Auth0’s current path for clients without a pre-existing registration relationship:
 
@@ -24764,7 +25465,7 @@ In the 23 July 2026 evidence snapshot, Auth0 has the broadest explicitly documen
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Token Vault performs a managed, product-specific provider-token exchange using Auth0 grant and token-type URNs. It addresses credential retrieval, but it is not a portable RFC 8693 profile and does not by itself encode an OAuth actor chain |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Token Vault performs a managed, product-specific provider-token exchange and is not a portable RFC 8693 profile. Separately, Okta Early Access plus Auth0 XAA Beta document the two-role ID-JAG topology from §§1.6 and 5.6; the lifecycle labels do not transfer across those surfaces. |
 | **[§6](#6-agent-identity-vs-user-identity) Agent Identity** | Auth0 provides dedicated AI agent identities with lifecycle management |
 | **[§14](#14-authorization-approval-and-consent-models) Authorization and consent** | CIBA supplies a decoupled authenticated decision ceremony; XAA supplies enterprise-managed policy authorization. Neither label alone establishes legal consent or runtime operation authority |
 | **[§16](#16-task-based-access-control-tbac) Layered access control** | FGA/OpenFGA supplies document-level relationship authorization for RAG, composed with OAuth grants, task context, and resource-server policy |
@@ -24884,6 +25585,8 @@ TBAC can compose role and scope ceilings with task, tool, transaction, and runti
 #### I.3 On-Behalf-Of (OBO) Delegation: Cross-Layer Responsibility
 
 Traefik Hub documents an RFC 8693 OBO architecture, but the exchange is implemented by the **MCP server**:
+
+This is a single resource-derivation leg. Traefik forwards or strips Token A and enforces gateway policy; it does not itself issue the intermediate JWT authorization grant, call a second authorization server with RFC 7523, or advertise the Identity Chaining metadata from [§5.6](#56-identity-and-authorization-chaining-across-trust-domains).
 
 ```mermaid
 ---
@@ -25254,7 +25957,7 @@ The MCP middleware functions as an OAuth 2.1/2.0 Resource Server:
 
 | Reference | Connection |
 |:---|:---|
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Traefik Hub forwards or strips Token A; the MCP server implements RFC 8693 exchange for backend-audience Token B |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | Traefik Hub forwards or strips Token A; the MCP server—not the gateway—implements one RFC 8693 exchange for backend-audience Token B. No [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) second leg is established. |
 | **[§16](#16-task-based-access-control-tbac) TBAC** | Traefik Hub implements task-, tool-, and transaction-level policy using JWT claims and MCP request parameters |
 | **[§2](#2-request-scoped-authorization-and-downstream-execution) Request-Scoped Authorization** | Traefik Hub documents `Mcp-Session-Id` use on its older supported contract for affinity/telemetry, but available evidence does not establish current application/task-handle authorization |
 | **Official Extensions** | Exact highest core version, routing headers, Tasks, MCP Apps, EMA, public conformance, and support for the approved `2026-07-28` floor remain unverified |
@@ -25589,6 +26292,8 @@ The Red Hat MCP Gateway (`kagenti/mcp-gateway`) illustrates an Envoy/service-mes
 
 > **Status**: MCP Gateway `0.6.0` is a **Technology Preview** feature in Red Hat Connectivity Link `1.4.1`. Connectivity Link `1.4.0` is deprecated because supported OpenShift combinations can experience authentication failures, API-key errors, gateway instability, and pod memory pressure; Red Hat directs users to install or upgrade to `1.4.1`. Technology Preview features are outside production SLAs and are not recommended by Red Hat for production use.
 
+An adjacent Red Hat surface must remain separate: [OpenShift AI Self-Managed 3.4](https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/release_notes/developer-preview-features_relnotes) documents **AuthBridge** inbound JWT validation and outbound token exchange only as a **Developer Preview**. That evidence is neither production-ready nor proof that Connectivity Link, MCP Gateway, or AuthBridge implements the complete [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) Identity Chaining profile.
+
 > **Important — This model is strongest where enterprises want composable mesh-native policy, not turnkey gateway centralization**
 >
 > The main differentiator in this appendix is not a proprietary MCP control plane but the ability to express authentication, metadata fetches, authorization, and credential translation through standard Envoy, Gateway API, OPA, CEL, and Vault building blocks. That makes the model unusually portable and auditable, but it also means operational complexity is shifted to platform engineering rather than abstracted away by a single integrated product.
@@ -25786,6 +26491,8 @@ request.headers['x-mcp-toolname'] in (
 
 **Architectural significance**: Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) documents server-side OBO with gateway forwarding/TBAC, while Auth0's Token Vault ([§H](#appendix-h-auth0okta-ciam-native-ai-agent-platform)) manages delegation as a SaaS service. The Red Hat approach can express exchange, audience binding, and tool-level verification declaratively in AuthPolicy YAML with CEL/OPA, making the policy auditable and version-controlled.
 
+This metadata-phase call is one RFC 8693 component. The reviewed product evidence does not add an RFC 7523 second authorization-server leg, Identity Chaining discovery metadata, or a bilateral claim-transcription contract.
+
 #### L.6 Solution 3: Vault Credential Translation with Priority Fallback
 
 **Problem**: External MCP servers use different auth mechanisms — GitHub requires a PAT, some services require API keys, others support OAuth. The gateway must translate credentials per-server and per-user.
@@ -25887,6 +26594,7 @@ This enables the full MCP authorization flow: agent hits `/mcp` → 401 with `WW
 | **[§11](#11-credential-custody-and-release-patterns) Credential Custody and Release** | Composes OBO token derivation with Vault-backed credential resolution, selected per request through declarative policy. The deployment must preserve the authority source, custody transition, and fallback evidence rather than treating both paths as one credential mode. |
 | **[§13.3](#133-gateway-architecture-patterns) Architecture Patterns** | Red Hat supplies the service-mesh/Kubernetes archetype: Envoy routing, external `ext_authz`, Gateway API–referenced CRDs, and a four-phase policy pipeline; Traefik Hub ([§I](#appendix-i-traefik-hub-k8s-native-mcp-gateway-with-tbac-and-obo-delegation)) represents a different Kubernetes gateway composition |
 | **Lifecycle / Extensions** | Connectivity Link `1.4.1` + MCP Gateway `0.6.0` Technology Preview; URL-based token elicitation is configurable, while public conformance, routing headers, Tasks, MCP Apps, EMA, and support for the approved `2026-07-28` floor remain unverified |
+| **Adjacent AuthBridge evidence** | OpenShift AI Self-Managed 3.4 documents inbound JWT validation and outbound exchange as Developer Preview; it is a separate, non-production component signal rather than [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) conformance |
 
 ---
 
@@ -26435,6 +27143,8 @@ LiteLLM's current MCP documentation exposes eight authentication modes for manag
 | `aws_sigv4` | Per-request SigV4 signature | AWS Bedrock AgentCore |
 
 **OAuth 2.0 support:** LiteLLM documents interactive PKCE flows for user-facing clients, machine-to-machine `client_credentials`, and RFC 8693 token exchange. It attempts authorization-server discovery, can dynamically register a client or use pre-provisioned client credentials, and caches and refreshes resolved tokens. These are separate credential-resolution modes: a deployment should select the intended `oauth2_flow` or token-exchange profile explicitly rather than infer delegation from the generic `oauth2` label.
+
+For `oauth2_token_exchange`, LiteLLM exchanges the incoming user's bearer token for the selected MCP server's target token and caches the result by subject-token/server context within the configured lifetime. That is one RFC 8693 leg. The reviewed documentation does not establish the separate RFC 7523 grant to a second authorization server or the discovery/transcription metadata from [§5.6](#56-identity-and-authorization-chaining-across-trust-domains), so it is not generic Identity Chaining evidence.
 
 ##### M.3.3 MCP Tool Namespacing
 
@@ -27532,7 +28242,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 | Reference | Connection |
 |:---|:---|
 | **[§13.1.1](#1311-deployment-topologies-two-tier-vs-converged) Component Chain** | LiteLLM is the representative **Egress AI Gateway** in Topology A. The Ingress API Gateway (Kong, APIM) handles AuthZ and JWT validation; LiteLLM handles LLM orchestration, MCP tool injection, and spend tracking. The JWT handler's claim extraction ([§M.2](#m2-jwt-authentication-and-rbac)) demonstrates how the downstream JWT context is preserved across the two-tier boundary. |
-| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | LiteLLM's MCP Zero Trust JWT Signer ([§M.5](#m5-mcp-zero-trust-jwt-signer-guardrail)) validates an incoming IdP token and issues a short-lived downstream assertion. This gateway-mediated re-assertion is distinct from RFC 8693 token exchange; §11 records its signer custody, permitted-use surface, recipient, expiry, and revocation boundary. |
+| **[§5](#5-oauth-token-exchange-rfc-8693-and-delegated-derivation) Token Exchange** | LiteLLM's `oauth2_token_exchange` performs one RFC 8693 exchange per incoming user/MCP-server context and caches the target token; no [§5.6](#56-identity-and-authorization-chaining-across-trust-domains) RFC 7523 second leg is established. Its separate MCP Zero Trust JWT Signer ([§M.5](#m5-mcp-zero-trust-jwt-signer-guardrail)) is gateway-mediated re-assertion, not that token-exchange path. |
 | **[§13](#13-gateway-mediated-mcp-architecture) Gateway Architecture** | LiteLLM introduces a new archetype: **"AI-Native MCP Gateway"** — purpose-built for LLM orchestration with native MCP support, as distinct from traditional API gateways that bolt on MCP via plugins. The `MCPServerManager` registry, tool namespacing, and OpenAPI-to-MCP conversion are AI-native capabilities. |
 | **[§23](#23-eu-ai-act-and-adjacent-eu-obligations-applicability-controls-and-evidence) EU AI Act** | LiteLLM's seven-entity spend tracking and per-MCP-tool fields ([§M.4](#m4-token-spend-tracking-and-budget-enforcement)) can contribute logging, attribution, and cost evidence. They do not independently establish compliance with Articles 9, 12, or 15; completeness, retention, system classification, and the wider control set remain decisive. |
 | **[§18](#18-authorization-models-and-policy-engines-pattern-synthesis) Policy Engine** | LiteLLM uses a built-in RBAC model (`role_permissions`) rather than delegating to an external policy engine. This is simpler but less expressive than Cedar/OPA. For enterprises needing fine-grained ABAC, the Component Chain topology addresses this by placing the policy engine at the Ingress API Gateway layer. |
@@ -27566,8 +28276,13 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Cloudflare — Browser Run adds WebMCP support](https://developers.cloudflare.com/changelog/post/2026-04-15-br-webmcp/) — Browser Run WebMCP support; typed website-tool execution and human confirmation on sensitive actions (April 15, 2026) ([§14.5](#145-is-user-consent-always-required), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§20.7](#207-web-bot-authentication))
 - [CVE-2026-26118 — Azure MCP Server SSRF](https://www.cve.org/CVERecord?id=CVE-2026-26118) — Server-Side Request Forgery in Azure MCP Server allowing an authorized attacker to elevate privileges over a network (CVSS 8.8, disclosed March 2026; patched in Azure.Mcp ≥1.0.2 / ≥2.0.0-beta.17). See [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive) for affected ranges and server-boundary implications.
 - [DIF — Trusted AI Agents Working Group (TAIAWG)](https://identity.foundation/) — Decentralized Identity Foundation working group (launched September 2025) defining interoperable specifications for agentic identity, agentic registries, trusted agent communication, and access control using DIDs/VCs; first deliverable: Agentic Authority Use Cases ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
+- [draft-ietf-httpapi-privacy-06 — Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) — HTTPAPI WG Best Current Practice in the RFC Editor queue; requires credential-bearing requests to begin on secure transport and avoid validity-oracle behavior after insecure disclosure ([§1.2](#12-trust-boundaries-and-authorization-artifacts), [§18.3.8](#1838-openid-authorization-api-10-peppdp-interoperability), Recommendation 20)
+- [draft-ietf-oauth-browser-based-apps-27 — OAuth 2.0 for Browser-Based Applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/) — OAuth WG Best Current Practice in the RFC Editor queue; distinguishes BFF, token-mediating backend, and browser-held token patterns and their residual risks ([§11.3](#113-composable-custody-and-release-patterns), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff))
+- [draft-ietf-oauth-cross-device-security-16 — Cross-Device Flows: Security Best Current Practice](https://datatracker.ietf.org/doc/draft-ietf-oauth-cross-device-security/) — OAuth WG Best Current Practice in the RFC Editor queue; separates cross-device consent phishing from session phishing and defines prevention, disruption, and recovery controls ([§15.5.5](#1555-token-types-from-ciba))
 - [draft-ietf-oauth-identity-assertion-authz-grant-04 — Identity Assertion JWT Authorization Grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) — OAuth WG profile of Identity Chaining for enterprise SSO; updated May 21, 2026 ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile))
-- [draft-ietf-oauth-identity-chaining-17 — OAuth Identity and Authorization Chaining Across Domains](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) — Preserves identity and authorization context across trust domains via RFC 8693 Token Exchange and RFC 7523 JWT Authorization Grant; latest revision July 19, 2026 and submitted to the RFC Editor queue ([§20.4](#204-delegation-and-identity-chains))
+- [draft-ietf-oauth-identity-chaining-17 — OAuth Identity and Authorization Chaining Across Domains](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) — Preserves selected identity and authorization context across trust domains via RFC 8693 Token Exchange and RFC 7523 JWT Authorization Grant; revision 17 is in the RFC Editor queue ([§5.6](#56-identity-and-authorization-chaining-across-trust-domains), [§20.4](#204-delegation-and-identity-chains))
+- [draft-ietf-oauth-rfc7523bis-11 — JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants](https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc7523bis/) — OAuth WG revision in the RFC Editor queue; makes the authorization server issuer identifier the JWT audience and tightens JWT grant and client-assertion processing ([§1.7](#17-oauth-client-credentials-direct-machine-authority), [§5.6](#56-identity-and-authorization-chaining-across-trust-domains))
+- [draft-ietf-oauth-status-list-21 — Token Status List](https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/) — OAuth WG specification in the RFC Editor queue; distributes compact signed or MAC-protected status for referenced tokens without replacing each token type's own validity rules ([§12.4](#124-token-and-authorization-status))
 - [draft-meunier-webbotauth-httpsig-protocol-00](https://datatracker.ietf.org/doc/draft-meunier-webbotauth-httpsig-protocol/) — Active individual proposal for Web Bot Authentication using HTTP Message Signatures ([§20.7](#207-web-bot-authentication))
 - [draft-nottingham-webbotauth-use-cases-02](https://datatracker.ietf.org/doc/draft-nottingham-webbotauth-use-cases/) — Use cases for authentication of web bots: abuse mitigation, access control, differentiated content, auditing, traffic classification, site services, and contextual information (published April 1, 2026) ([§20.7](#207-web-bot-authentication))
 - [draft-rescorla-anonymous-webbotauth-01](https://datatracker.ietf.org/doc/draft-rescorla-anonymous-webbotauth/) — Active individual Anonymous Bot Authentication proposal: policy and rate-limiting signals without identifying a specific bot; updated July 19, 2026 ([§20.7](#207-web-bot-authentication))

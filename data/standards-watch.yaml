@@ -142,25 +142,263 @@ records:
     artifact_type: ietf_working_group_draft
     lifecycle_decision: profile
     external_status: Revision 17; submitted for publication; RFC Editor queue, In Progress
-    verified_on: 2026-07-25
+    verified_on: 2026-07-26
     primary_sources:
       - https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-identity-chaining-17.html
     current_dr_use:
-      - Revision-pinned cross-domain identity and authorization chaining profile
+      - Canonical revision-pinned two-domain identity and authorization chaining profile
+      - RFC 8693 exchange in Domain A followed by an RFC 7523 JWT authorization grant to Domain B
+      - Product-evidence discriminator for exact two-leg support versus component or adjacent support
     non_claims:
       - Published RFC
-      - Automatic trust in upstream issuers or authorization for MCP application objects
+      - Automatic trust in upstream issuers, unrestricted claim copying, or authorization for MCP application objects
+      - Proof that a generic token-exchange feature implements the two-domain profile
     adoption_triggers:
-      - RFC publication followed by a source-level delta review
+      - RFC number assignment or publication followed by a source-level delta review
+      - Material change to the required Domain A issuer, Domain B client, or claim-transcription semantics
     fallback_controls:
       - Pin revision 17
+      - Use separately governed single-domain RFC 8693 exchange where no cross-domain bridge is required
       - Validate the full trust and authorization chain and issue a local audience-bound token
     responsible_domain: federation-architecture
-    next_review_on: 2026-08-01
+    next_review_on: 2026-08-02
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.4"]
-    match_terms: ["Identity and Authorization Chaining"]
+        sections: ["5.6", "8.7", "20.4", "25.2", "25.9", "26"]
+    match_terms: ["Identity Chaining", "Identity and Authorization Chaining"]
+    status_history:
+      - on: 2026-07-19
+        status: Revision 17 published
+      - on: 2026-07-25
+        status: RFC Editor queue, In Progress
+      - on: 2026-07-26
+        status: Queue and revision revalidated; canonical DR-0001 integration completed
+
+  - id: oauth-rfc7523bis-11
+    title: JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 11; approved for publication; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-rfc7523bis/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-rfc7523bis-11.html
+    current_dr_use:
+      - Forward-adopted client-authentication corrections for the authorization-server issuer audience
+      - Revision-pinned JWT authorization-grant processing for the second Identity Chaining leg
+    non_claims:
+      - Published RFC
+      - The client-authentication and authorization-grant audience rules are interchangeable
+      - A JWT assertion alone proves an MCP application authorization decision
+    adoption_triggers:
+      - RFC number assignment or publication followed by a source-level delta review
+      - Change to the sole-audience, typ, replay, or grant-validation requirements
+    fallback_controls:
+      - Pin revision 11 and reject client-authentication assertions addressed to a token-endpoint URL
+      - Keep authorization-grant validation separate from OAuth client authentication
+    responsible_domain: oauth-client-authentication
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["1.7", "5.6"]
+    match_terms: ["RFC 7523", "rfc7523bis"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 11 and RFC Editor queue status revalidated
+
+  - id: oauth-status-list-21
+    title: OAuth 2.0 Token Status List
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: profile
+    external_status: Revision 21; approved for publication; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-status-list/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-status-list-21.html
+    current_dr_use:
+      - Profile-and-monitor compact status distribution for suitable referenced JOSE or COSE tokens
+      - Source for indexed status, caching, freshness, privacy, and herd-control guidance
+    non_claims:
+      - Published RFC
+      - Universal OAuth revocation, introspection, grant-lifecycle, task-lifecycle, or effect-convergence protocol
+      - A VALID list entry overrides the referenced token's own expiry or validation rules
+    adoption_triggers:
+      - RFC number assignment or publication followed by a source-level delta review
+      - Deployment selects a token family that defines Token Status List integration
+    fallback_controls:
+      - Use short token lifetimes, RFC 7662 introspection, RFC 7009 revocation, and local lifecycle controls as applicable
+      - Bound cache freshness and fail safely when a required status list cannot be validated
+    responsible_domain: token-lifecycle
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["12.4"]
+    match_terms: ["Token Status List"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 21 and RFC Editor queue status revalidated
+
+  - id: oauth-browser-based-apps-27
+    title: OAuth 2.0 for Browser-Based Applications
+    artifact_type: ietf_best_current_practice_draft
+    lifecycle_decision: profile
+    external_status: Revision 27; approved as a Best Current Practice; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-browser-based-apps-27.html
+    current_dr_use:
+      - Profile-and-monitor choice among BFF, token-mediating backend, and browser-held token patterns
+      - Custody and residual-risk model for URL-mode external browser handoff
+    non_claims:
+      - Published BCP
+      - A BFF eliminates session riding, CSRF, malicious extensions, or backend compromise
+      - Browser navigation consent proves authentication or transaction authorization
+    adoption_triggers:
+      - RFC number assignment or publication followed by a source-level delta review
+      - A browser-facing deployment changes where provider access or refresh tokens are held
+    fallback_controls:
+      - Keep provider tokens server-side where the deployment can support a hardened BFF session
+      - Apply PKCE, exact redirects, CSP, CSRF defenses, session controls, and least privilege for the selected pattern
+    responsible_domain: browser-token-custody
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["11.3", "14.8"]
+    match_terms: ["Browser-Based Applications", "BFF-like custody"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 27 and RFC Editor queue status revalidated
+
+  - id: oauth-cross-device-security-16
+    title: Cross-Device Flows — Security Best Current Practice
+    artifact_type: ietf_best_current_practice_draft
+    lifecycle_decision: profile
+    external_status: Revision 16; approved as a Best Current Practice; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-oauth-cross-device-security/
+      - https://www.ietf.org/archive/id/draft-ietf-oauth-cross-device-security-16.html
+    current_dr_use:
+      - Profile-and-monitor threat and mitigation authority for cross-device CIBA deployments
+      - Distinction between consent phishing and session phishing
+    non_claims:
+      - Published BCP
+      - CIBA removes unsolicited approval, guessed-user-identifier, or transaction-substitution risk
+      - Every MCP approval should use a cross-device flow
+    adoption_triggers:
+      - RFC number assignment or publication followed by a source-level delta review
+      - Deployment adopts CIBA, device authorization, or another cross-device approval ceremony
+    fallback_controls:
+      - Prefer same-device phishing-resistant authentication where the use case allows it
+      - Bind the displayed transaction and initiator, rate-limit initiation, and preserve deny and recovery paths
+    responsible_domain: human-oversight
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["15.5.5.1", "15.5.7"]
+    match_terms: ["Cross-Device", "cross-device"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 16 and RFC Editor queue status revalidated
+
+  - id: httpapi-protecting-credentials-06
+    title: Protecting Credentials with HTTP APIs
+    artifact_type: ietf_best_current_practice_draft
+    lifecycle_decision: profile
+    external_status: Revision 06; approved as a Best Current Practice; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/
+      - https://www.ietf.org/archive/id/draft-ietf-httpapi-privacy-06.html
+    current_dr_use:
+      - Forward-adopted requirement that credential-bearing HTTP requests start on validated HTTPS
+      - Source for non-oracular rejection and compromised-credential treatment after insecure disclosure
+    non_claims:
+      - Published BCP
+      - An HTTPS redirect repairs prior plaintext credential disclosure
+      - The BCP replaces DR-0001 destination validation, SSRF, issuer, or redirect controls
+    adoption_triggers:
+      - RFC number assignment or publication followed by a source-level delta review
+      - Material change to credential definition, secure-transport, rejection, or compromise guidance
+    fallback_controls:
+      - Never send reusable credentials over plaintext HTTP
+      - Validate the destination before transmission and revoke or rotate potentially disclosed credentials
+    responsible_domain: http-credential-security
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["1.2", "18.3.8"]
+    match_terms: ["Protecting Credentials with HTTP APIs"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 06 and RFC Editor queue status revalidated
+
+  - id: rats-eat-measured-component-12
+    title: EAT Measured Component
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: monitor
+    external_status: Revision 12; approved for publication; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-rats-eat-measured-component/
+      - https://www.ietf.org/archive/id/draft-ietf-rats-eat-measured-component-12.html
+    current_dr_use:
+      - Registry-only monitor for a future concrete measured firmware, software, data, or component-state flow
+      - Maturity signal adjacent to the current EAT attestation inventory
+    non_claims:
+      - Published RFC
+      - Existing DR-0001 runtime attestation flow or product implementation
+      - Measured-component evidence is self-executing authorization
+    adoption_triggers:
+      - RFC publication
+      - A selected product or deployment exposes the measured-component model in a verifiable attestation flow
+    fallback_controls:
+      - Continue to use RFC 9711 EAT only under an accepted attester, claim, freshness, and policy profile
+      - Keep runtime measurement evidence separate from identity and authorization decisions
+    responsible_domain: workload-attestation
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["20.6"]
+    match_terms: ["EAT"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 12 and RFC Editor queue status revalidated; registry-only monitoring selected
+
+  - id: scitt-reference-apis-11
+    title: SCITT Reference APIs
+    artifact_type: ietf_working_group_draft
+    lifecycle_decision: monitor
+    external_status: Revision 11; approved for publication; RFC Editor queue, In Progress
+    verified_on: 2026-07-26
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-ietf-scitt-scrapi/
+      - https://www.ietf.org/archive/id/draft-ietf-scitt-scrapi-11.html
+      - https://datatracker.ietf.org/doc/rfc9943/
+    current_dr_use:
+      - Monitor-and-plan candidate API for a later supply-chain evidence integration
+      - Registry-only companion to the final RFC 9943 SCITT architecture
+    non_claims:
+      - Published API RFC
+      - Current MCP tool-descriptor signature or registry-verification profile
+      - Current DR-0001 product implementation or release requirement
+    adoption_triggers:
+      - RFC publication
+      - A dedicated supply-chain tranche selects statement registration, receipt resolution, or key-discovery flows
+    fallback_controls:
+      - Preserve current package provenance, signing, registry, and deployment admission controls
+      - Do not infer runtime authorization or protocol conformance from a transparency receipt
+    responsible_domain: software-supply-chain
+    next_review_on: 2026-08-26
+    affected_sections:
+      - document: DR-0001
+        sections: ["13.7"]
+    match_terms: ["supply-chain"]
+    status_history:
+      - on: 2026-07-26
+        status: Revision 11 and RFC Editor queue status revalidated; later supply-chain integration planned
 
   - id: oauth-transaction-tokens-09
     title: OAuth Transaction Tokens
