@@ -642,7 +642,11 @@ After executing a plan, batch of edits, or any multi-step task, present a **stru
 
 ## Research from GitHub Repositories
 
-When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally** (shallow clone to `/tmp/` is fine) and search it with local tools (`grep_search`, `find_by_name`, `view_file`). Do **not** use `read_url_content` or browser tools to scrape GitHub pages — they are unreliable, slow, and often return incomplete content. The sibling directory `/home/ivan/dev/eIDAS20/` contains the eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents.
+When researching specifications, standards, or reference implementations hosted on GitHub, **clone the repository locally first** and search/read the clone with local tools (`rg`, `find`, and targeted file reads). Use a shallow clone pinned to the required tag, branch, or commit and place it in `.scratch/` or `/tmp/`; reuse that clone throughout the task.
+
+**Do not repeatedly fetch GitHub-hosted source files over HTTP.** In particular, do not use `curl`/`wget` against `raw.githubusercontent.com`, `read_url_content`, browser page scraping, GitHub code search, or equivalent remote per-file reads when the repository can be cloned. Remote Git operations needed to create or update the local clone are allowed. Record the selected tag or commit in the research artifact so the source snapshot is reproducible.
+
+Use web browsing only for sources that are not practically available as a clone (for example EUR-Lex legal pages, standards publisher pages, registries, or live operational dashboards), or when the user explicitly requests a web-source comparison. The sibling directory `/home/ivan/dev/eIDAS20/` contains eIDAS 2.0 reference material including technical specifications, OpenAPI definitions, and ARF documents; check whether it already contains the required revision before making a new clone.
 
 ## Transient Files
 

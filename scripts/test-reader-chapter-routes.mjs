@@ -678,7 +678,7 @@ async function assertExternalLinksOpenInNewTab(page) {
   console.log(`[chapter routes smoke] checking external links open in new tab: ${url}`);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
 
-  const externalLink = page.locator('a[href^="https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/main/template/attestation-rulebook-template.md#2-attestation-attributes-and-metadata"]').first();
+  const externalLink = page.locator('a[href^="https://github.com/eu-digital-identity-wallet/eudi-doc-attestation-rulebooks-catalog/blob/36f8adcf914ac06cac18d685add04e0a8a06d685/template/attestation-rulebook-template.md#2-attestation-attributes-and-metadata"]').first();
   await externalLink.waitFor({ state: 'visible', timeout: 20_000 });
 
   const target = await externalLink.getAttribute('target');
