@@ -11,17 +11,18 @@ import {
 } from './test-reader-smoke-helpers.mjs';
 
 const DOC_SLUG = 'DR-0001-mcp-authentication-authorization-agent-identity';
-const LANDING_CHAPTER_ID = 'executive-decision-summary';
+const LANDING_CHAPTER_ID = 'reader-orientation';
 const GROUP_CHAPTER_ID = 'protocol-foundations';
-const FIRST_CHAPTER_ID = '1-mcp-authorization-bootstrap-client-trust-and-grant-profiles';
-const SECOND_CHAPTER_ID = '2-request-scoped-authorization-and-downstream-execution';
-const THIRD_CHAPTER_ID = '3-scope-selection-and-runtime-step-up';
-const CONSENT_CHAPTER_ID = '14-authorization-approval-and-consent-models';
-const SECOND_HEADING_ID = '21-request-contract-and-enforcement-ownership';
-const SECOND_HEADING_LABEL = '2.1 Request Contract and Enforcement Ownership';
+const FIRST_CHAPTER_ID = '1-mcp-ecosystem-actors-and-authorization-mental-model';
+const SECOND_CHAPTER_ID = '2-mcp-authorization-bootstrap-client-trust-and-grant-profiles';
+const THIRD_CHAPTER_ID = '3-request-scoped-authorization-and-downstream-execution';
+const FOURTH_CHAPTER_ID = '4-scope-selection-and-runtime-step-up';
+const CONSENT_CHAPTER_ID = '15-authorization-approval-and-consent-models';
+const SECOND_HEADING_ID = '21-current-only-protocol-admission';
+const SECOND_HEADING_LABEL = '2.1 Current-Only Protocol Admission';
 const LEGACY_FIRST_CHAPTER_ID = '1-current-mcp-authorization-and-protocol-baseline';
 const LEGACY_TRUST_HEADING_ID = '12-authorization-trust-chain';
-const MIGRATED_TRUST_HEADING_ID = '12-trust-boundaries-and-authorization-artifacts';
+const MIGRATED_TRUST_HEADING_ID = '22-trust-boundaries-and-authorization-artifacts';
 const DR2_SLUG = 'DR-0002-eudi-wallet-relying-party-integration';
 const DR2_SOURCE_CHAPTER_ID = '12-cross-device-remote-presentation';
 const DR2_TARGET_CHAPTER_ID = '11-same-device-remote-presentation';
@@ -39,8 +40,8 @@ const DR2_RULEBOOK_CHAPTER_ID = '6-credential-formats-sd-jwt-vc-mdoc-and-format-
 const DR1_LABEL_SOURCE_CHAPTER_ID = 'appendix-f-ibm-contextforge-batteries-included-mcp-gateway-with-safety-guardrails';
 const DR1_LABEL_TARGET_CHAPTER_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
 const DR1_LABEL_TARGET_HEADING_ID = 'appendix-e-agentgateway-oss-rust-data-plane-for-mcp-and-a2a';
-const DR1_RAR_CHAPTER_ID = '19-rich-authorization-requests-rar-vs-oauth-scopes';
-const DR1_STANDARDS_CHAPTER_ID = '20-emerging-standards-for-ai-agent-authorization';
+const DR1_RAR_CHAPTER_ID = '20-rich-authorization-requests-rar-vs-oauth-scopes';
+const DR1_STANDARDS_CHAPTER_ID = '21-emerging-standards-for-ai-agent-authorization';
 const DR6_SLUG = 'DR-0006-modern-low-level-programming-languages';
 const DR6_MEMORY_CHAPTER_ID = '5-memory-management-models';
 const DR6_CONTROL_FLOW_CHAPTER_ID = '6-control-flow-loops-pattern-matching-branching';
@@ -107,7 +108,7 @@ async function assertPublishedLinkMigrationRoute(page) {
     document.querySelector('.chapter-nav-link.is-active')?.getAttribute('href') === `/${slug}/${chapterId}`
   ), {
     slug: DOC_SLUG,
-    chapterId: FIRST_CHAPTER_ID,
+    chapterId: SECOND_CHAPTER_ID,
     headingId: MIGRATED_TRUST_HEADING_ID,
   }, { timeout: 20_000 });
 }
@@ -145,11 +146,11 @@ async function assertNarrowInlineCodeDoesNotOverflow(page) {
   const viewport = page.viewportSize();
   const cases = [
     {
-      chapterId: FIRST_CHAPTER_ID,
+      chapterId: SECOND_CHAPTER_ID,
       codeText: 'client_id_metadata_document_supported',
     },
     {
-      chapterId: THIRD_CHAPTER_ID,
+      chapterId: FOURTH_CHAPTER_ID,
       codeText: 'https://auth.example.com/.well-known/oauth-authorization-server/tenant1',
     },
     {

@@ -34,7 +34,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["1.1", "20.1"]
+        sections: ["2.1", "21.1"]
     match_terms: ["2026-07-28", "Current-Only Protocol Admission", "MCP core"]
     status_history:
       - on: 2026-05-21
@@ -74,7 +74,7 @@ records:
     next_review_on: 2026-10-28
     affected_sections:
       - document: DR-0001
-        sections: ["4.1", "9.1", "15.9.2", "18.3.8", "20.1"]
+        sections: ["5.1", "10.1", "16.9.2", "19.3.8", "21.1"]
     match_terms: ["AuthZEN", "Authorization API"]
     status_history:
       - on: 2026-01-11
@@ -110,7 +110,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["18.3.8", "20.1"]
+        sections: ["19.3.8", "21.1"]
     match_terms: ["COAZ", "Common Authorization"]
     status_history:
       - on: 2026-02-13
@@ -149,7 +149,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["9.1", "17.2.1", "17.5.1", "18.3.8", "20.1"]
+        sections: ["10.1", "18.2.1", "18.5.1", "19.3.8", "21.1"]
     match_terms: ["COAZ", "x-authzen-mapping"]
     status_history:
       - on: 2026-07-28
@@ -183,7 +183,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["15.9.2", "17.5.1", "20.1"]
+        sections: ["16.9.2", "18.5.1", "21.1"]
     match_terms: ["ARAP", "Access Request"]
     status_history:
       - on: 2026-07-23
@@ -218,7 +218,7 @@ records:
     next_review_on: 2026-08-11
     affected_sections:
       - document: DR-0001
-        sections: ["19.4", "20.1"]
+        sections: ["20.4", "21.1"]
     match_terms: ["AROP", "Access Request OAuth"]
     status_history:
       - on: 2026-07-24
@@ -254,7 +254,7 @@ records:
     next_review_on: 2026-08-11
     affected_sections:
       - document: DR-0001
-        sections: ["17.5.1", "19.4", "20.1"]
+        sections: ["18.5.1", "20.4", "21.1"]
     match_terms: ["SEP-2643", "Structured Authorization Denials", "MCP carrier"]
     status_history:
       - on: 2026-07-28
@@ -289,7 +289,7 @@ records:
     next_review_on: 2026-08-11
     affected_sections:
       - document: DR-0001
-        sections: ["17.5.1", "20.1"]
+        sections: ["18.5.1", "21.1"]
     match_terms: ["SEP-2848", "Asynchronous Approval"]
     status_history:
       - on: 2026-06-15
@@ -325,7 +325,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["19.4", "20.1"]
+        sections: ["20.4", "21.1"]
     match_terms: ["Deferred Token Response", "DTR"]
     status_history:
       - on: 2026-06-23
@@ -361,7 +361,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["19.4", "20.1"]
+        sections: ["20.4", "21.1"]
     match_terms: ["Transaction Authorization Challenge", "transaction_challenge"]
     status_history:
       - on: 2026-06-25
@@ -398,7 +398,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["17.5.1", "19.4", "20.1"]
+        sections: ["18.5.1", "20.4", "21.1"]
     match_terms: ["RAR Metadata", "authorization_remediation", "insufficient_authorization"]
     status_history:
       - on: 2026-07-04
@@ -431,7 +431,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["1.3"]
+        sections: ["2.3"]
     match_terms: ["Client ID Metadata Document", "CIMD"]
     status_history:
       - on: 2026-07-06
@@ -464,7 +464,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["14.6"]
+        sections: ["15.6"]
     match_terms: ["Client Credentials", "Machine-to-Machine"]
     status_history:
       - on: 2025-07-23
@@ -497,7 +497,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.6"]
+        sections: ["21.1", "21.6"]
     match_terms: ["CAEP Interoperability Profile"]
     status_history:
       - on: 2026-07-21
@@ -533,7 +533,7 @@ records:
     next_review_on: 2026-08-02
     affected_sections:
       - document: DR-0001
-        sections: ["5.6", "8.7", "20.4", "25.2", "25.9", "26"]
+        sections: ["6.6", "9.7", "21.4", "26.2", "26.9", "27"]
     match_terms: ["Identity Chaining", "Identity and Authorization Chaining"]
     status_history:
       - on: 2026-07-19
@@ -569,7 +569,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["1.7", "5.6"]
+        sections: ["2.7", "6.6"]
     match_terms: ["RFC 7523", "rfc7523bis"]
     status_history:
       - on: 2026-07-26
@@ -601,7 +601,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["12.4"]
+        sections: ["13.4"]
     match_terms: ["Token Status List"]
     status_history:
       - on: 2026-07-26
@@ -633,7 +633,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["11.3", "14.8"]
+        sections: ["12.3", "15.8"]
     match_terms: ["Browser-Based Applications", "BFF-like custody"]
     status_history:
       - on: 2026-07-26
@@ -665,7 +665,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["15.5.5.1", "15.5.7"]
+        sections: ["16.5.5.1", "16.5.7"]
     match_terms: ["Cross-Device", "cross-device"]
     status_history:
       - on: 2026-07-26
@@ -697,7 +697,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["1.2", "18.3.8"]
+        sections: ["2.2", "19.3.8"]
     match_terms: ["Protecting Credentials with HTTP APIs"]
     status_history:
       - on: 2026-07-26
@@ -729,7 +729,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["20.6"]
+        sections: ["21.6"]
     match_terms: ["EAT"]
     status_history:
       - on: 2026-07-26
@@ -762,7 +762,7 @@ records:
     next_review_on: 2026-08-26
     affected_sections:
       - document: DR-0001
-        sections: ["13.7"]
+        sections: ["14.7"]
     match_terms: ["supply-chain"]
     status_history:
       - on: 2026-07-26
@@ -793,7 +793,7 @@ records:
     next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["18.3.8", "20.1", "20.3"]
+        sections: ["19.3.8", "21.1", "21.3"]
     match_terms: ["Transaction Tokens", "Transaction Token"]
     status_history:
       - on: 2026-07-06
@@ -824,7 +824,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["SPIFFE Client Authentication", "draft-ietf-oauth-spiffe-client-auth-02"]
 
   - id: oauth-identity-assertion-grant-04
@@ -850,7 +850,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.4"]
+        sections: ["21.4"]
     match_terms: ["Identity Assertion JWT Authorization Grant"]
 
   - id: openid-authority-claims-2026-05-25
@@ -877,7 +877,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.4", "20.6"]
+        sections: ["21.1", "21.4", "21.6"]
     match_terms: ["OpenID Authority Claims"]
 
   - id: wimse-arch-08
@@ -901,7 +901,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["WIMSE architecture", "WIMSE"]
     status_history:
       - on: 2026-07-06
@@ -928,7 +928,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["HTTP-signature", "WIMSE HTTP-signature"]
 
   - id: wimse-identifier-03
@@ -952,7 +952,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["identifiers", "WIMSE"]
 
   - id: wimse-mutual-tls-02
@@ -976,7 +976,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["mTLS", "WIMSE"]
 
   - id: wimse-workload-creds-02
@@ -1000,7 +1000,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["credentials", "WIMSE"]
 
   - id: wimse-practices-05
@@ -1024,7 +1024,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["practices", "WIMSE"]
 
   - id: wimse-wpt-01
@@ -1047,7 +1047,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.5"]
+        sections: ["21.1", "21.5"]
     match_terms: ["proof", "WIMSE"]
 
   - id: rar-agent-extensions-01
@@ -1071,7 +1071,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["19.4", "20.2"]
+        sections: ["20.4", "21.2"]
     match_terms: ["draft-chen-oauth-rar-agent-extensions"]
 
   - id: scope-agent-extensions-00
@@ -1095,7 +1095,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.2"]
+        sections: ["21.2"]
     match_terms: ["draft-chen-oauth-scope-agent-extensions"]
 
   - id: agent-operation-authorization-02
@@ -1119,7 +1119,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.2"]
+        sections: ["21.2"]
     match_terms: ["draft-liu-agent-operation-authorization"]
 
   - id: decoupled-agent-authz-00
@@ -1142,7 +1142,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.2"]
+        sections: ["21.2"]
     match_terms: ["draft-chen-agent-decoupled-authorization-model"]
 
   - id: collaborative-agent-authz-02
@@ -1165,7 +1165,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.2", "20.4"]
+        sections: ["21.2", "21.4"]
     match_terms: ["draft-song-oauth-ai-agent-collaborate-authz", "collaborative-authorization"]
 
   - id: transaction-tokens-agents-02
@@ -1189,7 +1189,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.3", "20.6"]
+        sections: ["21.3", "21.6"]
     match_terms: ["draft-araut-oauth-transaction-tokens-for-agents", "Transaction Tokens for Agents"]
 
   - id: authorization-evidence-01
@@ -1213,7 +1213,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.6"]
+        sections: ["21.6"]
     match_terms: ["draft-liu-oauth-authorization-evidence"]
 
   - id: entity-profiles-01
@@ -1237,7 +1237,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.6"]
+        sections: ["21.6"]
     match_terms: ["draft-mora-oauth-entity-profiles"]
 
   - id: webbot-httpsig-00
@@ -1261,7 +1261,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.7"]
+        sections: ["21.7"]
     match_terms: ["draft-meunier-webbotauth-httpsig-protocol"]
 
   - id: webbot-use-cases-02
@@ -1284,7 +1284,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.7"]
+        sections: ["21.7"]
     match_terms: ["draft-nottingham-webbotauth-use-cases"]
 
   - id: anonymous-webbotauth-01
@@ -1307,7 +1307,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.7"]
+        sections: ["21.7"]
     match_terms: ["draft-rescorla-anonymous-webbotauth"]
 
   - id: aauth-protocol-09
@@ -1330,7 +1330,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.8"]
+        sections: ["21.8"]
     match_terms: ["AAuth"]
 
   - id: aiagent-auth-03
@@ -1353,7 +1353,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.4", "20.8"]
+        sections: ["21.4", "21.8"]
     match_terms: ["AIMS", "agent identity/management"]
 
   - id: wimse-ect-00
@@ -1376,7 +1376,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.6", "20.8"]
+        sections: ["21.6", "21.8"]
     match_terms: ["execution-context tokens", "Execution Context Token"]
 
   - id: wimse-ai-agent-identity-02
@@ -1399,7 +1399,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.4", "20.8"]
+        sections: ["21.4", "21.8"]
     match_terms: ["WIMSE", "agent identity/management"]
 
   - id: oidc-a-1-0
@@ -1423,7 +1423,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["20.4", "20.8"]
+        sections: ["21.4", "21.8"]
     match_terms: ["OIDC-A"]
 
   - id: nist-ai-800-1
@@ -1447,7 +1447,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NIST AI 800-1"]
 
   - id: nist-ai-800-2
@@ -1471,7 +1471,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NIST AI 800-2"]
 
   - id: nist-ir-8587
@@ -1495,7 +1495,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NIST IR 8587"]
 
   - id: nist-ai-800-5
@@ -1519,7 +1519,7 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NIST AI 800-5"]
 
   - id: nccoe-agent-identity
@@ -1545,7 +1545,7 @@ records:
     next_review_on: 2026-08-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NCCoE Software and AI Agent Identity and Authorization"]
 
   - id: nist-agent-standards-initiative
@@ -1570,5 +1570,5 @@ records:
     next_review_on: 2026-09-25
     affected_sections:
       - document: DR-0001
-        sections: ["24.3"]
+        sections: ["25.3"]
     match_terms: ["NIST AI Agent Standards Initiative"]

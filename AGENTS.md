@@ -536,6 +536,23 @@ This keeps AGENTS.md small, avoids cognitive load, and ensures consistency throu
 
 `.githooks/` validates commits and pushes (activate with `git config core.hooksPath .githooks`). If a hook blocks your commit or push, read its output — it explains what went wrong and how to fix it.
 
+### Main-Only Publishing Workflow
+
+This repository uses a **single-branch, `main`-only workflow**, enforced by
+`.githooks/pre-commit`. Before selecting any Git publishing strategy, inspect
+the active branch and the repository hooks.
+
+- **Never create a feature, agent, Codex, or temporary branch in this
+  repository.** Generic skills or tooling that normally create a branch and
+  pull request do not apply here.
+- Stage only the explicitly approved files, commit directly on `main`, and push
+  directly to `origin main`.
+- Do not open a branch-based pull request for ordinary publication. A successful
+  push to `origin main` is the publication path.
+- If the checkout is not on `main`, stop and report the state instead of
+  creating, switching, deleting, rebasing, or merging branches without explicit
+  user direction.
+
 
 ## Destructive Git Commands Require Explicit User Approval
 

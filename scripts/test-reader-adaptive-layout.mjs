@@ -10,9 +10,9 @@ import {
 } from './test-reader-smoke-helpers.mjs';
 
 const DOC_SLUG = 'DR-0001-mcp-authentication-authorization-agent-identity';
-const CHAPTER_ID = '14-authorization-approval-and-consent-models';
-const HEADING_ID = '140-consent-lifecycle-overview';
-const HEADING_TEXT = '14.0 Consent Lifecycle Overview';
+const CHAPTER_ID = '15-authorization-approval-and-consent-models';
+const HEADING_ID = '150-consent-lifecycle-overview';
+const HEADING_TEXT = '15.0 Consent Lifecycle Overview';
 const ROUTE = `/${DOC_SLUG}/${CHAPTER_ID}`;
 
 async function resetAdaptiveState(page, {
