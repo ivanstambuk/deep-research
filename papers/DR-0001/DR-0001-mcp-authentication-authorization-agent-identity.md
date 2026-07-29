@@ -5,7 +5,7 @@ status: published
 authors:
   - name: Ivan Stambuk
 date_created: 2026-03-09
-date_updated: 2026-07-26
+date_updated: 2026-07-29
 tags: [mcp, oauth, ciam, wiam, authentication, authorization, token-exchange, agentic-ai, gateway, delegation, eu-ai-act, regulatory-compliance, gdpr, eidas]
 related: []
 
@@ -14,12 +14,12 @@ related: []
 <!-- AUTO-GENERATED FROM src/papers/DR-0001/DR-0001-mcp-authentication-authorization-agent-identity.mdx. DO NOT EDIT. -->
 
 # MCP Authentication, Authorization, and Agent Identity
-**DR-0001** · Published · Last updated 2026-07-26 · ~28,600 lines
+**DR-0001** · Published · Last updated 2026-07-29 · ~33,800 lines
 
 > [!IMPORTANT]
 > **For the optimal reading experience, use the mobile-friendly interactive viewer:** [Open the published reader](https://ivanstambuk.github.io/deep-research/DR-0001-mcp-authentication-authorization-agent-identity/executive-decision-summary)
 
-> Exhaustive investigation of authentication, authorization, and identity management for AI agents using the Model Context Protocol (MCP). The approved protocol floor is MCP `2026-07-28`: stateless per-request protocol and capability context, required routing metadata, explicit application and task handles, typed results, independently versioned extensions, filtered subscriptions, cache metadata, and current OAuth trust establishment. The architecture combines OAuth resource identity, pre-registration and Client ID Metadata Documents, RFC 8693 delegation, human and agent identity, credential custody, consent and oversight, policy engines, NHI governance, A2A/AP2 handoff, and supply-chain trust across CIAM and WIAM deployments. Thirteen product deep-dives and four deployment profiles distinguish external protocol requirements, architecture policy, extension maturity, and dated product evidence. Deprecated and superseded surfaces appear only in a compact prohibition register or where migration, interoperability, security, or current product evidence makes them decision-relevant.
+> Exhaustive investigation of authentication, authorization, and identity management for AI agents using the Model Context Protocol (MCP). The approved protocol floor is the Final MCP `2026-07-28` release: stateless per-request protocol and capability context, required routing metadata, explicit application and task handles, typed results, independently versioned extensions, filtered subscriptions, cache metadata, and current OAuth trust establishment. The architecture combines OAuth resource identity, pre-registration and Client ID Metadata Documents, RFC 8693 delegation, the Final AuthZEN decision interface, revision-pinned COAZ/ARAP profiles, human and agent identity, credential custody, consent and oversight, policy engines, NHI governance, A2A/AP2 handoff, and supply-chain trust across CIAM and WIAM deployments. Thirteen product deep-dives and four deployment profiles distinguish external protocol requirements, architecture policy, extension maturity, and dated product evidence. Deprecated and superseded surfaces appear only in a compact prohibition register or where migration, interoperability, security, or current product evidence makes them decision-relevant.
 
 ---
 
@@ -232,7 +232,7 @@ related: []
     - [19.1 Scopes vs. `authorization_details`: Comparison](#191-scopes-vs-authorization_details-comparison)
     - [19.2 RAR for MCP Tool Invocations](#192-rar-for-mcp-tool-invocations)
     - [19.3 Dynamic Authorization Lookup via PIP](#193-dynamic-authorization-lookup-via-pip)
-    - [19.4 RAR Agent Extensions: Monitor, Not Baseline](#194-rar-agent-extensions-monitor-not-baseline)
+    - [19.4 RAR Metadata and Requestable-Authorization Proposals: Projected Profile and Monitor](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)
     - [19.5 When to Use Scopes vs. RAR](#195-when-to-use-scopes-vs-rar)
   </details>
 - [Emerging Standards and Future Direction](#emerging-standards-and-future-direction)
@@ -505,6 +505,10 @@ That contract is the only approved implementation target. Older wire behavior is
 >
 > The approved architecture accepts MCP `2026-07-28` or later and independently pins every negotiated extension. Initialization-based core revisions, protocol sessions, HTTP+SSE, Roots, Sampling, protocol Logging, DCR-first registration, and superseded Tasks, Elicitation, and resource-subscription shapes are prohibited. Exposure of one of these surfaces is a current product gap, not an approved capability. Remove it before admission or isolate it behind a time-bounded migration exception with a named owner, expiry, compensating controls, operating evidence, and a removal plan.
 
+> **Important — Authorization standards profile**
+>
+> Use the Final AuthZEN Authorization API 1.0 as the PEP/PDP decision contract. Profile the current COAZ and ARAP Working Group Drafts behind exact revision and interoperability gates, and use RAR Metadata and Error Remediation `-05` as the projected convergence model for remediation vocabulary. Monitor AROP, MCP SEP-2643, MCP SEP-2848, Deferred Token Response, and Transaction Authorization Challenge rather than making those open proposals unconditional dependencies. Official OpenID Foundation visibility raises confidence in the family; it does not turn draft syntax into Final or prove profile-specific adoption.
+
 ---
 
 ### Forward Baseline and Prohibited-Surface Register
@@ -726,7 +730,7 @@ When current MCP sources disagree during a release transition, implementations a
 | **4** | Versioned extension specifications and their named OAuth/OIDF dependencies | Define extension-only fields, discovery signals, grant types, and lifecycle semantics |
 | **5** | Official guides and Tier-1 SDK codecs/tests | Confirm implementation behavior and expose documentation drift; they do not silently override higher-ranked normative evidence |
 
-The `2026-07-28` floor is therefore enforced from its locked release candidate and accepted schema snapshot until the final versioned publication occupies the first row. A later refresh may advance evidence status; it must not weaken admission or reinterpret an extension as core.
+The Final `2026-07-28` versioned publication now occupies the first row and is the enforced floor. Its locked release candidate and accepted schema snapshot remain historical transition evidence; they cannot override the Final text or reinterpret an independently versioned extension as core.
 
 #### 1.2 Trust Boundaries and Authorization Artifacts
 
@@ -3060,6 +3064,8 @@ flowchart LR
 ```
 
 The decision-plane vocabulary follows the [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) information model: **subject**, **action**, **resource**, optional **context**, and **decision**. It is a neutral way to describe a policy evaluation, not a required token schema. A deployment can place the current actor, client, workload, grant reference, approval reference, and risk signals in typed subject properties or context while keeping their distinct meanings.
+
+Keep four adjacent contracts separate. AuthZEN 1.0 standardizes the PEP/PDP evaluation interface; COAZ and its MCP binding draft map a protocol operation into that interface ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)); ARAP Draft 1 governs a requestable denial, access-request task, approval, and fresh evaluation ([§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation)); and the DR-0001 task authority record governs durable local purpose and lifecycle ([§10.6.3](#1063-task-authority-record); [§17.3](#173-explicit-handle-authority-model)). A successful layer neither supplies nor proves the others.
 
 | Plane or role | Question it answers | What it does **not** prove |
 |:--------------|:--------------------|:---------------------------|
@@ -7537,6 +7543,8 @@ Carrier selection starts with the backend's authorization contract. In the deleg
 
 This uses the [AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) subject/action/resource/context vocabulary to explain the decision, not to prescribe a token claim set.
 
+Mapping and carriage are separate choices. COAZ-MCP Draft 1 can build this SARC shape from MCP inputs, but its current `token` input is a decoded JWT-claims object; that does not make the mapping a token format or establish compatibility with an opaque access token. An opaque-token deployment needs an authenticated introspection/enrichment adapter that produces only the trusted attributes admitted by its revision-pinned mapping profile, or it must use a different direct-SARC integration. §18.3.8 defines that compatibility boundary.
+
 ```mermaid
 flowchart LR
     Contract["`**Backend decision contract**
@@ -8127,7 +8135,7 @@ The agent never handles refresh tokens directly — the gateway transparently re
 
 #### 10.6 MCP Tasks Extension: Authorization for Durable Async Workflows
 
-> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-agent-extensions-monitor-not-baseline) (`lifecycle_binding`), [§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.7](#127-sessioncache-invalidation-and-requesttask-cancellation) (CAEP/SSF and task cancellation)
+> **See also**: [§8.3.1](#831-a2a-task-lifecycle-and-human-oversight) (A2A Task Lifecycle), [§16](#16-task-based-access-control-tbac) (TBAC), [§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor) (`lifecycle_binding`), [§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.7](#127-sessioncache-invalidation-and-requesttask-cancellation) (CAEP/SSF and task cancellation)
 
 MCP Tasks has two deliberately separate status labels. **SEP-2663 is Final**, meaning the extension design was accepted through the MCP enhancement process; the published `io.modelcontextprotocol/tasks` **extension specification is still Draft**, meaning its wire contract may continue to change independently of core MCP.
 
@@ -8572,6 +8580,22 @@ A task is not a higher-trust channel. If `inputRequests` carries an elicitation 
 
 Every durable task should have an adjacent **task authority record**. The handle is operational state; the authority record tells the gateway and server who may read, update, cancel, or subscribe to it after the creating HTTP request has disappeared.
 
+The surrounding standards now supply several adjacent carriers, but none is interchangeable with that authority record:
+
+| Object | What it authorizes or represents | What it cannot prove |
+|:--|:--|:--|
+| **OAuth access token** | Presentable authority for one resource/audience and rights set, subject to current resource-server policy | The whole task purpose, current approval, execution, or cross-server continuity |
+| **AuthZEN decision** | One policy evaluation outcome for an identified Subject–Action–Resource–Context request | Durable approval, later policy state, lifecycle ownership, or execution |
+| **ARAP denial binding** | Integrity-protected connection to one requestable denied evaluation | Approval, permission, or a right to create arbitrary access requests |
+| **ARAP task** | Access-request workflow state and authorized operations on that state | MCP tool execution, standing authority, or the requested effect |
+| **ARAP approval** | Bound evidence that can be supplied to a fresh authorization evaluation | A bearer grant, a cached permit, or successful effect |
+| **MCP task** | Held or continuing work at one MCP server under the negotiated Tasks extension | Approval, portable authority, or a user-approved purpose spanning servers |
+| **Correlation, trace, transaction, or session identifier** | Joining and observability across records whose semantics are defined elsewhere | Identity, consent, policy decision, delegation, or governed authority |
+| **DR-0001 task authority record** | Local durable contract for purpose, participants, operations, lifecycle, budgets, revocation, evidence, and result release | Cross-vendor semantics or automatic acceptance by another trust domain |
+| **Blog “Mission”** | An analytical proposal for a governed cross-call purpose object | An OIDF, IETF, MCP, OAuth, or otherwise deployable interoperability standard |
+
+Reusing one string across these objects may improve audit joining, but it does not transfer authority between them. Each recipient verifies the carrier it understands, reloads current state, and evaluates its exact operation. §17.4 demonstrates the resulting cross-server gap.
+
 | Durable Task Artifact | What Must Persist | Re-Evaluation Trigger | Audit Evidence |
 |:----------------------|:------------------|:----------------------|:---------------|
 | **Task handle** | High-entropy `taskId`, status, creation/update times, TTL, polling interval | Terminal state, cancellation, expiry, deletion | Creation, every state transition, cancellation intent, deletion |
@@ -8591,7 +8615,7 @@ The access token that authorized task creation may expire while work continues. 
 | Pattern | Mechanism | Use |
 |:--------|:----------|:----|
 | **Gateway-mediated refresh** | Gateway refreshes under the original consent and re-authorizes each task operation | Pragmatic default for gateway deployments |
-| **Experimental `lifecycle_binding`** | An individual RAR extension draft proposes references to external task state ([§19.4](#194-rar-agent-extensions-monitor-not-baseline)) | Monitor-stage design signal; not an MCP Tasks feature or production interoperability baseline |
+| **Experimental `lifecycle_binding`** | An individual RAR extension draft proposes references to external task state ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)) | Monitor-stage design signal; not an MCP Tasks feature or production interoperability baseline |
 | **Approved offline authority** | AS issues a refresh token under explicit `offline_access` policy; gateway binds it to the task and autonomy window | User-absent batch work where independent continuation is intended |
 
 Cancellation is cooperative and eventually consistent. A successful `tasks/cancel` result acknowledges intent only: the task may briefly remain non-terminal, may finish before cancellation takes effect, and is not guaranteed to reach `cancelled`. Authorization systems should therefore distinguish `cancel_requested`, `work_stopped`, `terminal_status`, and `credential_revoked`; revoking task authority may be necessary even when the underlying worker cannot be stopped immediately.
@@ -8603,6 +8627,8 @@ CAEP/SSF events must reach the task authority record. `session-revoked` should t
 > In the 23 July 2026 evidence snapshot, the Tasks Draft assigns `-32003` to Missing Required Client Capability while the `2026-07-28` core assigns `-32021`. Implementations must bind the numeric code to the exact extension/core artifacts they support and normalize the semantic failure in policy and telemetry; one hard-coded value is not valid across these versions.
 
 > **Cross-protocol note**: When an MCP task delegates sub-work to an A2A agent ([§8.4](#84-the-mcp--a2a-security-gap)), neither protocol defines a standard task-authority carrier across that boundary. Transaction Tokens ([§20.3](#203-transaction-scoped-credentials)) are a promising design signal, but the gateway must presently preserve and re-authorize the cross-protocol delegation explicitly.
+
+The same limitation applies across multiple MCP servers. An access token, AuthZEN decision, ARAP approval, Transaction Token, and local task handle can each be valid within its own boundary while no interoperable object binds the calls to one approved purpose. Flow 13 in [§17.4](#174-durable-task-lifecycle) treats that absence as a governance gap, not as permission to overload any of those carriers.
 
 
 #### 10.7 Offline Authority: User-Not-Present Continuation
@@ -12130,8 +12156,19 @@ No formal OpenTelemetry semantic convention exists for authorization decision at
 | `authz.eval_ms` | float | Policy evaluation latency (milliseconds) | `4.2` |
 | `authz.reason` | string | Human-readable decision rationale (especially for denials) | `budget_exhausted: user alice exceeded $500 limit` |
 | `authz.obligations` | string | Obligations attached to the decision (JSON-encoded if multiple) | `["log:audit", "mfa:step-up"]` |
+| `authz.mapping.id` | string | Admitted COAZ/direct mapping identifier | `mcp-tools-call-v3` |
+| `authz.mapping.digest` | string | Digest of the exact admitted mapping content | `sha256:8b1d...` |
+| `authz.mapping.source` | string | Trusted mapping source class, not an unbounded URL | `server-schema-admitted` |
+| `authz.evaluation.id` | string | PDP evaluation identifier | `eval_01J2...` |
+| `authz.request.task_id` | string | Privacy-safe ARAP request-task reference when requestable denial is used | `hmac256:19ab...` |
+| `authz.approval.id` | string | Privacy-safe verified approval reference | `hmac256:b77c...` |
+| `authz.reevaluation.parent_id` | string | Earlier denied evaluation linked to the fresh post-approval evaluation | `eval_01J1...` |
+| `authz.execution.disposition` | string | Whether effect admission/execution is absent, pending, confirmed, partial, or unknown | `confirmed` |
+| `authz.result_release.decision_id` | string | Separate decision governing release of result/content/handle | `dec_01J4...` |
 
 These attributes enable queries like: *"Show me all denied tool calls in the last hour where the denial reason was `scope_insufficient` and the policy engine was Cedar"* — a level of observability that binary `permit`/`deny` audit logs cannot provide.
+
+The added `authz.*` names are a **DR-0001 deployment profile**, not OpenTelemetry, AuthZEN, COAZ, or ARAP standard fields. The evidence graph joins discovery/mapping admission → initial evaluation → optional ARAP task and approval → fresh evaluation → effect disposition → result-release decision. Store safe references or keyed fingerprints in broad telemetry; signer/key-set versions, binding bodies, tokens, approval contents, raw SARC Context, and detailed policy inputs remain in access-controlled evidence stores.
 
 ###### 13.5.4.2 Policy Engine Decision Log Capabilities
 
@@ -15448,11 +15485,16 @@ flowchart TD
 | **Transaction parameters** | Action-specific values (amount, quantity) | `amount > threshold` → Tier 5 (CIBA) | Payment of €50,000 exceeds the €10,000 CIBA threshold |
 | **Data classification** | Resource classification label | `classification ∈ {PII, financial, health}` → Tier 5 (CIBA) | Agent requests access to health records |
 
-##### 15.9.2 Authorization API Evaluation and the Local Approval Profile
+##### 15.9.2 AuthZEN Evaluation, ARAP, and Approval Re-evaluation
 
-The Gateway must normalize and validate the operation before policy evaluation; it may then delegate the escalation decision to a PDP using [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html). Organizational policy evaluates the exact Subject, Action, Resource, and Context. The standard defines those containers and the boolean decision, while the approval instructions below are a versioned DR-0001 deployment profile inside response `context`.
+Human or automated governance can create authority that did not exist when a tool call was first evaluated. The [AuthZEN Access Request and Approval Profile (ARAP) Draft 1](https://openid.github.io/authzen/authzen-access-request-approval-profile-1_0.html) standardizes that handoff without weakening the decision boundary: the initial AuthZEN result remains `decision: false`; a PEP submits a bound Access Request; an Access Request Service manages a durable task; and an approved result sends the PEP back to the PDP for a **fresh** evaluation. Only that fresh permit can release the operation to execution.
 
-**PEP request**:
+ARAP standardizes the PEP-to-governance protocol, not the business workflow behind it. It does not choose an approver, define an inbox or approval UI, provision an entitlement, guarantee an effect, or make a task handle into authority. CIBA, IGA, ITSM, a resource-owner workflow, a multi-party process, or an automated policy evaluator can sit behind the Access Request Service. The stronger dispatch, idempotency, cancellation, batch, and result-release contract remains in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract).
+
+###### 15.9.2.1 Requestable Denial Contract
+
+The Gateway first normalizes the exact operation and calls AuthZEN. The ordinary request still uses Subject, Action, Resource, and Context:
+
 ```json
 {
   "subject": {
@@ -15466,7 +15508,6 @@ The Gateway must normalize and validate the operation before policy evaluation; 
   },
   "resource": { "id": "prod-db-cluster", "type": "database" },
   "context": {
-    "schema": "https://schemas.example.com/authzen/mcp-evaluation-v1.json",
     "confidence_score": 0.85,
     "delegation_depth": 2,
     "task_id": "task-789"
@@ -15474,28 +15515,1569 @@ The Gateway must normalize and validate the operation before policy evaluation; 
 }
 ```
 
-**PDP response using the local interaction profile**:
-The PDP determines that the operation must not proceed until a separate approval ceremony succeeds. It therefore returns `false`, as required for a currently denied operation, plus a local-profile instruction. Authorization API 1.0 does not standardize the `required_interaction` vocabulary.
+If missing authority can be requested, ARAP profiles the Decision Context with `reason`, `evaluation_id`, and `access_request`. The `access_request` member is present only for a requestable denial; its absence means the PEP must treat the denial as non-requestable regardless of local display text.
+
+**Profile-specific ARAP response:**
 
 ```json
 {
   "decision": false,
   "context": {
-    "schema": "https://schemas.example.com/authzen/mcp-decision-v1.json",
-    "decision_id": "dec-135",
-    "reason": "human_approval_required",
-    "required_interaction": {
-      "tier": 5,
-      "mechanism": "oidc_ciba",
-      "approval_policy": "prod-teardown-v4"
+    "evaluation_id": "eval_01J4TQ7...",
+    "evaluated_at": "2026-07-28T17:20:00Z",
+    "reason": "approval_required",
+    "access_request": {
+      "endpoint": "https://requests.example.com/access/v1/requests",
+      "template": "prod-teardown-v4",
+      "expires_at": "2026-07-28T17:30:00Z",
+      "binding_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6InBkcC0xIn0...",
+      "form_url": "https://requests.example.com/forms/prod-teardown-v4",
+      "request_schema_url": "https://requests.example.com/schemas/prod-teardown-v4.json",
+      "request_catalogs_url": "https://requests.example.com/catalogs/prod-teardown-v4.json",
+      "display": {
+        "title": "Request production teardown",
+        "description": "Infrastructure-owner approval is required."
+      }
     }
   }
 }
 ```
 
-The PEP validates the local schema and recognizes the instruction, then creates a pending-operation record and invokes the separate approval orchestrator. The orchestrator selects the approver, starts CIBA or another approved mechanism, handles timeouts/callbacks/replay, and records the resulting authority. The PEP then sends a **new** evaluation containing the grant/approval reference and the unchanged request digest. Only a new `decision: true` permits execution.
+`expires_at` is mandatory. The denial also needs verifiable binding: an integrity-protected `binding_token`, a resolvable `evaluation_id`, or both. The PEP echoes that material in the Access Request; it never decodes or edits the opaque binding token. Form, schema, catalog, template, reason, and display fields help construct or route a request but do not authorize the denied operation.
 
-If the PEP does not understand the required interaction, cannot authenticate the approval service, or cannot join the returned evidence to the same subject, actor, task, resource, and request digest, it keeps the operation denied. A policy decision is not the approval ceremony, and a completed ceremony is not a runtime permit.
+The protocol journey has six distinct authority states:
+
+| State | Governing artifact | What it proves | What it does not prove |
+|:--|:--|:--|:--|
+| Initial evaluation | AuthZEN request plus `decision: false` | Current policy denies the exact SARC question | That the denial is requestable |
+| Requestable denial | `context.access_request` plus fresh binding | A named Access Request endpoint may accept a bound request | Approval, future permit, or task ownership by possession |
+| Access Request | Authenticated submission plus `Idempotency-Key` | A caller requested new authority for the bound denial | That the authority has been granted |
+| Approval task | Opaque task ID and authoritative `status_endpoint` | Workflow lifecycle can be retrieved by an authorized caller | Permission to execute or enumerate other tasks |
+| Approval result | Approved task plus `result.mode: "reevaluate"` and `approval` | The workflow produced approval evidence for re-evaluation | A runtime permit or proof of effect |
+| Fresh evaluation | New AuthZEN decision using current policy/data and approval evidence | Current PDP permission for the exact operation | Application dispatch, exact-once effect, or result release |
+
+> **Important — Approval remains an input to authorization**
+>
+> Do not dispatch because a task says `approved`, a callback arrived, or an approval ID exists. Authenticate and authorize task access, retrieve the authoritative task state, validate the result and its binding, then perform a fresh AuthZEN evaluation over the current operation. A changed subject, actor, resource, action, authorization-relevant Context member, policy state, or approval lifetime can still produce `decision: false`.
+
+###### 15.9.2.2 Access Request Service Placement and Approval Mechanisms
+
+ARAP permits the Access Request endpoint to be hosted by the PDP, a service trusted by it, or an independent service operating with delegated authority. The PDP metadata identifies the actual HTTPS endpoint and, when signed binding/approval artifacts are used, a `jwks_uri`. This separates portable protocol roles from deployment topology.
+
+| Mechanism behind the Access Request Service | Appropriate use | Evidence returned to ARAP | Boundary that remains outside the mechanism |
+|:--|:--|:--|:--|
+| Automated governance evaluator | Policy can create narrowly bounded authority without human input | Approval record with evaluated constraints and lifetime | Fresh AuthZEN decision and application effect |
+| IGA entitlement request | Governed role/entitlement request with ownership and provisioning | Workflow disposition and, after fulfillment, approval reference | Whether provisioning completed and current runtime policy permits use |
+| ITSM/case workflow | Operational change, incident, or service-management approval | Authenticated case decision and workflow state | OAuth grant/token issuance and backend entitlement |
+| Resource-owner or manager approval | A named owner/manager must approve the requested access | Approver/workflow evidence retained by the service | Correct approver selection unless the service independently enforces it |
+| CIBA | The same end-user principal completes an OP-mediated decoupled ceremony | CIBA completion incorporated by the service/profile | General manager approval, universal exact-action binding, or legal compliance |
+| Multi-party approval | Several eligible principals must satisfy quorum/separation rules | Aggregate and per-step evidence plus approved scope/lifetime | Exact-once execution, cancellation, and compensation |
+
+The earlier deployment-local `required_interaction` object is not part of the canonical wire profile. An implementation may retain `tier`, `mechanism`, or `approval_policy` as internal workflow-routing metadata keyed by ARAP `template`, but those fields stay behind the Access Request Service and are never presented as AuthZEN or ARAP response members.
+
+###### 15.9.2.3 Canonical ARAP Lifecycle
+
+The portable path uses signed binding material because it works when the PDP and Access Request Service do not share a database. A same-service deployment may resolve `evaluation_id` and `approval.id` from trusted server-side state instead, but it must preserve the same Subject, Resource, Action, authorization-relevant Context, requester/client, task, expiry, and revocation checks.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant E as Gateway PEP
+    participant P as AuthZEN PDP
+    participant R as Access Request Service
+    participant W as Approval Workflow
+    participant S as MCP Server
+
+    E->>P: GET /.well-known/authzen-configuration
+    P-->>E: Evaluation/request endpoints + capability + jwks_uri
+    E->>P: Access Evaluation for exact operation
+    P-->>E: decision false + bound context.access_request
+    E->>R: POST bound Access Request + Idempotency-Key
+    R-->>E: 202 task pending + authoritative status_endpoint
+    R->>W: Create bound approval work item
+    alt Polling completion
+        E->>R: GET task status
+        R-->>E: pending + Retry-After
+        W-->>R: Approved scope, lifetime, and approver evidence
+        E->>R: GET task status after backoff
+        R-->>E: approved + reevaluate result
+    else Callback completion
+        W-->>R: Approved scope, lifetime, and approver evidence
+        R-->>E: Authenticated callback hint
+        E->>R: GET authoritative task status
+        R-->>E: approved + reevaluate result
+        Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    E->>P: Fresh Access Evaluation + unchanged approval object
+    P->>P: Verify approval binding, scope, expiry, revocation, and current policy
+    P-->>E: Fresh decision true + enforcement bound
+    E->>S: Dispatch exact approved operation once
+    S-->>E: Typed result + effect disposition
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+> **Note — ARAP state carriers are not interchangeable**
+>
+> `evaluation_id` binds and audits the original decision; `binding_token` round-trips PDP-signed denial state to the Access Request Service; the ARAP task ID locates workflow state; callback `state` correlates a notification; `approval.id` and optional `approval.state` let the PDP resolve or verify approval during re-evaluation; the final AuthZEN decision governs dispatch. None authorizes by possession. The PEP keeps `status_endpoint`, cancellation links, `approval.id`, and `approval.state` on PEP-facing surfaces and does not expose them to an end client merely to render status.
+
+The cross-vendor key path is intentionally symmetric:
+
+| Signed value | Issuer → verifier | Required verification and lifecycle |
+|:--|:--|:--|
+| `binding_token` compact JWS | PDP → Access Request Service | Resolve `iss`/`kid` from PDP metadata `jwks_uri`; verify signature, Access Request Service audience, expiry/freshness, replay identifier, binding claims, and `binding_context_members` |
+| `approval.state` compact JWS | Access Request Service (or PDP through it) → PDP | Resolve the trusted signer by `iss`/`kid` from the same published JWK Set; verify PDP audience, integrity, approval/task/request binding, scope, expiry, and revocation |
+
+JWK Sets follow HTTP cache controls. An unknown `kid` causes one bounded refresh before rejection; stale-key grace never means accepting an unverifiable artifact. Compromise or retirement of a signing key invalidates affected by-value artifacts according to the deployment's key-compromise policy even if their embedded time has not elapsed.
+
+<details>
+<summary><strong>1. Gateway PEP retrieves AuthZEN and ARAP metadata</strong></summary>
+
+The PEP starts at the validated PDP metadata origin. It applies HTTPS, redirect, DNS/IP, size, media-type, issuer, credential-destination, and cache controls before using any endpoint.
+
+```http
+GET /.well-known/authzen-configuration HTTP/1.1
+Host: pdp.example
+Accept: application/json
+```
+
+This discovery request carries no bearer credential unless the deployment explicitly protects metadata and has already validated the HTTPS destination.
+
+</details>
+<details>
+<summary><strong>2. AuthZEN PDP advertises evaluation, request, and verification-key surfaces</strong></summary>
+
+The PDP identifies the ordinary evaluation endpoint, ARAP Access Request endpoint, capability, and JWK Set used for PDP-issued binding tokens and Access-Request-Service-issued approval state.
+
+**Profile-specific ARAP metadata:**
+
+```json
+{
+  "policy_decision_point": "https://pdp.example",
+  "access_evaluation_endpoint": "https://pdp.example/access/v1/evaluation",
+  "access_evaluations_endpoint": "https://pdp.example/access/v1/evaluations",
+  "access_request_endpoint": "https://requests.example/access/v1/requests",
+  "jwks_uri": "https://pdp.example/access/v1/jwks",
+  "capabilities": [
+    "urn:openid:authzen:capability:access-request"
+  ]
+}
+```
+
+Metadata is capability evidence, not proof that a later denial is requestable. Only `context.access_request` on that denial creates the handoff signal.
+
+**Artifact Produced:** A validated, cache-bounded PDP/ARAP endpoint and key-discovery record.
+
+</details>
+<details>
+<summary><strong>3. Gateway PEP evaluates the exact high-consequence operation</strong></summary>
+
+The PEP sends the normalized production-teardown question. It excludes volatile trace/time values from the authorization-relevant Context set unless the PDP deliberately binds them.
+
+```http
+POST /access/v1/evaluation HTTP/1.1
+Host: pdp.example
+Authorization: Bearer <gateway-pdp-token>
+Content-Type: application/json
+
+{
+  "subject": {
+    "type": "user",
+    "id": "user-456",
+    "properties": {
+      "actor_id": "agent-123"
+    }
+  },
+  "action": {
+    "name": "infrastructure:teardown",
+    "properties": {
+      "arguments_digest": "sha-256:8c2f..."
+    }
+  },
+  "resource": {
+    "type": "database",
+    "id": "prod-db-cluster"
+  },
+  "context": {
+    "delegation_depth": 2,
+    "change_window": "cw-2026-07-28-17",
+    "task_id": "task-789"
+  }
+}
+```
+
+The PDP decides against current policy; the PEP does not ask the approval system directly before this denial exists.
+
+</details>
+<details>
+<summary><strong>4. AuthZEN PDP returns a bound requestable denial</strong></summary>
+
+The PDP returns `decision: false`, a fresh deadline, an evaluation identifier, and a compact signed binding token. The token protects the exact authorization tuple and names which Context members are authorization-relevant.
+
+```json
+{
+  "decision": false,
+  "context": {
+    "evaluation_id": "eval_01J4TQ7...",
+    "evaluated_at": "2026-07-28T17:20:00Z",
+    "reason": "approval_required",
+    "access_request": {
+      "endpoint": "https://requests.example/access/v1/requests",
+      "template": "prod-teardown-v4",
+      "expires_at": "2026-07-28T17:30:00Z",
+      "binding_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6InBkcC0xIn0...",
+      "request_schema_url": "https://requests.example/schemas/prod-teardown-v4.json"
+    }
+  }
+}
+```
+
+**Illustrative decoded binding claims for the Access Request Service—not a PEP processing step:**
+
+```json
+{
+  "iss": "https://pdp.example",
+  "aud": "https://requests.example",
+  "iat": 1785259200,
+  "exp": 1785259800,
+  "jti": "bt_01J4TQ8...",
+  "denial_expires_at": "2026-07-28T17:30:00Z",
+  "evaluation_id": "eval_01J4TQ7...",
+  "binding_context_members": [
+    "delegation_depth",
+    "change_window",
+    "task_id"
+  ],
+  "subject": {
+    "type": "user",
+    "id": "user-456",
+    "properties": { "actor_id": "agent-123" }
+  },
+  "action": {
+    "name": "infrastructure:teardown",
+    "properties": { "arguments_digest": "sha-256:8c2f..." }
+  },
+  "resource": { "type": "database", "id": "prod-db-cluster" },
+  "context": {
+    "delegation_depth": 2,
+    "change_window": "cw-2026-07-28-17",
+    "task_id": "task-789"
+  }
+}
+```
+
+The inline form is the recommended interoperable binding because it uses ARAP's structural JSON comparison. The alternative `binding_hash` uses the exact RFC 8785 JCS object construction defined by ARAP; an ad hoc serialization hash is non-interoperable.
+
+**Artifact Produced:** A still-denied evaluation plus short-lived, audience-bound request-submission evidence.
+
+</details>
+<details>
+<summary><strong>5. Gateway PEP submits the bound Access Request</strong></summary>
+
+After satisfying any machine-readable schema requirements, the PEP authenticates to the endpoint from the denial and echoes denial fields unchanged. It supplies a stable idempotency key covering the entire body and a pre-registered callback.
+
+```http
+POST /access/v1/requests HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Idempotency-Key: 7b8d0f0d-65a1-4af1-9fd3-a684f08a5d14
+Content-Type: application/json
+
+{
+  "subject": {
+    "type": "user",
+    "id": "user-456",
+    "properties": { "actor_id": "agent-123" }
+  },
+  "resource": { "type": "database", "id": "prod-db-cluster" },
+  "action": {
+    "name": "infrastructure:teardown",
+    "properties": { "arguments_digest": "sha-256:8c2f..." }
+  },
+  "context": {
+    "delegation_depth": 2,
+    "change_window": "cw-2026-07-28-17",
+    "task_id": "task-789",
+    "business_justification": "Approved retirement change"
+  },
+  "requested_access": {
+    "requested_until": "2026-07-28T18:00:00Z"
+  },
+  "client": {
+    "id": "gateway-prod-1",
+    "name": "Production MCP Gateway",
+    "actor": {
+      "id": "agent-123",
+      "issuer": "https://agents.example",
+      "type": "ai_agent"
+    }
+  },
+  "denial": {
+    "evaluation_id": "eval_01J4TQ7...",
+    "evaluated_at": "2026-07-28T17:20:00Z",
+    "expires_at": "2026-07-28T17:30:00Z",
+    "reason": "approval_required",
+    "binding_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6InBkcC0xIn0...",
+    "template": "prod-teardown-v4"
+  },
+  "callback": {
+    "endpoint": "https://gateway.example/callbacks/access-requests",
+    "state": "cb_01J4TQB...",
+    "events": ["approved", "denied", "expired", "cancelled", "failed"]
+  }
+}
+```
+
+The Access Request Service authenticates the caller and actor chain, verifies binding-token signature/audience/expiry/replay and structural equality, enforces the earlier of token and denial expiry, and rejects changed-body idempotency reuse.
+
+</details>
+<details>
+<summary><strong>6. Access Request Service returns an opaque pending task</strong></summary>
+
+The service returns `201 Created` or `202 Accepted`; this asynchronous case uses `202`. The status endpoint is authoritative and remains PEP-facing.
+
+```http
+HTTP/1.1 202 Accepted
+Content-Type: application/json
+Location: https://requests.example/access/v1/requests/arq_01J4TQC...
+
+{
+  "task": {
+    "id": "arq_01J4TQC...",
+    "status": "pending",
+    "status_endpoint": "https://requests.example/access/v1/requests/arq_01J4TQC...",
+    "expires_at": "2026-07-28T18:05:00Z",
+    "links": {
+      "ticket": "https://requests.example/tickets/arq_01J4TQC...",
+      "cancel": "https://requests.example/access/v1/requests/arq_01J4TQC.../cancel"
+    },
+    "display": {
+      "title": "Production teardown request submitted"
+    }
+  }
+}
+```
+
+The PEP stores the task under the current subject, actor, tenant, operation, and request digest. A leaked ID does not pass task-status authorization.
+
+**Artifact Produced:** A durable ARAP task handle and bounded local continuation record.
+
+</details>
+<details>
+<summary><strong>7. Access Request Service creates a bound workflow item</strong></summary>
+
+The service maps the opaque ARAP task to its internal governance workflow. It independently determines eligible approvers, separation-of-duties constraints, self-approval policy, requested scope, maximum duration, fulfillment requirement, and evidence retention.
+
+**Deployment-local workflow record:**
+
+```json
+{
+  "arap_task_id": "arq_01J4TQC...",
+  "template": "prod-teardown-v4",
+  "bound_request_digest": "sha-256:24c9...",
+  "eligible_approver_rule": "infrastructure-owner-and-change-manager",
+  "self_approval": "forbidden",
+  "requested_until": "2026-07-28T18:00:00Z",
+  "status": "awaiting_approvals"
+}
+```
+
+This record is not interoperable ARAP wire syntax. Its output must eventually collapse to an ARAP task status and enforceable result.
+
+</details>
+<details>
+<summary><strong>8. Gateway PEP polls the task-status endpoint</strong></summary>
+
+In the polling branch, the PEP authenticates and asks for the exact task. The service reauthorizes the current caller for the original Subject, Resource, Action, task, and status-read operation.
+
+```http
+GET /access/v1/requests/arq_01J4TQC... HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+Possession, previous submission, or acting for the Subject does not automatically authorize this retrieval.
+
+</details>
+<details>
+<summary><strong>9. Access Request Service returns pending status and backoff guidance</strong></summary>
+
+The service returns the same task identity with updated progress. `Retry-After` sets the minimum next poll interval.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Retry-After: 15
+
+{
+  "task": {
+    "id": "arq_01J4TQC...",
+    "status": "pending",
+    "status_endpoint": "https://requests.example/access/v1/requests/arq_01J4TQC...",
+    "progress": {
+      "current_step": 1,
+      "total_steps": 2,
+      "step_name": "infrastructure_owner"
+    },
+    "expires_at": "2026-07-28T18:05:00Z"
+  }
+}
+```
+
+The PEP applies exponential backoff with jitter, respects `Retry-After`, and stops at terminal status or task expiry. It does not infer approval from progress text.
+
+</details>
+<details>
+<summary><strong>10. Approval Workflow returns approved scope and evidence in the polling branch</strong></summary>
+
+Eligible approvers complete the required steps. The workflow returns a bounded approval to the Access Request Service only after separation, scope, lifetime, and fulfillment policy are satisfied.
+
+```json
+{
+  "workflow_id": "chg-48391",
+  "disposition": "approved",
+  "approved_scope": {
+    "subject": "user-456",
+    "resource": "prod-db-cluster",
+    "action": "infrastructure:teardown",
+    "arguments_digest": "sha-256:8c2f..."
+  },
+  "approved_at": "2026-07-28T17:42:00Z",
+  "approved_until": "2026-07-28T18:00:00Z",
+  "fulfillment": "complete"
+}
+```
+
+The workflow may record richer identities and signatures internally; ARAP does not standardize the approver-facing evidence schema.
+
+**Artifact Produced:** A workflow approval bound to scope, lifetime, eligibility, and fulfillment state.
+
+</details>
+<details>
+<summary><strong>11. Gateway PEP retrieves task status again after backoff</strong></summary>
+
+The PEP repeats Step 8 after the required delay. The credential, task ID, and authorization checks are unchanged; only time and expected lifecycle state have advanced.
+
+```http
+GET /access/v1/requests/arq_01J4TQC... HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+A PEP restart or authorized handoff can perform this poll from a new process because task state is explicit. The new caller must still authenticate and pass task/object authorization.
+
+</details>
+<details>
+<summary><strong>12. Access Request Service returns the approved re-evaluation result</strong></summary>
+
+The authoritative task is now approved and includes the base profile's only completion mode, `reevaluate`.
+
+```json
+{
+  "task": {
+    "id": "arq_01J4TQC...",
+    "status": "approved"
+  },
+  "result": {
+    "mode": "reevaluate",
+    "approval": {
+      "id": "apr_01J4TQH...",
+      "approved_at": "2026-07-28T17:42:00Z",
+      "approved_until": "2026-07-28T18:00:00Z",
+      "state": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFycy0xIn0..."
+    }
+  }
+}
+```
+
+The PEP preserves the approval object unchanged and treats an unknown `result.mode`, missing approved result, or non-approved task as not approved.
+
+**Artifact Produced:** An approval reference suitable only as input to a fresh evaluation.
+
+</details>
+<details>
+<summary><strong>13. Approval Workflow returns approved scope and evidence in the callback branch</strong></summary>
+
+The alternative branch reaches the same workflow conclusion as Step 10. The approved scope, lifetime, eligible-approver evidence, and fulfillment state are identical; only the PEP notification mechanism differs.
+
+**What changed from Step 10:** no protocol artifact is sent directly to the PEP yet. The Access Request Service first records the result and updates the authoritative task.
+
+</details>
+<details>
+<summary><strong>14. Access Request Service sends an authenticated callback hint</strong></summary>
+
+The service sends a notification to the pre-registered/allowlisted endpoint. This example omits `result`, so it is deliberately notification-only.
+
+```http
+POST /callbacks/access-requests HTTP/1.1
+Host: gateway.example
+Authorization: Bearer <access-request-service-callback-token>
+Content-Type: application/json
+
+{
+  "state": "cb_01J4TQB...",
+  "task": {
+    "id": "arq_01J4TQC...",
+    "status": "approved",
+    "status_endpoint": "https://requests.example/access/v1/requests/arq_01J4TQC..."
+  }
+}
+```
+
+The PEP authenticates the sender, consumes/replay-protects callback state, checks task correlation, and still does not dispatch. Callback destination validation and explicit internal-address allowlisting prevent SSRF at the Access Request Service.
+
+</details>
+<details>
+<summary><strong>15. Gateway PEP retrieves authoritative state after the callback</strong></summary>
+
+Because the callback carried no enforceable result, the PEP performs the same authenticated task-status request as Step 11.
+
+```http
+GET /access/v1/requests/arq_01J4TQC... HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+Callback receipt changes scheduling, not authority.
+
+</details>
+<details>
+<summary><strong>16. Access Request Service returns the approved result after callback</strong></summary>
+
+The response is the complete `task.status: "approved"` plus `result.mode: "reevaluate"` object shown in Step 12. The PEP validates it identically regardless of whether polling or callback triggered retrieval.
+
+**What changed from Step 12:** nothing in the enforceable result. The callback branch must converge on the same authoritative task and approval object.
+
+</details>
+<details>
+<summary><strong>17. Gateway PEP sends a fresh evaluation with the approval object unchanged</strong></summary>
+
+The PEP reconstructs the current operation and includes the exact approval object at `context.approval`. This is a new AuthZEN request, not a continuation of the denied evaluation.
+
+```http
+POST /access/v1/evaluation HTTP/1.1
+Host: pdp.example
+Authorization: Bearer <gateway-pdp-token>
+Content-Type: application/json
+
+{
+  "subject": {
+    "type": "user",
+    "id": "user-456",
+    "properties": { "actor_id": "agent-123" }
+  },
+  "action": {
+    "name": "infrastructure:teardown",
+    "properties": { "arguments_digest": "sha-256:8c2f..." }
+  },
+  "resource": { "type": "database", "id": "prod-db-cluster" },
+  "context": {
+    "delegation_depth": 2,
+    "change_window": "cw-2026-07-28-17",
+    "task_id": "task-789",
+    "approval": {
+      "id": "apr_01J4TQH...",
+      "approved_at": "2026-07-28T17:42:00Z",
+      "approved_until": "2026-07-28T18:00:00Z",
+      "state": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFycy0xIn0..."
+    }
+  }
+}
+```
+
+Volatile fields excluded from `binding_context_members` may change; the bound Subject, Resource, Action, and authorization-relevant Context must match the recorded approval scope unless the service deliberately recorded a broader deployment-defined scope.
+
+</details>
+<details>
+<summary><strong>18. AuthZEN PDP verifies approval binding and current authorization state</strong></summary>
+
+The PDP resolves `approval.id` or verifies the compact JWS `approval.state`. It selects the trusted key by `iss`/`kid`, verifies PDP audience, integrity and time, cross-checks the inner approval ID, and joins task, denial, requester/client, scope, and revocation state.
+
+**Illustrative decoded approval-state claims for PDP verification:**
+
+```json
+{
+  "iss": "https://requests.example",
+  "aud": "https://pdp.example",
+  "iat": 1785260520,
+  "exp": 1785261600,
+  "jti": "as_01J4TQJ...",
+  "approval_id": "apr_01J4TQH...",
+  "task_id": "arq_01J4TQC...",
+  "evaluation_id": "eval_01J4TQ7...",
+  "requester": "gateway-prod-1",
+  "approved_until": "2026-07-28T18:00:00Z",
+  "binding_context_members": [
+    "delegation_depth",
+    "change_window",
+    "task_id"
+  ],
+  "scope_hash": "sha-256:7fe1..."
+}
+```
+
+The PDP then applies current policy, subject status, risk, approval status, and exact-match scope. Approval lifetime is a maximum reuse bound, not protection against earlier revocation or policy change.
+
+</details>
+<details>
+<summary><strong>19. AuthZEN PDP returns a fresh permit and enforcement bound</strong></summary>
+
+Only after all verification and current-policy checks pass does the PDP return `decision: true`.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_01J4TQK...",
+    "approval": {
+      "id": "apr_01J4TQH...",
+      "approved_until": "2026-07-28T18:00:00Z"
+    },
+    "policy_version": "prod-teardown-2026-07-28.5"
+  }
+}
+```
+
+The PEP enforces the earlier of the approval bound, any decision/cache bound, and downstream credential lifetime.
+
+**Artifact Produced:** A current permit for the exact operation, linked to the approval and original denial.
+
+</details>
+<details>
+<summary><strong>20. Gateway PEP dispatches the exact approved operation once</strong></summary>
+
+The gateway compares the current request digest with the approved/evaluated operation, atomically consumes any deployment-local single-use dispatch right, and sends the operation to the MCP server under a separate origin credential.
+
+```http
+POST /mcp HTTP/1.1
+Host: origin.mcp.example
+Authorization: DPoP <gateway-origin-token>
+DPoP: <gateway-proof>
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: infrastructure_teardown
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 73,
+  "method": "tools/call",
+  "params": {
+    "name": "infrastructure_teardown",
+    "arguments": {
+      "cluster": "prod-db-cluster",
+      "change_window": "cw-2026-07-28-17"
+    }
+  }
+}
+```
+
+ARAP does not make approval universally single-use. This deployment adds atomic dispatch consumption because teardown is a one-effect operation.
+
+</details>
+<details>
+<summary><strong>21. MCP Server returns the typed effect disposition to the Gateway PEP</strong></summary>
+
+The origin reauthorizes the current call and backend object, executes under its idempotency/precondition contract, and returns a typed result. Approval and final permit do not prove that the effect occurred.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 73,
+  "result": {
+    "structuredContent": {
+      "operation": "infrastructure_teardown",
+      "cluster": "prod-db-cluster",
+      "status": "accepted",
+      "execution_id": "exec_01J4TQN..."
+    },
+    "isError": false
+  }
+}
+```
+
+The PEP applies result-release policy and records execution separately from denial, request, task, approval, and re-evaluation evidence.
+
+**Artifact Produced:** An application effect disposition—not retroactive proof that every approval-system step was correct.
+
+</details>
+
+<br/>
+
+**Re-evaluation denial handling.** A fresh evaluation can still deny. `next_action` is the durable control surface; `reason` supplies a registered default only when `next_action` is absent or unrecognized.
+
+| Re-evaluation signal | PEP behavior |
+|:--|:--|
+| `next_action: "request"` | Submit a new Access Request only when the response also contains a fresh `context.access_request`; otherwise treat as `none` |
+| `next_action: "retry"` | Wait `retry_after` seconds; if absent, use bounded exponential backoff with jitter from several seconds up to one minute; stop at approval expiry |
+| `next_action: "none"` | Stop; do not retry or re-request under this approval |
+| Missing/unrecognized `next_action` | Use the registered default for a recognized `reason`; otherwise use `request` only if a fresh requestable-denial signal exists; else `none` |
+
+The registered reason supplies a default only when the response does not already carry a usable `next_action`; it never overrides an explicit action.
+
+| Defined reason | Default action | Meaning |
+|:--|:--:|:--|
+| `approval_expired` | `request` | Approval passed `approved_until` or was revoked, cancelled, or superseded |
+| `out_of_scope` | `request` | Approval remains valid but the current evaluation is outside its scope |
+| `grant_pending` | `retry` | Approval is valid/in scope but backing role, entitlement, or grant is not yet present |
+| `policy_denied` | `none` | Current policy, subject status, or risk denies; another request will not help |
+| `approval_unverifiable` | `none` | Approval lookup/state verification or binding failed |
+
+**Approval scope and reuse.** ARAP's portable baseline compares the complete bound Subject, Resource, Action, and authorization-relevant Context member by member, including their `properties`; `subject.properties.act` may be excluded when the actor was normalized to `client.actor`. Broader class-, role-, entitlement-, resource-set-, or time-bounded approvals are deployment/profile semantics, not a portable ARAP matching language. Approval is not inherently one-time: it may legitimately make a class of future evaluations succeed until `approved_until`. The PDP checks current scope and revocation every time. A deployment that requires single-use behavior records a narrower scope and atomically consumes a local execution right; it does not claim the base profile supplied that guarantee.
+
+###### 15.9.2.4 Machine-Readable Forms and Catalog Resolution
+
+`form_url`, `request_schema_url`, and `request_catalogs_url` solve the missing-input problem around an Access Request, not the missing-authority problem that caused the denial. `form_url` points to a human-facing form hosted by the Access Request Service or a trusted service. `request_schema_url` describes the additions an autonomous or native-rendering PEP must make to `context` and `requested_access`. `request_catalogs_url` is a sibling document that maps schema fields to scoped Catalog Endpoints. None changes `decision: false`.
+
+The human route is intentionally not an agent protocol. A PEP may render or hand off to `form_url` only after validating its trusted origin and authenticating the requester through an approved mechanism; ARAP does not define browser session, return-channel, or UI-widget syntax. The machine route below uses the defined JSON Schema and Catalog HTTP surfaces.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant E as Autonomous PEP
+    participant R as Access Request Service
+    participant C as Catalog Service
+
+    E->>E: Validate form/schema/catalog URL trust policy
+    E->>R: GET request_schema_url
+    R-->>E: JSON Schema for context/requested_access augmentation
+    E->>R: GET request_catalogs_url
+    R-->>E: Catalogs Document with scoped field references
+    E->>C: Search application catalog as authenticated requester
+    C-->>E: Caller-filtered opaque application items
+    E->>C: Search entitlement catalog scoped by application_id
+    C-->>E: Caller-filtered opaque entitlement items
+    E->>E: Validate required input<br/>and select exact opaque values
+    E->>R: POST bound Access Request with selected values
+    R->>C: Revalidate submitted identifiers and current requestability
+    C-->>R: Current item status, risk, and ownership
+    R-->>E: Task handle or problem response
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+> **Warning — Schema and catalog output is not authority**
+>
+> A schema cannot invent facts the PEP does not possess, and a catalog item—including `granted: true`—is not a permit. Catalog values are opaque selection identifiers returned for the same authenticated caller and scope parameters. The Access Request Service revalidates them at submission because an item can be disabled, retired, re-owned, reclassified, or no longer requestable between discovery and use.
+
+<details>
+<summary><strong>1. Autonomous PEP validates every form, schema, and catalog URL</strong></summary>
+
+The PEP compares `form_url`, `request_schema_url`, and `request_catalogs_url` with the validated Access Request endpoint origin or an explicit allowlist. It resolves DNS under rebinding-resistant rules and rejects userinfo, unexpected redirects, loopback, link-local, private-use, metadata-service, and otherwise prohibited destinations.
+
+**Deployment-local URL admission record:**
+
+```json
+{
+  "access_request_origin": "https://requests.example",
+  "form_url": {
+    "url": "https://requests.example/forms/prod-teardown-v4",
+    "mode": "human_only",
+    "result": "trusted_same_origin"
+  },
+  "request_schema_url": {
+    "url": "https://requests.example/schemas/prod-teardown-v4.json",
+    "result": "trusted_same_origin"
+  },
+  "request_catalogs_url": {
+    "url": "https://requests.example/catalogs/prod-teardown-v4.json",
+    "result": "trusted_same_origin"
+  }
+}
+```
+
+Credentials are selected only after the destination passes policy. A redirect never expands the credential audience.
+
+**Artifact Produced:** A bounded URL-admission decision; not approval to submit.
+
+</details>
+<details>
+<summary><strong>2. Autonomous PEP retrieves the request augmentation schema</strong></summary>
+
+The PEP fetches the exact HTTPS URL with the credential authorized for this Access Request Service. It constrains response size, media type, redirect targets, decompression, nesting, reference behavior, and fetch time.
+
+```http
+GET /schemas/prod-teardown-v4.json HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/schema+json, application/json
+```
+
+The PEP does not send PDP credentials, the original MCP token, binding token, business justification, or catalog search terms to any other origin.
+
+</details>
+<details>
+<summary><strong>3. Access Request Service returns the JSON Schema</strong></summary>
+
+The schema describes additions to the Access Request's `context` and `requested_access` objects. It is data-shape input, not an executable UI or policy language.
+
+**Profile-specific JSON Schema example:**
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://requests.example/schemas/prod-teardown-v4.json",
+  "type": "object",
+  "properties": {
+    "context": {
+      "type": "object",
+      "properties": {
+        "business_justification": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 1000
+        }
+      },
+      "required": ["business_justification"],
+      "additionalProperties": false
+    },
+    "requested_access": {
+      "type": "object",
+      "properties": {
+        "application_id": { "type": "string" },
+        "entitlement_id": { "type": "string" },
+        "requested_until": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "application_id",
+        "entitlement_id",
+        "requested_until"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": ["context", "requested_access"]
+}
+```
+
+If the PEP lacks an authorized business justification or requested lifetime, it stops. It may ask an authorized human/component for input or treat the denial as not requestable by this PEP; it does not generate plausible text to satisfy `minLength`.
+
+</details>
+<details>
+<summary><strong>4. Autonomous PEP retrieves the sibling Catalogs Document</strong></summary>
+
+The PEP separately fetches the document that tells it which schema fields use catalog values.
+
+```http
+GET /catalogs/prod-teardown-v4.json HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+The schema stays a pure shape description; catalog location, query, and display metadata remain in this sibling document.
+
+</details>
+<details>
+<summary><strong>5. Access Request Service returns scoped Catalog References</strong></summary>
+
+The document maps JSON Pointers into the form data instance to authenticated Catalog Endpoints. The dependent entitlement query cannot run until `/requested_access/application_id` has a value.
+
+```json
+{
+  "fields": {
+    "/requested_access/application_id": {
+      "endpoint": "https://requests.example/catalog/applications",
+      "search_param": "q"
+    },
+    "/requested_access/entitlement_id": {
+      "endpoint": "https://requests.example/catalog/entitlements",
+      "search_param": "q",
+      "scope_params": {
+        "application_id": "/requested_access/application_id"
+      },
+      "value_path": "/value",
+      "label_path": "/label"
+    }
+  }
+}
+```
+
+Unknown members are informational. The PEP validates every endpoint with the same origin/allowlist and credential rules before querying it.
+
+</details>
+<details>
+<summary><strong>6. Autonomous PEP searches the application catalog as the authenticated requester</strong></summary>
+
+The PEP uses the declared search parameter instead of bulk enumeration. The Catalog Service receives only the identity/context needed to filter items for the original request.
+
+```http
+GET /catalog/applications?q=database&limit=10 HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+Cross-origin catalogs require a separately documented credential-acquisition mechanism such as token exchange. ARAP does not define one and does not permit reusing this bearer token at an arbitrary origin.
+
+</details>
+<details>
+<summary><strong>7. Catalog Service returns caller-filtered opaque application items</strong></summary>
+
+The Catalog Service authenticates the caller, authorizes enumeration for the original Subject/Resource/Action, and returns only requestable visible candidates.
+
+```json
+{
+  "items": [{
+    "value": "app_prod_database",
+    "label": "Production Database Platform",
+    "description": "Governed production database operations",
+    "risk_level": "high",
+    "granted": false
+  }],
+  "total": 1
+}
+```
+
+`value` is the exact opaque value the PEP may later submit. `label`, `description`, `risk_level`, and `granted` can shape UI/triage but cannot grant or deny the operation.
+
+</details>
+<details>
+<summary><strong>8. Autonomous PEP searches entitlements with the selected application scope</strong></summary>
+
+The PEP first places the selected opaque application value into the form data, resolves the Catalog Reference's JSON Pointer, and sends the dependent query.
+
+```http
+GET /catalog/entitlements?application_id=app_prod_database&q=teardown&limit=10 HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+It never substitutes a display label for `application_id` and never queries the dependent endpoint without every declared scope parameter.
+
+</details>
+<details>
+<summary><strong>9. Catalog Service returns caller-filtered opaque entitlement items</strong></summary>
+
+The response is filtered for the same authenticated caller and selected application.
+
+```json
+{
+  "items": [{
+    "value": "ent_prod_teardown_once",
+    "label": "Production teardown (single approved change)",
+    "description": "Request one governed teardown operation",
+    "risk_level": "critical",
+    "owner": "team:infrastructure-governance"
+  }],
+  "total": 1
+}
+```
+
+An item absent from this response cannot be invented from a previous session or another application's catalog.
+
+</details>
+<details>
+<summary><strong>10. Autonomous PEP validates required input and selects exact values</strong></summary>
+
+The PEP constructs the schema instance from independently available justification/lifetime input and the exact opaque catalog values returned under matching scope parameters.
+
+```json
+{
+  "context": {
+    "business_justification": "Execute approved retirement change CHG-48391."
+  },
+  "requested_access": {
+    "application_id": "app_prod_database",
+    "entitlement_id": "ent_prod_teardown_once",
+    "requested_until": "2026-07-28T18:00:00Z"
+  }
+}
+```
+
+It validates the instance against the admitted schema and records schema/catalog digests, query scopes, chosen opaque values, and caller identity. It does not preserve a large catalog result set in ordinary traces.
+
+**Artifact Produced:** A schema-valid augmentation assembled from authorized inputs; still not an Access Request or grant.
+
+</details>
+<details>
+<summary><strong>11. Autonomous PEP submits the bound Access Request with selected values</strong></summary>
+
+The PEP submits the original bound Subject/Resource/Action/denial plus the validated augmentation. The complete body remains covered by the idempotency key.
+
+**What changed from Canonical ARAP Lifecycle Step 5:**
+
+```json
+{
+  "context": {
+    "delegation_depth": 2,
+    "change_window": "cw-2026-07-28-17",
+    "task_id": "task-789",
+    "business_justification": "Execute approved retirement change CHG-48391."
+  },
+  "requested_access": {
+    "application_id": "app_prod_database",
+    "entitlement_id": "ent_prod_teardown_once",
+    "requested_until": "2026-07-28T18:00:00Z"
+  },
+  "denial": {
+    "evaluation_id": "eval_01J4TQ7...",
+    "expires_at": "2026-07-28T17:30:00Z",
+    "binding_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6InBkcC0xIn0...",
+    "template": "prod-teardown-v4"
+  }
+}
+```
+
+The full HTTP endpoint, authentication, and `Idempotency-Key` are the same as that earlier step.
+
+</details>
+<details>
+<summary><strong>12. Access Request Service revalidates catalog identifiers at submission time</strong></summary>
+
+The service does not trust the PEP's claim that the values were recently returned. It resolves them in the original caller/subject/request context and checks current existence, application scoping, requestability, status, risk, and ownership.
+
+**Deployment-local validation query:**
+
+```json
+{
+  "authenticated_requester": "gateway-prod-1",
+  "subject": "user-456",
+  "application_id": "app_prod_database",
+  "entitlement_id": "ent_prod_teardown_once",
+  "original_resource": "prod-db-cluster",
+  "original_action": "infrastructure:teardown"
+}
+```
+
+This internal shape is illustrative because ARAP defines the validation obligation, not a service-to-catalog protocol.
+
+</details>
+<details>
+<summary><strong>13. Catalog Service returns current item status, risk, and ownership</strong></summary>
+
+The Catalog Service confirms that both identifiers remain in scope and reports any material change.
+
+```json
+{
+  "application": {
+    "value": "app_prod_database",
+    "status": "active"
+  },
+  "entitlement": {
+    "value": "ent_prod_teardown_once",
+    "status": "active",
+    "requestable": true,
+    "risk_level": "critical",
+    "owner": "team:infrastructure-governance"
+  }
+}
+```
+
+If the item is disabled, retired, no longer visible, differently scoped, or materially changed in risk/ownership, the service rejects, normalizes, or routes for additional review according to policy.
+
+</details>
+<details>
+<summary><strong>14. Access Request Service returns a task handle or a precise problem response</strong></summary>
+
+On successful binding/schema/catalog validation, the service returns the pending task shape from Canonical ARAP Lifecycle Step 6. On failure, it returns an ARAP `application/problem+json` response without creating a workflow task.
+
+**Profile-specific failure example:**
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/problem+json
+
+{
+  "type": "urn:openid:authzen:access-request:error:invalid_denial_binding",
+  "title": "Invalid denial binding",
+  "status": 400
+}
+```
+
+Catalog-specific validation detail remains bounded to authorized diagnostics. The caller must not blindly retry a changed selection under the same idempotency key.
+
+**Artifact Produced:** Either a durable bound task or a no-task validation disposition.
+
+</details>
+
+<br/>
+
+The machine-readable boundary is admitted with the following controls:
+
+| Threat | Required control |
+|:--|:--|
+| SSRF/DNS rebinding | Same-origin or explicit host allowlist, fresh DNS/IP checks at connect time, redirect revalidation, blocked internal ranges except exact approved destinations |
+| Credential theft | Credential selected after URL admission; strict audience/origin; no redirect-based credential forwarding; separate token for a documented cross-origin catalog |
+| Hostile schema | Size/depth/reference/format limits, no remote `$ref` outside policy, no executable UI vocabulary, exact digest/cache provenance |
+| Phishing or deceptive form | Trusted origin, authenticated requester, verified branding/context, complete operation display, no claim that `form_url` is itself approval |
+| Catalog enumeration | Authenticated and authorized query, caller-specific filtering, search over bulk listing, pagination/rate limits, minimal telemetry |
+| Stale or substituted value | Exact opaque value and scope parameters, selection evidence, server-side submission revalidation |
+| Autonomous fabrication | Stop or hand off whenever a required value is unavailable or unauthorized; never synthesize justification, ownership, cost center, or approver input |
+
+Together, these controls make form/schema/catalog discovery an authenticated input-construction path. The resulting values still enter the ordinary binding, workflow, and fresh-evaluation lifecycle; none bypasses it.
+
+###### 15.9.2.5 Bulk, Partial, Cancellation, Expiry, and Reuse
+
+ARAP can submit a bundle, but approval and enforcement remain item-specific. The Access Request Service computes aggregate status from the item states; a `partial` task says only that the bundle contains at least two distinct terminal outcomes. The PEP reads each `task.items[]` entry and uses only that item's approved `result`. A top-level result never authorizes an item unless the same enforceable result appears on that approved item.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant E as Gateway PEP
+    participant R as Access Request Service
+    participant W as Approval Workflow
+    participant P as AuthZEN PDP
+    participant S as MCP Server
+
+    E->>R: POST bound bulk Access Request + Idempotency-Key
+    R->>R: Authenticate caller<br/>and verify bundle and each item
+    R-->>E: 202 pending task + per-item state
+    R->>W: Route bound closed bundle
+    W-->>R: Item A approved<br/>and Item B denied
+    R-->>E: Authenticated partial callback hint
+    E->>R: GET authoritative task status
+    R-->>E: partial task + per-item result
+    E->>P: Fresh evaluation for approved Item A
+    P->>P: Verify Item A approval and current policy
+    P-->>E: Current permit for Item A
+    E->>S: Dispatch closed approved subset once
+    S-->>E: Per-item effect disposition
+    E->>P: Later exact-match evaluation with retained approval
+    P-->>E: Current permit or denial under reuse policy
+    Note right of S: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+> **Important — Aggregate status never widens item authority**
+>
+> `partial` is a workflow summary, not authorization for the bundle. A denied, cancelled, expired, failed, pending, or approved-without-enforceable-result item does not execute. Every approved item receives its own fresh AuthZEN evaluation, current object preconditions, idempotent dispatch, and result-release decision.
+
+<details>
+<summary><strong>1. Gateway PEP submits one bound bulk Access Request</strong></summary>
+
+The PEP sends a closed two-item manifest under one authenticated requester and idempotency key. The top-level binding token covers the ordered item array and authorization-relevant Context.
+
+```http
+POST /access/v1/requests HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Idempotency-Key: bulk_01J4TR0...
+Content-Type: application/json
+
+{
+  "subject": { "type": "user", "id": "user-456" },
+  "items": [
+    {
+      "resource": { "type": "document", "id": "q4-plan" },
+      "action": { "name": "can_read" }
+    },
+    {
+      "resource": { "type": "channel", "id": "engineering" },
+      "action": { "name": "can_post" }
+    }
+  ],
+  "context": {
+    "project": "renewal-review",
+    "business_justification": "Prepare and publish the approved renewal review."
+  },
+  "requested_access": {
+    "requested_until": "2026-08-04T17:00:00Z"
+  },
+  "denial": {
+    "evaluation_id": "eval_bundle_01J4TQZ...",
+    "expires_at": "2026-07-28T18:15:00Z",
+    "binding_token": "eyJhbGciOiJFUzI1NiIsImtpZCI6InBkcC0xIn0...",
+    "template": "renewal-review-bundle"
+  }
+}
+```
+
+Reordering, adding, or removing an item changes the bound body and requires new denial binding and idempotency state.
+
+</details>
+<details>
+<summary><strong>2. Access Request Service authenticates the caller and verifies the complete bundle</strong></summary>
+
+The service verifies the requester/actor chain, denial freshness, JWS audience/signature/replay, ordered bundle binding, Context member set, schema/catalog values, and the idempotency key/body pair. It authorizes submission for every item; a caller allowed to request the document is not automatically allowed to request channel posting.
+
+**Deployment-local submission evidence:**
+
+```json
+{
+  "authenticated_requester": "gateway-prod-1",
+  "idempotency_key_hash": "sha-256:1fa8...",
+  "body_digest": "sha-256:de31...",
+  "binding_jti": "bt_bundle_01J4...",
+  "items": [
+    { "position": 0, "binding": "valid", "submission_authorized": true },
+    { "position": 1, "binding": "valid", "submission_authorized": true }
+  ],
+  "result": "accepted"
+}
+```
+
+An exact retry returns the same retained task. Reuse with a materially different body returns `duplicate_request`; it never mutates the original bundle.
+
+**Artifact Produced:** One idempotent, fully bound bundle-submission record.
+
+</details>
+<details>
+<summary><strong>3. Access Request Service returns a pending task with per-item state</strong></summary>
+
+The service returns an opaque aggregate task and positionally corresponding items.
+
+```json
+{
+  "task": {
+    "id": "arq_bundle_01J4TR1...",
+    "status": "pending",
+    "status_endpoint": "https://requests.example/access/v1/requests/arq_bundle_01J4TR1...",
+    "expires_at": "2026-08-04T17:05:00Z",
+    "items": [
+      {
+        "resource": { "type": "document", "id": "q4-plan" },
+        "action": { "name": "can_read" },
+        "status": "pending"
+      },
+      {
+        "resource": { "type": "channel", "id": "engineering" },
+        "action": { "name": "can_post" },
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+The PEP stores the manifest digest and task mapping; it does not infer that all items will share one outcome.
+
+</details>
+<details>
+<summary><strong>4. Access Request Service routes the bound closed bundle to the Approval Workflow</strong></summary>
+
+The service preserves item order and scope while applying per-item owners, eligibility, conflicts, fulfillment, and partial-outcome policy.
+
+```json
+{
+  "arap_task_id": "arq_bundle_01J4TR1...",
+  "manifest_digest": "sha-256:de31...",
+  "partial_policy": "approved_items_may_proceed_independently",
+  "items": [
+    {
+      "position": 0,
+      "owner": "team:document-governance",
+      "workflow": "resource-owner"
+    },
+    {
+      "position": 1,
+      "owner": "team:engineering-admins",
+      "workflow": "channel-owner"
+    }
+  ]
+}
+```
+
+This routing object is internal workflow syntax. ARAP's portable surface begins again at per-item task status/result.
+
+</details>
+<details>
+<summary><strong>5. Approval Workflow returns one approval and one denial</strong></summary>
+
+The document owner approves read access; the channel owner denies posting. The workflow reports both terminal outcomes and their independently retained evidence.
+
+```json
+{
+  "manifest_digest": "sha-256:de31...",
+  "items": [
+    {
+      "position": 0,
+      "status": "approved",
+      "approved_at": "2026-07-28T18:22:00Z",
+      "approved_until": "2026-08-04T17:00:00Z"
+    },
+    {
+      "position": 1,
+      "status": "denied",
+      "reason": "channel_owner_denied"
+    }
+  ]
+}
+```
+
+The Access Request Service maps the distinct terminal set to aggregate `partial`.
+
+**Artifact Produced:** Per-item terminal workflow evidence; no runtime permit.
+
+</details>
+<details>
+<summary><strong>6. Access Request Service sends an authenticated partial callback hint</strong></summary>
+
+The callback tells the PEP to retrieve authoritative state. It does not expose the approval state or machine endpoints to an end client.
+
+```http
+POST /callbacks/access-requests HTTP/1.1
+Host: gateway.example
+Authorization: Bearer <access-request-service-callback-token>
+Content-Type: application/json
+
+{
+  "state": "cb_bundle_01J4...",
+  "task": {
+    "id": "arq_bundle_01J4TR1...",
+    "status": "partial",
+    "status_endpoint": "https://requests.example/access/v1/requests/arq_bundle_01J4TR1..."
+  }
+}
+```
+
+The PEP authenticates, replay-checks, and correlates the callback. A spoofed or duplicate callback never changes task state.
+
+</details>
+<details>
+<summary><strong>7. Gateway PEP retrieves authoritative bulk task status</strong></summary>
+
+The PEP authenticates to the task endpoint. The service authorizes status retrieval against the original Subject, every Resource/Action, task, requester, and read operation.
+
+```http
+GET /access/v1/requests/arq_bundle_01J4TR1... HTTP/1.1
+Host: requests.example
+Authorization: Bearer <gateway-access-request-token>
+Accept: application/json
+```
+
+An authorized runtime handoff may retrieve this task from another instance; a lost handle cannot be recovered through a portable enumeration API.
+
+</details>
+<details>
+<summary><strong>8. Access Request Service returns partial status and per-item results</strong></summary>
+
+The approved item carries its own enforceable result. The denied item carries no approval result.
+
+```json
+{
+  "task": {
+    "id": "arq_bundle_01J4TR1...",
+    "status": "partial",
+    "items": [
+      {
+        "resource": { "type": "document", "id": "q4-plan" },
+        "action": { "name": "can_read" },
+        "status": "approved",
+        "result": {
+          "mode": "reevaluate",
+          "approval": {
+            "id": "apr_doc_01J4TR5...",
+            "approved_at": "2026-07-28T18:22:00Z",
+            "approved_until": "2026-08-04T17:00:00Z",
+            "state": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFycy0xIn0..."
+          }
+        }
+      },
+      {
+        "resource": { "type": "channel", "id": "engineering" },
+        "action": { "name": "can_post" },
+        "status": "denied"
+      }
+    ]
+  }
+}
+```
+
+The PEP creates a closed approved subset containing only position 0. It does not apply the approved item's result to position 1.
+
+**Artifact Produced:** An authoritative per-item outcome manifest.
+
+</details>
+<details>
+<summary><strong>9. Gateway PEP re-evaluates only the approved document item</strong></summary>
+
+The PEP sends the document Subject/Resource/Action and that item's unchanged approval object to the PDP. It does not create an aggregate re-evaluation; ARAP requires approved bulk items to be evaluated separately.
+
+```json
+{
+  "subject": { "type": "user", "id": "user-456" },
+  "resource": { "type": "document", "id": "q4-plan" },
+  "action": { "name": "can_read" },
+  "context": {
+    "project": "renewal-review",
+    "approval": {
+      "id": "apr_doc_01J4TR5...",
+      "approved_at": "2026-07-28T18:22:00Z",
+      "approved_until": "2026-08-04T17:00:00Z",
+      "state": "eyJhbGciOiJFUzI1NiIsImtpZCI6ImFycy0xIn0..."
+    }
+  }
+}
+```
+
+The denied channel item remains denied and never reaches this endpoint with fabricated approval state.
+
+</details>
+<details>
+<summary><strong>10. AuthZEN PDP verifies Item A approval against current state</strong></summary>
+
+The PDP verifies signature/issuer/audience/time, item/task/denial binding, exact-match or recorded broader scope, requester/client, revocation, and current policy/data. It also checks that Item A's approval reference was not paired with Item B's Resource/Action.
+
+**Deployment-local verification result:**
+
+```json
+{
+  "approval_id": "apr_doc_01J4TR5...",
+  "item_position": 0,
+  "binding": "valid",
+  "scope": "exact_match",
+  "revocation_state": "active",
+  "policy_version": "document-authz-2026-07-28.7"
+}
+```
+
+The result is internal PDP evidence, not a second approval object.
+
+</details>
+<details>
+<summary><strong>11. AuthZEN PDP returns a current permit for Item A</strong></summary>
+
+The PDP permits only the document-read question and returns its enforcement lifetime.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_doc_01J4TR7...",
+    "approval": {
+      "id": "apr_doc_01J4TR5...",
+      "approved_until": "2026-08-04T17:00:00Z"
+    }
+  }
+}
+```
+
+If current policy denies, the PEP follows the `next_action`/reason rules in [§15.9.2.3](#15923-canonical-arap-lifecycle) and does not reinterpret aggregate `partial`.
+
+**Artifact Produced:** A current permit for one item only.
+
+</details>
+<details>
+<summary><strong>12. Gateway PEP dispatches the closed approved subset once</strong></summary>
+
+The application profile allows independent partial progress, so the gateway dispatches only the document read under a stable per-item idempotency key and manifest position.
+
+```json
+{
+  "batch_id": "batch_01J4TR8...",
+  "manifest_digest": "sha-256:de31...",
+  "approved_positions": [0],
+  "items": [{
+    "position": 0,
+    "operation": "documents/read",
+    "resource": "q4-plan",
+    "idempotency_key": "bulk_01J4TR0...:0",
+    "evaluation_id": "eval_doc_01J4TR7..."
+  }]
+}
+```
+
+This dispatch envelope is deployment-local. If the business operation requires all-or-nothing behavior, a partial task blocks the entire bundle instead.
+
+</details>
+<details>
+<summary><strong>13. MCP Server returns the per-item effect disposition</strong></summary>
+
+The server reauthorizes and reads the document once, then returns an outcome tied to manifest position 0. No effect exists for the denied channel item.
+
+```json
+{
+  "batch_id": "batch_01J4TR8...",
+  "items": [
+    {
+      "position": 0,
+      "status": "completed",
+      "execution_id": "exec_doc_01J4TR9..."
+    },
+    {
+      "position": 1,
+      "status": "not_dispatched",
+      "reason": "approval_denied"
+    }
+  ]
+}
+```
+
+The PEP applies per-item result-release controls and preserves the explicit no-dispatch evidence for position 1.
+
+**Artifact Produced:** A complete item-disposition record joined to approval and execution evidence.
+
+</details>
+<details>
+<summary><strong>14. Gateway PEP later presents the retained approval for an exact-match document evaluation</strong></summary>
+
+Before `approved_until`, the same Subject may request the same document read under the same authorization-relevant Context. ARAP permits retaining the approval object and presenting it again; the PEP does not independently decide that it still covers the call.
+
+**What changed from Step 9:** the request has a new evaluation/trace time but the complete bound Subject, Resource, Action, `project`, and approval object are unchanged.
+
+</details>
+<details>
+<summary><strong>15. AuthZEN PDP permits or denies the reuse under current policy</strong></summary>
+
+The PDP repeats applicability, scope, expiry, revocation, risk, and policy checks. It may return a new permit, or deny with `approval_expired`, `out_of_scope`, `grant_pending`, `policy_denied`, or `approval_unverifiable` handling.
+
+```json
+{
+  "decision": false,
+  "context": {
+    "reason": "policy_denied",
+    "next_action": "none"
+  }
+}
+```
+
+This example shows why `approved_until` is only a maximum bound. A previous approval never forces a later permit.
+
+</details>
+
+<br/>
+
+The remaining lifecycle transitions are governed as follows:
+
+| Event or operation | Authorization and state rule | Evidence and retry behavior |
+|:--|:--|:--|
+| Exact Access Request retry | Same authenticated requester, idempotency key, and equivalent body return the retained task while available | Record body/key/requester comparison; do not create a duplicate |
+| Changed-body idempotency reuse | Reject `409` `duplicate_request` | Record both safe digests; caller must create a genuinely new bound request/key |
+| Task status read | Authenticate and authorize caller for original Subject, Resource, Action/items, task, and status operation | Unknown/unavailable task is `404 unknown_task`; possession is insufficient |
+| PEP cancellation | Only when `links.cancel` exists; authenticate and separately authorize cancellation for the bound task | Pending single task becomes `cancelled`; already terminal returns `409 invalid_task_state` |
+| Bulk cancellation | Cancel only pending items; terminal items remain; recompute aggregate | All cancelled → `cancelled`; mixed terminal states → `partial`; never erase completed evidence |
+| Task expiry/removal | Stop polling at `task.expires_at`; later retrieval returns `410 task_expired` or `404 unknown_task` | New authority requires a new denial/request; do not resurrect handle state |
+| Approval revocation/cancellation/supersession | PDP checks current status on every re-evaluation, even before `approved_until` | Deny, normally `approval_expired` + `request` only with a fresh requestable denial |
+| Broad approval reuse | Allowed only under PDP-recorded scope and current policy; portable baseline is exact structural match | Every use gets a fresh evaluation and current result; no PEP-local inference |
+| One-time application effect | Not a base ARAP property | Narrow the local scope and atomically consume a dispatch/idempotency record; retries return prior outcome |
+| Callback | Authenticate sender/destination relationship and replay-check state; callback is notification unless it carries an enforceable result | Retrieve authoritative task state after notification; no callback-only dispatch |
+
+The evidence chain for bulk and lifecycle operations retains task/item identifiers, status transitions, authenticated caller and operation, idempotency/body digests, callback verification, per-item approval/evaluation IDs, scope and expiry, policy/data versions, dispatch keys, and effect/result dispositions. It excludes raw binding tokens, approval state, justifications, catalog result sets, and sensitive policy internals from ordinary telemetry.
 
 ##### 15.9.3 Relationship to Authority and Interaction Patterns
 
@@ -16190,6 +17772,8 @@ flowchart LR
 
 Filtering is least-privilege discovery, not a lasting grant. Every `tools/call` must be authorized again against the current token, exact tool name, arguments, actor/client, policy epoch, and risk obligations—even if that tool appeared in an earlier cached list.
 
+Under the revision-pinned COAZ-MCP profile in [§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability), an admitted `inputSchema.x-authzen-mapping` can describe how `tools/list` or `tools/call` becomes one or more AuthZEN evaluations. It is an interpretation surface, never authoritative tool policy: the PEP pins and validates the mapping source, ID, digest, expression limits, method coverage, and cache epoch, then resolves trusted resource attributes independently. Flow 1 shows list filtering, exact-call re-evaluation, mapping invalidation, and separate result release without duplicating that lifecycle here.
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -16615,6 +18199,18 @@ stateDiagram-v2
 | Revocation and object version | Current authority status and concurrency generation | Stop stale or revoked operations and prevent lost updates |
 | Policy and obligations | Policy version, approvals, budgets, redaction, step-up, evidence requirements | Re-evaluate when material policy or risk changes |
 
+Karl McGuinness's “Mission” analysis names five useful governance properties. They map to this existing local record without turning “Mission” into a standards claim:
+
+| Analytical requirement | DR-0001 task-authority realization | Necessary cross-domain evidence |
+|:--|:--|:--|
+| **Identity** | Stable task fingerprint; owner; human subject; agent actor; client/workload; tenant; allowed delegates | Authenticated issuer and verifier roles plus non-substitutable participant bindings |
+| **Approval** | Consent/grant reference, approval evidence, decision ID, approver role, constraints, expiry, and current status | Verifiable approval provenance and a common rule for revocation, expiry, and replay |
+| **Binding** | Immutable purpose, normalized operation/resource set, argument/input digests, budgets, and parent lineage | Canonical semantics for which calls/effects are in scope across servers |
+| **Expansion** | Versioned authority update, requested delta, policy decision, reapproval lineage, child attenuation, and maximum autonomy window | A protocol for proposing, authorizing, rejecting, and propagating scope changes |
+| **Audit** | Append-only state/effect ledger joined by safe references, epochs, decision IDs, idempotency keys, and dispositions | Deterministic joining, selective disclosure, retention rules, and negative conformance tests |
+
+No reviewed standard defines the missing issuer/verifier contract, portable purpose schema, transfer rules, projection into OAuth/AuthZEN without bearerizing the record, cross-server revocation acknowledgement, child attenuation, privacy model, or conformance suite. A deployment may implement those properties locally or through a federation agreement, but it must label that contract as local and revisioned.
+
 Creation is ordered: authorize the requested operation, persist the application object and authority record atomically, then expose the handle. Every later operation authenticates the caller, loads the authority record, evaluates the exact operation and current state, applies obligations, and records the outcome. Delegation creates an attenuated relation with its own delegate, operations, expiry, and revocation; it never copies ownership implicitly.
 
 #### 17.4 Durable Task Lifecycle
@@ -16632,6 +18228,301 @@ The Tasks extension is one specialization of the explicit-handle model. [§10.6]
 | Expiry/deletion | Retention deadline or explicit deletion is authorized | Delete result and live authority; preserve only policy-safe evidence |
 
 A task that delegates sub-work receives a separate downstream credential and an attenuated child authority record. Parent possession does not authorize child observation, and child completion does not authorize release of the result to the parent without a current result decision.
+
+**Flow 13 — Individually authorized board-packet calls and the missing governed cross-server object.** A user authorizes an agent to prepare one board packet: read approved financials from Server A, create a document at Server B, and notify the committee through Server C. Each server can correctly enforce its own narrow token, current AuthZEN decision, ARAP approval where needed, local task/operation identifier, and audit trail. The solved example deliberately shows why those valid local proofs do not create a portable end-to-end purpose object.
+
+| Hop | Locally sufficient evidence | Remaining whole-purpose question |
+|:--|:--|:--|
+| Read financials at A | A-audience token, current read decision, authorized dataset/period, result classification, local operation/effect record | May this exact result be used in the board packet and disclosed to B? |
+| Create document at B | B-audience token, current create decision, bound ARAP approval if policy requires it, input digest, local document/effect record | Does the approved document faithfully derive from the authorized A output and remain within the same purpose? |
+| Notify committee at C | C-audience token, current send decision, recipient/payload constraints, document reference/digest, local delivery disposition | Is this recipient set and disclosure the approved terminal effect of the same task? |
+| Local task authority controller | Purpose, participants, constraints, lineage, lifecycle, revocation, child attenuation, and joined evidence references | Which external party is obliged to understand, enforce, revoke, or acknowledge this local record? |
+
+This compact table is the decision surface for the flow: every hop can be locally correct while the rightmost question remains unanswered across organizations. The sequence now follows the evidence from the local purpose record through those independently authorized hops.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant User as 👤 User
+    participant Agent as 🤖 Agent
+    participant TAC as 🧭 Local Task Authority
+    participant PDP as ⚖️ AuthZEN PDP
+    participant ARS as ✅ Access Request Service
+    participant A as 📊 MCP Server A
+    participant B as 📝 MCP Server B
+    participant C as 📣 MCP Server C
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of User: Phase 1: Establish Local Purpose
+    User->>TAC: Approve board-packet purpose<br/>resources + recipients + ceiling
+    TAC-->>Agent: Local task-authority reference<br/>version 1 + constraints
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(66, 153, 225, 0.14)
+    Note right of User: Phase 2: Read at Server A
+    Agent->>PDP: Evaluate exact financials read<br/>A token + local task context
+    PDP-->>Agent: decision: true<br/>A decision ID + obligations
+    Agent->>A: tools/call read_financials<br/>A token + local operation ID
+    A->>PDP: Re-evaluate A resource/action<br/>current object + caller state
+    PDP-->>A: decision: true<br/>release obligations
+    A-->>Agent: Classified financials<br/>A effect/evidence reference
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of User: Phase 3: Approve and Create at Server B
+    Agent->>PDP: Evaluate exact document creation<br/>B token + source digest
+    PDP-->>Agent: decision: false<br/>bound access_request
+    Agent->>ARS: Submit bound ARAP request<br/>document constraints
+    ARS-->>Agent: Approved task result<br/>approval object
+    Agent->>PDP: Re-evaluate exact creation<br/>approval + current state
+    PDP-->>Agent: decision: true<br/>B decision ID + obligations
+    Agent->>B: tools/call create_board_packet<br/>B token + source digest
+    B-->>Agent: Document reference + digest<br/>B effect/evidence reference
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(72, 187, 120, 0.14)
+    Note right of User: Phase 4: Notify Through Server C
+    Agent->>PDP: Evaluate exact committee notice<br/>C token + recipient/payload digest
+    PDP-->>Agent: decision: true<br/>C decision ID + obligations
+    Agent->>C: tools/call notify_committee<br/>C token + document reference
+    C-->>Agent: Delivery disposition<br/>C effect/evidence reference
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(159, 122, 234, 0.14)
+    Note right of User: Phase 5: Join Local Evidence
+    Agent->>TAC: Join A/B/C evidence references<br/>and propose terminal state
+    TAC-->>Agent: Local completion or gap disposition<br/>authority version 2
+    Note right of C: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. User approves the board-packet purpose at the Local Task Authority</strong></summary>
+
+The local controller records the human, agent, client/workload, tenant, immutable purpose, approved reporting period and datasets, permitted derived-document type, committee recipient set, disclosure ceiling, budget, expiry, and maximum autonomy window. It also records which changes require reapproval.
+
+```json
+{
+  "contract": "deployment-local/task-authority/v1",
+  "purpose": "prepare-and-deliver-2026-q2-board-packet",
+  "participants": {
+    "subject": "user:alice",
+    "actor": "agent:board-preparer",
+    "recipients": ["group:board-committee"]
+  },
+  "operations": [
+    {"server": "A", "action": "read_financials", "period": "2026-Q2"},
+    {"server": "B", "action": "create_board_packet"},
+    {"server": "C", "action": "notify_committee"}
+  ],
+  "status": "active",
+  "version": 1,
+  "expires_at": "2026-07-28T18:00:00Z"
+}
+```
+
+> **Deployment-local artifact:** this is a local authority record, not an MCP, AuthZEN, ARAP, OAuth, or “Mission” wire object. Sensitive arguments and evidence bodies should be stored by reference or digest.
+
+</details>
+<details>
+<summary><strong>2. Local Task Authority returns a constrained local reference to the Agent</strong></summary>
+
+The agent receives an opaque reference, version, expiry, and safe constraints needed for planning. The controller keeps the authoritative body. Possession of the reference neither authenticates the agent nor grants access at A, B, or C.
+
+> **Custody boundary:** the opaque reference is a lookup/correlation value. Every projection into a token or AuthZEN Context is separately authorized and minimized for its recipient.
+
+</details>
+<details>
+<summary><strong>3. Agent asks the AuthZEN PDP to evaluate the exact Server A read</strong></summary>
+
+The PEP authenticates an A-audience token and builds the admitted Subject–Action–Resource–Context evaluation for `read_financials`, the approved reporting period, requested fields, and current risk. Protected local context supplies the task-authority version and purpose digest without asking the PDP to trust a client-authored “mission.”
+
+> **Exact decision surface:** reuse Flow 1's AuthZEN/COAZ request; add only server A's normalized resource/action and deployment-local task-purpose evidence in protected context.
+
+</details>
+<details>
+<summary><strong>4. AuthZEN PDP permits the exact Server A read</strong></summary>
+
+The decision ID and obligations constrain dataset, period, fields, row/aggregation rules, output classification, and expiry. This decision answers one evaluation at one point in time; it is not durable authority for the other two calls.
+
+> **Artifact Produced:** A-scoped decision evidence linked to, but semantically distinct from, the OAuth token and local task-authority record.
+
+</details>
+<details>
+<summary><strong>5. Agent calls Server A with its narrow token and local operation identifier</strong></summary>
+
+The agent sends the ordinary MCP `tools/call` request to A with the A-audience credential. A deployment-local idempotency/operation identifier can join retries and effects; the local task reference or its safe digest may travel only through an authenticated extension/profile that A has explicitly admitted.
+
+> **Protocol boundary:** no MCP core field named `mission`, `task_authority`, or `purpose_id` is invented. Correlation metadata is not evaluated as authority unless an agreed local profile defines and protects it.
+
+</details>
+<details>
+<summary><strong>6. Server A asks the AuthZEN PDP for a resource-side current evaluation</strong></summary>
+
+A does not rely solely on an upstream decision. It validates the token, normalizes the actual tool arguments and current financial object, checks the mapping version, and evaluates its own release boundary. This catches drift between agent planning and resource-side state.
+
+> **Dual-enforcement delta:** reuse Flow 1's server-side invocation evaluation with A's current object version and output-release policy.
+
+</details>
+<details>
+<summary><strong>7. AuthZEN PDP permits Server A's current operation and release constraints</strong></summary>
+
+The result can agree with the edge decision while carrying a distinct evaluation ID and obligations. If it denies, the chain stops; a shared correlation value cannot override the resource-side policy outcome.
+
+> **Negative guarantee:** two permits are separate evidence. Neither proves that B or C will accept the local purpose or that A's eventual effect/result matches it.
+
+</details>
+<details>
+<summary><strong>8. MCP Server A returns classified financials and an A-local evidence reference</strong></summary>
+
+A performs the read, applies minimization/redaction, records input/output digests, object version, decision IDs, and result disposition, then returns the permitted data. The agent retains the A evidence reference and a digest of the authorized output for B.
+
+> **Custody boundary:** the complete A log remains under A's retention and disclosure policy. A safe reference/digest joins evidence without exporting tokens, raw policy context, or sensitive logs.
+
+</details>
+<details>
+<summary><strong>9. Agent asks the AuthZEN PDP to evaluate exact document creation at Server B</strong></summary>
+
+The request identifies B, `create_board_packet`, the document class, source-output digest, template, classification, storage location, and current task-authority version. It uses a B-audience token; the A token and A's raw audit record are not forwarded.
+
+> **Exact decision delta:** reuse Flow 1 with B's action/resource and a protected derivation reference to A's classified result.
+
+</details>
+<details>
+<summary><strong>10. AuthZEN PDP returns a requestable denial bound to the B operation</strong></summary>
+
+Policy requires approval for this document creation or disclosure class. The result remains `decision: false` and carries ARAP `context.access_request` bound to the exact denied SARC envelope; it is not a partial permit.
+
+> **Exact protocol reuse:** Flow 4's requestable denial. The local purpose reference can be protected context, but does not replace ARAP's evaluation binding.
+
+</details>
+<details>
+<summary><strong>11. Agent submits the bound ARAP request to the Access Request Service</strong></summary>
+
+The authenticated, idempotent submission preserves the denied action, resource, source digest, classification, approval constraints, and protected authorization-relevant Context. The Access Request Service authorizes submission and creates its own workflow task.
+
+> **State-carrier boundary:** the ARAP task tracks access-request processing. It is neither the MCP work at B nor the local three-server task authority.
+
+</details>
+<details>
+<summary><strong>12. Access Request Service returns an approved result and approval object</strong></summary>
+
+After its human or automated ceremony, the service returns an authenticated, integrity-protected approval with scope, approver provenance, expiry, reuse policy, and binding to the denied request. The agent verifies signer, key lifecycle, exact match, status, and replay state.
+
+> **Negative guarantee:** the approval is evidence for re-evaluation. It is not a bearer credential and does not prove that B created a document.
+
+</details>
+<details>
+<summary><strong>13. Agent asks the AuthZEN PDP to re-evaluate B's operation with current state</strong></summary>
+
+The PEP reloads the exact creation request, current token, task-authority version, A result digest, B object/template state, and verified approval. If the purpose, source, approver, policy, risk, or object changed, the request is denied or sent through a new approval path.
+
+> **Exact protocol reuse:** Flow 4's post-approval evaluation. No pre-approval decision is cached as authority.
+
+</details>
+<details>
+<summary><strong>14. AuthZEN PDP permits the exact Server B document creation</strong></summary>
+
+The current permit constrains template, derived content, location, classification, permitted recipients, retention, and result handling. Its decision ID is recorded in the local evidence graph and remains separate from the ARAP approval.
+
+> **Artifact Produced:** B-scoped current decision evidence with obligations and a re-evaluation link to the denied decision/approval.
+
+</details>
+<details>
+<summary><strong>15. Agent calls Server B with its narrow token and authorized source digest</strong></summary>
+
+The agent submits the ordinary MCP operation with the B-audience token and approved inputs. B validates the token and current entitlement, applies its own policy and idempotency controls, creates the document, and records its local effect. The arrow elides a second AuthZEN exchange only to keep the diagram focused; B's resource-side check is no weaker than A's.
+
+> **Exact wire delta:** ordinary `tools/call` plus B's admitted local idempotency/evidence profile. A's credential, ARAP task handle, and raw approval are not forwarded as bearer authority.
+
+</details>
+<details>
+<summary><strong>16. MCP Server B returns the document reference, digest, and B-local evidence reference</strong></summary>
+
+B returns an opaque document reference and digest under the permitted classification and records creation status, object version, input/output digests, decision/approval references, and result-release disposition. The agent does not infer that C can dereference the object or that notification is now authorized.
+
+> **Artifact Produced:** B-local effect evidence and a minimized document projection for the next decision, not a cross-server grant.
+
+</details>
+<details>
+<summary><strong>17. Agent asks the AuthZEN PDP to evaluate the exact committee notification</strong></summary>
+
+The evaluation identifies C, `notify_committee`, the normalized recipient set, message/template, document reference and digest, disclosure classification, delivery channel, current local authority version, and current risk. It uses a C-audience token and C's policy vocabulary.
+
+> **Exact decision delta:** reuse Flow 1 with C's recipient and payload resources. The A/B identifiers are evidence inputs only after trusted resolution and minimization.
+
+</details>
+<details>
+<summary><strong>18. AuthZEN PDP permits the exact notification with C-specific obligations</strong></summary>
+
+The permit can constrain recipient expansion, attachment/link mode, classification marking, encryption, send window, duplicate suppression, and disposition reporting. It does not retroactively authorize A or B, and the earlier approvals do not enlarge it.
+
+> **Artifact Produced:** C-scoped decision evidence for one defined notification effect.
+
+</details>
+<details>
+<summary><strong>19. Agent calls Server C with its narrow token and document reference</strong></summary>
+
+The agent invokes the ordinary notification tool with the C-audience token, exact approved recipients, approved payload projection, document reference/digest, and an idempotency key. C revalidates current token, recipient, object, and policy state before dispatch.
+
+> **Negative guarantee:** a shared trace, transaction, session, task, or local purpose identifier helps join the call but cannot make an unapproved recipient or changed document permissible.
+
+</details>
+<details>
+<summary><strong>20. MCP Server C returns a delivery disposition and C-local evidence reference</strong></summary>
+
+C distinguishes accepted, dispatched, delivered, failed, bounced, recalled, and unknown outcomes according to channel capabilities. A successful tool response is not upgraded to delivery proof unless the downstream system supplies that evidence.
+
+> **Artifact Produced:** C-local effect/disposition evidence with idempotency and recipient-set digests; raw recipient and message data remain under C's evidence policy.
+
+</details>
+<details>
+<summary><strong>21. Agent asks the Local Task Authority to join A, B, and C evidence</strong></summary>
+
+The agent supplies safe evidence references and digests rather than raw tokens, approvals, or logs. The controller verifies issuer/owner, type, lineage, versions, expiry, expected operations, object transitions, and terminal criteria before proposing completion.
+
+```json
+{
+  "contract": "deployment-local/task-evidence-join/v1",
+  "task_authority_version": 1,
+  "evidence": [
+    {"server": "A", "kind": "classified_read", "ref": "ev-A-47", "digest": "sha256:..."},
+    {"server": "B", "kind": "document_created", "ref": "ev-B-19", "digest": "sha256:..."},
+    {"server": "C", "kind": "notification_disposition", "ref": "ev-C-62", "digest": "sha256:..."}
+  ],
+  "proposed_status": "completed"
+}
+```
+
+> **Deployment-local artifact:** matching a string or digest is insufficient. Each evidence producer's semantics, authenticity, freshness, disclosure policy, and relationship to the approved purpose must be verified.
+
+</details>
+<details>
+<summary><strong>22. Local Task Authority returns a local completion or gap disposition</strong></summary>
+
+The controller advances the record to version 2 only if all required effects and release conditions are verified. Otherwise it records `partial`, `pending`, `compensation_required`, `revoked`, `failed`, or `unknown`, with the unresolved boundary and responsible component. It can stop further local projections and request downstream cancellation, but it cannot claim portable revocation acknowledgement where no federation protocol exists.
+
+> **Final boundary:** this outcome is authoritative only inside the deployment or federation that recognizes the local contract. It does not instantiate a standardized “Mission.”
+
+</details>
+
+<br/>
+
+The flow closes the local loop but exposes the interoperability gap. A portable governed object would still need an authoritative issuer/verifier model; immutable purpose with mutable lifecycle; participant, actor, resource, and effect bindings; expansion and reapproval lineage; minimized projection into OAuth tokens and AuthZEN Context without becoming a bearer grant; cross-server revocation and acknowledgement; attenuated child authority; selective disclosure; deterministic audit joining; and positive/negative conformance tests. **Correlation is not governance**: using the same identifier in three valid local calls makes their records searchable together, not collectively authorized.
 
 #### 17.5 Server-Initiated Interactions
 
@@ -16695,6 +18586,705 @@ Batch or standing approvals add a closed-set invariant:
 | **Revocation and expiry** | Stop admitting unconsumed items immediately and propagate cancellation to queued work. Already completed items remain evidence, not reusable authority. |
 
 This contract applies whether the human interaction uses CIBA, a webhook, an approval inbox, an MCP App, or another workflow. The interaction mechanism supplies a decision ceremony; the authority store and PEP supply exact request binding, lifecycle, and execution safety.
+
+###### 17.5.1.1 Projected MCP Tasks and ARAP Composition
+
+The [SEP-2848 Asynchronous Approval for Tool Calls proposal](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2848) describes one useful bridge from ARAP to MCP held work. As reviewed on 2026-07-28, it is an **open, unsponsored, experimental Extensions Track proposal**, not an accepted MCP extension. Its architectural direction is nevertheless coherent: the MCP server remains the PEP and sole ARAP client; the end client sees only an ordinary MCP task; the ARAP task stays on the server side; and approval sends the server back to the PDP before execution.
+
+> **Warning — Experimental proposal boundary**
+>
+> The profile below is a **projected convergence profile**, not a claim that SEP-2848 is Final. It applies the proposal's approval-to-task composition to the current independently versioned Tasks Draft. The Tasks Draft—not a stale companion method table—is authoritative for MCP wire syntax: `tasks/get`, `tasks/update`, and `tasks/cancel`; `notifications/tasks`; final results carried in terminal task state; and no `tasks/list`. Every approval-specific rule remains revision-pinned until the SEP is accepted and tested.
+
+| Layer | Wire-visible object or operation | Authority supplied | Boundary that remains |
+|:--|:--|:--|:--|
+| AuthZEN Authorization API 1.0 | SARC evaluation and Boolean `decision` | Current PDP decision over the supplied authorization facts | No durable task, approval workflow, or tool effect |
+| ARAP Draft 1 | Bound Access Request, ARAP task, approval result, and `context.approval` re-evaluation | Portable requestable-denial and approval-state handoff | No MCP client task, effect idempotency, or result-release policy |
+| MCP Tasks Draft | Server-directed `CreateTaskResult`; `tasks/get`, `tasks/update`, `tasks/cancel`; `notifications/tasks`; terminal task `result` | Durable MCP held-work and client interaction surface | No reason why work is pending and no portable authority-transfer model |
+| SEP-2848 proposal | Server-side binding between one ARAP task and one MCP task; proposed execution disposition | Proposed interoperable meaning for an approval-gated MCP task | Open proposal; no accepted extension, reference implementation, or conformance result |
+| DR-0001 application contract | Task-authority record, canonical operation digest, idempotency/effect ledger, quotas, retention, cancellation evidence, and result policy | Enforceable local authority and reliability across the complete lifecycle | Not a portable MCP or AuthZEN object |
+
+The dependencies compose in one direction. The Tasks Draft supplies durable polling, task input, cancellation, notification, retention, and terminal-result behavior. Multi Round-Trip Requests supplies keyed `inputRequests`/`inputResponses`; the current no-unsolicited-request model prevents the server from inventing a reverse request channel. ARAP supplies requestable denial and approval verification. COAZ may supply the MCP-to-SARC mapping, but the bridge still works with a locally profiled direct AuthZEN mapping. The proposed `net.openid.authzen/tool-approval` extension identifier and version are therefore informative draft syntax; the stable dependency visible to an ordinary task client is its per-request declaration of `io.modelcontextprotocol/tasks`.
+
+**Flow 7 — Projected SEP-2848 bridge over the current Tasks Draft.** This success path shows the complete custody boundary. The client carries only `taskId`; the server retains the original call envelope, ARAP task, binding token, approval object, credentials, and decision evidence. `notifications/tasks` is a change hint, not the source of truth; `tasks/get` returns current state and, when terminal, the `CallToolResult`.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 MCP Client
+    participant Server as 🛡️ MCP Server / PEP
+    participant PDP as ⚖️ AuthZEN PDP
+    participant ARS as 🧭 Access Request Service
+    participant Store as 🗄️ Task + Authority Store
+    participant Tool as 🛠️ Tool Executor
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Requestable Denial Becomes Held Work
+    Client->>Server: tools/call + per-request<br/>io.modelcontextprotocol/tasks
+    Server->>PDP: AuthZEN evaluation<br/>over admitted call envelope
+    PDP-->>Server: decision: false<br/>context.access_request
+    Server->>ARS: POST bound Access Request<br/>server-held ARAP material
+    ARS-->>Server: ARAP task: pending
+    Server->>Store: Atomically bind MCP task,<br/>ARAP task, envelope, and disposition
+    Server-->>Client: CreateTaskResult<br/>status: working, ttlMs, pollIntervalMs
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Observe and Supply Requested Input
+    Server-->>Client: notifications/tasks<br/>state changed hint
+    Client->>Server: tasks/get(taskId)
+    Server->>Store: Reauthorize task read<br/>and load current state
+    Store-->>Client: working or input_required<br/>current ttlMs + inputRequests
+    Client->>Server: tasks/update(taskId,<br/>inputResponses)
+    Server->>Store: Reauthorize, validate keys,<br/>append input once
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 3: Resolve, Re-evaluate, and Execute
+    ARS-->>Server: Authenticated approved-state signal
+    Server->>PDP: Fresh evaluation of bound envelope<br/>with context.approval
+    PDP-->>Server: decision: true + obligations
+    Server->>Store: Atomically claim execution<br/>approved → consumed
+    Server->>Tool: Execute exact call<br/>with application idempotency
+    Tool-->>Server: Tool result / execution error
+    Server->>Store: Persist terminal task result<br/>and execution disposition
+    Client->>Server: tasks/get(taskId)
+    Server-->>Client: completed task + result<br/>CallToolResult + disposition
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. MCP Client calls the tool and declares Tasks capability for this request</strong></summary>
+
+Task creation remains server-directed. The client declares that it can accept a task result; it does not tell the server to make this particular operation asynchronous, and the capability does not authorize the tool.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/call",
+  "params": {
+    "name": "wire_transfer",
+    "arguments": {
+      "destination": "acct-991",
+      "amount": 50000,
+      "currency": "USD"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/clientCapabilities": {
+        "extensions": {
+          "io.modelcontextprotocol/tasks": {}
+        }
+      }
+    }
+  }
+}
+```
+
+The gateway/server authenticates the current request, validates the exact core and Tasks extension versions, applies ordinary `tools/call` admission, and computes the canonical call-envelope digest before asking for an authorization decision.
+
+**Artifact Produced:** An admitted task-capable call and immutable operation-envelope digest.
+
+</details>
+<details>
+<summary><strong>2. MCP Server evaluates the admitted call at the AuthZEN PDP</strong></summary>
+
+The PEP maps the authenticated subject, current actor/client, `wire_transfer` action, destination account resource, amount/currency context, tenant, and relevant risk state into an AuthZEN request. COAZ can perform this mapping when its pinned revision and trust profile are admitted; direct SARC construction is also possible.
+
+> **Exact wire surface:** `POST` the ordinary AuthZEN `{subject, action, resource, context}` evaluation defined in [§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability); the bridge adds no approval-specific field to this first request.
+
+</details>
+<details>
+<summary><strong>3. AuthZEN PDP returns a requestable denial</strong></summary>
+
+The result remains `decision: false`. The presence of a valid `context.access_request` says a governed request may be submitted; it does not say that approval is likely, and it never permits the tool call.
+
+**Artifact Produced:** A denied evaluation with an authenticated, policy-produced requestable path.
+
+</details>
+<details>
+<summary><strong>4. MCP Server submits the bound Access Request without exposing ARAP artifacts</strong></summary>
+
+The server authenticates to the validated ARAP endpoint and submits the bound request under an idempotency key. `binding_token`, `evaluation_id`, request endpoint, callback credential, and later `approval` material remain inside the PEP trust boundary. The MCP client never reads, stores, or forwards them.
+
+> **Exact wire surface:** the ARAP `POST` body and headers are the same bound, idempotent submission shown in Canonical ARAP Lifecycle Step 5; SEP-2848 adds only the server-side association with an MCP task.
+
+</details>
+<details>
+<summary><strong>5. Access Request Service returns the durable ARAP task</strong></summary>
+
+The ARAP task describes approval-workflow state and may outlive the initiating connection or process. Its identifier is not the MCP task identifier, is not shown to the MCP client, and is not authority by possession.
+
+> **Custody delta:** the ARAP task response is the same as Canonical ARAP Lifecycle Step 6, but only the MCP server stores its `id`, status endpoint, cancellation endpoint, and result.
+
+</details>
+<details>
+<summary><strong>6. MCP Server atomically binds the two tasks to the original call</strong></summary>
+
+Before responding, the server persists a one-to-one binding among the MCP `taskId`, ARAP task ID, authorization-context identity, tool, canonical argument digest, subject/resource, approval expiry, policy/evaluation references, and an initially unexecuted disposition. If persistence fails, it does not return a resumable handle.
+
+The local record is stricter than either protocol object because it also carries version, idempotency, result-access, cancellation, and effect-ledger fields defined earlier in this section.
+
+> **Local record delta:** add `mcp_task_id`, `arap_task_id`, `call_envelope_digest`, `originating_authorization_context`, `approval_expiry`, `execution_claim`, and `disposition` to the protected-record fields above. This is not MCP or ARAP wire syntax.
+
+</details>
+<details>
+<summary><strong>7. MCP Server returns an ordinary working task</strong></summary>
+
+The current Tasks result shape is the wire contract. Approval-specific text is bounded and sanitized; it says the action is pending and may be denied, never that the transfer happened.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "result": {
+    "resultType": "task",
+    "taskId": "task-786512e2",
+    "status": "working",
+    "statusMessage": "Awaiting an authorization decision; no transfer has executed.",
+    "createdAt": "2026-07-28T14:15:00Z",
+    "ttlMs": 604800000,
+    "pollIntervalMs": 15000
+  }
+}
+```
+
+The initial `ttlMs` is provisional when the approval service has not yet fixed the complete window. Under the projected SEP behavior, the server keeps the task resolvable for the current approval window plus result retention, subject to a configured maximum.
+
+**Artifact Produced:** One opaque MCP task handle with bounded polling and retention guidance.
+
+</details>
+<details>
+<summary><strong>8. MCP Server sends an optional task-change notification</strong></summary>
+
+`notifications/tasks` can reduce unnecessary polling, but it is only a hint that state may have changed. The server authorizes recipient eligibility, minimizes state and text, sanitizes model-visible messages, rate-limits delivery, and never includes approver identity or ARAP binding material. Loss, duplication, or reordering does not change authority.
+
+> **Exact MCP surface:** `notifications/tasks` carries task-state change information under the pinned Tasks Draft; it does not carry `binding_token`, `evaluation_id`, `approval`, or an executable result.
+
+</details>
+<details>
+<summary><strong>9. MCP Client polls the one task it already knows</strong></summary>
+
+The client calls `tasks/get(taskId)`. The current Tasks Draft intentionally has no `tasks/list`, so clients must durably retain returned IDs. Losing this handle has no portable discovery or reclamation path, even if the side effect later executes.
+
+**Artifact Produced:** A request to observe one known task, not enumerate a principal's work.
+
+</details>
+<details>
+<summary><strong>10. MCP Server reauthorizes the task read and loads authoritative state</strong></summary>
+
+Entropy protects against guessing but does not grant access. The server binds the caller to the originating authorization context and applies current result-release policy on every get. Unauthorized and unknown handles produce indistinguishable responses where object-existence privacy requires it.
+
+**Artifact Produced:** A current task-read decision and auditable lookup.
+
+</details>
+<details>
+<summary><strong>11. Task store returns working state or keyed input requirements</strong></summary>
+
+The response can remain `working` or become `input_required` with outstanding `inputRequests`. It carries the current `ttlMs`; when the Access Request Service extends an approval window within the deployment maximum, the server extends and persists task retention before advertising the later value.
+
+Input requests are submission/workflow data, not requests for the client to approve its own operation. They may collect justification or a ticket value but cannot substitute for the out-of-band approval decision.
+
+**Artifact Produced:** Current task state, retention bound, and an optional closed set of requested inputs.
+
+</details>
+<details>
+<summary><strong>12. MCP Client supplies task input through tasks/update</strong></summary>
+
+The current method is `tasks/update`, carrying responses keyed to the outstanding requests. The projected profile does not reproduce older companion tables that omit this method, and it does not introduce a standalone unsolicited server-to-client request.
+
+**Artifact Produced:** A caller-authenticated update attempt tied to one task and input-request set.
+
+</details>
+<details>
+<summary><strong>13. MCP Server validates and appends each response exactly once</strong></summary>
+
+The server authorizes update separately from observation, rejects unknown, repeated, expired, or wrong-schema keys, revalidates any catalog-derived values, and appends accepted data under compare-and-swap state. It forwards only the fields permitted by the ARAP request schema and local privacy policy.
+
+</details>
+<details>
+<summary><strong>14. Access Request Service signals approved state over an authenticated server channel</strong></summary>
+
+The server either polls authoritative ARAP status or accepts an authenticated callback and then retrieves/verifies current state. A callback is a wake-up signal; it cannot directly flip the MCP task to executable. Issuer, audience, key, endpoint, replay, ordering, and expiry checks precede any transition.
+
+> **Exact protocol delta:** this is the ARAP callback-or-poll exchange in Canonical ARAP Lifecycle Steps 8–12. SEP-2848 exposes none of that exchange on the MCP wire.
+
+</details>
+<details>
+<summary><strong>15. MCP Server sends the original envelope and approval to a fresh evaluation</strong></summary>
+
+The PEP reloads the immutable tool/argument/subject/resource envelope, compares it with the approval scope, checks freshness and any downstream credential, and sends `context.approval` to the PDP. A changed caller, tool, argument, object version, tenant, or protected context does not inherit the task's approval; it needs a new request.
+
+> **Exact wire surface:** repeat the original SARC request over current facts and add only the verified ARAP `approval` object at `context.approval`; compare the current call-envelope digest before sending.
+
+</details>
+<details>
+<summary><strong>16. AuthZEN PDP returns the enforcement-time decision and obligations</strong></summary>
+
+Only `decision: true` can release execution. An expired, revoked, unverifiable, out-of-scope, or policy-invalid approval produces another denial and no effect. Policy version is recorded for lineage but is not frozen merely to force a stale allow.
+
+> **Exact response surface:** the standard AuthZEN response remains `{ "decision": true|false, "context": ... }`; an approved ARAP task never replaces the Boolean enforcement decision.
+
+</details>
+<details>
+<summary><strong>17. MCP Server atomically claims the approved operation for execution</strong></summary>
+
+The server performs a compare-and-swap from approved/unexecuted to consumed/executing before dispatch. Concurrent callbacks, polls, restarts, or retries observe the same claim rather than starting another effect. This local transaction is what supplies at-most-once admission; neither ARAP approval nor the MCP task handle supplies it.
+
+</details>
+<details>
+<summary><strong>18. MCP Server executes the exact tool call under application idempotency</strong></summary>
+
+The executor receives the immutable request and a stable application idempotency key or domain-specific transaction identifier. The local claim prevents duplicate dispatch from this server; the downstream idempotency contract handles ambiguous timeouts and retries after the request crossed the process boundary.
+
+> **Local executor surface:** no portable standard request shape exists between the MCP server and an arbitrary tool backend. The deployment passes the exact admitted arguments plus its domain idempotency key over the backend's documented interface.
+
+</details>
+<details>
+<summary><strong>19. Tool Executor returns a success or execution error</strong></summary>
+
+The executor reports whether it rejected the request before side effect, completed the effect, or encountered an ambiguous/partial failure. An `isError` result is not enough by itself to prove that no effect occurred.
+
+**Artifact Produced:** A domain result plus the executor's best-known effect disposition.
+
+</details>
+<details>
+<summary><strong>20. MCP Server persists the terminal task result and disposition</strong></summary>
+
+The projected SEP distinguishes three application outcomes while reserving task `failed` for inability to produce any tool result:
+
+| Authorization/execution outcome | Tasks state and result | Proposed machine-readable disposition | Safe interpretation |
+|:--|:--|:--|:--|
+| Fresh permit; tool completes | `completed` with successful `CallToolResult` | `approved-executed` | The authorized effect completed as reported |
+| Approval resolves but fresh evaluation, freshness, or credential check denies before dispatch | `completed` with `CallToolResult.isError: true` | `denied-not-executed` | No tool execution began |
+| Fresh permit; tool executes but returns an error or ambiguous outcome | `completed` with `CallToolResult.isError: true` | `execution-error` | A side effect may have occurred; reconcile before retry |
+| Infrastructure cannot produce a `CallToolResult` | `failed` | No application disposition can be trusted | Resolve execution evidence before deciding whether to retry |
+| Client cancels before the execution boundary | `cancelled` | Local `cancelled-not-executed` evidence | No effect began; terminal task cannot later execute |
+
+Because an ordinary Tasks-only client may ignore proposal-specific `_meta`, the human/model-readable `CallToolResult` content must also state plainly whether the operation executed. Body and `net.openid.authzen/disposition`—if the revision-pinned proposal field is used—must agree.
+
+**Artifact Produced:** An immutable terminal task result, effect disposition, and audit linkage.
+
+</details>
+<details>
+<summary><strong>21. MCP Client retrieves the known task after notification or polling delay</strong></summary>
+
+The client again uses `tasks/get`, not `tasks/result`. It persists the task ID and request linkage before any process handoff because neither a list method nor a portable cross-principal claim operation can recover a lost handle.
+
+**Artifact Produced:** An authorized request for current terminal state and releasable result.
+
+</details>
+<details>
+<summary><strong>22. MCP Server returns the terminal task with its embedded CallToolResult</strong></summary>
+
+The server applies current result-release authorization, redaction, and retention policy before returning the completed task. It does not return the ARAP task ID, binding token, approval state, approver identity, or internal decision credentials.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 57,
+  "result": {
+    "resultType": "complete",
+    "taskId": "task-786512e2",
+    "status": "completed",
+    "createdAt": "2026-07-28T14:15:00Z",
+    "lastUpdatedAt": "2026-07-28T15:02:11Z",
+    "ttlMs": 604800000,
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "The approved transfer executed successfully."
+        }
+      ],
+      "isError": false,
+      "_meta": {
+        "net.openid.authzen/disposition": "approved-executed"
+      }
+    }
+  }
+}
+```
+
+The disposition name is proposal-specific. The final-result-in-task shape and `tasks/get` retrieval are the current Tasks model.
+
+</details>
+
+<br/>
+
+The bridge also needs explicit exceptional-path rules:
+
+| Condition | Required projected-profile behavior | Local evidence and recovery |
+|:--|:--|:--|
+| Client did not declare Tasks capability | Do not return a task. The open SEP proposes `-32003` naming `io.modelcontextprotocol/tasks` or a degraded `CallToolResult.isError: true` with requestable guidance. | Record capability mismatch; never describe the tool as queued. The numeric behavior remains pinned to the admitted extension set. |
+| Non-requestable denial | Return the ordinary denied tool result; do not create either task. | Record PDP decision and safe reason class; retry only after relevant authority or request state changes. |
+| Duplicate non-terminal call | Best-effort return of the existing task when originating authorization context, tool, and canonical arguments match. | Prefer an application idempotency key; MCP has no general request-level idempotency primitive. A changed digest is a new request or conflict. |
+| Pending-task quota reached | Return a **non-requestable** denial, not another task or remediation loop. | Per-caller/tenant/tool quotas, rate evidence, backoff, and abuse alerting prevent approval fatigue and task-store exhaustion. |
+| Approval window increases | Extend task `ttlMs` before the current working task could expire, but never beyond the deployment maximum. | Persist the accepted approval expiry, retention deadline, and update/notification event; reconcile after restart. |
+| Client loses `taskId` | No `tasks/list` or portable recovery exists. | Client must durably persist the ID; operators reconcile possibly executed effects through domain/audit records, not by guessing handles. |
+| Different principal or credential tries to resume | Reauthorize against the originating context and explicit transfer/delegation policy; do not infer authority from handle possession. | Cross-principal handoff remains deployment-local until MCP defines a portable claim/transfer model. |
+| `tasks/update` arrives after terminal state | Reject or return the stored terminal outcome according to the pinned Tasks contract; never reopen approval. | Preserve the response and task version as replay evidence. |
+| `tasks/cancel` races execution | If dispatch has not begun, cancel the ARAP request, atomically prevent execution, and report `cancelled`; after dispatch begins, cancellation cannot be reported as successful termination. | Record requested, accepted, dispatch-boundary, downstream acknowledgement, and observed disposition separately. |
+| Notification is lost, duplicated, or forged | Ignore unauthenticated messages and fetch authoritative task state. | Authenticate recipient/channel, deduplicate and order hints, and continue bounded polling/reconciliation. |
+| Terminal denial | Return `completed` with an `isError: true` `CallToolResult` that says the operation did not execute. | Store `denied-not-executed`; a later identical intent begins a new task rather than reviving the terminal one. |
+| Tool error after dispatch | Return `completed` with an error result that says execution occurred or may have occurred. | Store `execution-error`; reconcile or use the same downstream idempotency key before retry. |
+| Server or task store restarts | Rehydrate the MCP/ARAP binding and continue authorized `tasks/get`; never execute from an orphan callback alone. | Durable write-before-response, compare-and-swap transitions, reconciliation queues, and immutable event lineage. |
+
+The local reliability contract at the start of [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract) remains authoritative even if SEP-2848 is accepted. The proposal explains how an approval-gated call can look like an MCP task; it does not replace canonical digests, approver policy, durable authority, application idempotency, exact effect accounting, result-release checks, or the separate task-cancellation and downstream-cancellation states.
+
+###### 17.5.1.2 Structured Denial and RAR Remediation Carrier
+
+The [SEP-2643 Structured Authorization Denials proposal](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2643) defines a transport-independent JSON-RPC denial envelope with a reason, optional `authorizationContextId`, and typed `remediationHints`. That is useful for stdio and for application detail that does not fit comfortably in an HTTP challenge. As reviewed on 2026-07-28, however, it is an **open, unsponsored Extensions Track draft with no assigned authorization-denial error code**. DR-0001 therefore monitors the extension while profiling its carrier behind an adapter.
+
+The projected profile uses [OAuth 2.0 RAR Metadata and Error Remediation `-05`](https://datatracker.ietf.org/doc/draft-zehavi-oauth-rar-metadata/) as its naming and processing anchor. That individual Internet-Draft was published on 2026-07-04 and expires on 2027-01-05. It has six published revisions and a more complete discovery/remediation model than the MCP carrier proposal, but it is **not** an IETF Working Group adopted document. The architectural choice is deliberate convergence, not a maturity promotion.
+
+The canonical terms are:
+
+- `insufficient_authorization` — denial classification;
+- `authorization_remediation` — the base64url-encoded HTTP challenge parameter whose decoded JSON contains the actionable object;
+- `authorization_details` — the RFC 9396 array inside that object; and
+- `authorization_reference` — an opaque, non-sensitive token-selection reference that is omitted for single-use credentials.
+
+The MCP JSON carrier preserves SEP-2643's `authorization` envelope and `oauth_authorization_details` hint, but uses the same decoded remediation members. `authorizationContextId` remains a retry-correlation handle, not a replacement for `authorization_reference`: the former relates a retry to server-side denial state; the latter lets a client locate a credential associated with equivalent authorization details.
+
+| Input at a revision-pinned compatibility adapter | Admission rule | Canonical internal form | Outbound rule |
+|:--|:--|:--|:--|
+| `reason` or HTTP error `insufficient_authorization` | Accept | `reason = insufficient_authorization` | Emit unchanged |
+| HTTP error `insufficient_authorization_details` | Accept only from an explicitly pinned legacy peer | Normalize to `insufficient_authorization` and record source revision | Never emit |
+| HTTP `authorization_remediation` | Base64url-decode, parse JSON, enforce size/schema/type limits, and require an RFC 9396 `authorization_details` array | Decoded remediation object plus digest/provenance | Re-encode the validated canonical object when an HTTP challenge is emitted |
+| `authorization_details` inside an MCP `oauth_authorization_details` hint | Validate every registered type and preserve the exact request semantics | Same RFC 9396 array used by the HTTP remediation object | Emit under the current hint with canonical member names |
+| `authorization_reference` | Treat as opaque; require non-sensitive bounded syntax; never infer grant semantics | Opaque token-selection index tied to issuer/resource/client and granted-details digest | Emit only when credential reuse is allowed |
+| Legacy `authorization_hint` | Accept only from a pinned peer and only where it has the old token-selection-reference meaning | Normalize immediately to `authorization_reference`; record alias use | Never emit |
+| Canonical and alias members together | If byte-identical after admitted decoding, retain the canonical member and record duplicate input; if absent/equal cannot be proven, reject remediation | One unambiguous canonical value | Emit only the canonical member |
+| SEP `authorizationContextId` | Validate entropy, length, issuer/tenant binding, expiry, and replay properties | Correlation-only retry state | Echo verbatim in `_meta["io.modelcontextprotocol/authorization-context-id"]`; never treat as a credential |
+| JSON-RPC `error.code` | Require an integer admitted by the exact local extension profile | Deployment-local classification until MCP allocates a value | Do not claim a portable SEP code or infer authorization semantics from an unknown number |
+
+On HTTP, the `WWW-Authenticate` challenge remains authoritative for OAuth discovery and reauthorization. The JSON-RPC envelope can repeat the classification, correlation, and decoded actionable detail, but disagreement is a fail-closed protocol error rather than permission to choose the broader form. On stdio, the JSON envelope can classify the denial and carry the same remediation object, but credential acquisition remains an out-of-band responsibility of the client host or environment.
+
+**Flow 8 — Projected structured denial, token selection, and exact retry.** The normal path first tries to reuse an already-held credential through the opaque `authorization_reference`; on a miss it initiates a new RFC 9396 authorization request. Both paths end at the same invariant: the retry presents a real credential, the resource server compares its **granted** authorization details with the unchanged operation, and the correlation handle supplies only lookup and audit continuity.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 MCP Client / Host
+    participant Server as 🛡️ MCP Server / RS
+    participant PDP as ⚖️ Authorization PDP
+    participant Adapter as 🔄 Convergence Adapter
+    participant Vault as 🔐 Client Credential Store
+    participant AS as 🏛️ Authorization Server
+    participant Tool as 🛠️ Tool Executor
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Deny and Describe Remediation
+    Client->>Server: tools/call + current access token
+    Server->>PDP: Evaluate exact operation<br/>and granted authorization_details
+    PDP-->>Server: Deny: missing or insufficient<br/>authorization details
+    Server->>Adapter: Build/admit denial<br/>from pinned source revision
+    Adapter-->>Server: Canonical insufficient_authorization<br/>remediation + reference
+    Server-->>Client: HTTP 401 challenge +<br/>JSON-RPC authorization envelope
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Select or Obtain a Credential
+    Client->>Vault: Lookup opaque authorization_reference<br/>under issuer/resource/client
+    Vault-->>Client: Matching valid token or cache miss
+    alt No matching reusable token
+        Client->>AS: OAuth authorization request<br/>with canonical authorization_details
+        AS-->>Client: New credential + granted-details linkage
+        Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 3: Retry and Re-authorize
+    Client->>Server: Retry exact tools/call + selected token<br/>+ authorizationContextId echo
+    Server->>Server: Validate token, grant, resource,<br/>request digest, and correlation state
+    Server->>PDP: Fresh evaluation of exact retry<br/>and granted authorization_details
+    PDP-->>Server: Current decision: true
+    Server->>Tool: Execute admitted operation<br/>under application idempotency
+    Tool-->>Server: Tool result
+    Server-->>Client: CallToolResult<br/>after result-release decision
+    Note right of Tool: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. MCP Client calls the Server with its current credential</strong></summary>
+
+The request is admitted under the current MCP core, transport, routing, and extension profile. The server hashes the exact tool name and canonical arguments before it constructs any remediation, preventing a later detail object from drifting away from the failed operation.
+
+> **Exact MCP surface:** an ordinary `tools/call` carries the tool name and arguments; the current bearer credential remains in the transport authorization field, not the JSON-RPC body.
+
+**Artifact Produced:** An authenticated but not yet authorized operation envelope.
+
+</details>
+<details>
+<summary><strong>2. MCP Server asks the authorization PDP about the operation and granted details</strong></summary>
+
+The resource server obtains the token's actually granted RFC 9396 objects from validated JWT claims or authenticated introspection and evaluates them against the concrete payee, amount, currency, tenant, actor, and current policy. Requested details from an earlier authorization request are not evidence of what was granted.
+
+> **Exact decision surface:** the PDP input distinguishes `requested_authorization_details`, `granted_authorization_details`, and the current operation digest; those names are deployment-local unless carried by a separately profiled AuthZEN context.
+
+</details>
+<details>
+<summary><strong>3. Authorization PDP denies because required authorization details are absent or insufficient</strong></summary>
+
+This is not automatically a requestable human approval. It says the presented credential does not authorize the operation and that a RAR-shaped credential remediation can be described. The operation remains denied until a retry with sufficient current authority passes a fresh decision.
+
+**Artifact Produced:** A denied decision with a safe missing-authority classification.
+
+</details>
+<details>
+<summary><strong>4. MCP Server sends the denial material through the Convergence Adapter</strong></summary>
+
+The server constructs authorization details from the failed request using the registered RAR type's comparison rules. The adapter admits only configured source revisions, bounds and validates the object, strips unsafe explanatory data, and rejects conflicting canonical/legacy fields.
+
+> **Adapter input:** `{source_revision, transport_error, reason, authorization_details, authorization_reference|authorization_hint, authorizationContextId}` is a deployment-local admission record, not a new MCP object.
+
+</details>
+<details>
+<summary><strong>5. Convergence Adapter returns one canonical remediation model to the MCP Server</strong></summary>
+
+The output contains `insufficient_authorization`, the exact RFC 9396 array, optional `authorization_reference`, and a separate correlation handle. Any accepted `insufficient_authorization_details` or `authorization_hint` spelling has already disappeared; provenance records which alias and source revision were seen.
+
+```json
+{
+  "reason": "insufficient_authorization",
+  "authorizationContextId": "authzctx-pay-9f2c",
+  "authorization_remediation": {
+    "authorization_details": [
+      {
+        "type": "payment_initiation",
+        "actions": ["initiate"],
+        "locations": ["https://mcp.example.com/payments"],
+        "instructed_amount": {
+          "currency": "EUR",
+          "amount": "123.50"
+        },
+        "creditor_account": {
+          "iban": "DE02100100109307118603"
+        }
+      }
+    ],
+    "authorization_reference": "rarref-Yb7q3AC5d"
+  }
+}
+```
+
+This object is the adapter's decoded canonical model. On HTTP, `authorization_remediation` is encoded as the challenge parameter specified by RAR Metadata `-05`.
+
+**Artifact Produced:** A single canonical, provenance-linked remediation record.
+
+</details>
+<details>
+<summary><strong>6. MCP Server returns the HTTP challenge and JSON-RPC authorization envelope</strong></summary>
+
+The HTTP response uses `401 Unauthorized` and the `-05` vocabulary. The JSON-RPC body carries the same decoded semantics for an extension-aware MCP client. The error-code slot remains an admitted deployment-local integer until MCP allocates a portable value.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="insufficient_authorization",
+  error_description="Additional authorization is required",
+  authorization_remediation="<base64url(canonical JSON object)>"
+Content-Type: application/json
+Cache-Control: no-store
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 61,
+  "error": {
+    "message": "Additional authorization is required.",
+    "data": {
+      "authorization": {
+        "reason": "insufficient_authorization",
+        "authorizationContextId": "authzctx-pay-9f2c",
+        "remediationHints": [
+          {
+            "type": "oauth_authorization_details",
+            "authorization_details": [
+              {
+                "type": "payment_initiation",
+                "actions": ["initiate"],
+                "instructed_amount": {
+                  "currency": "EUR",
+                  "amount": "123.50"
+                }
+              }
+            ],
+            "authorization_reference": "rarref-Yb7q3AC5d"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+The omitted JSON-RPC `error.code` is intentional: SEP-2643 has not assigned it. The profile binds an integer locally and records it in conformance metadata rather than publishing that choice as MCP.
+
+**Artifact Produced:** Consistent transport and JSON remediation signals with `no-store`.
+
+</details>
+<details>
+<summary><strong>7. MCP Client asks its Credential Store for the opaque authorization reference</strong></summary>
+
+The lookup key is scoped by authorization issuer, protected resource/audience, client identity, subject/account, and the opaque `authorization_reference`. The client never parses the reference or treats a stable match as proof that the associated token is still valid.
+
+> **Client-store surface:** no portable MCP credential-vault interface exists; the lookup and binding record are host-local and must preserve issuer/resource separation.
+
+</details>
+<details>
+<summary><strong>8. Credential Store returns a matching valid token or a cache miss</strong></summary>
+
+On a candidate match, the host checks expiry, sender constraint, audience/resource, client binding, subject, revocation/freshness policy, and stored granted-details digest. A reference is a selection optimization, not authorization. RAR Metadata `-05` omits it for single-use credentials, so absence is normal.
+
+> **Host-local result:** `{candidate_token_handle, issuer, resource, client_id, subject, granted_details_digest, expires_at, sender_constraint}` or an explicit miss; raw token material remains inside the credential store.
+
+**Artifact Produced:** Either one validated credential candidate or an explicit miss.
+
+</details>
+<details>
+<summary><strong>9. MCP Client sends the canonical authorization details to the Authorization Server on a miss</strong></summary>
+
+The client uses Protected Resource Metadata to identify an authorized AS and uses the advertised RAR type metadata to validate supported syntax. It includes the `authorization_details` array in a new OAuth request; it does not ask for a broader scope merely because a model paraphrased the denial.
+
+> **Exact delta:** this is an ordinary RFC 9396 authorization request using the array from the validated remediation object. The MCP `authorizationContextId` does not become an OAuth parameter unless a separate profile explicitly defines one.
+
+</details>
+<details>
+<summary><strong>10. Authorization Server returns a credential linked to the granted authorization details</strong></summary>
+
+The AS authenticates the user/client as required, applies consent and policy, and may grant a narrower object. The client stores the **granted** detail linkage and any server-defined reusable reference; it does not assume the requested object was granted verbatim.
+
+> **OAuth result boundary:** the authorization code/token exchange is defined by the selected OAuth profile. Neither SEP-2643 nor RAR Metadata `-05` defines a new token response or turns `authorization_reference` into a token.
+
+</details>
+<details>
+<summary><strong>11. MCP Client retries the exact call with the selected credential and correlation echo</strong></summary>
+
+The retry uses a new JSON-RPC request ID, the same logical operation, a matching valid credential, and the verbatim correlation handle in `_meta`.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 62,
+  "method": "tools/call",
+  "params": {
+    "name": "payments.initiate",
+    "arguments": {
+      "amount": "123.50",
+      "currency": "EUR",
+      "creditorAccount": "DE02100100109307118603"
+    },
+    "_meta": {
+      "io.modelcontextprotocol/authorization-context-id": "authzctx-pay-9f2c"
+    }
+  }
+}
+```
+
+An absent, expired, or unresolvable handle does not by itself make a sufficient credential fail; a present handle does not make an insufficient credential succeed. The server can require a new remediation round when state needed to compare the operation safely has expired.
+
+**Artifact Produced:** A newly authenticated request correlated with, but not authorized by, the prior denial.
+
+</details>
+<details>
+<summary><strong>12. MCP Server validates the credential, granted details, request digest, and correlation state</strong></summary>
+
+The server reconstructs the operation under the same registered RAR type/version and compares it with the granted object. It checks amount, currency, payee/account, action, location/resource, issuer, audience, client, subject/actor, expiry, sender constraint, and any single-use rule. Changed material fields require a new authorization request.
+
+> **Enforcement record:** `{current_request_digest, prior_request_digest, granted_details_digest, token_id_hash, authorization_context_id_hash, comparison_profile, outcome}`; sensitive detail and raw token values remain outside ordinary traces.
+
+</details>
+<details>
+<summary><strong>13. MCP Server sends a fresh retry evaluation to the authorization PDP</strong></summary>
+
+The correlation record can supply history and replay detection, but current policy, credential state, and the exact operation supply authority. A client cannot choose an older policy outcome by replaying `authorizationContextId`.
+
+> **Exact decision delta:** repeat Step 2 with the newly validated `granted_authorization_details` and current risk/context; never reuse the earlier denial as a cached permit.
+
+</details>
+<details>
+<summary><strong>14. Authorization PDP returns a current permit to the MCP Server</strong></summary>
+
+The decision is valid only for the admitted retry envelope and obligations. If the new token is narrower than requested, stale, revoked, or still insufficient, the server returns another bounded denial and must prevent infinite reauthorization loops.
+
+> **Exact decision surface:** a standard permit response with decision ID, policy/data version, obligations, and expiry; the opaque `authorization_reference` and retry correlation handle are evidence inputs, never the permit.
+
+**Artifact Produced:** A fresh permit tied to one exact retry and policy/data version.
+
+</details>
+<details>
+<summary><strong>15. MCP Server dispatches the authorized operation to the Tool Executor</strong></summary>
+
+The server atomically admits execution under the same application idempotency and effect-ledger rules used for approval-gated tasks. Credential remediation does not itself make a side-effecting retry safe.
+
+> **Local executor surface:** no standard portable backend payload is introduced; the server passes only the admitted operation, obligations, and domain idempotency key over its existing tool boundary.
+
+</details>
+<details>
+<summary><strong>16. Tool Executor returns the operation result to the MCP Server</strong></summary>
+
+The executor records whether the effect completed, failed before execution, or became ambiguous. The server links that disposition to the original denial, selected grant, fresh decision, and retry without storing the raw bearer credential.
+
+> **Local result surface:** no standard portable executor response shape exists; the backend must provide a domain result plus enough idempotency/effect evidence to distinguish completed, not-started, and ambiguous outcomes.
+
+**Artifact Produced:** A domain result and effect evidence linked to the authorization lineage.
+
+</details>
+<details>
+<summary><strong>17. MCP Server releases the CallToolResult to the Client</strong></summary>
+
+Result release is authorized and redacted separately from execution. The response does not echo the remediation object, correlation handle, raw granted details, access token, or policy internals unless an explicitly authorized application contract requires a bounded field.
+
+> **Exact MCP surface:** return the ordinary typed `CallToolResult`; successful remediation adds no new success payload and creates no reusable approval handle.
+
+</details>
+
+<br/>
+
+The adapter must also prevent semantic downgrade and retry loops:
+
+| Failure or ambiguity | Required response |
+|:--|:--|
+| HTTP challenge and JSON envelope describe different error classes, details, references, issuer/resource, or operation | Do not start automated remediation. Record the mismatch, retain denial, and require a fresh consistent response. |
+| Base64url decode, JSON parse, schema validation, registered RAR type, size, depth, or count fails | Ignore no field selectively; reject the complete remediation object while preserving the denial. |
+| Canonical and alias fields conflict | Reject the complete remediation object. Do not merge arrays, prefer a broader value, or guess which revision was intended. |
+| Unknown `remediationHints[].type` | Ignore that hint as SEP-2643 proposes; do not infer a URL, OAuth flow, or approval mechanism from descriptive text. |
+| Remediation exposes sensitive account, resource, approver, or cross-tenant information | Suppress the actionable object, return only a safe denial, and record a privacy/security defect. Prefer opaque resource handles that the AS can resolve. |
+| Client modifies supplied `authorization_details` | The AS validates the request independently and the RS later compares the **granted** object with the actual operation; modification never expands authority. |
+| `authorization_reference` selects an expired, wrong-audience, wrong-client, wrong-subject, or wrong-sender token | Treat as a cache miss or invalid candidate; never send it to the resource merely because the opaque reference matched. |
+| Reference is present for a single-use credential | Reject or ignore the reference under the pinned profile and require new authorization; do not create reusable local indexing contrary to issuer semantics. |
+| Retry repeats the same insufficient grant | Bound attempts per logical operation, surface the stable denial, and stop automatic reauthorization. Do not create an agent-driven consent loop. |
+| Transport has no OAuth challenge | Treat the JSON envelope as classification/actionable data only; the stdio host acquires credentials through its configured external mechanism. |
+
+RAR remediation, ARAP approval, and URL elicitation are different transitions. RAR remediation asks the client to select or obtain a credential containing sufficient structured authority. ARAP asks an Access Request Service to resolve a requestable denial and then supplies approval to a fresh PDP decision. URL elicitation can establish server-side state or collect interaction, but navigation/completion is not a credential or permit. A deployment may support more than one path, but each denial selects an explicit mechanism and preserves its own state, custody, and completion evidence.
 
 #### 17.6 Subscriptions and Revocation
 
@@ -17421,9 +20011,15 @@ type tool
 
 > **Key takeaway**: Cedar and OPA express the same policy differently. Cedar provides **structural safety** (deny-by-default + forbid-overrides-permit are language guarantees). OPA provides **expressiveness** (the policy can do anything Rego can express, including complex cross-cutting logic). OpenFGA models the same scenario as **relationships** rather than rules — natural for document-level access but more verbose for simple RBAC. The `not deny` pattern in OPA is a common source of security bugs when developers forget to include it.
 
-##### 18.3.8 OpenID Authorization API 1.0: PEP/PDP Interoperability
+##### 18.3.8 AuthZEN Authorization API 1.0 and COAZ: Decision and Mapping Interoperability
 
-The OpenID Foundation approved [Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html), produced by the AuthZEN Working Group, as a Final Specification in January 2026. It defines an HTTPS/JSON contract through which a Policy Enforcement Point (PEP) asks a Policy Decision Point (PDP) for boolean access decisions without depending on the PDP's internal policy language. Under the queued [Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) BCP, an authenticated evaluation call must begin on a validated HTTPS endpoint: the PEP never sends `Authorization`, cookies, or another secret over plaintext HTTP expecting a redirect to repair the connection. PDP metadata, endpoint redirects, DNS/IP resolution, and credential destination remain subject to the same origin and safe-fetch policy as authorization-server metadata.
+AuthZEN and COAZ solve adjacent but different interoperability problems. Authorization API 1.0 standardizes the decision conversation between a Policy Enforcement Point (PEP) and Policy Decision Point (PDP); the Common Authorization (COAZ) Framework and its MCP binding describe how a protocol operation becomes that Subject–Action–Resource–Context (SARC) request. The useful architecture is therefore a two-stage contract: admit and normalize the MCP request, then evaluate the mapped authorization question before any tool effect or result release.
+
+This section owns the decision and mapping boundary. It does not make a PDP decision into an OAuth grant, human approval, durable task, or execution receipt. AuthZEN's Access Request and Approval Profile (ARAP) supplies the requestable-denial and fresh-re-evaluation workflow in [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation); MCP held-work composition remains in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract); OAuth-side remediation and token completion remain in [§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor).
+
+###### 18.3.8.1 Stable AuthZEN Contract
+
+The OpenID Foundation approved [Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html), produced by the AuthZEN Working Group, as a Final Specification on January 11, 2026. It defines an HTTPS/JSON contract through which a Policy Enforcement Point (PEP) asks a Policy Decision Point (PDP) for boolean access decisions without depending on the PDP's internal policy language. Under the queued [Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) BCP, an authenticated evaluation call must begin on a validated HTTPS endpoint: the PEP never sends `Authorization`, cookies, or another secret over plaintext HTTP expecting a redirect to repair the connection. PDP metadata, endpoint redirects, DNS/IP resolution, and credential destination remain subject to the same origin and safe-fetch policy as authorization-server metadata.
 
 **Final 1.0 surfaces**:
 
@@ -17475,9 +20071,1423 @@ Authorization API interoperability does not make policy engines semantically int
 
 > **Important — Decision evaluation is not approval orchestration**
 >
-> Authorization API evaluates the supplied authorization facts and returns a decision. It does not start CIBA, choose an approver, render an approval screen, wait for a callback, mint an OAuth grant, or bind later execution parameters. A PDP can deny with local step-up/approval instructions in response `context`, but a separate workflow must perform that ceremony and call the PDP again with the resulting authority and evidence.
+> Authorization API evaluates the supplied authorization facts and returns a decision. The Final core does not start CIBA, choose an approver, render an approval screen, wait for a callback, mint an OAuth grant, or bind later execution parameters. ARAP is a separate Working Group Draft that can carry a requestable denial through approval and back to a fresh evaluation; approval never changes the original `decision: false` into permission by itself.
 
 > **Connection to [§13.5.4](#1354-authorization-decision-tracing) (Authorization Decision Tracing)**: Capture the boolean decision and the local profile's validated response context, policy version, decision identifier, and enforcement outcome as correlated evidence. Do not present a locally defined `reason` or `obligations` object as a portable 1.0 field.
+
+###### 18.3.8.2 COAZ Framework
+
+The [COAZ Framework Draft 1](https://openid.github.io/authzen/authzen-coaz-framework-1_0.html) is a protocol-neutral mapping layer above Authorization API 1.0. A mapping describes how values from an admitted protocol envelope become SARC members. A value can be literal or expression-derived; the current framework uses Common Expression Language (CEL) as its default expression language while allowing a profile to constrain the available variables, functions, types, and evaluation budget. The output is still an ordinary AuthZEN request, so a mapping failure is not a denial and a successful mapping is not a permit.
+
+Read the framework as a controlled compiler boundary:
+
+| Stage | Input and owner | Output | Fail-closed condition |
+|:--|:--|:--|:--|
+| **Envelope admission** | PEP admits the protocol method, schema, authenticated principal, and server-authored context | Typed variables visible to the mapping | Unknown method/schema, unauthenticated source, or ambiguous principal |
+| **Mapping selection** | PEP selects a mapping trusted for the exact protocol/profile revision and operation | One approved mapping plus its identity and digest | Missing, conflicting, untrusted, stale, or unsupported mapping |
+| **Expression evaluation** | Sandboxed evaluator applies literals and constrained expressions | Candidate SARC members | Type error, missing required input, resource exhaustion, or unapproved function/data source |
+| **SARC validation** | PEP validates required Subject, Action, and Resource plus optional Context | AuthZEN evaluation request | Missing required member, invalid shape, or untrusted value in a protected position |
+| **Decision enforcement** | PDP decides; PEP validates and enforces the response | Permit/deny plus understood local response context | PDP failure, malformed response, unknown mandatory obligation, or decision/request mismatch |
+
+Mapping discoverability improves portability only when the mapping itself is admitted as executable security configuration. A client-supplied mapping, a newly observed digest, or a mapping obtained from an untrusted origin cannot redefine which subject, action, resource, or context the PDP sees.
+
+###### 18.3.8.3 COAZ-MCP Binding
+
+The [COAZ-MCP Binding Draft 1](https://openid.github.io/authzen/authzen-coaz-mcp-binding-1_0.html) specializes the framework for MCP JSON-RPC. It exposes the decoded request `params` and a decoded JWT `token` object to the mapping, defines MCP method defaults, and lets a tool declaration carry an operation-specific mapping in `inputSchema.x-authzen-mapping`. A gateway PEP can use the binding to filter discovery and authorize calls; an MCP server PEP can apply the same mapping close to the effect. High-impact deployments use both positions with the same admitted mapping identity and normalized inputs rather than treating gateway permit as origin entitlement.
+
+| Binding surface | Profile interpretation |
+|:--|:--|
+| `params` | Client-controlled protocol input after JSON-RPC and method-schema validation; never trusted merely because a mapping references it |
+| `token` | Decoded JWT claims after signature, issuer, audience/resource, time, and sender-constraint validation; the current binding does not define opaque-token resolution |
+| `inputSchema.x-authzen-mapping` | Tool-specific mapping declaration whose source, revision, schema digest, mapping digest, and trust classification require admission |
+| Method defaults | Convenience mappings for known MCP methods; DR-0001 applies the projected Tasks convergence profile in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract) rather than copying lagging draft defaults |
+| `ping` and notifications | Current draft pass-through surfaces; DR-0001 still applies outer recipient, object, lifecycle, disclosure, and abuse controls |
+| Unknown method or mapping failure | Reject before execution; a translation/configuration error must not be represented as a policy denial |
+
+The binding does not collapse the three authorization boundaries from [§17.2](#172-tool-visibility-invocation-and-backend-entitlement): a list/search decision controls exposure, a call decision controls invocation, and the backend still decides entitlement to identifiers and effects contained in the arguments.
+
+**Canonical COAZ-MCP discovery, invocation, and release flow.** The normal path below uses a gateway PEP and an origin PEP deliberately. The gateway filters exposure and blocks unauthorized traffic early; the server re-evaluates next to the business effect. Both use the same admitted mapping revision and normalized request identity. The final evaluation controls result release because permission to execute a tool is not automatically permission to disclose every returned field.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant C as MCP Client
+    participant G as Gateway PEP
+    participant S as MCP Server
+    participant P as AuthZEN PDP
+
+    rect rgba(52, 152, 219, 0.12)
+    Note right of C: Discovery and mapping admission
+    C->>G: tools/list + MCP-resource token
+    G->>G: Validate protocol/token<br/>and normalize audience and actor
+    G->>S: Authorized tools/list
+    S-->>G: Tool catalog + x-authzen-mapping v7
+    G->>G: Validate mapping<br/>and persist admission record and bounded cache
+    G->>P: Access Evaluations for candidate tool visibility
+    P-->>G: Per-tool decisions + evaluation IDs
+    G-->>C: Filtered tools/list
+    Note right of P: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.12)
+    Note right of G: Discovery invalidation before invocation
+    S-->>G: notifications/tools/list_changed
+    G->>S: Refresh tools/list
+    S-->>G: Tool catalog + x-authzen-mapping v8
+    G->>G: Revalidate and atomically admit v8
+    Note right of P: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.12)
+    Note right of C: Invocation, origin enforcement, and result release
+    C->>G: tools/call get_customer + exact arguments
+    G->>P: Access Evaluation mapped with v8
+    P-->>G: decision true + decision evidence
+    G->>S: Normalized call + authenticated internal context
+    S->>P: Fresh origin Access Evaluation with v8
+    P-->>S: decision true + decision evidence
+    S-->>G: Typed CallToolResult
+    G->>P: Result-release Access Evaluation
+    P-->>G: decision true + validated redaction obligation
+    G-->>C: Classified and redacted CallToolResult
+    Note right of P: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+> **Note — State carriers and custody in this flow**
+>
+> The MCP-resource access token authenticates authority at the gateway boundary; the raw token is not copied into mapping records, traces, or the downstream result. The mapping revision/digest identifies admitted executable configuration, the catalog cache validator identifies freshness, and AuthZEN evaluation IDs correlate decisions. None is a grant by possession. An MCP task ID appears only when the negotiated Tasks extension is actually used; it does not replace the token, mapping decision, approval record, or local task-authority record. The gateway-to-server hop uses a separately authenticated internal context rather than exporting the caller's raw credential into the service graph.
+
+<details>
+<summary><strong>1. MCP Client requests the tool catalog from the Gateway PEP</strong></summary>
+
+The client sends a current MCP `tools/list` request and a token for the MCP resource. This is a discovery request, not permission to call every returned tool.
+
+**Standard MCP wire shape:**
+
+```http
+POST /mcp HTTP/1.1
+Host: gateway.example
+Authorization: Bearer eyJ...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+The client retains no mapping authority beyond the catalog representation it receives; a later call is checked against the gateway's current admitted mapping.
+
+</details>
+<details>
+<summary><strong>2. Gateway PEP validates the request and normalizes authorization inputs</strong></summary>
+
+The gateway verifies the core version and routing header against the decoded JSON-RPC body, validates token signature/issuer/time/sender constraint and RFC 8707 resource binding, and converts acceptable audience aliases to one configured MCP resource identifier. It preserves subject, client/agent, tenant, and actor provenance separately.
+
+**Deployment-local normalized context derived from validated evidence:**
+
+```json
+{
+  "protocol_version": "2026-07-28",
+  "method": "tools/list",
+  "mcp_resource": "https://mcp.example.com",
+  "subject": "alice@example.com",
+  "client_id": "https://agentprovider.example/agent-app-id",
+  "tenant": "sales-eu",
+  "token_fingerprint": "sha-256:4a9c...",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}
+```
+
+The fingerprint is safe correlation, not a reusable token. Audience normalization is a configured issuer/resource rule; the mapping cannot turn an arbitrary token `aud` value into the protected MCP resource.
+
+**Artifact Produced:** A validated, provenance-aware request context kept in gateway custody.
+
+</details>
+<details>
+<summary><strong>3. Gateway PEP requests the current catalog from the MCP Server</strong></summary>
+
+The gateway forwards an authorized `tools/list` operation over its authenticated origin channel. The original bearer token is not the origin-channel credential in this deployment profile.
+
+**Deployment-local authenticated internal exchange:**
+
+```http
+POST /mcp HTTP/1.1
+Host: origin.mcp.example
+Authorization: DPoP <gateway-origin-token>
+DPoP: <gateway-proof>
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/list",
+  "params": {}
+}
+```
+
+The server authorizes the gateway identity and request independently; this hop does not imply that every catalog entry may be disclosed to the client.
+
+</details>
+<details>
+<summary><strong>4. MCP Server returns tool schemas and a declared COAZ mapping</strong></summary>
+
+The server returns its catalog. `get_customer` declares the current COAZ-MCP mapping inside `inputSchema.x-authzen-mapping`; absence of that member on another tool selects the admitted default mapping rather than an implicit permit.
+
+**Profile-specific COAZ-MCP example:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "result": {
+    "tools": [{
+      "name": "get_customer",
+      "description": "Get customer details",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "case": { "type": "string" }
+        },
+        "required": ["id"],
+        "x-authzen-mapping": {
+          "evaluation": {
+            "subject": { "type": "identity", "id": "$token.sub" },
+            "action": { "name": "get_customer" },
+            "resource": {
+              "type": "customer",
+              "id": "$params.arguments.id"
+            },
+            "context": {
+              "agent": "$token.?client_id",
+              "case": "$params.arguments.case"
+            }
+          }
+        }
+      }
+    }]
+  }
+}
+```
+
+This example follows the current Draft 1 keyword and envelope. The mapping is visible configuration, not self-authenticating configuration.
+
+</details>
+<details>
+<summary><strong>5. Gateway PEP validates and admits mapping revision v7</strong></summary>
+
+The gateway validates the JSON Schema and mapping envelope, compiles CEL under a constrained capability/budget profile, checks protected-field provenance, runs positive and negative fixtures, and compares the canonical digest with its approved release manifest. It then stores the catalog and admission decision under a bounded cache lifetime.
+
+**Deployment-local mapping-admission evidence:**
+
+```json
+{
+  "mapping_id": "crm/get_customer",
+  "framework_revision": "coaz-framework-draft-1",
+  "binding_revision": "coaz-mcp-draft-1",
+  "schema_digest": "sha-256:6d11...",
+  "mapping_digest": "sha-256:8b77...",
+  "source": "https://origin.mcp.example",
+  "trust_class": "server-declared-release-approved",
+  "expression_profile": "cel-mcp-safe-v1",
+  "validated_at": "2026-07-28T17:04:12Z",
+  "cache_validator": "etag:catalog-v7",
+  "not_after": "2026-07-28T17:09:12Z",
+  "result": "admitted"
+}
+```
+
+A digest not present in the release manifest is quarantined or reviewed; it is not learned into trust from first use.
+
+**Artifact Produced:** A bounded catalog/mapping cache entry linked to an immutable admission record.
+
+</details>
+<details>
+<summary><strong>6. Gateway PEP asks the AuthZEN PDP which candidate tools may be exposed</strong></summary>
+
+The gateway constructs independent SARC questions for candidate tools. Search could also support filtering, but this example uses Access Evaluations so every returned element has an explicit decision and correlation ID. This precheck controls catalog visibility only.
+
+**Standard AuthZEN endpoint with deployment-profile properties:**
+
+```http
+POST /access/v1/evaluations HTTP/1.1
+Host: pdp.example
+Authorization: Bearer <gateway-pdp-token>
+Content-Type: application/json
+
+{
+  "evaluations": [{
+    "subject": { "type": "identity", "id": "alice@example.com" },
+    "action": { "name": "tools/list:item" },
+    "resource": { "type": "tool", "id": "get_customer" },
+    "context": {
+      "agent": "https://agentprovider.example/agent-app-id",
+      "mcp_resource": "https://mcp.example.com",
+      "mapping_digest": "sha-256:8b77..."
+    }
+  }]
+}
+```
+
+The local `mapping_digest` context member is versioned deployment vocabulary, not a core AuthZEN field.
+
+</details>
+<details>
+<summary><strong>7. AuthZEN PDP returns independent visibility decisions</strong></summary>
+
+The PDP evaluates each candidate against current policy and data. A batch transport optimization does not make the set atomic or permanently granted.
+
+**Standard decision floor with deployment-local context:**
+
+```json
+{
+  "evaluations": [{
+    "decision": true,
+    "context": {
+      "evaluation_id": "eval_list_01J4...",
+      "policy_version": "mcp-authz-2026-07-28.3"
+    }
+  }]
+}
+```
+
+The gateway accepts only understood response context. A malformed element, missing decision, unknown mandatory obligation, or PDP failure removes the candidate or fails the listing according to the declared closed behavior.
+
+**Artifact Produced:** Per-tool visibility decisions linked to the catalog and mapping digest.
+
+</details>
+<details>
+<summary><strong>8. Gateway PEP returns only the filtered catalog to the MCP Client</strong></summary>
+
+The gateway removes denied tools and returns the surviving schemas. Visibility helps the client avoid impossible calls but does not authorize a future invocation.
+
+**Standard MCP response shape:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "result": {
+    "tools": [{
+      "name": "get_customer",
+      "description": "Get customer details",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "case": { "type": "string" }
+        },
+        "required": ["id"],
+        "x-authzen-mapping": { "evaluation": { "...": "same admitted v7 mapping" } }
+      }
+    }]
+  }
+}
+```
+
+The abbreviated mapping denotes an exact repetition of Step 4 in this walkthrough; a real response carries the complete object. The client cannot modify that object and thereby select a different enforcement mapping.
+
+</details>
+<details>
+<summary><strong>9. MCP Server announces that the tool catalog changed</strong></summary>
+
+Before invocation, the server emits the current notification. The notification is an invalidation hint, not trusted replacement content and not permission to deliver arbitrary event data.
+
+**Standard MCP notification shape:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "notifications/tools/list_changed"
+}
+```
+
+The gateway authenticates the origin channel, authorizes this notification type and recipient relationship, rate-limits it, records the observation, and marks the catalog/mapping cache stale. The current COAZ-MCP pass-through rule does not override those outer controls.
+
+</details>
+<details>
+<summary><strong>10. Gateway PEP refreshes the catalog before authorizing a call</strong></summary>
+
+Because the invalidation arrived inside the cache lifetime, the gateway cannot authorize a new invocation from v7. It repeats the authenticated `tools/list` exchange and includes its cache validator where the origin contract supports one.
+
+**What changed from Step 3:** the JSON-RPC request ID is `42`, and the deployment-local HTTP cache validator is `If-None-Match: "catalog-v7"`. The MCP method and origin credential remain the same.
+
+```http
+POST /mcp HTTP/1.1
+Host: origin.mcp.example
+Authorization: DPoP <gateway-origin-token>
+DPoP: <gateway-proof>
+If-None-Match: "catalog-v7"
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+Content-Type: application/json
+
+{"jsonrpc":"2.0","id":42,"method":"tools/list","params":{}}
+```
+
+The HTTP validator is deployment-local; MCP does not standardize this catalog cache exchange.
+
+</details>
+<details>
+<summary><strong>11. MCP Server returns catalog revision v8</strong></summary>
+
+The server returns the complete current schema and mapping. In v8, the `case` argument became required and the mapping now uses it as authorization-relevant Context.
+
+**What changed from Step 4:**
+
+```json
+{
+  "result": {
+    "tools": [{
+      "name": "get_customer",
+      "inputSchema": {
+        "required": ["id", "case"],
+        "x-authzen-mapping": {
+          "evaluation": {
+            "subject": { "type": "identity", "id": "$token.sub" },
+            "action": { "name": "get_customer" },
+            "resource": {
+              "type": "customer",
+              "id": "$params.arguments.id"
+            },
+            "context": {
+              "agent": "$token.?client_id",
+              "case": "$params.arguments.case"
+            }
+          }
+        }
+      }
+    }]
+  }
+}
+```
+
+The gateway does not merge v7 and v8 fields. One complete mapping version governs the later call.
+
+</details>
+<details>
+<summary><strong>12. Gateway PEP revalidates and atomically admits mapping revision v8</strong></summary>
+
+The gateway repeats the Step 5 admission pipeline. Only after schema, expression, provenance, fixture, and release-manifest checks pass does it atomically replace the active catalog/mapping pair.
+
+**What changed from Step 5:**
+
+```json
+{
+  "mapping_id": "crm/get_customer",
+  "schema_digest": "sha-256:9c31...",
+  "mapping_digest": "sha-256:b2e8...",
+  "cache_validator": "etag:catalog-v8",
+  "supersedes_mapping_digest": "sha-256:8b77...",
+  "result": "admitted"
+}
+```
+
+Concurrent calls already bound to v7 either finish under their recorded snapshot or are rejected by the deployment's cutover policy; no call silently changes mapping halfway through evaluation.
+
+**Artifact Produced:** The active v8 mapping snapshot and a reviewable v7→v8 transition record.
+
+</details>
+<details>
+<summary><strong>13. MCP Client invokes get_customer with exact arguments</strong></summary>
+
+The client sends the call it selected from discovery. The gateway validates the current schema independently; discovery did not reserve authority or freeze the server's mapping.
+
+**Standard MCP wire shape:**
+
+```http
+POST /mcp HTTP/1.1
+Host: gateway.example
+Authorization: Bearer eyJ...
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: get_customer
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "method": "tools/call",
+  "params": {
+    "name": "get_customer",
+    "arguments": {
+      "id": "cust-12345",
+      "case": "case-67890"
+    }
+  }
+}
+```
+
+The request ID correlates this exchange only. It does not bind approval, authorize the customer record, or make a retry idempotent.
+
+</details>
+<details>
+<summary><strong>14. Gateway PEP maps the call with v8 and requests an AuthZEN decision</strong></summary>
+
+The gateway evaluates the admitted CEL mapping against validated token claims and the exact call parameters, then validates the resulting SARC request. It sends the request to the AuthZEN Access Evaluation endpoint.
+
+**Profile-specific COAZ output over the standard AuthZEN endpoint:**
+
+```http
+POST /access/v1/evaluation HTTP/1.1
+Host: pdp.example
+Authorization: Bearer <gateway-pdp-token>
+Content-Type: application/json
+
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "action": { "name": "get_customer" },
+  "resource": { "type": "customer", "id": "cust-12345" },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "case": "case-67890",
+    "mcp_resource": "https://mcp.example.com",
+    "mapping_digest": "sha-256:b2e8...",
+    "request_digest": "sha-256:30a5..."
+  }
+}
+```
+
+The PEP retains the raw token and arguments; the PDP receives only the policy inputs required by the admitted profile.
+
+</details>
+<details>
+<summary><strong>15. AuthZEN PDP permits the exact gateway-side call</strong></summary>
+
+The PDP returns the portable Boolean decision and deployment-local decision evidence. A valid denial would still be HTTP success with `decision: false`; transport or shape failure is not converted to denial.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_call_gw_01J4...",
+    "policy_version": "mcp-authz-2026-07-28.3",
+    "obligations_schema": "https://schemas.example/authzen/obligations-v1",
+    "obligations": ["origin_recheck", "redact:customer.ssn"]
+  }
+}
+```
+
+The gateway validates the local context schema and every mandatory obligation before forwarding.
+
+**Artifact Produced:** A gateway decision tied to the v8 mapping, exact request digest, and policy version.
+
+</details>
+<details>
+<summary><strong>16. Gateway PEP forwards the normalized call to the MCP Server</strong></summary>
+
+The gateway sends the unchanged MCP operation over its authenticated origin channel and supplies a short-lived integrity-protected internal context that names the validated actor, request digest, mapping digest, and gateway decision. Raw caller tokens and PDP credentials remain in their respective security contexts.
+
+**Deployment-local internal exchange:**
+
+```http
+POST /mcp HTTP/1.1
+Host: origin.mcp.example
+Authorization: DPoP <gateway-origin-token>
+DPoP: <gateway-proof>
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: get_customer
+Mcp-Authz-Context: <signed-short-lived-internal-assertion>
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "method": "tools/call",
+  "params": {
+    "name": "get_customer",
+    "arguments": { "id": "cust-12345", "case": "case-67890" }
+  }
+}
+```
+
+`Mcp-Authz-Context` is an illustrative deployment-local header, not MCP or COAZ wire syntax. The origin validates it and reconstructs the normalized decision inputs rather than trusting unverified forwarded headers.
+
+</details>
+<details>
+<summary><strong>17. MCP Server performs a fresh origin-side AuthZEN evaluation</strong></summary>
+
+The server verifies the gateway identity/internal assertion, recomputes the request digest, checks the active mapping digest, and resolves current business context unavailable at the edge. It then calls the PDP as its own PEP.
+
+**What changed from Step 14:** the SARC Subject, Action, Resource, case, and request/mapping digests are identical; the server adds current record state and identifies the enforcement point.
+
+```json
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "action": { "name": "get_customer" },
+  "resource": { "type": "customer", "id": "cust-12345" },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "case": "case-67890",
+    "mapping_digest": "sha-256:b2e8...",
+    "request_digest": "sha-256:30a5...",
+    "enforcement_point": "crm-origin",
+    "record_tenant": "sales-eu",
+    "record_state": "active"
+  }
+}
+```
+
+Gateway and origin decisions are intentionally redundant for high-impact operations: policy or data may change between them, and only the origin holds the backend entitlement facts.
+
+</details>
+<details>
+<summary><strong>18. AuthZEN PDP permits the origin-side effect</strong></summary>
+
+The PDP evaluates current origin facts and returns a second decision. A denial here blocks the backend read even though Step 15 permitted forwarding.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_call_origin_01J4...",
+    "policy_version": "mcp-authz-2026-07-28.3",
+    "obligations": ["redact:customer.ssn"]
+  }
+}
+```
+
+The server links the gateway decision, origin decision, mapping digest, and execution record without treating one decision ID as authority for another request.
+
+**Artifact Produced:** A fresh origin decision governing the exact backend effect.
+
+</details>
+<details>
+<summary><strong>19. MCP Server returns a typed CallToolResult to the Gateway PEP</strong></summary>
+
+After backend entitlement succeeds, the server executes once under its application idempotency contract and returns a typed MCP result. Execution evidence and response content remain separate: this result is not yet cleared for the client.
+
+**Standard MCP result shape:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "result": {
+    "content": [{
+      "type": "text",
+      "text": "{\"id\":\"cust-12345\",\"name\":\"Example GmbH\",\"ssn\":\"<sensitive>\"}"
+    }],
+    "structuredContent": {
+      "id": "cust-12345",
+      "name": "Example GmbH",
+      "ssn": "<sensitive>"
+    },
+    "isError": false
+  }
+}
+```
+
+The server-to-gateway channel protects the unredacted result. Ordinary traces record classification and safe digests, not the sensitive fields.
+
+</details>
+<details>
+<summary><strong>20. Gateway PEP requests a separate result-release decision</strong></summary>
+
+The gateway classifies the returned object and asks whether this client/agent may receive the specific result fields. It does not reuse the call permit because execution and disclosure can have different policy.
+
+**Deployment-profile AuthZEN evaluation:**
+
+```json
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "action": { "name": "tools/call:release_result" },
+  "resource": {
+    "type": "mcp_tool_result",
+    "id": "sha-256:aa72...",
+    "properties": {
+      "tool": "get_customer",
+      "classification": ["customer", "restricted-identity"]
+    }
+  },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "request_digest": "sha-256:30a5...",
+    "execution_id": "exec_01J4...",
+    "origin_evaluation_id": "eval_call_origin_01J4..."
+  }
+}
+```
+
+The full result body remains at the gateway; only decision-relevant classification and safe references cross to the PDP.
+
+</details>
+<details>
+<summary><strong>21. AuthZEN PDP permits release with a validated redaction obligation</strong></summary>
+
+The PDP permits disclosure only after the SSN field is removed. The obligation vocabulary is deployment-local and versioned; an unknown mandatory transformation fails closed.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_release_01J4...",
+    "policy_version": "mcp-release-2026-07-28.2",
+    "obligations_schema": "https://schemas.example/authzen/obligations-v1",
+    "obligations": [{
+      "type": "json-remove",
+      "pointers": ["/structuredContent/ssn"]
+    }]
+  }
+}
+```
+
+The gateway records the obligation version and transformation result. A permit with an unexecutable obligation is not releasable.
+
+**Artifact Produced:** A result-release decision and validated transformation plan.
+
+</details>
+<details>
+<summary><strong>22. Gateway PEP returns the classified and redacted result to the MCP Client</strong></summary>
+
+The gateway applies the validated transformation, checks that the forbidden field is absent from both structured and text content, and returns the safe typed result.
+
+**Standard MCP response shape after deployment-local release enforcement:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "result": {
+    "content": [{
+      "type": "text",
+      "text": "{\"id\":\"cust-12345\",\"name\":\"Example GmbH\"}"
+    }],
+    "structuredContent": {
+      "id": "cust-12345",
+      "name": "Example GmbH"
+    },
+    "isError": false
+  }
+}
+```
+
+The final evidence chain joins catalog/mapping revision, visibility decision, gateway call decision, origin decision, execution disposition, release decision, and redaction result. It does not retain the raw access token or sensitive result.
+
+</details>
+
+<br/>
+
+The main architecture also applies the current independently versioned Tasks Draft rather than reproducing an older method table:
+
+| Incoming draft surface | Projected convergence behavior | Authorization consequence |
+|:--|:--|:--|
+| `tasks/get` | Admit as the current read operation | Reauthorize caller, tenant, task object, and result-disclosure state |
+| `tasks/update` | Admit as the current input/TTL update operation | Reauthorize the exact mutable fields and prevent authority expansion |
+| `tasks/cancel` | Admit as the current cancellation operation | Reauthorize caller/object and preserve dispatch/cancellation race evidence |
+| Older `tasks/result` | Adapter translates to `tasks/get`; terminal result remains in task state | Do not create a second portable result authority surface |
+| Older `tasks/list` | No portable equivalent; deny rather than enumerate | A lost handle is not recovered through cross-principal task listing |
+| `notifications/*` | Apply outer recipient/object/lifecycle/disclosure controls | Draft pass-through does not mean authorization-free delivery |
+
+This compatibility note is pinned to the drafts reviewed on 2026-07-28. It is expected to disappear when COAZ-MCP's defaults converge on the current Tasks extension. Until then, canonical internal/outbound behavior uses `tasks/get`, `tasks/update`, and `tasks/cancel`, with final results carried by task state and no `tasks/list`.
+
+**COAZ multi-evaluation flow.** Some tool effects require more than one authorization fact. A copy operation needs permission to read the exact source and write the exact destination. The `evaluations` envelope expresses those questions together and applies top-level Subject and Context defaults, but even two permits are only authorization evidence: they do not lock either object, create an atomic storage transaction, or make a retry safe.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant C as MCP Client
+    participant G as Gateway PEP
+    participant P as AuthZEN PDP
+    participant S as MCP Server
+    participant B as Storage Backend
+
+    C->>G: tools/call copy_object + exact source/destination
+    G->>G: Resolve evaluations mapping<br/>and validate versions and preconditions
+    alt PDP supports Access Evaluations
+        G->>P: One Access Evaluations request
+        P-->>G: Read permit + write permit under one policy/data snapshot
+    else PEP split-call fallback
+        G->>P: Source-read Access Evaluation
+        P-->>G: Read permit + policy/data snapshot
+        G->>P: Destination-write Access Evaluation
+        P-->>G: Write permit + matching policy/data snapshot
+        Note right of B: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    G->>S: Forward exact call + decision set and preconditions
+    S->>B: Conditional idempotent copy
+    B-->>S: Committed outcome or precondition failure
+    S-->>G: Typed CallToolResult + execution disposition
+    G-->>C: Authorized result or safe failure
+    Note right of B: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+```
+
+> **Note — Two permits are not a transaction**
+>
+> The AuthZEN response set proves only that the PDP permitted two questions under the recorded policy/data state. Object versions can change before execution, the source read can succeed while the destination write fails, and a retry can duplicate effects. The MCP server still needs object preconditions, an application idempotency key, an atomic backend primitive where available, and an explicit compensation/partial-failure contract.
+
+<details>
+<summary><strong>1. MCP Client requests one copy_object operation</strong></summary>
+
+The client names both objects in one schema-valid call. These arguments become authorization inputs and execution preconditions; neither path is trusted merely because it came from the declared tool schema.
+
+**Standard MCP wire shape:**
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 51,
+  "method": "tools/call",
+  "params": {
+    "name": "copy_object",
+    "arguments": {
+      "source": "/bucket/reports/q1.pdf",
+      "destination": "/bucket/archive/q1.pdf",
+      "source_version": "etag:src-27",
+      "destination_absent": true,
+      "idempotency_key": "copy_01J4TQ..."
+    }
+  }
+}
+```
+
+The idempotency key is application input under a deployment profile, not generic MCP retry semantics.
+
+</details>
+<details>
+<summary><strong>2. Gateway PEP resolves the evaluations mapping and validates preconditions</strong></summary>
+
+The gateway selects the admitted mapping digest, anchors top-level `subject.id` to the validated token subject, validates both object identifiers and version predicates, and resolves exactly two entries.
+
+**Profile-specific declared COAZ-MCP mapping:**
+
+```json
+{
+  "name": "copy_object",
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "source",
+      "destination",
+      "source_version",
+      "idempotency_key"
+    ],
+    "x-authzen-mapping": {
+      "evaluations": {
+        "subject": {
+          "type": "identity",
+          "id": "$token.sub"
+        },
+        "context": {
+          "agent": "$token.?client_id",
+          "operation_id": "$params.arguments.idempotency_key"
+        },
+        "evaluations": [
+          {
+            "action": { "name": "read" },
+            "resource": {
+              "type": "storage_object",
+              "id": "$params.arguments.source",
+              "properties": {
+                "version": "$params.arguments.source_version"
+              }
+            }
+          },
+          {
+            "action": { "name": "write" },
+            "resource": {
+              "type": "storage_object",
+              "id": "$params.arguments.destination"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Top-level Subject and Context are defaults shared by the two entries. A declared per-entry Subject is rejected by the current binding rather than used to smuggle a second principal.
+
+**Artifact Produced:** Two resolved SARC questions tied to one call, mapping digest, and application idempotency key.
+
+</details>
+<details>
+<summary><strong>3. Gateway PEP sends one native Access Evaluations request</strong></summary>
+
+When the PDP advertises/supports Access Evaluations, the PEP sends the resolved request as one message.
+
+**Standard AuthZEN batch endpoint with profile properties:**
+
+```http
+POST /access/v1/evaluations HTTP/1.1
+Host: pdp.example
+Authorization: Bearer <gateway-pdp-token>
+Content-Type: application/json
+
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "operation_id": "copy_01J4TQ...",
+    "mapping_digest": "sha-256:d881..."
+  },
+  "evaluations": [
+    {
+      "action": { "name": "read" },
+      "resource": {
+        "type": "storage_object",
+        "id": "/bucket/reports/q1.pdf",
+        "properties": { "version": "etag:src-27" }
+      }
+    },
+    {
+      "action": { "name": "write" },
+      "resource": {
+        "type": "storage_object",
+        "id": "/bucket/archive/q1.pdf"
+      }
+    }
+  ]
+}
+```
+
+One HTTP request reduces latency. It does not itself require the PDP's underlying data reads or decisions to be serializable with the later storage transaction.
+
+</details>
+<details>
+<summary><strong>4. AuthZEN PDP returns two native decisions under one recorded snapshot</strong></summary>
+
+The PDP returns a decision for every entry in order. The deployment profile adds a shared policy/data snapshot so the PEP can prove the decisions were evaluated against compatible state.
+
+```json
+{
+  "evaluations": [
+    {
+      "decision": true,
+      "context": { "evaluation_id": "eval_read_01J4..." }
+    },
+    {
+      "decision": true,
+      "context": { "evaluation_id": "eval_write_01J4..." }
+    }
+  ],
+  "context": {
+    "policy_version": "storage-authz-2026-07-28.4",
+    "data_snapshot": "zookie:8f72..."
+  }
+}
+```
+
+The PEP forwards only if every element is a valid permit and the local snapshot contract is satisfied. One denial blocks the whole tool call.
+
+**Artifact Produced:** A complete two-decision set with policy/data provenance.
+
+</details>
+<details>
+<summary><strong>5. Gateway PEP uses the split-call fallback for the source read</strong></summary>
+
+If the PDP lacks the batch endpoint, COAZ-MCP permits the PEP to apply the top-level defaults and issue one Access Evaluation per entry. The first call asks only the source-read question.
+
+**Exact delta from Step 3:** endpoint `/access/v1/evaluation`; body contains the shared Subject/Context plus the first Action/Resource and a deployment-local snapshot request.
+
+```json
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "action": { "name": "read" },
+  "resource": {
+    "type": "storage_object",
+    "id": "/bucket/reports/q1.pdf",
+    "properties": { "version": "etag:src-27" }
+  },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "operation_id": "copy_01J4TQ...",
+    "required_data_snapshot": "latest"
+  }
+}
+```
+
+</details>
+<details>
+<summary><strong>6. AuthZEN PDP permits the split source-read question</strong></summary>
+
+The PDP returns the read decision and the snapshot identifiers the second call must match.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_read_01J4...",
+    "policy_version": "storage-authz-2026-07-28.4",
+    "data_snapshot": "zookie:8f72..."
+  }
+}
+```
+
+The PEP retains this as incomplete decision-set state; it cannot forward after only the first permit.
+
+</details>
+<details>
+<summary><strong>7. Gateway PEP sends the destination-write fallback evaluation</strong></summary>
+
+The second call asks the destination-write question and requests the same policy/data snapshot. If the PDP cannot honor that consistency convention, the deployment either restarts both evaluations or refuses the split fallback for this operation.
+
+**What changed from Step 5:** Action is `write`, Resource is the destination, and `required_data_snapshot` is the exact snapshot returned in Step 6.
+
+```json
+{
+  "subject": { "type": "identity", "id": "alice@example.com" },
+  "action": { "name": "write" },
+  "resource": {
+    "type": "storage_object",
+    "id": "/bucket/archive/q1.pdf"
+  },
+  "context": {
+    "agent": "https://agentprovider.example/agent-app-id",
+    "operation_id": "copy_01J4TQ...",
+    "required_data_snapshot": "zookie:8f72..."
+  }
+}
+```
+
+Snapshot pinning is deployment-local context, not a guarantee provided by the AuthZEN core.
+
+</details>
+<details>
+<summary><strong>8. AuthZEN PDP permits the matching split destination-write question</strong></summary>
+
+The PDP returns the second decision. The PEP verifies the same policy and data versions before joining the two responses.
+
+```json
+{
+  "decision": true,
+  "context": {
+    "evaluation_id": "eval_write_01J4...",
+    "policy_version": "storage-authz-2026-07-28.4",
+    "data_snapshot": "zookie:8f72..."
+  }
+}
+```
+
+A mismatch, timeout, denial, or unknown required context discards the set. Retrying means evaluating **both** questions again under a coherent snapshot.
+
+**Artifact Produced:** A complete split-call decision set with explicit coherence evidence.
+
+</details>
+<details>
+<summary><strong>9. Gateway PEP forwards the exact call and complete decision set</strong></summary>
+
+Only after both permits does the gateway forward the unchanged source, destination, versions, and idempotency key. Its authenticated internal context names both evaluation IDs, policy/data versions, mapping digest, and request digest.
+
+```json
+{
+  "request_digest": "sha-256:15d0...",
+  "mapping_digest": "sha-256:d881...",
+  "evaluation_ids": ["eval_read_01J4...", "eval_write_01J4..."],
+  "policy_version": "storage-authz-2026-07-28.4",
+  "data_snapshot": "zookie:8f72...",
+  "source_version": "etag:src-27",
+  "destination_precondition": "absent",
+  "idempotency_key": "copy_01J4TQ..."
+}
+```
+
+This is deployment-local origin evidence, not a new COAZ bearer artifact.
+
+</details>
+<details>
+<summary><strong>10. MCP Server requests a conditional idempotent copy from the Storage Backend</strong></summary>
+
+The server rechecks current entitlement where required, then applies source-version and destination-state preconditions and the stable idempotency key to an atomic backend copy primitive where one exists.
+
+```http
+PUT /objects/bucket/archive/q1.pdf HTTP/1.1
+Host: storage.internal
+Authorization: DPoP <storage-audience-token>
+DPoP: <server-proof>
+If-None-Match: *
+Idempotency-Key: copy_01J4TQ...
+X-Source-Object: /bucket/reports/q1.pdf
+X-Source-If-Match: "src-27"
+```
+
+This HTTP shape is deployment-local. If the backend lacks atomic conditional copy, the application must expose partial outcome and compensation rather than claim AuthZEN made it atomic.
+
+</details>
+<details>
+<summary><strong>11. Storage Backend returns a committed outcome or precondition failure</strong></summary>
+
+The backend either commits the copy once and returns durable version evidence, replays the prior outcome for the same idempotency key, or fails before effect because an object precondition changed.
+
+```http
+HTTP/1.1 201 Created
+ETag: "dst-1"
+Idempotency-Status: created
+Content-Type: application/json
+
+{
+  "source_version": "src-27",
+  "destination_version": "dst-1",
+  "effect": "committed"
+}
+```
+
+`Idempotency-Status` is an illustrative backend field. The execution record, not either AuthZEN decision, proves what happened.
+
+**Artifact Produced:** A committed-effect or no-effect backend disposition bound to object versions and the idempotency key.
+
+</details>
+<details>
+<summary><strong>12. MCP Server returns a typed execution disposition to the Gateway PEP</strong></summary>
+
+The server maps the backend outcome to `CallToolResult`, preserving whether the copy committed, replayed a prior result, failed its precondition, or ended partially in a non-atomic implementation.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 51,
+  "result": {
+    "structuredContent": {
+      "status": "committed",
+      "source": "/bucket/reports/q1.pdf",
+      "source_version": "src-27",
+      "destination": "/bucket/archive/q1.pdf",
+      "destination_version": "dst-1"
+    },
+    "isError": false
+  }
+}
+```
+
+The gateway applies its separate result-release policy before returning the object.
+
+</details>
+<details>
+<summary><strong>13. Gateway PEP returns the authorized result or safe failure to the MCP Client</strong></summary>
+
+After result-release evaluation, the gateway returns the classified result. A changed object precondition causes a safe failure and requires a new call plus new authorization evaluations; it is not retried under the old permit set.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 51,
+  "result": {
+    "structuredContent": {
+      "status": "committed",
+      "source_version": "src-27",
+      "destination_version": "dst-1"
+    },
+    "isError": false
+  }
+}
+```
+
+The retained evidence joins both decisions to the actual backend disposition. It does not claim that the two permits constituted a distributed transaction.
+
+</details>
+
+###### 18.3.8.4 Trust and Compatibility Profile
+
+COAZ mappings are small programs at an authorization boundary. The deployment admits them with the same rigor applied to policy bundles: named source, exact framework/binding revision, canonical schema and mapping digests, reviewer or signer, expression limits, supported input variables, test corpus, activation time, rollback version, and cache validators. A `notifications/tools/list_changed` signal invalidates relevant discovery and mapping caches but does not authorize the replacement mapping; the PEP fetches, validates, and admits the new version before use.
+
+The compatibility boundary also normalizes identity and protocol facts before mapping. JWT deployments expose only validated claims. Opaque-token deployments first obtain an authenticated local authorization context through introspection or another issuer-bound contract and map that server-authored context; they do not pretend that the current draft's decoded `token` variable already specifies opaque-token behavior. Gateway and server must also agree on canonical audience/resource identity, MCP method/name, tool identity, argument canonicalization, core version, extension versions, and mapping digest.
+
+The projected profile fails closed on:
+
+- unpinned or untrusted mapping sources and digest changes;
+- an expression that reads a variable or function outside its declared capability set;
+- client-controlled data entering a trusted subject, actor, tenant, policy, or entitlement field without server validation;
+- mapping cache ambiguity or discovery-to-call version drift;
+- PDP timeout, transport failure, malformed response, or unknown mandatory obligation;
+- gateway/server disagreement about the normalized request or selected mapping; and
+- a permit that cannot be linked to the exact execution and result-release records.
+
+These controls are a DR-0001 deployment profile, not claims that COAZ Draft 1 already standardizes mapping signatures, cache invalidation, opaque-token introspection, dual-PEP consistency, or rollback.
+
+**Coverage and expression boundary.** COAZ authorization exists only where a COAZ-aware PEP actually processes the message. A client that can see `x-authzen-mapping` is not thereby an enforcing PEP, and one enforcing gateway does not make a bypass path safe. Every in-scope route must traverse an admitted PEP; high-impact effects retain origin enforcement. The current binding defines decoded JWT claims as `token`. A deployment using opaque access tokens can introspect them and construct a separately profiled server-authored context before mapping, but that adapter is **not** conformance to the current COAZ-MCP `token` input.
+
+CEL execution is restricted as security-sensitive configuration:
+
+| Control | Required profile |
+|:--|:--|
+| Input typing | Compile against the exact MCP method/tool schema and validated token-claim profile; missing optional members use CEL optional selection rather than accidental null |
+| Capability set | Allow only documented pure functions and typed inputs; no network, file, environment, clock, randomness, secret lookup, or recursive PDP access |
+| Resource budget | Bound source length, AST size, comprehension/input cardinality, evaluation count, CPU/wall time, and memory |
+| Output validation | Require one JSON value per expression and validate the resolved `evaluation` or `evaluations` envelope as SARC before contacting the PDP |
+| Provenance | Treat mapping-derived Action, Resource, Context, and non-ID Subject attributes as untrusted; enrich authoritative facts inside the PDP or from server-validated context |
+| Change control | Pin source/revision/digest, fixtures, signer/reviewer, activation, cache validator, and rollback; invalidation causes re-fetch and re-admission |
+
+**Flow 3 — COAZ failures and negative behavior.** In the normal path, the PEP admits a known mapping, resolves it within budget, produces a valid SARC request, obtains a comprehensible response, and links the permit to execution. The matrix below classifies deviations by the component that first has enough evidence to reject them. Caller messages stay generic where detail would expose policy, identities, or object existence; internal evidence remains specific enough for diagnosis.
+
+| Failure | Rejecting component | Caller-visible response | Internal evidence | Retry rule | Fresh evaluation? |
+|:--|:--|:--|:--|:--|:--:|
+| Malformed mapping or more than one/unknown envelope | PEP mapping admission/resolver | JSON-RPC `-32602` Invalid params; no execution | Mapping source/revision/digest, schema errors, rejected envelope, request ID | Retry only after an admitted mapping change | **Yes** |
+| Unsupported expression language or mapping capability | PEP mapping admission | `-32602`; capability unsupported | Requested language/capability, admitted evaluator profile, mapping digest | Do not retry unchanged request; fix/profile mapping | **Yes** |
+| CEL missing property, type failure, budget exhaustion, or non-JSON result | Sandboxed evaluator | `-32602` with non-sensitive mapping-error class | Expression location/hash, input schema version, error class, consumed budget; no raw secret values | Correct input only if schema permits; otherwise replace mapping | **Yes** |
+| Resolved request lacks required Subject, Action, or Resource | PEP SARC validator | `-32602`; invalid mapped request | Resolved shape summary, missing member, mapping/request digests | No automatic retry; mapping/input must change | **Yes** |
+| Token-anchored `subject.id` differs from validated subject claim | PEP subject anchor | `-32602`; mapping error | Validated subject fingerprint, resolved-subject fingerprint, issuer, mapping digest | Never retry unchanged; investigate mapping/token substitution | **Yes** |
+| Declared mapping overrides Subject from an unverifiable source | PEP admission or policy profile | Deny with the admitted draft code/profile; high-trust routes do not call PDP | Override source, trust classification, mapping signer/digest, route risk | Retry only after trusted identity evidence/profile approval | **Yes** |
+| Mapping digest is unapproved, stale, or changed during discovery-to-call | PEP cache/admission layer | Safe temporary/internal error; no fallback to old or new unadmitted mapping | Prior/new digests, validators, invalidation time, call snapshot, cutover decision | Re-fetch and re-admit; do not blindly replay the call | **Yes** |
+| PDP returns `decision: false` for one or more evaluations | PDP decision; PEP enforcement | COAZ Draft 1 JSON-RPC `-32001`, or profiled `isError: true` tool result | Every evaluation ID/decision, policy/data versions, safe reason class | Retry only after relevant authority, input, or policy state changes | **Yes** |
+| PDP timeout, TLS failure, or unparseable/malformed response | PEP PDP client | JSON-RPC `-32603` Internal error; fail closed | Endpoint, TLS/transport class, timeout, response-shape error, mapping/request digests | Backoff within request deadline; never reuse a prior permit | **Yes** |
+| MCP method is neither mapped nor in the admitted pass-through set | PEP method dispatcher | Deny using the code allocated for the admitted binding; no dispatch | Core/extension versions, method/name, mapping-table revision | Retry only after version/capability/profile correction | **Yes** |
+| Server-initiated request lies outside the binding/profile's covered directions | Receiving PEP | Unsupported/denied operation without revealing policy data | Direction, method, core/extensions, route coverage decision | Do not retry as client-originated traffic; require a named profile | **Yes** |
+| Valid opaque access token reaches a binding path that requires decoded JWT claims | HTTP/token admission or compatibility adapter | OAuth `invalid_token`/generic unauthorized, or `-32602` before mapping; never fabricate claims | Token format, issuer/resource, introspection-profile availability, adapter revision | Use the approved opaque-token adapter or obtain a supported token | **Yes** |
+| Draft JSON-RPC error code conflicts with the admitted MCP/core-extension allocation | Protocol-admission layer | Current admitted code or generic internal failure; never emit a conflicting code | Core/binding revisions, registry snapshot, detected collision, chosen local code | Configuration/profile repair; no semantic retry | Depends on original failure |
+| PDP returns permit with unknown mandatory response context/obligation | PEP response validator | `-32603` or profiled safe denial; no execution | Decision ID, context schema/version, unknown obligation identifier | Deploy support or change policy; do not drop the obligation | **Yes** |
+| Policy, data, mapping, or object version changes between evaluation and effect | Origin PEP or application precondition | Safe denial/precondition failure or `isError: true`; no stale permit reuse | Old/current versions, evaluation IDs, object preconditions, effect disposition | Rebuild the complete request and re-evaluate; preserve idempotency record | **Yes** |
+
+COAZ-MCP Draft 1 currently specifies `-32602` for mapping errors, `-32001` for authorization denial, and `-32603` for PDP communication failures. DR-0001 admits those codes only with the exact binding revision and after collision checking against the Final MCP core and negotiated extensions. It does not invent a successful fallback when the code space or method table is ambiguous.
+
+###### 18.3.8.5 Adoption Decision
+
+The maturity boundary determines what can be made portable today:
+
+| Surface | Status verified 2026-07-28 | DR-0001 decision | Promotion evidence |
+|:--|:--|:--:|:--|
+| AuthZEN Authorization API 1.0 | OpenID Final Specification, published 2026-01-11; core interoperability evidence exists | **Use** | Continue conformance and policy-equivalence tests for each selected PDP |
+| COAZ Framework Draft 1 | AuthZEN Working Group Draft | **Profile** | Stable WG milestone, mapping test vectors, safe-expression profile, and multi-implementation evidence |
+| COAZ-MCP Draft 1 | AuthZEN Working Group Draft | **Profile** | Alignment with the admitted MCP core/current Tasks extension, resolved error allocations, opaque-token profile, and gateway/server interop |
+
+Official OpenID Foundation promotion makes the family a credible convergence target, but it is not evidence that the two COAZ drafts are Final or already supported across MCP products. Deployments therefore pin the draft revision, contain it behind an adapter, collect mapping/decision evidence, and retain a rollback path to a local direct-SARC integration. §20.1 defines the broader evidence ladder and promotion gates.
+
+**Flow 12 — Fresh security state, AuthZEN/ARAP, and internal Transaction Token propagation.** The OpenID Foundation describes these standards as complementary. The bridge below makes that composition precise without repeating the complete nine-step SSF/CAEP receiver flow in [§12.6](#126-receiver-processing-stream-health-and-reconciliation) or the complete Transaction Token boundary-exchange flow in [§20.3](#203-transaction-scoped-credentials). It starts only after the SSF Receiver has authenticated, validated, mapped, and durably persisted a CAEP event, and it stops at the first internal service hop.
+
+The carrier inventory fixes each layer's contribution before the sequence reuses their identifiers:
+
+| Evidence object | What it contributes | What it cannot prove |
+|:--|:--|:--|
+| Validated SSF/CAEP SET and normalized event | Authenticated security-state observation plus subject mapping and receiver epoch | A policy outcome, command execution, or completed termination |
+| Lifecycle action/convergence record | Which decisions, tasks, approvals, credentials, sessions, or caches must be re-evaluated/changed and what read-back observed | That an unobserved downstream effect stopped |
+| AuthZEN evaluation/decision | Current policy answer for one mapped Subject–Action–Resource–Context question | Durable approval, execution, or internal service authority |
+| ARAP task/approval | Bound requestable-denial workflow and an input to fresh evaluation | Permit by possession or successful effect |
+| Transaction Token `-09` | Short-lived bounded authorization context for one internal trust-domain service graph | External OAuth grant, ARAP state, or cross-domain durable task governance |
+| DR-0001 task-authority/effect record | Local lifecycle, purpose, idempotency, revocation, and result policy | Cross-vendor interoperability merely because IDs correlate |
+
+The sequence preserves those boundaries: an event changes trusted policy input, a current decision governs execution, approval remains re-evaluation evidence, and the Transaction Token carries only the resulting internal context.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Receiver as 📡 SSF Receiver
+    participant Life as 🔁 Lifecycle Controller
+    participant Edge as 🛡️ MCP Edge / PEP
+    participant PDP as ⚖️ AuthZEN PDP
+    participant ARS as 🧭 Access Request Service
+    participant TTS as 🎫 Transaction Token Service
+    participant Svc as 🔧 Internal Service
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Receiver: Phase 1: Fresh State Reaches the Decision Plane
+    Receiver->>Life: Validated normalized CAEP event<br/>subject + event epoch
+    Life->>PDP: Publish current policy/lifecycle epoch<br/>and invalidate affected decisions
+    Edge->>PDP: Initial AuthZEN evaluation<br/>current epoch + exact operation
+    PDP-->>Edge: decision: false<br/>context.access_request
+    Edge->>ARS: Submit bound ARAP Access Request
+    ARS-->>Edge: Approved task + approval object
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Receiver: Phase 2: Later Signal Changes What Approval Can Do
+    Receiver->>Life: Later validated CAEP event<br/>newer event epoch
+    Life->>ARS: Re-evaluate, revoke, supersede,<br/>or close affected approval/task
+    Life->>PDP: Publish newer current state<br/>and affected-object epoch
+    Edge->>PDP: Fresh evaluation of bound operation<br/>approval + current epoch
+    alt Current state still permits
+        PDP-->>Edge: decision: true<br/>decision ID + obligations
+        Edge->>TTS: Request bounded internal credential<br/>decision + workload + audience + digest
+        TTS-->>Edge: Short-lived Transaction Token
+        Edge->>Svc: Internal request + Transaction Token
+        Svc->>Svc: Validate token + local entitlement
+        Svc-->>Edge: Classified internal result
+    else New state invalidates authority
+        PDP-->>Edge: decision: false<br/>no internal credential or dispatch
+        Edge->>ARS: Record denied disposition<br/>and terminate held work
+        Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of Svc: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. SSF Receiver sends a validated normalized CAEP event to the Lifecycle Controller</strong></summary>
+
+This arrow begins after [§12.6](#126-receiver-processing-stream-health-and-reconciliation) Steps 1–5: signature, issuer, audience, time, replay, stream, event type, and RFC 9493 subject mapping have succeeded, and the receiver persisted the event. The controller receives a canonical local subject/object reference, event type, source stream, SET hash/`jti`, receive time, and monotonic event epoch.
+
+> **Exact delta from [§12.6](#126-receiver-processing-stream-health-and-reconciliation):** reuse the normalized-event record and `persisted_pending_re_evaluation` state; this bridge adds no CAEP event type or SSF delivery message.
+
+</details>
+<details>
+<summary><strong>2. Lifecycle Controller publishes current state and invalidates affected PDP decisions</strong></summary>
+
+The controller translates the event through local policy into object-specific actions: invalidate cache entries, mark credentials or sessions changed, flag tasks/approvals for re-evaluation, and advance policy/lifecycle epochs. The event name itself is not a command.
+
+> **Local action surface:** reuse [§12.6](#126-receiver-processing-stream-health-and-reconciliation) Step 6's `{epoch, trigger, actions[], target, transition, enforcement_point, verify_with, deadline}` record and later read-back; “published” means the PDP's PIP/state view reflects that record, not that every target effect completed.
+
+</details>
+<details>
+<summary><strong>3. MCP Edge sends an initial AuthZEN evaluation using the current epoch</strong></summary>
+
+The edge maps the authenticated caller and exact MCP operation through the admitted COAZ/direct-SARC profile. Current subject, credential, risk, consent, task, and lifecycle state comes from trusted PIPs; a client-supplied event ID or epoch cannot select policy state.
+
+> **Exact decision delta:** use Flow 1's admitted SARC request and add the deployment-local current lifecycle/policy epoch in protected `context`.
+
+</details>
+<details>
+<summary><strong>4. AuthZEN PDP returns a requestable denial to the MCP Edge</strong></summary>
+
+The request remains denied. A valid `context.access_request` supplies ARAP requestability and denial binding, but no event, risk change, or task identifier becomes permission.
+
+> **Exact response surface:** use [§15.9.2.1](#15921-requestable-denial-contract)'s ARAP `decision: false` response with `evaluation_id`, reason, and bound `access_request`.
+
+</details>
+<details>
+<summary><strong>5. MCP Edge submits the bound Access Request to the Access Request Service</strong></summary>
+
+The edge sends the exact denied SARC envelope and integrity-protected authorization-relevant context under authenticated, idempotent ARAP submission. It records the lifecycle epoch on which the denial was based so later drift can force re-evaluation.
+
+> **Exact protocol reuse:** [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) Canonical Lifecycle Step 5; this bridge adds only local linkage to the current event/policy epoch.
+
+</details>
+<details>
+<summary><strong>6. Access Request Service returns approved task state and approval to the MCP Edge</strong></summary>
+
+An authenticated poll or callback leads to an approved ARAP result. The edge verifies its binding, scope, expiry, key, replay state, and task operation. Approval remains only an input to the future PDP request.
+
+> **Exact protocol reuse:** [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) Canonical Lifecycle Steps 8–12; no CAEP or Transaction Token field is inserted into the ARAP wire object.
+
+</details>
+<details>
+<summary><strong>7. SSF Receiver sends a later validated CAEP event to the Lifecycle Controller</strong></summary>
+
+While approval is pending or before it is consumed, a newer event can report session revocation, assurance reduction, credential change, or another admitted security-state transition for the subject/application. It undergoes the complete [§12.6](#126-receiver-processing-stream-health-and-reconciliation) pipeline and receives a later event epoch.
+
+> **Exact delta:** Step 1 repeats with a distinct SET `jti`, persisted event ID, event type, and strictly newer local epoch; delivery order alone does not establish semantic order.
+
+</details>
+<details>
+<summary><strong>8. Lifecycle Controller asks the Access Request Service to re-evaluate affected approval/task state</strong></summary>
+
+Local mapping decides whether the event revokes, supersedes, pauses, closes, or merely flags the approval/task. The controller authenticates the object operation, uses the bound subject/tenant/task identifiers, and separately records requested, accepted, applied, and verified state.
+
+> **Protocol boundary:** ARAP supplies authenticated task status/cancellation operations, but no universal CAEP-to-ARAP command mapping. This object-specific transition and its convergence evidence are deployment-local.
+
+</details>
+<details>
+<summary><strong>9. Lifecycle Controller publishes the newer authoritative state to the AuthZEN PDP</strong></summary>
+
+The PDP/PIP view advances even if a downstream cancellation acknowledgement is pending. It preserves verified, pending, conflicting, and unknown observations rather than treating receipt of the CAEP event or ARAP cancellation response as completed effect.
+
+> **Local state delta:** Step 2 repeats with the new epoch and updated target statuses from [§12.6](#126-receiver-processing-stream-health-and-reconciliation)'s convergence ledger.
+
+</details>
+<details>
+<summary><strong>10. MCP Edge sends a fresh evaluation with approval and the current epoch</strong></summary>
+
+The edge reloads the unchanged operation, current caller/token/task state, and verified approval, then requests a new decision. The original denial epoch remains evidence; the latest state controls.
+
+> **Exact decision surface:** [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) Canonical Lifecycle Step 13's `context.approval` evaluation plus the current protected lifecycle epoch; no cached pre-event permit is eligible.
+
+</details>
+<details>
+<summary><strong>11. AuthZEN PDP returns a current permit with decision ID and obligations</strong></summary>
+
+In the allow branch, policy has determined that the newer signal does not invalidate this exact approved operation—or that an independent offline/task authority legitimately survives it. Obligations constrain internal credential issuance, service audience, lifetime, data handling, and result release.
+
+> **Exact response reuse:** the Final AuthZEN Boolean decision plus the admitted deployment context schema from [§13.5.4](#1354-authorization-decision-tracing); no Transaction Token is present yet.
+
+</details>
+<details>
+<summary><strong>12. MCP Edge requests a bounded credential from the Transaction Token Service</strong></summary>
+
+Only after permit, the edge asks the TTS to replace external authority with a short-lived internal credential. It binds source-grant evidence, authorization subject, requesting workload, exact internal audience, operation digest, transaction facts, decision ID/obligations, current epoch, and an expiry no later than any approval/token/task ceiling.
+
+> **Exact protocol reuse:** [§20.3](#203-transaction-scoped-credentials) Transaction-Scoped Credentials Step 5; this bridge contributes the new AuthZEN/ARAP decision lineage and current epoch as bounded issuance inputs.
+
+</details>
+<details>
+<summary><strong>13. Transaction Token Service returns the short-lived credential to the MCP Edge</strong></summary>
+
+The TTS validates the requesting workload and source authorization and returns the revision-pinned Transaction Token `-09` credential. It does not serialize ARAP task/status, raw approval state, CAEP SET, or the complete external token.
+
+> **Exact protocol reuse:** [§20.3](#203-transaction-scoped-credentials) Step 7; the token remains inside one trust domain and is not an external OAuth, MCP task, or cross-domain purpose credential.
+
+</details>
+<details>
+<summary><strong>14. MCP Edge sends the internal request and Transaction Token to the Internal Service</strong></summary>
+
+The edge forwards the exact approved operation or an attenuated service-specific projection with the internal audience credential. A trace/transaction ID can correlate it, but does not authorize the call.
+
+> **Exact protocol reuse:** [§20.3](#203-transaction-scoped-credentials) Step 8; no external access token, ARAP continuation handle, approval ID, or raw CAEP event is forwarded as bearer authority.
+
+</details>
+<details>
+<summary><strong>15. Internal Service validates the Transaction Token and local entitlement</strong></summary>
+
+The service checks issuer, trust domain, audience, time, transaction, scope/context, workload, replay, and draft profile, then applies local resource/action/handle policy. A valid token can still be denied by local entitlement or changed object state.
+
+> **Exact protocol reuse:** [§20.3](#203-transaction-scoped-credentials) Step 9; Transaction Token validity and service authorization remain separate checks.
+
+</details>
+<details>
+<summary><strong>16. Internal Service returns the classified result to the MCP Edge</strong></summary>
+
+The service records effect/idempotency state and returns only the result permitted for the edge. The edge later applies MCP result-release policy. Token success is not proof that a CAEP-driven cancellation, external provider effect, or whole task converged.
+
+> **Exact result surface:** [§20.3](#203-transaction-scoped-credentials) Step 10's classified internal response; this bridge adds evidence links to the event epoch, AuthZEN decision, and approval without copying their sensitive bodies.
+
+</details>
+<details>
+<summary><strong>17. AuthZEN PDP denies because the newer state invalidates authority</strong></summary>
+
+In the deny branch, the newer security/lifecycle state, approval revocation, expired credential, policy change, or exact-scope mismatch prevents issuance. The edge creates no Transaction Token and dispatches no internal work.
+
+**Artifact Produced:** A current denied decision linked to both the approval and newer event/policy epoch.
+
+</details>
+<details>
+<summary><strong>18. MCP Edge records denial and terminates held work at the Access Request Service</strong></summary>
+
+The edge records `denied-not-executed`, closes/cancels the affected ARAP task where allowed, invalidates local task authority, and reconciles any independently queued/downstream state. It distinguishes cancellation requested, acknowledged, applied, and verified.
+
+> **Boundary rule:** use [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation)'s authenticated ARAP task operation plus [§§12.6](#126-receiver-processing-stream-health-and-reconciliation)–[12.7](#127-sessioncache-invalidation-and-requesttask-cancellation) convergence/read-back. Neither the PDP denial nor an ARAP acknowledgement proves an already dispatched external effect stopped.
+
+</details>
+
+<br/>
+
+The composition has two time directions. A validated event can change the inputs read by the initial or post-approval decision; a fresh permit can then constrain an internal Transaction Token. The reverse is not implied: token issuance does not acknowledge the event, and a CAEP event does not revoke a token or cancel a task until the responsible enforcement point applies and verifies its object-specific action.
 
 ##### 18.3.9 Broader Policy Engine Landscape
 
@@ -18032,9 +22042,25 @@ The response contains the granted authorization details, which may be narrower t
 
 This model reduces scope explosion and allows current attributes from multiple systems to influence the grant. It still requires registered authorization-detail types, trusted attribute provenance, bounded cache freshness, deterministic degraded-mode behavior, and an AS–RS enforcement contract.
 
-#### 19.4 RAR Agent Extensions: Monitor, Not Baseline
+#### 19.4 RAR Metadata and Requestable-Authorization Proposals: Projected Profile and Monitor
 
-The individual Internet-Draft [`draft-chen-oauth-rar-agent-extensions-01`](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) proposes `policy_context` and `lifecycle_binding` members for agent-oriented authorization details. As of 2026-07-24 it has no IETF working-group adoption or other formal standing. Treat the vocabulary as a design signal to monitor, not a production requirement, interoperability target, or extension that an AS/RS can safely accept without a private profile.
+RFC 9396 remains the stable base: it defines how an OAuth client requests structured authorization and how an authorization server returns the granted `authorization_details`. It does not define type discovery, a resource-to-client remediation challenge, a wait for a different approver, or a durable authorization-task object. The proposals below address those gaps at different layers and with different maturity.
+
+| Artifact | Verified status on 2026-07-28 | Role in this section | DR-0001 treatment |
+|:--|:--|:--|:--|
+| RFC 9396 Rich Authorization Requests | RFC | Requested and granted structured authorization | Stable base |
+| RAR Metadata and Error Remediation `-05` | Individual Internet-Draft, published 2026-07-04; expires 2027-01-05 | Type metadata plus resource-to-client remediation and token-selection reference | Projected convergence profile; not an RFC or WG-adopted item |
+| AuthZEN Access Request OAuth Profile (AROP) | Open AuthZEN repository PR #531 at `483abc2`; updated 2026-07-24 | Proposed ARAP-to-OAuth token-issuance completion binding | Monitor |
+| Deferred Token Response `-00` | Individual Internet-Draft, published 2026-06-23; expires 2026-12-25 | Generic asynchronous completion of an existing OAuth token request | Monitor |
+| OpenID Connect CIBA Core 1.0 | OpenID Final Specification | Decoupled authentication/authorization of the principal named by the hint | Use only under the selected CIBA profile; §15.5 is canonical |
+| Transaction Authorization Challenge `-00` | Individual Internet-Draft, published 2026-06-25; expires 2026-12-27 | Resource-signed, transaction-specific challenge relayed to an AS | Monitor |
+| `draft-chen-oauth-rar-agent-extensions-01` | Individual Internet-Draft with no WG adoption as checked 2026-07-28 | Agent policy/lifecycle design signals | Monitor |
+
+The OpenID Foundation's July 2026 AuthZEN article makes this composition a high-visibility direction, but only AuthZEN Authorization API 1.0 and CIBA in this list are Final specifications. AROP is not yet a published Working Group Draft, and the three OAuth Internet-Drafts retain their own change control. Implementations isolate every draft surface behind a revisioned adapter and preserve a stable fallback.
+
+##### 19.4.1 Existing RAR Agent Extensions
+
+The individual Internet-Draft [`draft-chen-oauth-rar-agent-extensions-01`](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) proposes `policy_context` and `lifecycle_binding` members for agent-oriented authorization details. As of 2026-07-28 it has no IETF working-group adoption or other formal standing. Treat the vocabulary as a design signal to monitor, not a production requirement, interoperability target, or extension that an AS/RS can safely accept without a private profile.
 
 | Proposal signal | Potential use | Missing contract that a deployment must define |
 |:----------------|:--------------|:-----------------------------------------------|
@@ -18052,6 +22078,1135 @@ Any local experiment must use a collision-resistant private `type`, version the 
 5. authenticate, order, deduplicate, and persist lifecycle events before changing authority; and
 6. deny unconsumed work immediately on terminal state while separately cancelling or compensating already dispatched work.
 
+##### 19.4.2 RAR Metadata and Error Remediation
+
+RAR Metadata `-05` adds two missing conversations to RFC 9396. First, an AS can publish `authorization_details_types_metadata_endpoint`, whose JSON members describe supported detail types with version, documentation, JSON Schema, and examples. Second, a resource can return `WWW-Authenticate: Bearer error="insufficient_authorization"` with an `authorization_remediation` parameter containing a base64url-encoded JSON object. That object contains an actionable RFC 9396 `authorization_details` array and may include an opaque `authorization_reference`.
+
+`authorization_reference` is intentionally not a serialized permission. A resource can derive a stable, non-sensitive reference from canonicalized authorization semantics so a client can find a token already associated with equivalent granted details. The client treats it as opaque, scopes the lookup by issuer/resource/client/subject, and validates the candidate token normally. The resource omits the reference when the credential is intended to be single-use.
+
+> **Important — Projected RAR convergence**
+>
+> DR-0001 emits the `-05` terms `insufficient_authorization`, `authorization_remediation`, and `authorization_reference`. A revision-pinned adapter may accept the older `insufficient_authorization_details` and `authorization_hint` spellings described in [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract), but it never propagates them beyond that boundary. This is a deployment profile over an individual draft, not a claim of IETF consensus.
+
+**Flow 11 — RAR type discovery, remediation, token selection, and retry.** This is the OAuth-native counterpart to the MCP carrier in Flow 8. It starts before denial by discovering the schemas needed to validate a detail type, and it ends only when the resource compares a selected token's **granted** details with the exact retried operation.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 OAuth Client
+    participant RS as 🛡️ Protected Resource / MCP Server
+    participant AS as 🏛️ Authorization Server
+    participant Meta as 📚 RAR Type Metadata Endpoint
+    participant Vault as 🔐 Credential Store
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Establish Trusted Metadata
+    Client->>RS: GET Protected Resource Metadata
+    RS-->>Client: Resource identifier + authorized AS list
+    Client->>AS: GET Authorization Server Metadata
+    AS-->>Client: authorization_details_types_metadata_endpoint
+    Client->>Meta: GET supported RAR type metadata
+    Meta-->>Client: Versioned schemas, docs, and examples
+    Note right of Vault: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Deny and Select Remediation
+    Client->>RS: Protected request + existing token
+    RS-->>Client: 401 insufficient_authorization<br/>authorization_remediation
+    Client->>Vault: Lookup authorization_reference<br/>under issuer/resource/client
+    Vault-->>Client: Matching valid token or miss
+    alt No suitable reusable token
+        Client->>AS: OAuth authorization request<br/>validated authorization_details
+        AS-->>Client: Access token + granted authorization_details
+        Note right of Vault: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of Vault: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(46, 204, 113, 0.14)
+    Note right of Client: Phase 3: Retry and Enforce the Grant
+    Client->>RS: Retry exact request + selected token
+    RS->>RS: Validate token, audience, granted details,<br/>exact operation, and replay policy
+    RS-->>Client: Authorized response
+    Note right of Vault: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. OAuth Client retrieves Protected Resource Metadata from the Resource</strong></summary>
+
+The client begins from the protected resource it intends to call and validates its RFC 9728 metadata, including the exact resource identifier and ordered/allowed authorization-server set. Redirect, TLS, issuer-mix-up, DNS, cache, and metadata-signing policy are applied before following any endpoint.
+
+> **Exact HTTP surface:** `GET` the validated `/.well-known/oauth-protected-resource` location for the resource; do not accept an authorization-server URL from an untrusted remediation body.
+
+</details>
+<details>
+<summary><strong>2. Protected Resource returns its identifier and authorized Authorization Servers</strong></summary>
+
+The response anchors the token audience/resource and identifies the issuers the resource trusts. A remediation object cannot add an arbitrary AS; if the currently selected AS lacks the needed RAR type, the client may choose another only from this validated set.
+
+```json
+{
+  "resource": "https://payments.example.com",
+  "authorization_servers": [
+    "https://as.example.com"
+  ]
+}
+```
+
+**Artifact Produced:** A cache-bounded resource/issuer trust record.
+
+</details>
+<details>
+<summary><strong>3. OAuth Client retrieves Authorization Server Metadata</strong></summary>
+
+The client validates issuer equality, endpoint origins, supported grants, sender-constraining methods, and the `authorization_details_types_metadata_endpoint` proposed by `-05`. Absence means type metadata must come from a preconfigured profile; it is not permission to accept an arbitrary schema URL from a denial.
+
+> **Exact HTTP surface:** retrieve RFC 8414 or OpenID Provider metadata from the already trusted AS issuer and apply the metadata-chain rules in [§3.4](#34-scope-minimization-challenge-governance-and-rar-handoff).
+
+</details>
+<details>
+<summary><strong>4. Authorization Server identifies its RAR Type Metadata Endpoint</strong></summary>
+
+The endpoint is optional draft metadata. The client binds it to the AS issuer and caches it under its HTTP validators and local maximum age.
+
+```json
+{
+  "issuer": "https://as.example.com",
+  "authorization_details_types_metadata_endpoint":
+    "https://as.example.com/authorization-details-types"
+}
+```
+
+**Artifact Produced:** A validated AS-to-type-catalog binding.
+
+</details>
+<details>
+<summary><strong>5. OAuth Client retrieves supported RAR type metadata</strong></summary>
+
+The request is a bounded HTTPS `GET` to the admitted AS endpoint. The client limits redirects, response bytes, nesting, member count, schema complexity, fetch time, and cache lifetime. Authentication, if required by a deployment profile, is scoped to this endpoint and never forwarded to a schema/documentation origin.
+
+```http
+GET /authorization-details-types HTTP/1.1
+Host: as.example.com
+Accept: application/json
+```
+
+**Artifact Produced:** A bounded metadata-fetch attempt linked to one AS issuer.
+
+</details>
+<details>
+<summary><strong>6. RAR Type Metadata Endpoint returns versioned schemas, documentation, and examples</strong></summary>
+
+The response is a JSON object keyed by authorization-detail type. `json_schema` is authoritative validation material only under the selected profile; examples and prose are non-normative and never override registered comparison or security rules.
+
+```json
+{
+  "payment_initiation": {
+    "version": "1.0",
+    "documentation": "https://as.example.com/docs/payment-initiation",
+    "json_schema": {
+      "type": "object",
+      "required": ["type", "instructed_amount", "creditor_account"],
+      "properties": {
+        "type": {"const": "payment_initiation"},
+        "instructed_amount": {"type": "object"},
+        "creditor_account": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "examples": [
+      {
+        "type": "payment_initiation",
+        "instructed_amount": {"currency": "EUR", "amount": "100.00"},
+        "creditor_account": {"opaque_id": "payee-42"}
+      }
+    ]
+  }
+}
+```
+
+Schema source, type/version, response digest, retrieval time, validator, and trust classification enter the admission record. A later schema change cannot silently reinterpret an outstanding remediation.
+
+**Artifact Produced:** A revisioned RAR-type admission record.
+
+</details>
+<details>
+<summary><strong>7. OAuth Client calls the Protected Resource with an existing credential</strong></summary>
+
+The client sends the real operation and a token already bound to the resource. The server validates the credential before deciding whether the missing authority can be described through RAR remediation.
+
+```http
+POST /payments HTTP/1.1
+Host: payments.example.com
+Authorization: DPoP &lt;existing-access-token>
+DPoP: &lt;proof>
+Content-Type: application/json
+
+{
+  "amount": "123.50",
+  "currency": "EUR",
+  "creditor_account": "payee-42"
+}
+```
+
+**Artifact Produced:** A concrete protected operation evaluated against an existing grant.
+
+</details>
+<details>
+<summary><strong>8. Protected Resource returns canonical insufficient-authorization remediation</strong></summary>
+
+The resource uses `401 Unauthorized`, constructs actionable details from the failed request, minimizes sensitive values, and base64url-encodes the JSON object into `authorization_remediation`.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="insufficient_authorization",
+  error_description="Additional authorization is required",
+  authorization_remediation="<base64url(JSON)>"
+Cache-Control: no-store
+```
+
+Decoded only after size and syntax checks:
+
+```json
+{
+  "authorization_details": [
+    {
+      "type": "payment_initiation",
+      "instructed_amount": {
+        "currency": "EUR",
+        "amount": "123.50"
+      },
+      "creditor_account": {
+        "opaque_id": "payee-42"
+      }
+    }
+  ],
+  "authorization_reference": "rarref-Yb7q3AC5d"
+}
+```
+
+This basic remediation object is not signed. The client validates it as input; the AS later decides what it may grant, and the resource later enforces the granted object.
+
+**Artifact Produced:** A non-authoritative but actionable remediation request tied to the failed operation.
+
+</details>
+<details>
+<summary><strong>9. OAuth Client asks its Credential Store about the opaque authorization reference</strong></summary>
+
+The client does not parse or hash-match the value itself. It scopes the lookup by AS issuer, protected resource, client, subject/account, RAR type/version, and sender-constraining key to prevent cross-issuer or cross-tenant token confusion.
+
+> **Host-local lookup:** `{authorization_reference, issuer, resource, client_id, subject, sender_key}`; no portable OAuth or MCP credential-vault API is implied.
+
+</details>
+<details>
+<summary><strong>10. Credential Store returns a matching valid token or a miss</strong></summary>
+
+A candidate still undergoes expiry, issuer, audience, subject, client, sender-constraint, revocation/freshness, and granted-details checks. Reference collisions or stale local bindings fail as misses. The reference is omitted by the resource for single-use credentials and may be ignored by a client that does not support token reuse.
+
+> **Host-local result:** `{token_handle, issuer, resource, client_id, subject, granted_details_digest, sender_key, expires_at}` or an explicit miss; raw credential bytes remain in the vault.
+
+**Artifact Produced:** A validated token candidate or a bounded miss.
+
+</details>
+<details>
+<summary><strong>11. OAuth Client submits validated authorization details to the Authorization Server on a miss</strong></summary>
+
+The client constructs a fresh authorization request using the admitted RAR type/version. It may use an ordinary interactive grant, CIBA for same-principal decoupling, or DTR where the selected grant's token response may be deferred. The AS independently validates the requested details and may narrow or reject them.
+
+> **Exact delta:** the `authorization_details` parameter contains the validated array from Step 8; `authorization_reference` is a client token-selection hint and is not automatically sent as proof of entitlement.
+
+</details>
+<details>
+<summary><strong>12. Authorization Server returns a token with the granted authorization details</strong></summary>
+
+The token response conveys what was actually granted, which may be narrower than the remediation request. The AS binds it to the exact resource and selected sender key and avoids embedding sensitive detail in a self-contained JWT when authenticated introspection is the safer RS delivery contract.
+
+```json
+{
+  "access_token": "<sender-constrained-access-token>",
+  "token_type": "DPoP",
+  "expires_in": 300,
+  "authorization_details": [
+    {
+      "type": "payment_initiation",
+      "instructed_amount": {
+        "currency": "EUR",
+        "amount": "123.50"
+      },
+      "creditor_account": {
+        "opaque_id": "payee-42"
+      }
+    }
+  ]
+}
+```
+
+**Artifact Produced:** A resource-bound credential and granted-details record.
+
+</details>
+<details>
+<summary><strong>13. OAuth Client retries the exact operation with the selected credential</strong></summary>
+
+Whether the token came from the vault or a new grant, the client sends a fresh protected-resource request and proof. It does not send `authorization_reference` as if it were a capability and does not modify the operation to fit broader requested details.
+
+> **Exact HTTP delta:** Step 7 repeats with the selected token and a fresh DPoP proof; the method, resource, amount, currency, and payee remain the same logical operation.
+
+</details>
+<details>
+<summary><strong>14. Protected Resource validates the token, grant, exact operation, and replay policy</strong></summary>
+
+The resource validates issuer, audience, expiry, sender constraint, token status, client/subject/actor, registered RAR type/version, and every granted detail against the actual request. It applies one-time/idempotency state where required and does not infer sufficiency from an opaque reference or from what was requested.
+
+> **Enforcement record:** `{token_id_hash, granted_details_digest, operation_digest, comparison_profile, sender_key, replay_state, decision, obligations}`.
+
+</details>
+<details>
+<summary><strong>15. Protected Resource returns the authorized response to the OAuth Client</strong></summary>
+
+The resource executes only after validation and separately authorizes/redacts response data. Success proves that this request was admitted; it does not turn the token into task-wide or cross-resource authority.
+
+> **Exact HTTP surface:** return the protected endpoint's ordinary success representation under its documented content type; RAR remediation adds no success header or reusable approval object.
+
+**Artifact Produced:** A result linked to the selected grant, exact request, and effect evidence.
+
+</details>
+
+<br/>
+
+The discovery/remediation path fails closed on oversized or malformed base64url input, unknown or downgraded RAR types, schema-origin substitution, incompatible metadata revisions, reference collisions or privacy correlation, client-modified details, resource/AS semantic disagreement, sensitive details in client-readable tokens, and repeated insufficient-grant loops. §17.5.1 owns the full adapter and retry-failure matrix; this subsection owns the OAuth discovery and grant semantics.
+
+##### 19.4.3 AROP and Deferred Token Completion
+
+The proposed [AuthZEN Access Request OAuth Profile (AROP)](https://github.com/openid/authzen/pull/531) binds ARAP resolution to OAuth token issuance. It is an open pull request, not a published AuthZEN Working Group Draft. Its valuable design rule is that the OAuth client never carries AuthZEN denial, binding, task, approval, or decision objects: the Authorization Server acts as PEP, runs AuthZEN/ARAP internally, and exposes only the selected OAuth asynchronous transport and eventual token response.
+
+AROP does not invent a `result.mode` that travels to the client. ARAP Draft 1 defines `reevaluate` completion for resource-side enforcement. The proposed OAuth profile defines a different completion semantics in which the AS performs the fresh evaluation at issuance time and, on permit, the **OAuth token response itself** is completion. The resulting access token carries the approved grant; its lifetime and every refresh/exchange descendant remain bounded by `approved_until`.
+
+[Deferred Token Response `-00`](https://datatracker.ietf.org/doc/draft-gerber-oauth-deferred-token-response/) is the most general of AROP's proposed transports. A client opts into a possibly deferred result with `completion_mode=deferred` on an ordinary grant's token request. The AS may still return a synchronous token or ordinary error. If it defers, it returns HTTP 400 with `authorization_pending`, an opaque `deferral_code`, its lifetime, and polling interval. That handle is an AS credential for retrieving one eventual response—not a resource access token—and is redeemed at most once.
+
+| State carrier | Held by | Permitted use | Does not prove |
+|:--|:--|:--|:--|
+| RAR `authorization_details` request | Client and AS | Describe requested structured authority | What was granted |
+| AuthZEN `evaluation_id` / ARAP `binding_token` | AS/PDP/Access Request Service | Bind and verify the internal requestable denial | Client authority or issued access |
+| ARAP task and approval | AS-side services | Resolve workflow and feed issuance-time re-evaluation | An OAuth token was issued or delivered |
+| DTR `deferral_code` | Client and AS | Poll/redeem one pending token response; revoke pending issuance | Access to the protected resource |
+| DTR callback `deferral_code` + `client_notification_token` | Registered client callback and AS | Authenticate a resolution hint and identify what to poll | Final outcome or token |
+| OAuth access/refresh token | Client, AS, and intended RS | Exercise the granted authorization within its audience/lifetime | Durable approval workflow, completed effect, or authority after `approved_until` |
+
+**Flow 9 — Proposed AROP completion through Deferred Token Response.** AuthZEN and ARAP arrows are entirely behind the AS. The client sees DTR only. The cancellation branch and approval branch are mutually exclusive terminal paths over one `deferral_code`.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 OAuth Client / Agent
+    participant AS as 🏛️ Authorization Server / PEP
+    participant PDP as ⚖️ AuthZEN PDP
+    participant ARS as 🧭 Access Request Service
+    participant RS as 🛡️ MCP Resource Server
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: Discover and Defer
+    Client->>AS: GET Authorization Server Metadata
+    AS-->>Client: deferred_token_response_supported: true
+    Client->>AS: POST /token<br/>originating grant + authorization_details<br/>completion_mode=deferred + sender proof
+    AS->>PDP: Internal AuthZEN evaluation
+    PDP-->>AS: decision: false<br/>context.access_request
+    AS->>ARS: Internal bound ARAP Access Request
+    ARS-->>AS: Pending ARAP task
+    AS-->>Client: 400 authorization_pending<br/>deferral_code, expires_in, interval
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Poll, Cancel, or Resolve
+    Client->>AS: POST /token deferred grant<br/>same client + sender key
+    AS-->>Client: authorization_pending or slow_down<br/>Cache-Control: no-store
+    alt Client cancels before token delivery
+        Client->>AS: POST /revoke<br/>deferral_code + type hint + sender proof
+        AS->>ARS: Cancel underlying pending Access Request
+        AS-->>Client: 200 OK<br/>later poll: access_denied
+    else Approval workflow resolves
+        ARS-->>AS: Approved ARAP task + approval
+        AS->>PDP: Fresh original evaluation<br/>with context.approval
+        PDP-->>AS: decision: true + granted constraints
+        AS-->>Client: Optional authenticated callback<br/>deferral_code only
+        Client->>AS: POST /token deferred grant<br/>one-time redemption
+        AS-->>Client: Access token response<br/>granted authorization_details
+        Client->>RS: MCP request + sender-constrained token
+        RS-->>Client: Authorized result
+        Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of RS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. OAuth Client retrieves Authorization Server Metadata</strong></summary>
+
+The client validates the issuer and ordinary OAuth endpoints before reading any draft field. DTR support is issuer-specific; a multi-issuer deployment cannot copy one AS's capability to another.
+
+> **Exact HTTP surface:** retrieve the already trusted RFC 8414/OpenID metadata document; callback and revocation endpoints remain separately registered/discovered surfaces.
+
+</details>
+<details>
+<summary><strong>2. Authorization Server advertises Deferred Token Response support</strong></summary>
+
+The `-00` draft defines a Boolean metadata member. Its presence means the AS understands the DTR opt-in and deferred grant; it does not promise that any particular request will be deferred.
+
+```json
+{
+  "issuer": "https://as.example.com",
+  "token_endpoint": "https://as.example.com/token",
+  "revocation_endpoint": "https://as.example.com/revoke",
+  "deferred_token_response_supported": true,
+  "revocation_endpoint_token_type_values_supported": [
+    "urn:ietf:params:oauth:token-type:deferral-code"
+  ]
+}
+```
+
+**Artifact Produced:** A pinned issuer/DTR/revocation capability record.
+
+</details>
+<details>
+<summary><strong>3. OAuth Client sends an originating token request with RAR, explicit deferral opt-in, and sender proof</strong></summary>
+
+The originating grant remains its normal grant—Token Exchange in this example. `completion_mode=deferred` says the client can handle either a synchronous token, a deferred response, or an ordinary error. A public client or a profile that mandates DPoP supplies a proof now; a callback-capable client supplies a fresh per-request `client_notification_token` with at least 128 bits of entropy.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: &lt;proof-for-token-endpoint>
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Atoken-exchange&
+subject_token=%3Csubject-token%3E&
+subject_token_type=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Aaccess_token&
+resource=https%3A%2F%2Fcrm.example.com&
+authorization_details=%5B%7B%22type%22%3A%22customer_records%22%2C%22actions%22%3A%5B%22read%22%5D%2C%22locations%22%3A%5B%22https%3A%2F%2Fcrm.example.com%2Fcustomers%2Fc-4815%22%5D%7D%5D&
+completion_mode=deferred&
+client_notification_token=%3C160-bit-random-value%3E
+```
+
+If a preceding authorization endpoint carried a deferred hint, the token request must repeat the opt-in; a polling request never repeats it.
+
+**Artifact Produced:** A validated originating grant request plus requested-authority digest and sender-key binding.
+
+</details>
+<details>
+<summary><strong>4. Authorization Server sends an internal AuthZEN evaluation to its PDP</strong></summary>
+
+The AS maps the principal the token will represent, current agent/client, each requested RAR resource/action, target resource, sender key, and grant context into SARC. Neither this request nor the later decision crosses the OAuth client boundary.
+
+> **Exact internal delta:** use the standard AuthZEN request described in [§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability); place the RAR type's resource/action mapping and the DPoP JWK thumbprint in an admitted context profile.
+
+</details>
+<details>
+<summary><strong>5. AuthZEN PDP returns a requestable denial to the Authorization Server</strong></summary>
+
+The response remains `decision: false` and contains valid ARAP requestability and denial-binding material. A deny without `context.access_request` is synchronous and does not produce a `deferral_code`.
+
+```json
+{
+  "decision": false,
+  "context": {
+    "evaluation_id": "ev-9f2c8a1b",
+    "reason": "approval_required",
+    "access_request": {
+      "expires_at": "2026-07-29T12:00:00Z"
+    }
+  }
+}
+```
+
+**Artifact Produced:** An internal denied-but-requestable evaluation.
+
+</details>
+<details>
+<summary><strong>6. Authorization Server submits the bound Access Request to its Access Request Service</strong></summary>
+
+The AS authenticates as the submitting PEP and sends the unchanged denial binding, subject, resource, action, authorization-relevant context, and idempotency key. This is an internal approval submission, not an outbound OAuth request and not a request performed by the client.
+
+> **Exact protocol reuse:** the ARAP `POST` is the same operation shown in [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) Canonical Lifecycle Step 5; AROP adds issuer-side continuation/credential semantics, not a new ARAP body.
+
+</details>
+<details>
+<summary><strong>7. Access Request Service returns a pending ARAP task to the Authorization Server</strong></summary>
+
+The AS stores the ARAP task ID/status endpoint and binds it to the originating grant digest, client, sender key, requested details, approval expiry ceiling, and one future DTR handle. It does not reveal the ARAP task to the client.
+
+> **Custody delta:** the ARAP task is identical to [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) Step 6, but the AS—not the MCP client—owns every status, callback, and cancellation operation.
+
+</details>
+<details>
+<summary><strong>8. Authorization Server returns the DTR authorization-pending response</strong></summary>
+
+The deferred response is HTTP 400 and **not** a token response. `deferral_code` is opaque, contains at least 128 bits of entropy (160 recommended), is bound to the authenticated client and same DPoP key or mTLS identity, and has a distinct lifetime from any future token.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "error": "authorization_pending",
+  "deferral_code": "8d67dc78-7faa-4d41-aabd-67707b374255",
+  "expires_in": 10800,
+  "interval": 60
+}
+```
+
+The client stores the handle as a secret comparable to a refresh token; it does not log it or expose it to the model.
+
+**Artifact Produced:** A sender-constrained, single-response continuation handle.
+
+</details>
+<details>
+<summary><strong>9. OAuth Client polls the Authorization Server with the deferred grant and same sender key</strong></summary>
+
+The poll contains only the deferred grant type and `deferral_code`, authenticates the same client, and proves the same DPoP key or mTLS binding. It occurs no faster than the retained `interval`.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: &lt;proof-from-the-same-key>
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adeferred&
+deferral_code=8d67dc78-7faa-4d41-aabd-67707b374255
+```
+
+**Artifact Produced:** An authenticated redemption attempt for one pending token result.
+
+</details>
+<details>
+<summary><strong>10. Authorization Server returns pending or slowdown state to the OAuth Client</strong></summary>
+
+`authorization_pending` means continue at the original interval. `slow_down` requires increasing the interval by at least five seconds; persistent over-polling may become terminal `invalid_request`. `expired_token`, `access_denied`, `invalid_grant`, and `invalid_request` stop polling. Every response carries `Cache-Control: no-store`; pending polls do not repeat the code or interval.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "error": "authorization_pending"
+}
+```
+
+Progress text is optional, non-authoritative, and excludes personal data, document identifiers, approver identity, or untrusted free text.
+
+**Artifact Produced:** A bounded polling-state transition.
+
+</details>
+<details>
+<summary><strong>11. OAuth Client revokes the deferral code if it cancels before delivery</strong></summary>
+
+This branch uses RFC 7009 and only when metadata advertises deferral-code support. The request authenticates the same client and, where DPoP bound, uses the same key.
+
+```http
+POST /revoke HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+DPoP: &lt;proof-from-the-same-key>
+
+token=8d67dc78-7faa-4d41-aabd-67707b374255&
+token_type_hint=urn%3Aietf%3Aparams%3Aoauth%3Atoken-type%3Adeferral-code
+```
+
+**Artifact Produced:** An idempotent request to suppress pending issuance.
+
+</details>
+<details>
+<summary><strong>12. Authorization Server cancels the underlying Access Request</strong></summary>
+
+For a recognized, client-bound, unredeemed code, the AS atomically marks the DTR request cancelled, suppresses callbacks not yet initiated, and cancels the ARAP task. An unrecognized, cross-client, expired, cancelled, or redeemed code still receives the RFC 7009 indistinguishable response.
+
+> **Internal delta:** invoke the authenticated ARAP cancellation operation from [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation) and retain separate `dtr_cancelled`, `arap_cancel_requested`, `callback_suppressed`, and `issuance_suppressed` evidence.
+
+</details>
+<details>
+<summary><strong>13. Authorization Server returns idempotent revocation success to the OAuth Client</strong></summary>
+
+RFC 7009 returns HTTP 200 whether or not the supplied code was active. Later polling of a successfully cancelled pending code yields `access_denied`. If a token response was committed but not delivered, cancellation suppresses delivery. If the token was already delivered, cancelling the deferral code does **not** revoke that access token; the client must revoke the token separately.
+
+```http
+HTTP/1.1 200 OK
+Cache-Control: no-store
+```
+
+**Artifact Produced:** Non-disclosing cancellation acknowledgement, not proof that external workflow data was deleted.
+
+</details>
+<details>
+<summary><strong>14. Access Request Service returns the approved ARAP state to the Authorization Server</strong></summary>
+
+In the success branch, authenticated callback or authoritative polling reveals an approved task and verified approval object. The AS checks task/client/request binding, scope, `approved_until`, revocation, replay, and exact requested-detail digest.
+
+> **Exact protocol reuse:** the ARAP approved result is the same verified `approval` object used in [§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation); it remains internal to AS/PDP and never becomes the DTR response.
+
+</details>
+<details>
+<summary><strong>15. Authorization Server sends a fresh evaluation with approval to the AuthZEN PDP</strong></summary>
+
+The AS reconstructs the original grant and RAR request, revalidates the client, subject, consent, sender key, resource, and current policy, and adds `context.approval`. A stale, revoked, changed, unverifiable, or out-of-scope approval results in `access_denied`.
+
+> **Exact decision delta:** repeat Step 4 over the immutable requested-authority digest and current facts, adding the verified ARAP approval only.
+
+</details>
+<details>
+<summary><strong>16. AuthZEN PDP permits issuance under current granted constraints</strong></summary>
+
+The PDP's permit authorizes the AS to issue no more than the approved resource/action set and obligations. It does not authorize a resource effect; the later RS still validates the issued credential and exact operation.
+
+**Artifact Produced:** Issuance-time decision evidence and approved authorization ceiling.
+
+</details>
+<details>
+<summary><strong>17. Authorization Server sends an optional authenticated callback to the OAuth Client</strong></summary>
+
+The callback is HTTPS `POST` to the pre-registered `deferred_client_notification_endpoint`, includes the `deferral_code` in the JSON body, and uses the per-request `client_notification_token` as a Bearer credential when supplied. It carries no token or outcome. The client returns 204, never redirects, and still polls.
+
+```http
+POST /deferred-ready HTTP/1.1
+Host: client.example.com
+Authorization: Bearer &lt;client_notification_token>
+Content-Type: application/json
+
+{
+  "deferral_code": "8d67dc78-7faa-4d41-aabd-67707b374255"
+}
+```
+
+The AS validates callback URL ownership at registration, re-resolves safely at delivery, blocks private/link-local/loopback destinations outside explicit test profiles, pins the delivery address, bounds time/body, ignores response content, and never places either secret in the URL.
+
+**Artifact Produced:** An authenticated advisory “poll now” signal.
+
+</details>
+<details>
+<summary><strong>18. OAuth Client redeems the deferral code once at the Authorization Server</strong></summary>
+
+The client repeats the Step 9 poll after callback or on its own schedule. The AS checks client and sender key, handle expiry, terminal state, previous redemption, current consent/client status, approval ceiling, and atomic issuance state before committing a response.
+
+> **Exact HTTP delta:** Step 9 repeats with a fresh DPoP proof; callback data is not added to the request.
+
+</details>
+<details>
+<summary><strong>19. Authorization Server returns the originating grant's access-token response</strong></summary>
+
+The successful poll is the original grant's normal success shape, uses `Cache-Control: no-store`, and consumes the `deferral_code`. The access token is bound to the same DPoP key where DPoP constrained the handle, carries granted—not merely requested—details, and expires no later than `approved_until`.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "access_token": "<DPoP-bound-access-token>",
+  "token_type": "DPoP",
+  "expires_in": 900,
+  "authorization_details": [
+    {
+      "type": "customer_records",
+      "actions": ["read"],
+      "locations": [
+        "https://crm.example.com/customers/c-4815"
+      ]
+    }
+  ]
+}
+```
+
+Subsequent redemption of the same code returns `invalid_grant`. This OAuth response—not a client-visible ARAP `result.mode`—is AROP completion.
+
+**Artifact Produced:** One delivered, approval-bounded OAuth credential.
+
+</details>
+<details>
+<summary><strong>20. OAuth Client presents the sender-constrained token to the MCP Resource Server</strong></summary>
+
+The client calls the exact MCP primitive under the ordinary resource token contract. The RS validates issuer, resource/audience, sender proof, actor/client, expiry, granted RAR details, token status, and operation parameters; it does not accept the historical `deferral_code` or approval ID.
+
+> **Exact MCP delta:** the original request is retried with `Authorization: DPoP <access-token>` and a fresh DPoP proof; no AuthZEN/ARAP/DTR object appears in JSON-RPC.
+
+</details>
+<details>
+<summary><strong>21. MCP Resource Server returns the authorized result to the OAuth Client</strong></summary>
+
+The server applies effect idempotency and separate result-release authorization. Offline validation makes the AS issuance-time decision only as current as token lifetime and revocation support, which is why high-impact access uses short lifetimes or introspection and never exceeds `approved_until`.
+
+> **Exact MCP surface:** return the ordinary typed `CallToolResult`; AROP/DTR state stays behind the AS and no `deferral_code` or approval object enters the resource result.
+
+**Artifact Produced:** Resource effect/result evidence linked to the issued token and originating approval lineage.
+
+</details>
+
+<br/>
+
+The credential family is bounded as one approval projection:
+
+| Credential operation | Required AROP profile behavior |
+|:--|:--|
+| Access-token issuance | Granted `authorization_details` and scope do not broaden the originating request; audience identifies the intended resource; expiry is no later than `approved_until` |
+| Refresh within the approval window | Re-evaluate current client, subject, consent, policy, and approval; issue no broader or longer-lived authority |
+| Refresh after `approved_until` | Return `invalid_grant`; require a new access request |
+| Token exchange | Downstream token narrows audience/rights and cannot outlive `approved_until`; exchange after the ceiling fails |
+| Single-use approval | Do not issue a refresh token; RS maintains single-use/effect state where required |
+| Standing time-bounded approval | A refresh token may exist only within the approval ceiling and with re-evaluation at every refresh |
+| Need current policy on every call | Use ARAP `reevaluate` completion at the resource/PDP rather than token-issuance completion |
+| Deferral-code cancellation after token delivery | Does not revoke the access token; revoke that credential explicitly and propagate resource-side termination |
+
+##### 19.4.4 CIBA Completion Delta
+
+CIBA already has a complete canonical treatment in [§15.5](#155-tier-5-ciba-protocol); this subsection states only AROP's proposed authorization-completion delta. The client names a principal with `login_hint`, `login_hint_token`, or `id_token_hint`; that is the person the OpenID Provider authenticates and the identity represented by the issued token. The decoupled device may be different from the agent's device, but the **principal is the same**.
+
+That makes CIBA appropriate when Alice approves an elevation for a token that acts as Alice. It is not a generic mechanism for Alice's manager, a data owner, or a security administrator to approve a token that acts as Alice. A different business approver belongs inside the ARAP workflow behind DTR, or behind a resource-signed Transaction Authorization Challenge, where the AS selects the approving authority by policy rather than from CIBA's subject hint.
+
+| CIBA delivery mode | Client-visible completion | Approval-specific boundary |
+|:--|:--|:--|
+| `poll` | Client redeems `auth_req_id` at the token endpoint and handles pending/slowdown/terminal state | Token endpoint remains authoritative |
+| `ping` | Authenticated callback identifies `auth_req_id`; client then redeems it at the token endpoint | Callback is readiness notice, not grant |
+| `push` | Authenticated client notification endpoint receives token response directly | No token-endpoint polling; higher token-delivery/callback custody risk |
+
+Under the proposed AROP binding, the AS maps the backchannel request's principal, RAR details, client, resource, and sender key into AuthZEN internally. A requestable denial opens ARAP; approval feeds a fresh issuance-time evaluation; the selected CIBA delivery mode returns a token bounded by `approved_until`. CIBA `binding_message` can provide a short cross-device cue but does not by itself bind every material tool argument; the server-side canonical request digest and approved RAR object supply that contract.
+
+##### 19.4.5 Transaction Authorization Challenge
+
+[Transaction Authorization Challenge `-00`](https://datatracker.ietf.org/doc/draft-rosomakho-oauth-txn-challenge/) moves the requestable-denial assertion to the protected resource. A capable agent sends `Accept-Txn-Challenge: ?1`; the resource may respond with `401` and `error="transaction_authorization_required"` plus a compact JWS `transaction_challenge`. The resource signs a short-lived JWT that identifies itself as `iss`, the trusted AS as `aud`, freshness/replay values (`iat`, `exp`, `jti`), the resource-generated `txn`, requested `authorization_details`, integrity-protected human-readable `reason`, and optional `reason_uri`/`act`.
+
+This has a stronger origin-binding property than unsigned RAR remediation: the AS can verify that a trusted resource requested authorization for the exact signed transaction. It also creates more infrastructure. The resource becomes a challenge issuer with keys and metadata; the client must validate before display or disclosure; the AS must trust the resource and its RAR vocabulary; and the resource must later validate the `txn`-bound token and enforce single-use/idempotency where the operation requires it.
+
+**Flow 10 — CIBA same-principal completion and resource-signed transaction-challenge delta.** The first phase shows only the CIBA mode differences already detailed in [§15.5](#155-tier-5-ciba-protocol). The second phase shows the complete transaction-challenge boundary because its resource signature, disclosure choice, AS endpoint, and return-token validation are new to DR-0001.
+
+```mermaid
+---
+config:
+  themeVariables:
+    noteBkgColor: "transparent"
+    noteBorderColor: "transparent"
+  sequence:
+    messageAlign: left
+    noteAlign: left
+    actorMargin: 250
+---
+sequenceDiagram
+    autonumber
+    participant Client as 🤖 OAuth Client / Agent Host
+    participant AS as 🏛️ Authorization Server
+    participant Principal as 👤 Named CIBA Principal
+    participant RS as 🛡️ Protected Resource
+    participant ARS as 🧭 Approval Workflow
+
+    rect rgba(148, 163, 184, 0.14)
+    Note right of Client: Phase 1: CIBA Same-Principal Delta
+    Client->>AS: POST backchannel authentication<br/>principal hint + RAR + notification token
+    AS->>Principal: Decoupled authentication and<br/>same-principal authorization prompt
+    Principal-->>AS: Authenticate and approve/deny
+    alt Poll mode
+        Client->>AS: POST /token<br/>CIBA grant + auth_req_id
+        AS-->>Client: Pending/error or approved token response
+    else Ping mode
+        AS-->>Client: Authenticated callback<br/>auth_req_id
+        Client->>AS: POST /token<br/>CIBA grant + auth_req_id
+        AS-->>Client: Approved token response
+    else Push mode
+        AS-->>Client: Authenticated callback<br/>direct token response
+        Note right of ARS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+    Note right of ARS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+
+    rect rgba(241, 196, 15, 0.14)
+    Note right of Client: Phase 2: Resource-Signed Challenge
+    Client->>RS: Protected operation<br/>Accept-Txn-Challenge: ?1
+    RS-->>Client: 401 transaction_authorization_required<br/>signed transaction_challenge
+    Client->>Client: Validate JWS and disclosure<br/>decision before relay
+    Client->>AS: POST transaction_authorization_endpoint<br/>unchanged transaction_challenge
+    AS->>ARS: Validate resource request and<br/>obtain required approval
+    ARS-->>AS: Approved transaction result
+    AS-->>Client: transaction_authorization_id<br/>expires_in, interval, optional URI
+    Client->>AS: Poll transaction_authorization_endpoint
+    AS-->>Client: authorization_pending / slow_down
+    Client->>AS: Poll after interval/backoff
+    AS-->>Client: Short-lived txn-bound access token<br/>granted authorization_details
+    Client->>RS: Retry exact operation<br/>transaction token + sender proof
+    RS->>RS: Validate issuer, audience, txn,<br/>grant, actor, replay, and exact request
+    RS-->>Client: Authorized result
+    Note right of ARS: ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+    end
+```
+
+<details>
+<summary><strong>1. OAuth Client sends a CIBA backchannel request naming the token principal</strong></summary>
+
+The client uses the registered backchannel endpoint, includes `openid`, identifies the principal through one standard hint, supplies RAR details and any additional scope, and provides `client_notification_token` for ping/push. The delivery mode is registered; it is not chosen opportunistically per callback.
+
+> **Exact delta from [§15.5](#155-tier-5-ciba-protocol):** add the admitted RFC 9396 `authorization_details` and bind their canonical digest to `auth_req_id`; all ordinary CIBA authentication, hint, request-object, and client-authentication rules still apply.
+
+</details>
+<details>
+<summary><strong>2. Authorization Server prompts the Named CIBA Principal on the decoupled channel</strong></summary>
+
+The principal identified by the hint authenticates on the Authentication Device and sees a trusted representation of the requested access. `binding_message` is a cross-device correlation cue, not a substitute for the full bound operation.
+
+> **UI boundary:** display is derived from the AS's validated RAR/request record. The client cannot name a different manager and call that person the CIBA principal for a token acting as someone else.
+
+</details>
+<details>
+<summary><strong>3. Named CIBA Principal authenticates and approves or denies at the Authorization Server</strong></summary>
+
+Authentication and approval are attached to the same principal the issued ID/access token represents. Under proposed AROP composition, any internal ARAP task and fresh issuance-time evaluation remain behind the AS.
+
+**Artifact Produced:** Same-principal CIBA interaction evidence, not a generic third-party approval.
+
+</details>
+<details>
+<summary><strong>4. OAuth Client polls the Authorization Server with the CIBA grant in Poll mode</strong></summary>
+
+The client authenticates at the token endpoint, submits the registered CIBA grant type and `auth_req_id`, honors `interval`, and handles `authorization_pending`, `slow_down`, `expired_token`, and `access_denied` exactly as [§15.5](#155-tier-5-ciba-protocol) specifies.
+
+```http
+POST /token HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba&
+auth_req_id=1c266114-a1be-4252-8ad1-04986c5b9ac1
+```
+
+**Artifact Produced:** An authenticated CIBA result-retrieval request.
+
+</details>
+<details>
+<summary><strong>5. Authorization Server returns pending/error state or the approved token response in Poll mode</strong></summary>
+
+Before approval it returns the CIBA error. On successful issuance it returns tokens and the approved RAR details under the selected profile, with lifetime no later than `approved_until`. The access token is the OAuth completion artifact.
+
+> **Exact response delta:** reuse [§15.5](#155-tier-5-ciba-protocol)'s CIBA token/error responses; AROP adds the approval ceiling and granted `authorization_details`, not a new `result.mode`.
+
+</details>
+<details>
+<summary><strong>6. Authorization Server sends an authenticated auth_req_id callback in Ping mode</strong></summary>
+
+The AS calls the pre-registered client notification endpoint with the `auth_req_id` and authenticates using the per-request notification token. The callback carries no access token and does not prove approval; it tells the client to call the token endpoint.
+
+> **Exact protocol reuse:** this is [§15.5](#155-tier-5-ciba-protocol)'s ping callback, including the `client_notification_token` check and handle binding.
+
+</details>
+<details>
+<summary><strong>7. OAuth Client redeems auth_req_id at the Authorization Server after Ping</strong></summary>
+
+After authenticating the callback and matching the handle, the client performs the same token request as Step 4. Replayed, wrong-client, expired, or mismatched callbacks cannot move the authorization state.
+
+> **Exact HTTP delta:** Step 4 repeats; no callback bearer token or approval data enters the token request.
+
+</details>
+<details>
+<summary><strong>8. Authorization Server returns the approved token response after Ping</strong></summary>
+
+The token endpoint remains the authoritative delivery surface. The AS performs the same fresh issuance decision and approval-ceiling checks as Poll mode.
+
+> **Exact response delta:** return the same CIBA OAuth token response as Step 5 after authenticating the Step 7 redemption; ping contributes no field to the token body.
+
+**Artifact Produced:** An OAuth token response independently retrieved after an advisory ping.
+
+</details>
+<details>
+<summary><strong>9. Authorization Server pushes the direct token response in Push mode</strong></summary>
+
+Push sends the token response directly to the registered notification endpoint. The client validates the notification credential, ID Token, `auth_req_id`, `at_hash`, and optional `rt_hash` before accepting delivered tokens. There is no later poll to correct a lost or misrouted response, which is why profiles such as FAPI CIBA exclude this mode.
+
+> **Exact protocol reuse:** this is the [§15.5](#155-tier-5-ciba-protocol) push response; AROP changes the grant content/lifetime constraints, not the callback authentication model.
+
+</details>
+<details>
+<summary><strong>10. OAuth Client calls the Protected Resource and opts into transaction challenges</strong></summary>
+
+The agent sends the exact operation with its current token and the RFC 9651 Boolean Item `Accept-Txn-Challenge: ?1`. It sets that header only when it has a path to a client capable of validating and submitting the challenge.
+
+```http
+POST /payments HTTP/1.1
+Host: payments.example.com
+Authorization: DPoP &lt;current-token>
+DPoP: &lt;proof>
+Accept-Txn-Challenge: ?1
+Content-Type: application/json
+
+{
+  "amount": "5000.00",
+  "currency": "GBP",
+  "recipient": "Example Ltd"
+}
+```
+
+**Artifact Produced:** A challenge-capable protected request and exact transaction digest.
+
+</details>
+<details>
+<summary><strong>11. Protected Resource returns a signed transaction-authorization challenge</strong></summary>
+
+The resource returns `transaction_authorization_required` and a compact JWS signed with an asymmetric key published under its validated Protected Resource Metadata. It does not return a challenge to a caller that neither signaled nor was known out of band to support the mechanism.
+
+```http
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Bearer error="transaction_authorization_required",
+  error_description="Transaction-specific authorization is required",
+  transaction_challenge="<compact-JWS>"
+Cache-Control: no-store
+```
+
+The protected JOSE header uses `typ: txn-authz-challenge+jwt`, a non-`none` asymmetric algorithm, and `kid`. The payload includes:
+
+```json
+{
+  "iss": "https://payments.example.com",
+  "aud": "https://as.example.com",
+  "iat": 1785258000,
+  "exp": 1785258300,
+  "jti": "challenge-f1f7c8c4",
+  "txn": "txn-97053963",
+  "authorization_details": [
+    {
+      "type": "payment",
+      "actions": ["initiate"],
+      "locations": [
+        "https://payments.example.com/accounts/123"
+      ],
+      "instructedAmount": {
+        "currency": "GBP",
+        "amount": "5000.00"
+      },
+      "creditorName": "Example Ltd"
+    }
+  ],
+  "reason": "Approval is required for this payment.",
+  "act": {
+    "sub": "spiffe://example.com/aiagent/6526f880"
+  }
+}
+```
+
+**Artifact Produced:** A resource-authored, integrity-protected requestable-denial assertion.
+
+</details>
+<details>
+<summary><strong>12. OAuth Client validates the challenge and makes the disclosure decision locally</strong></summary>
+
+Before displaying, dereferencing `reason_uri`, or sending anything to an AS, the client validates JWS structure, `typ`, allowed algorithm, `kid`/key, signature, exact `iss`, intended `aud`, `iat`/`exp`, unique `jti`, `txn`, supported RAR type, and actor binding. Unknown critical semantics fail closed.
+
+The client presents only trusted, material fields and lets the user decline before sensitive transaction details leave for the named AS. Agent-supplied prose is advisory. `reason_uri` cannot override signed claims and is fetched only under validated-origin/SSRF/credential rules.
+
+> **Local validation record:** `{challenge_digest, issuer, audience, key_id, alg, iat, exp, jti_hash, txn_hash, details_digest, actor, display_manifest_digest, disclosure_decision}`.
+
+</details>
+<details>
+<summary><strong>13. OAuth Client submits the unchanged transaction challenge to the Authorization Server</strong></summary>
+
+The client uses the AS's validated `transaction_authorization_endpoint`, authenticates as required, and relays the compact JWS byte-for-byte. Public clients include `client_id`; confidential clients authenticate like they do at the token endpoint.
+
+```http
+POST /txn-authorization HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+client_id=agent-7&
+transaction_challenge=%3Ccompact-JWS%3E
+```
+
+**Artifact Produced:** An authenticated, integrity-preserving transaction-authorization request.
+
+</details>
+<details>
+<summary><strong>14. Authorization Server asks the Approval Workflow to authorize the resource request</strong></summary>
+
+The AS first verifies the resource signature, trust relationship, expiry, AS audience, `txn`, requested operation completeness, permitted client, intended token audience, and actor. It then selects the appropriate principal, resource owner, manager, administrator, workflow, or policy authority. Under proposed AROP, this is where the AS can submit ARAP internally.
+
+> **Internal delta:** a validated resource-signed challenge supplies the requestable-denial assertion; the AS may also ask its own PDP, and issuance requires both resource and AS policy where both are PEPs.
+
+</details>
+<details>
+<summary><strong>15. Approval Workflow returns an approved transaction result to the Authorization Server</strong></summary>
+
+The workflow binds the result to the challenge digest, `txn`, client, actor, resource, exact RAR detail set, expiry, and approver policy. Approval is an AS input and does not itself authorize the resource operation.
+
+> **Internal result:** `{challenge_digest, txn, approval_id, approved_details_digest, approver_policy, approved_until, state}` is retained inside the AS/ARS boundary; no stable portable workflow payload is defined by the transaction draft.
+
+**Artifact Produced:** A verified approval result scoped to one signed challenge.
+
+</details>
+<details>
+<summary><strong>16. Authorization Server returns a transaction_authorization_id to the OAuth Client</strong></summary>
+
+Acceptance for processing is HTTP 200 with `Cache-Control: no-store`; it is **not approval**. The handle is bound to the initiating client and carries an expiry, optional interval (five seconds when omitted), and optional `authorization_uri`.
+
+```json
+{
+  "transaction_authorization_id": "txn-authz-abc123",
+  "authorization_uri":
+    "https://as.example.com/txn-authorization/txn-authz-abc123",
+  "expires_in": 300,
+  "interval": 5
+}
+```
+
+The optional URI is an interaction surface, not permission. The client applies the same trusted-origin and browser-handoff controls as other URL modes.
+
+**Artifact Produced:** A pending, client-bound transaction-authorization handle.
+
+</details>
+<details>
+<summary><strong>17. OAuth Client polls the Authorization Server transaction endpoint</strong></summary>
+
+The client waits at least `interval`, authenticates as the same client or an explicitly authorized successor, and submits only the returned handle.
+
+```http
+POST /txn-authorization HTTP/1.1
+Host: as.example.com
+Content-Type: application/x-www-form-urlencoded
+
+client_id=agent-7&
+transaction_authorization_id=txn-authz-abc123
+```
+
+**Artifact Produced:** An authenticated transaction-result lookup.
+
+</details>
+<details>
+<summary><strong>18. Authorization Server returns pending or slowdown state to the OAuth Client</strong></summary>
+
+`authorization_pending` keeps the flow open. `slow_down` increases the interval by at least five seconds; connection timeouts trigger unilateral exponential backoff. `access_denied` and `expired_token` are terminal. Every response is `no-store`.
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "error": "authorization_pending"
+}
+```
+
+**Artifact Produced:** A bounded polling-state update without token authority.
+
+</details>
+<details>
+<summary><strong>19. OAuth Client polls again after the interval or required backoff</strong></summary>
+
+The request is the same as Step 17 with new client authentication/proof material. The client stops at local or server expiry and does not interpret a delayed network response as a new approval.
+
+> **Exact HTTP delta:** Step 17 repeats after the retained/increased interval; no challenge content or user-entered approval data is resubmitted.
+
+</details>
+<details>
+<summary><strong>20. Authorization Server returns a short-lived transaction-bound access token</strong></summary>
+
+The AS may normalize or narrow but never broaden the challenge's requested details. The access token binds the exact `txn`, granted details, actor context where relevant, and challenging resource audience. High-impact uses prefer DPoP or mTLS; the response's top-level detail array is informative to the client, while the RS relies on the grant cryptographically bound to the token or obtained through introspection.
+
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cache-Control: no-store
+
+{
+  "access_token": "<short-lived-transaction-token>",
+  "token_type": "DPoP",
+  "expires_in": 120,
+  "authorization_details": [
+    {
+      "type": "payment",
+      "actions": ["initiate"],
+      "locations": [
+        "https://payments.example.com/accounts/123"
+      ],
+      "instructedAmount": {
+        "currency": "GBP",
+        "amount": "5000.00"
+      },
+      "creditorName": "Example Ltd"
+    }
+  ]
+}
+```
+
+**Artifact Produced:** A short-lived, resource- and transaction-bound credential.
+
+</details>
+<details>
+<summary><strong>21. OAuth Client retries the exact operation at the Protected Resource</strong></summary>
+
+The client presents the new token and sender proof with the same logical operation. It does not edit the signed challenge or use the token for another resource, transaction, actor, or operation.
+
+> **Exact HTTP delta:** Step 10 repeats without `Accept-Txn-Challenge` reliance and with `Authorization: DPoP <transaction-token>` plus a fresh proof.
+
+</details>
+<details>
+<summary><strong>22. Protected Resource validates every transaction binding before execution</strong></summary>
+
+At minimum the resource validates the issuing AS selected by challenge `aud`, its own token audience, token expiry/status, sender key, the same `txn`, granted details against the actual operation and original challenge, actor/requester context, and prior-use state. A JWT claim, introspection result, or server-side reference may convey the grant, but the comparison semantics are the same.
+
+For non-idempotent or high-impact operations the resource treats the token as single-use, atomically records token/`txn` consumption before dispatch, and uses domain idempotency to handle ambiguous retries.
+
+> **Enforcement record:** `{challenge_digest, token_id_hash, issuer, audience, txn_hash, granted_details_digest, operation_digest, actor, sender_key, consumption_state, effect_id}`.
+
+</details>
+<details>
+<summary><strong>23. Protected Resource returns the authorized result to the OAuth Client</strong></summary>
+
+The resource separately authorizes result disclosure and retains enough evidence to distinguish approved execution, pre-execution denial, and ambiguous failure. The token cannot authorize another operation after successful single-use consumption.
+
+> **Exact HTTP surface:** return the protected endpoint's ordinary success/error representation; the transaction draft adds no reusable success credential or completion handle.
+
+**Artifact Produced:** A transaction result and replay-safe effect disposition tied to the signed challenge.
+
+</details>
+
+<br/>
+
+The transaction-challenge profile needs negative fixtures for invalid `typ`/algorithm, unknown or rotated `kid`, signature failure, wrong `iss`/`aud`, expired or future-dated challenge, replayed `jti`/`txn`, unsupported RAR type, altered relay bytes, untrusted `reason_uri`, user-declined disclosure, wrong client at polling, widened grant, wrong resource audience, missing/mismatched actor, wrong sender key, token reuse, operation drift, and effect timeout after consumption.
+
+##### 19.4.6 Selection Matrix
+
+The mechanisms are alternatives for different authority placements, not a ladder where the newest draft replaces the stable pieces:
+
+| Need and placement | Best-fit mechanism | Authoritative completion | Principal/approver model | Main cost or residual risk | Status decision |
+|:--|:--|:--|:--|:--|:--|
+| Per-call current policy at MCP resource; no new OAuth credential | AuthZEN 1.0 + ARAP `reevaluate` | Fresh PDP permit at enforcement | Any resolver selected behind Access Request Service | PEP/ARS task durability and per-call PDP availability | **Use** AuthZEN; **Profile** ARAP |
+| Resource says which RAR authority is missing; client may already hold it | RAR Metadata/Error Remediation `-05` | Existing or newly issued token later accepted by RS | Selected OAuth grant; remediation itself selects no approver | Unsigned remediation, type/schema agreement, client credential-store complexity | **Projected profile** |
+| Existing token request can wait for enterprise/human/automated approval | Proposed AROP over DTR | OAuth token response after AS fresh evaluation | ARAP workflow may choose a different person/system | Open AROP PR and DTR `-00`; long-lived secret/handle and callback surface | **Monitor** |
+| Named user approves their own agent on another device | CIBA, with proposed AROP/RAR composition where profiled | CIBA token response or authenticated push delivery | Same principal named by CIBA hint | Not general business approval; exact-action binding needs RAR/local digest | **Use** CIBA core; **Monitor** AROP binding |
+| Protected resource must author and sign the exact authorization question | Transaction Authorization Challenge `-00` | Short-lived `txn`-bound token accepted by challenging resource | AS policy may select user, owner, manager, administrator, or automation | New RS keys/metadata, AS trust, privacy disclosure, replay/single-use state | **Monitor** |
+| Simple missing static permission | OAuth `insufficient_scope` | New token with adequate granted scope | Ordinary OAuth grant | Scope explosion for parameterized operations | **Use** where sufficient |
+| Long-lived cross-call or cross-server purpose governance | DR-0001 task-authority record plus short-lived projections | Local current decision at each effect | Explicit local governance | No reviewed portable “Mission” protocol | **Local architecture; monitor standards** |
+
+Three practical rules follow:
+
+1. choose one asynchronous binding per request and never convert it silently after acceptance;
+2. keep its continuation handle, approval/task object, OAuth credential, execution idempotency key, and result evidence as distinct carriers with explicit custody; and
+3. let the resource enforce the exact operation even when the AS already made an issuance-time decision.
+
+AROP, DTR, and Transaction Challenge remain Monitor items until their drafts acquire stable change control, independent implementations, negative conformance tests, and interoperable cancellation/replay behavior. RAR Metadata `-05` is profiled earlier because its six-revision vocabulary and discovery/remediation model are the clearest convergence target, not because it has stronger institutional status.
+
 #### 19.5 When to Use Scopes vs. RAR
 
 | Scenario | Recommended | Rationale |
@@ -18065,7 +23220,7 @@ Any local experiment must use a collision-resistant private `type`, version the 
 | Regulated operation | **Published OAuth controls + registered RAR profile + governed approval/evidence policy** | A client-supplied compliance label does not establish legal or control compliance |
 | Task-scoped authorization | **Durable authority record + short-lived token/handle projection ([§17](#17-authorization-across-mcp-primitives-and-durable-state))** | Terminate authority at the PEP and separately revoke projections; monitor `lifecycle_binding` but do not depend on the individual draft |
 
-> **Implementation boundary (verified 2026-07-24):** The current MCP authorization contract uses OAuth scopes, RFC 9728, and RFC 8707; it does not define an RFC 9396 `authorization_details` type for tool calls. §19.2 is therefore a local design example, while [§19.4](#194-rar-agent-extensions-monitor-not-baseline) is monitor-stage material with no formal IETF standing. Neither is current MCP practice or an interoperability requirement.
+> **Implementation boundary (verified 2026-07-28):** The current MCP authorization contract uses OAuth scopes, RFC 9728, and RFC 8707; it does not define an RFC 9396 `authorization_details` type for tool calls. §19.2 is therefore a local design example. §19.4 applies a revision-pinned projected profile to the individual RAR Metadata `-05` vocabulary/model and keeps AROP, DTR, Transaction Challenge, and the other individual proposals at Monitor. None is current MCP practice or an interoperability requirement.
 
 ---
 
@@ -18093,25 +23248,74 @@ The decision labels in this chapter have precise meanings:
 | **Profile** | A working-group draft, or a stable standard without an MCP-specific composition, is usable only under a documented deployment profile. | Pin the revision and claim/method set; define trust, downgrade, change-control, and interoperability boundaries. |
 | **Monitor** | An individual draft, research proposal, or early community design is evidence of direction, not a production trust root. | Keep it out of required wire behavior; use it for vocabulary, threat analysis, and future extension points. |
 
-| Problem | Artifact | Institutional state on July 24, 2026 | Decision | Architectural use |
-|:--|:--|:--|:--:|:--|
-| Fine-grained authorization | RFC 9396 Rich Authorization Requests | Published RFC | **Use** | Express typed, parameterized authorization requests where scopes are too coarse ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)). |
-| Delegation and attenuation | RFC 8693 OAuth Token Exchange | Published RFC | **Use** | Exchange an existing token for a narrower audience/scope; define the local `sub`/`act` policy explicitly. |
-| Resource/audience binding | RFC 8707 Resource Indicators | Published RFC | **Use** | Bind authorization requests and access tokens to the intended MCP resource. |
-| Sender constraint | RFC 9449 DPoP and RFC 9421 HTTP Message Signatures | Published RFCs | **Use** | Bind token or message use to a proof key where the selected protocol profile supports it. |
-| Grant negotiation | RFC 9635 GNAP | Published RFC | **Profile** | Use only in an ecosystem that defines MCP rights, discovery, key proof, interaction, and gateway behavior ([§20.8](#208-gnap-and-directional-research)). |
-| Organizational trust | OpenID Federation 1.1 | OpenID Final Specification, approved May 6, 2026 | **Use** | Establish issuer/client trust chains; combine with a separate runtime delegation and access-token profile. |
-| Attestation evidence | RFC 9711 Entity Attestation Token | Published RFC | **Use** | Carry signed entity and posture evidence; policy decides which attesters and claims are authoritative. |
-| Continuous access | CAEP / Shared Signals Framework | OpenID Final Specifications | **Use** | Communicate risk, credential, and session/subject events to shorten stale-authority windows. |
-| CAEP implementation interoperability | [CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) | OpenID Shared Signals WG Standards Track draft, published July 21, 2026 | **Profile** | Pin the profile when interoperating SSF Transmitters and Receivers; apply its endpoint and OAuth requirements, then retain §17's object/task/stream authorization rules. |
-| Cross-domain delegation | [OAuth Identity and Authorization Chaining Across Domains draft 17](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) | OAuth WG document; submitted for publication and in the RFC Editor queue | **Profile** | Carry identity and authorization context into a foreign-domain token issuance step ([§20.4](#204-delegation-and-identity-chains)); do not call it an RFC until publication. |
-| Trust-domain propagation | [OAuth Transaction Tokens draft 09](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) | OAuth WG document in Working Group Last Call | **Profile** | Replace external credentials with short-lived transaction credentials inside a service graph ([§20.3](#203-transaction-scoped-credentials)). |
-| Workload client authentication | OAuth SPIFFE Client Authentication | Active OAuth WG document | **Profile** | Authenticate an OAuth client with a verified SVID; it does not itself create delegation or application authority ([§20.5](#205-sender-audience-and-workload-constraints)). |
-| Workload identity | WIMSE architecture, identifiers, credentials, proof, HTTP-signature, mTLS, and practices documents | Active WIMSE WG document set; documents mature independently | **Profile** | Establish workload identity and proof across heterogeneous runtimes; application authorization remains separate. |
-| Verified human authority | OpenID Authority Claims | OIDF eKYC & IDA WG Draft, May 25, 2026 snapshot | **Profile** | Carry verified authority for a natural person; software-agent use is a local mapping ([§20.6](#206-policy-evidence-and-verified-authority)). |
-| Agent-specific permission, identity, chain, or interaction models | Active individual IETF drafts and independent research proposals | No working-group or Final status unless stated separately | **Monitor** | Preserve extension points and compare semantics; do not make their private claims or endpoints a baseline requirement. |
+Status is necessary but not sufficient. DR-0001 grades adoption evidence on a five-rung ladder:
 
-The deployment rule is deliberately conservative. A published mechanism can still require a profile because the RFC does not define an MCP composition. Conversely, an active working-group draft may be technically strong but still require revision pinning and change control because its wire contract can change.
+| Rung | Evidence | What it establishes | What it does not establish |
+|:--:|:--|:--|:--|
+| **1** | Institutional sponsorship: chartered working group, official draft publication, named roadmap, Foundation communication | The problem has an accountable standards venue and organizational attention | Stable syntax, independent implementation, or product adoption |
+| **2** | Specification maturity: Implementer Draft, Final Specification, RFC, IETF WG adoption/last call, stable registries | Increasing change control and review for the exact artifact | Correct implementation or interoperability |
+| **3** | Independent implementation: independently maintained producers and consumers claiming the same revision | The contract is implementable in more than one code base | Equivalent edge-case behavior or conformance |
+| **4** | Interoperability/conformance: shared positive and negative fixtures, public results, certification for the exact profile | Tested agreement on defined behavior and failure handling | Production durability across upgrades and trust domains |
+| **5** | Production durability: dated product support, operational deployments, upgrade/rollback history, independent cross-domain use | Evidence that the contract survives operational change and governance boundaries | Fitness for an untested deployment or a broader problem than the artifact specifies |
+
+The [OpenID Foundation's July 14, 2026 AuthZEN article](https://openid.net/authzen-at-identiverse-2026-authorization-in-the-agent-era/) is therefore strong Rung 1 evidence for the AuthZEN/COAZ/ARAP problem family. It does not by itself move COAZ-MCP or ARAP to Rungs 3–5. AuthZEN core interoperability evidence applies to the Final evaluation contract; it cannot be generalized into COAZ mapping or ARAP workflow conformance.
+
+| Problem | Artifact | Institutional state verified July 28, 2026 | Evidence assessment | Decision | Architectural use |
+|:--|:--|:--|:--|:--:|:--|
+| Fine-grained authorization | RFC 9396 Rich Authorization Requests | Published RFC | Rung 2 standards baseline with broad OAuth ecosystem relevance | **Use** | Express typed, parameterized authorization requests where scopes are too coarse ([§19](#19-rich-authorization-requests-rar-vs-oauth-scopes)). |
+| Delegation and attenuation | RFC 8693 OAuth Token Exchange | Published RFC | Rung 2 standards baseline; deployment semantics remain profiled | **Use** | Exchange an existing token for a narrower audience/scope; define the local `sub`/`act` policy explicitly. |
+| Resource/audience binding | RFC 8707 Resource Indicators | Published RFC | Rung 2 standards baseline | **Use** | Bind authorization requests and access tokens to the intended MCP resource. |
+| Sender constraint | RFC 9449 DPoP and RFC 9421 HTTP Message Signatures | Published RFCs | Rung 2 standards baseline; product/profile evidence is separate | **Use** | Bind token or message use to a proof key where the selected protocol profile supports it. |
+| PEP/PDP decision interoperability | [AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) | OpenID Final Specification, published January 11, 2026 | Rungs 1–4 for the core interface: Final status, multi-implementation interoperability evidence, and certification investment | **Use** | Standardize SARC evaluation, Boolean decision, batch/search/metadata surfaces; keep policy language, context schema, obligations, and enforcement local ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)). |
+| Protocol-to-decision mapping | [COAZ Framework Draft 1](https://openid.github.io/authzen/authzen-coaz-framework-1_0.html) | AuthZEN Working Group Draft, published February 13, 2026 | Rungs 1–2; no official profile-specific interop suite found in the reviewed snapshot | **Profile** | Pin the mapping envelope/expression language and validate trust, mapping provenance, limits, and upgrade behavior ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)). |
+| MCP-to-AuthZEN mapping | [COAZ-MCP Draft 1](https://openid.github.io/authzen/authzen-coaz-mcp-binding-1_0.html) | AuthZEN Working Group Draft 1 | Rungs 1–2 with early implementation signals; no official COAZ-MCP certification evidence found | **Profile** | Pilot behind a revision adapter for current Tasks methods, notification policy, opaque-token inputs, mapping digest/cache, error allocation, and dual enforcement ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)). |
+| Requestable denial and approval | [ARAP Draft 1](https://openid.github.io/authzen/authzen-access-request-approval-profile-1_0.html) | AuthZEN Working Group Draft, published July 23, 2026 | Rungs 1–2; recent wire contract, no official ARAP interop/conformance suite found | **Profile** | Use denial binding, authenticated request/task operations, verified approval, and mandatory fresh re-evaluation; retain local workflow/effect governance ([§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation)). |
+| RAR discovery and remediation | [RAR Metadata and Error Remediation `-05`](https://datatracker.ietf.org/doc/draft-zehavi-oauth-rar-metadata/) | Individual Internet-Draft, published July 4, 2026; expires January 5, 2027; no IETF WG adoption | Technically developed across six revisions, with metadata, error, remediation, reference, processing, security, and IANA text; institutional status remains below a WG draft | **Profile** | Use its vocabulary/model as the projected convergence target; revision-pin and retain RFC 9396 as the stable base (§17.5.1; [§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)). |
+| MCP remediation carrier | MCP SEP-2643 Structured Authorization Denials | Open and unmerged MCP proposal; reviewed head `b4dff73347c9c7f5c2a0152593e7539ca6b4698f` | Earlier carrier proposal with legacy RAR-remediation names and unallocated numeric error | **Monitor** | Accept pinned legacy aliases only at an adapter; emit the RAR Metadata `-05` canonical names and keep the JSON-RPC number local ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)). |
+| MCP held approval work | MCP SEP-2848 Asynchronous Approval for Tool Calls | Open, unmerged experimental proposal; reviewed head `8d12c29576979d7e771475fd128f37e9a80daa50` | Directional composition evidence; no accepted extension/conformance evidence | **Monitor** | Use as a design signal for server-brokered ARAP plus MCP Tasks; retain the current local reliability contract ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)). |
+| Current MCP held work | MCP Tasks extension | SEP-2663 Final; extension remains independently versioned Draft | Published extension contract; end-to-end client uptake and cross-profile stability still emerging | **Profile** | Negotiate and pin `tasks/get`, `tasks/update`, `tasks/cancel`, terminal result in task, notifications, retention, and no task enumeration ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)). |
+| OAuth-side ARAP composition | AuthZEN AROP PR #531 | Open pull request; reviewed head `483abc2b91b0984e6a47a6ec94df85c7a7c2dfd5` | Work-in-progress inside the official repository, not an approved WG draft | **Monitor** | Evaluate ARAP/RAR composition in which OAuth token issuance is completion; do not expose a fictitious client-visible `result.mode` ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)). |
+| Deferred token completion | OAuth Deferred Token Response `-00` | Individual Internet-Draft, published June 23, 2026; expires December 25, 2026 | Initial proposal; no OAuth WG adoption | **Monitor** | Study sender-constrained polling, authenticated callback, one-time redemption, cancellation, and token-delivery races ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)). |
+| Resource-authored transaction approval | OAuth Transaction Authorization Challenge `-00` | Individual Internet-Draft, published June 25, 2026; expires December 27, 2026 | Initial proposal; no OAuth WG adoption | **Monitor** | Study RS-signed challenge, exact user display/disclosure, AS decision, and transaction-bound token ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)). |
+| Decoupled same-principal authorization | OpenID CIBA plus selected profiles | OpenID standard/profile family | Mature base behavior; profile and product evidence vary | **Use/Profile** | Use only for the same principal's decoupled authorization; place a different business approver behind ARAP or another explicit workflow ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)). |
+| Grant negotiation | RFC 9635 GNAP | Published RFC | Rung 2 baseline; MCP rights/composition remain ecosystem-specific | **Profile** | Use only in an ecosystem that defines MCP rights, discovery, key proof, interaction, and gateway behavior ([§20.8](#208-gnap-and-directional-research)). |
+| Organizational trust | OpenID Federation 1.1 | OpenID Final Specification, approved May 6, 2026 | Final institutional trust contract | **Use** | Establish issuer/client trust chains; combine with a separate runtime delegation and access-token profile. |
+| Attestation evidence | RFC 9711 Entity Attestation Token | Published RFC | Rung 2 baseline | **Use** | Carry signed entity and posture evidence; policy decides which attesters and claims are authoritative. |
+| Continuous security state | CAEP 1.0 / Shared Signals Framework 1.0 | OpenID Final Specifications, published August 29, 2025 | Final event/stream surfaces with ecosystem evidence | **Use** | Communicate risk, credential, and session/subject events; event receipt is neither a policy command nor proof of downstream effect ([§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.7](#127-sessioncache-invalidation-and-requesttask-cancellation)). |
+| CAEP implementation interoperability | [CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) | OpenID Shared Signals WG Standards Track draft, published July 21, 2026 | Official profile direction; no MCP-object semantics should be inferred | **Profile** | Pin transmitter/receiver endpoint and OAuth behavior, then retain local object/task/stream actions and read-back. |
+| Cross-domain delegation | [OAuth Identity and Authorization Chaining Across Domains draft 17](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-chaining/) | OAuth WG document; submitted for publication and in the RFC Editor queue | Advanced WG process, still not an RFC | **Profile** | Carry identity and authorization context into a foreign-domain token issuance step ([§20.4](#204-delegation-and-identity-chains)). |
+| Trust-domain propagation | [OAuth Transaction Tokens `-09`](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) | OAuth WG document in Working Group Last Call; published July 6, 2026; expires January 7, 2027 | Strong WG direction, revision-sensitive wire contract | **Profile** | Replace external credentials with short-lived transaction credentials inside one service graph; not durable cross-domain task governance ([§20.3](#203-transaction-scoped-credentials)). |
+| Workload client authentication | OAuth SPIFFE Client Authentication | Active OAuth WG document | WG-managed draft | **Profile** | Authenticate an OAuth client with a verified SVID; it does not itself create delegation or application authority ([§20.5](#205-sender-audience-and-workload-constraints)). |
+| Workload identity | WIMSE architecture, identifiers, credentials, proof, HTTP-signature, mTLS, and practices documents | Active WIMSE WG document set; documents mature independently | WG-managed direction with per-document maturity | **Profile** | Establish workload identity and proof across heterogeneous runtimes; application authorization remains separate. |
+| Verified human authority | OpenID Authority Claims | OIDF eKYC & IDA WG Draft, May 25, 2026 snapshot | Official WG draft | **Profile** | Carry verified authority for a natural person; software-agent use is a local mapping ([§20.6](#206-policy-evidence-and-verified-authority)). |
+| Durable multi-server purpose | DR-0001 task authority record; blog “Mission” analysis | Local architecture and analytical proposal; no reviewed standards artifact | No portable issuer/verifier, transfer, revocation-acknowledgement, privacy, or conformance contract | **Local/Monitor** | Govern purpose locally and project narrow authority at each hop; do not claim cross-vendor “Mission” interoperability ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows); [§17.4](#174-durable-task-lifecycle)). |
+| Other agent-specific permission, identity, chain, or interaction models | Active individual IETF drafts and independent research proposals | No working-group or Final status unless stated separately | Directional evidence varies by artifact | **Monitor** | Preserve extension points and compare semantics; do not make private claims or endpoints a baseline requirement. |
+
+The dependency-aware composition is:
+
+| Layer | Selected mechanism | Required handoff | Boundary that remains |
+|:--|:--|:--|:--|
+| **Security-state input** | SSF/CAEP | Validated event updates policy/lifecycle state and epochs | Event is not a decision, command, or effect acknowledgement |
+| **Decision** | AuthZEN Authorization API 1.0 | PEP asks one current SARC question and enforces the answer | No protocol mapping, approval workflow, execution, or durable purpose |
+| **Protocol mapping** | Revision-pinned COAZ/COAZ-MCP | Admitted mapping produces one or more AuthZEN evaluations | Mapping does not make client/server-authored attributes trustworthy |
+| **Requestable denial** | Revision-pinned ARAP | Bound denial creates authorized request/task processing; approval feeds a fresh decision | No workflow-engine semantics, fulfillment, or effect atomicity |
+| **External credential completion** | RFC 9396 plus profiled RAR Metadata `-05`; monitor AROP/DTR/CIBA/Transaction Challenge | AS issues a resource/audience-bound credential after the selected completion mechanism | Offline issuance does not replace resource-side current policy |
+| **Internal propagation** | Revision-pinned Transaction Tokens `-09` | Edge exchanges external authority for bounded internal context | Token remains inside one trust domain and is not a durable task object |
+| **Durable work governance** | DR-0001 local task authority record | Local purpose/lifecycle governs per-hop projections and joins effect evidence | No reviewed portable cross-server “Mission” contract |
+
+DR-0001's **projected convergence profile** makes two deliberate forward choices. First, the independently current Tasks Draft wins over COAZ-MCP's lagging method table: the internal contract uses `tasks/get`, `tasks/update`, and `tasks/cancel`, carries terminal result in task state, and has no `tasks/list`; older peers terminate at a revision adapter. Second, RAR Metadata `-05` supplies canonical `insufficient_authorization`, `authorization_remediation`, and `authorization_reference`; pinned SEP-2643 aliases are accepted only on input, conflicts fail closed, and the unresolved JSON-RPC numeric code remains local. These are reversible profile choices, not claims that the source drafts already agree.
+
+Promotion requires evidence for the exact dependency graph:
+
+| Candidate | Promotion gates |
+|:--|:--|
+| **COAZ Framework / COAZ-MCP** | Stable WG milestone; reconciliation with the admitted MCP core and Tasks extension; allocated non-conflicting errors; opaque-token or explicit JWT-only profile; mapping version/digest/cache/invalidation contract; notification and server-initiated direction policy; bounded expression and trust-anchor tests; `tools/list`/`tools/call`/result-release fixtures; at least two independent PEPs and PDPs; documented upgrade and rollback. |
+| **ARAP** | Stable OIDF milestone; at least two independent PEPs and Access Request Services; positive/negative fixtures for binding, canonicalization/JWS, key rotation, context matching, idempotency, callbacks, polling, cancellation, expiry, bulk/partial outcomes, form/catalog authorization, SSRF/privacy, task-operation authorization, approval revocation, and fresh denial after approval. |
+| **RAR Metadata `-05`** | OAuth WG adoption or equivalent change control; stable IANA and processing rules; independent metadata/resource/client/AS implementations; negative tests for reference collision, type confusion, client modification, disclosure, credential selection, downgrade, and remediation loops. |
+| **AROP, SEP-2643, SEP-2848, DTR, Transaction Challenge** | Merge or working-group/extension adoption; reconciliation with their current dependencies; independently maintained implementations; exact positive/negative conformance; sender/key/callback/cancellation and task-loss behavior; published migration and rollback. |
+| **Transaction Tokens `-09` and CAEP Interoperability draft 01** | Revision stability plus interoperable implementations at their defined boundaries; no promotion may broaden Transaction Tokens into cross-domain task authority or CAEP events into commands/effect proof. |
+
+The deployment rule is deliberately conservative. A published mechanism can still require a profile because the RFC does not define an MCP composition. Conversely, an official working-group draft and highly visible Foundation program can have a strong adoption trajectory while still requiring revision pinning, adapters, and rollback because its exact wire contract can change.
 
 #### 20.2 Fine-Grained and Intent-Bound Authorization
 
@@ -18161,7 +23365,7 @@ For every fine-grained profile, record:
 
 #### 20.3 Transaction-Scoped Credentials
 
-OAuth Transaction Tokens address a different problem from user consent or initial token issuance: an external endpoint has already authenticated an external credential and now needs a short-lived, internally verifiable credential for a bounded service-graph transaction. Revision 09 of the base OAuth WG draft is in Working Group Last Call as of 2026-07-24. The agent extension remains an individual proposal and must not be confused with the base document’s maturity.
+OAuth Transaction Tokens address a different problem from user consent or initial token issuance: an external endpoint has already authenticated an external credential and now needs a short-lived, internally verifiable credential for a bounded service-graph transaction. Revision 09 of the base OAuth WG draft was published on 2026-07-06, expires on 2027-01-07, and is in Working Group Last Call as of 2026-07-28. The agent extension remains an individual proposal and must not be confused with the base document’s maturity.
 
 | Layer | Artifact | Stable conclusion | Status-dependent material |
 |:--|:--|:--|:--|
@@ -18901,7 +24105,7 @@ flowchart LR
 
 #### 22.1 Protocol Admission, Extensions, and Conformance
 
-DR-0001 admits only the approved `2026-07-28` core floor and independently pinned extensions. As checked on 25 July 2026, the core source remains a release candidate; that maturity fact stays visible even though the report mandates the revision as its forward production contract. Acceptance therefore records seven separate conclusions: protocol-source status, SDK implementation version, explicit SDK opt-in/default, exercised MCP role, applicable core suite, each applicable extension suite, authorization/security tests, and deployment-specific negative/degraded tests. Success in one layer never fills an `unknown` or `not-established` result in another.
+DR-0001 admits only the Final `2026-07-28` core floor and independently pinned extensions. The Final core release was published on 28 July 2026; that status settles the protocol-source row but does not establish SDK adoption, product support, extension compatibility, or deployment conformance. Acceptance therefore records seven separate conclusions: protocol-source status, SDK implementation version, explicit SDK opt-in/default, exercised MCP role, applicable core suite, each applicable extension suite, authorization/security tests, and deployment-specific negative/degraded tests. Success in one layer never fills an `unknown` or `not-established` result in another.
 
 | Offering | Role | Forward-Baseline Evidence | Documented Related Surface | `2026-07-28` Routing Headers | Explicit State/Task-Handle Authorization | Public Conformance Evidence |
 |:--|:--|:--|:--|:--|:--|:--|
@@ -20966,11 +26170,11 @@ The `2026-07-28` core is request-scoped. Version, client information, and capabi
 ##### 25.1.2 Key Finding 2: The OAuth Resource-Server Plane Does Not Replace Application Authorization
 <a id="finding-2"></a>
 
-RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, PKCE, audience validation, and current scope selection/challenge handling establish how a client discovers the authorization server and obtains a resource-bound token. They do not prove that a caller may invoke a particular tool, use an application handle, read a backend record, or share a cached representation; those decisions remain at the gateway, server, and backend policy boundaries.
+RFC 9728 Protected Resource Metadata, RFC 8707 Resource Indicators, PKCE, audience validation, and current scope selection/challenge handling establish how a client discovers the authorization server and obtains a resource-bound token. They do not prove that a caller may invoke a particular tool, use an application handle, read a backend record, or share a cached representation; those decisions remain at the gateway, server, and backend policy boundaries. AuthZEN Authorization API 1.0 can standardize the PEP/PDP decision conversation at those boundaries, while revision-pinned COAZ can map MCP operations into that conversation. Neither layer changes the OAuth grant or makes a PDP permit execution evidence.
 
-**Applicability:** Contract — current MCP authorization plus RFC 9728 and RFC 8707; surface — metadata, token, and application authorization; evidence — normative requirement plus architectural inference; product role — host/client, IdP/AS, gateway/runtime, and MCP server.
+**Applicability:** Contract — current MCP authorization, RFC 9728/RFC 8707, Final AuthZEN 1.0, and profiled COAZ drafts; surface — metadata, token, mapping, decision, and application authorization; evidence — normative requirement, maturity-labelled profile, and architectural inference; product role — host/client, IdP/AS, gateway/runtime, PDP, and MCP server.
 
-**Evidence trail:** Trust Boundaries and Authorization Artifacts ([§1.2](#12-trust-boundaries-and-authorization-artifacts)); Scope Selection and Runtime Step-Up ([§3](#3-scope-selection-and-runtime-step-up)); Authorization Model Comparison ([§22.3](#223-authorization-model-comparison)).
+**Evidence trail:** Trust Boundaries and Authorization Artifacts ([§1.2](#12-trust-boundaries-and-authorization-artifacts)); Scope Selection and Runtime Step-Up ([§3](#3-scope-selection-and-runtime-step-up)); AuthZEN and COAZ ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)); Authorization Model Comparison ([§22.3](#223-authorization-model-comparison)).
 
 
 #### 25.2 Identity and Delegation
@@ -21017,29 +26221,29 @@ Roles and attributes remain necessary, but they do not by themselves express a b
 ##### 25.3.2 Key Finding 7: Tool Visibility, Tool Invocation, and Backend Entitlement Are Three Different Decisions
 <a id="finding-7"></a>
 
-Filtering `tools/list` reduces accidental exposure and model choice, but it does not authorize `tools/call`; authorizing the invocation does not prove entitlement to the backend object named in its arguments. MCP Apps adds documented per-tool authorization behavior, and several products implement scope- or policy-based tool filtering, yet core MCP still does not define one universal tool-scope metadata registry. Secure API-to-MCP translation must preserve all three gates and reject header/body mismatches before applying tool policy.
+Filtering `tools/list` reduces accidental exposure and model choice, but it does not authorize `tools/call`; authorizing the invocation does not prove entitlement to the backend object named in its arguments. MCP Apps adds documented per-tool authorization behavior, and several products implement scope- or policy-based tool filtering, yet core MCP still does not define one universal tool-scope metadata registry. A revision-pinned COAZ-MCP `inputSchema.x-authzen-mapping` can describe the discovery or invocation evaluation, but it is executable interpretation configuration—not authoritative tool policy—and requires source/digest admission, trusted enrichment, bounded evaluation, cache invalidation, and origin enforcement. Secure API-to-MCP translation must preserve all three gates and reject header/body mismatches before applying tool policy.
 
 **Applicability:** Contract — current Core tools and pinned MCP Apps extension; surface — tool visibility, invocation, and local API-to-tool policy; evidence — normative extension behavior, implementation evidence, and analysis; product role — host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** Tool Visibility, Invocation, and Backend Entitlement ([§17.2](#172-tool-visibility-invocation-and-backend-entitlement)); Gateway Enforcement ([§13](#13-gateway-mediated-mcp-architecture)); MCP Apps and product evidence ([§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§22.2](#222-architectural-model-summary)).
+**Evidence trail:** Tool Visibility, Invocation, and Backend Entitlement ([§17.2](#172-tool-visibility-invocation-and-backend-entitlement)); Gateway Enforcement ([§13](#13-gateway-mediated-mcp-architecture)); AuthZEN/COAZ mapping ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability)); MCP Apps and product evidence ([§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§22.2](#222-architectural-model-summary)).
 
 ##### 25.3.3 Key Finding 8: Approval and Authority Need a Durable Evidence Lifecycle, Not an Inference from Token Possession
 <a id="finding-8"></a>
 
-First-party administrative policy, OAuth resource-owner authorization, business approval, transaction confirmation, legal consent, external-browser handoff, and unattended continuation are different events. A token shows current authority under an authorization server's policy; it does not by itself preserve what was displayed, who decided, which action was approved, the expiry or withdrawal rule, or which later task consumed the authority. High-assurance deployments need typed, separately queryable request, decision, grant, execution-binding, lifecycle, and restricted-evidence records linked to policy decisions, task/input ledgers, and audit events.
+First-party administrative policy, OAuth resource-owner authorization, business approval, transaction confirmation, legal consent, external-browser handoff, and unattended continuation are different events. A token shows current authority under an authorization server's policy; it does not by itself preserve what was displayed, who decided, which action was approved, the expiry or withdrawal rule, or which later task consumed the authority. ARAP's requestable denial, bound access request, task, approval, and mandatory fresh evaluation provide an official draft lifecycle for one part of this gap, but approval is still neither bearer authority nor effect proof. High-assurance deployments need typed, separately queryable request, decision, grant, approval, execution-binding, lifecycle, and restricted-evidence records linked to policy decisions, task/input ledgers, and audit events.
 
-**Applicability:** Contract — current OAuth authorization and human-oversight controls; surface — durable approval and authority evidence; evidence — standards, implementation evidence, regulatory requirements where applicable, and analysis; product role — IdP/AS, host/client, gateway/runtime, and MCP server.
+**Applicability:** Contract — current OAuth authorization, human-oversight controls, and revision-pinned ARAP Draft 1; surface — requestable denial plus durable approval and authority evidence; evidence — standards, maturity-labelled profile, implementation evidence, regulatory requirements where applicable, and analysis; product role — IdP/AS, Access Request Service, host/client, gateway/runtime, PDP, and MCP server.
 
-**Evidence trail:** Consent and Authorization ([§14](#14-authorization-approval-and-consent-models)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Task Authority Record ([§10.6.3](#1063-task-authority-record)); EU AI Act mapping ([§23](#23-eu-ai-act-and-adjacent-eu-obligations-applicability-controls-and-evidence)).
+**Evidence trail:** Consent and Authorization ([§14](#14-authorization-approval-and-consent-models)); AuthZEN Evaluation, ARAP, and Approval Re-evaluation ([§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation)); Human Oversight Architecture ([§15](#15-human-oversight-architecture)); Task Authority Record ([§10.6.3](#1063-task-authority-record)); EU AI Act mapping ([§23](#23-eu-ai-act-and-adjacent-eu-obligations-applicability-controls-and-evidence)).
 
 ##### 25.3.4 Key Finding 9: RAR (RFC 9396) Enables Precise Agent Authorization, but MCP Does Not Define a Tool Profile
 <a id="finding-9"></a>
 
-RFC 9396 can carry structured authorization details that flat scopes cannot express, including resource, action, transaction, and policy context. MCP does not define a normative RAR profile for tools, tasks, prompts, resources, or state handles. The individual `draft-chen-oauth-rar-agent-extensions-01` adds useful `policy_context` and `lifecycle_binding` design signals, but it has no formal IETF standing and is not evidence of MCP adoption.
+RFC 9396 can carry structured authorization details that flat scopes cannot express, including resource, action, transaction, and policy context. MCP does not define a normative RAR profile for tools, tasks, prompts, resources, or state handles. RAR Metadata and Error Remediation `-05` is an individual draft, not IETF WG work, but its six-revision discovery/remediation model is the clearest projected convergence anchor: DR-0001 emits `insufficient_authorization`, `authorization_remediation`, and `authorization_reference`. The earlier SEP-2643 carrier remains open with legacy aliases and an unallocated JSON-RPC code; those aliases terminate at the compatibility adapter. The separate `draft-chen-oauth-rar-agent-extensions-01` contributes `policy_context` and `lifecycle_binding` design signals without gaining formal IETF or MCP standing.
 
-**Applicability:** Contract — RFC 9396 plus an explicitly monitored individual proposal; surface — structured authorization; evidence — final RFC plus maturity-labelled proposal; product role — IdP/AS, gateway/runtime, and MCP server.
+**Applicability:** Contract — RFC 9396 plus revision-pinned RAR Metadata `-05` and monitored SEP/individual proposals; surface — structured authorization, discovery, remediation, and MCP carrier; evidence — final RFC plus dated maturity-labelled proposals; product role — host/client, IdP/AS, gateway/runtime, and MCP server.
 
-**Evidence trail:** RAR and Agent Extensions ([§19.4](#194-rar-agent-extensions-monitor-not-baseline)); Standards Maturity Map ([§20.1](#201-deployment-status-use-profile-or-monitor)); Task Lifecycle Binding ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
+**Evidence trail:** Structured Denial and RAR Remediation Carrier ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)); RAR Metadata and Requestable-Authorization Proposals ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor)); Standards Maturity Map ([§20.1](#201-deployment-status-use-profile-or-monitor)); Task Lifecycle Binding ([§10.6.4](#1064-long-lived-authorization-and-cancellation)).
 
 
 #### 25.4 Role-Normalized Product Evidence
@@ -21303,7 +26507,7 @@ Throughput limits protect service capacity; cumulative user, agent, team, tool, 
 ##### 25.17.1 Key Finding 34: Request Tracing Without Decision Provenance Is Incomplete Authorization Evidence
 <a id="finding-34"></a>
 
-A trace that records only `permit` or `deny` cannot reconstruct which policy version, attributes, obligations, consent, handle authority, cache classification, or risk signal produced the outcome. Current requests add contract version, extension set, routing metadata, `resultType`, handles, subscriptions, and cache decisions to that evidence burden. OpenID Authorization API responses and policy-engine decision logs provide useful ingredients, but no universal OpenTelemetry authorization-decision semantic convention was established in the reviewed standards.
+A trace that records only `permit` or `deny` cannot reconstruct which policy version, attributes, obligations, consent, handle authority, cache classification, or risk signal produced the outcome. Current requests add contract version, extension set, routing metadata, `resultType`, handles, subscriptions, and cache decisions to that evidence burden. COAZ/ARAP compositions additionally need safe links for discovery and mapping provenance, initial evaluation, request task, approval, fresh evaluation, execution disposition, and result-release decision. AuthZEN responses and policy-engine logs provide useful ingredients, but no universal OpenTelemetry authorization-decision semantic convention or portable end-to-end evidence graph was established in the reviewed standards.
 
 **Applicability:** Contract — current telemetry, policy engines, and external authorization APIs; surface — decision evidence; evidence — final specification, implementation evidence, and standards-gap analysis; product role — gateway/runtime, PDP, and MCP server.
 
@@ -21336,13 +26540,13 @@ JWTs are signed, not encrypted, and common delegation claims such as stable subj
 ##### 25.20.1 Key Finding 37: The Tasks Extension Defines Operations but Leaves the Durable Authority Record to Implementers
 <a id="finding-37"></a>
 
-SEP-2663 is Final, while the independently versioned `io.modelcontextprotocol/tasks` specification remains Draft. Its current surface uses server-directed task creation plus get, update, cancel, input, and terminal-result operations. The protocol requires per-request authorization but does not standardize the durable authority record that relates a `taskId` to issuer, resource, human subject, agent actor, client, consent, budget, revocation, handoff, and result-access policy.
+SEP-2663 is Final, while the independently versioned `io.modelcontextprotocol/tasks` specification remains Draft. Its current surface uses server-directed task creation plus `tasks/get`, `tasks/update`, `tasks/cancel`, keyed in-task input, notifications, and terminal result in task state; it has no task-enumeration operation. The protocol requires per-request authorization but does not standardize the durable authority record that relates a `taskId` to issuer, resource, human subject, agent actor, client, consent, budget, revocation, handoff, and result-access policy. SEP-2848 proposes one ARAP-to-MCP held-work bridge, but remains open/experimental and does not make the ARAP task, MCP task, approval, or local authority record interchangeable.
 
-That record is the missing implementation contract. A task handle must remain authorized after the creating HTTP response disappears, tokens rotate, input is requested, a subscription opens, or cancellation is acknowledged but not yet effective. Extension support, handle entropy, and a stored task row are necessary but not sufficient evidence.
+That record is the missing implementation contract. A task handle must remain authorized after the creating HTTP response disappears, tokens rotate, input is requested, a subscription opens, or cancellation is acknowledged but not yet effective. Across servers, the same local identifier or trace can correlate separately valid operations but cannot prove one approved purpose. The blog's “Mission” label describes that analytical gap; no reviewed standard supplies its issuer/verifier, transfer, expansion, revocation-acknowledgement, privacy, or conformance contract.
 
 **Applicability:** Contract — pinned `io.modelcontextprotocol/tasks` Draft extension; surface — task lifecycle and authority record; evidence — normative extension behavior plus architectural inference; product role — host/client, gateway/runtime, and MCP server.
 
-**Evidence trail:** MCP Tasks Extension ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); Task Authority Record ([§10.6.3](#1063-task-authority-record) and [§17.4](#174-durable-task-lifecycle)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
+**Evidence trail:** MCP Tasks Extension ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows)); Task Authority Record ([§10.6.3](#1063-task-authority-record); [§17.4](#174-durable-task-lifecycle)); Projected MCP Tasks and ARAP Composition ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract)); Protocol Admission, Extensions, and Conformance ([§22.1](#221-protocol-admission-extensions-and-conformance)).
 
 #### 25.21 Agent Behavioral Trust Scoring
 
@@ -21443,19 +26647,19 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 3](#finding-3) (human-plus-agent provenance); [KF 4](#finding-4) (refresh is policy-dependent); [KF 24](#finding-24) (credential-pattern differences).
 
-4. **Separate tool visibility, invocation authorization, and backend entitlement.** Structural tool filtering can reduce exposure, but every `tools/call` still needs an authorization decision and every backend identifier in the arguments still needs resource-level enforcement. Treat any tool-to-scope metadata as a versioned local or extension-specific contract unless a normative profile governs both parties.
+4. **Separate tool visibility, invocation authorization, and backend entitlement.** Structural tool filtering can reduce exposure, but every `tools/call` still needs an authorization decision and every backend identifier in the arguments still needs resource-level enforcement. When piloting COAZ-MCP, admit the exact `x-authzen-mapping` source, revision, digest, expression limits, method coverage, and cache epoch; resolve trusted resource attributes independently; re-evaluate at the origin for high-impact effects; and authorize result release separately. Treat any tool-to-scope or mapping metadata as a versioned local/profile contract rather than authority asserted by the tool declaration.
 
-   **Applicability:** Current Core tools, pinned MCP Apps, and local API-to-tool policy.
+   **Applicability:** Current Core tools, pinned MCP Apps, revision-pinned COAZ-MCP where selected, and local API-to-tool policy.
 
    **Finding basis:** [KF 7](#finding-7) (three distinct decisions); [KF 9](#finding-9) (no MCP RAR tool profile); [KF 29](#finding-29) (primitive-specific authorization).
 
-5. **Represent task purpose as local policy and a durable authority record, not as an invented interoperable scope grammar.** Bind task type, resource, purpose, applicable grant or consent evidence, actual subject/current actor, separate client/workload identity, historical lineage reference, budget, autonomy limit, expiry, and revocation state to the task or application handle. Use OAuth scopes and RAR only within their defined semantics; version any local `authorization_details` or policy schema.
+5. **Represent task purpose as local policy and a durable authority record, not as an invented interoperable scope grammar.** Bind task type, immutable purpose, resources/effects, participants, applicable grant or approval evidence, actual subject/current actor, separate client/workload identity, parent/child lineage, budgets, autonomy limit, expansion/reapproval history, expiry, revocation, acknowledgements, and result policy to the task or application handle. Project only the minimum authority required at each server and join effect evidence by verified references. Use OAuth scopes, RAR, AuthZEN decisions, ARAP approvals, MCP tasks, and correlation IDs only within their defined semantics; none is a standardized cross-server “Mission.”
 
    **Applicability:** Current local policy and the exact pinned Tasks Draft extension.
 
    **Finding basis:** [KF 6](#finding-6) (TBAC is a deployment model); [KF 33](#finding-33) (budget is authority); [KF 37](#finding-37) (Tasks leave the authority record to implementers).
 
-6. **Operate a standards register keyed by revision, institution, maturity, and deployment decision.** Separate RFCs and Final Specifications from working-group drafts, individual proposals, official MCP extensions, and implementation signals. Classify each as Use, Profile, or Monitor; pin profiles used in production, test version skew, and require a deliberate review when a dependency advances or expires.
+6. **Operate a standards register keyed by revision, institution, maturity, evidence rung, dependency, and deployment decision.** Separate RFCs and Final Specifications from working-group drafts, individual proposals, official MCP extensions, and implementation signals. Classify each as Use, Profile, or Monitor; do not generalize AuthZEN core interoperability to COAZ/ARAP or OIDF visibility to product adoption. Pin profiles used in production, test version skew and adapter removal, retain fallback/rollback, and require review when a dependency advances, expires, merges, changes terminology, or gains conformance evidence.
 
    **Applicability:** Current external standards register and independently versioned MCP extensions.
 
@@ -21479,9 +26683,9 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 6](#finding-6) (local policy model); [KF 34](#finding-34) (decision provenance); [KF 39](#finding-39) (guardrail composition); [KF 40](#finding-40) (resilience).
 
-10. **Use a versioned PEP–PDP contract when authorization is externalized.** OpenID Authorization API can provide a portable evaluation shape where its profile fits, but the deployment must still define subject, action, resource, context, obligations, reason codes, timeouts, caching, and failover. Preserve the policy engine's decision identifier and version in the application audit record.
+10. **Use Final AuthZEN 1.0 as the versioned PEP–PDP contract when authorization is externalized.** Define Subject, Action, Resource, protected Context, local obligation/reason schema, timeouts, caching, failure behavior, and PEP enforcement. Keep adjacent contracts separate: revision-pinned COAZ maps protocol input, ARAP handles requestable denial and approval, OAuth issues credentials, and the local task authority record governs durable purpose. Preserve mapping/evaluation identity, policy/data versions, obligations, re-evaluation lineage, and enforcement disposition in the application evidence graph.
 
-   **Applicability:** Current external authorization APIs and local policy integration.
+   **Applicability:** Final AuthZEN Authorization API 1.0 plus local policy integration; COAZ/ARAP only when separately profiled.
 
    **Finding basis:** [KF 34](#finding-34) (decision evidence); [KF 39](#finding-39) (composition contract); [KF 40](#finding-40) (component failure semantics).
 
@@ -21503,7 +26707,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 11](#finding-11) (custody is not conformance); [KF 16](#finding-16) (lifecycle is surface-specific); [KF 24](#finding-24) (delegation spectrum).
 
-14. **Choose human oversight from action consequence and preserve evidence of the decision.** Classify actions by reversibility, legal or financial effect, sensitivity, autonomy, and time pressure; then select in-session confirmation, external approval, CIBA, multi-party approval, or another governed control. Treat unsolicited or attacker-induced cross-device approvals as a distinct consent-phishing risk: bind the displayed transaction, make the initiating device and relying party recognizable, rate-limit initiation, and provide a clear deny and recovery path. For URL elicitation, distinguish consent to open a displayed URL from authentication at the connect endpoint, completion of the external flow, and authorization of the resulting transaction.
+14. **Choose human oversight from action consequence and preserve evidence of the decision.** Classify actions by reversibility, legal or financial effect, sensitivity, autonomy, and time pressure; then select in-session confirmation, an ARAP-backed business workflow, CIBA for same-principal decoupled authorization, multi-party approval, or another governed control. Under ARAP, keep requestable denial false, bind the access request to the denied evaluation, authorize every task/callback operation, verify approval scope/expiry/replay, and require a fresh decision before effect. Treat AROP/DTR and Transaction Authorization Challenge as monitor-stage OAuth completion alternatives, not production defaults. For URL elicitation, distinguish consent to navigate from authentication, completion, approval, credential issuance, and transaction authorization.
 
    **Applicability:** Current human oversight and URL Elicitation where used.
 
@@ -21629,7 +26833,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 6](#finding-6) (task-bound local policy); [KF 33](#finding-33) (budget is authority); [KF 37](#finding-37) (durable task record).
 
-35. **Capture authorization-decision provenance, not only request traces.** Correlate the authenticated subject and actor, client, tenant, core/extension contract, method/tool/resource, handle, consent, policy and data versions, relevant risk and guardrail signals, decision, obligations, reason code, and outcome. Minimize sensitive values, restrict access, and keep engine-native decision logs linked by stable trace identifiers rather than copying full tokens or payloads into every span.
+35. **Capture authorization-decision provenance, not only request traces.** Correlate the authenticated subject and actor, client, tenant, core/extension contract, method/tool/resource, handle, consent, policy and data versions, relevant risk and guardrail signals, decision, obligations, reason code, and outcome. For COAZ/ARAP, also join metadata and key-set versions, admitted mapping ID/digest/source/cache state, initial evaluation, privacy-safe request-task and approval references, fresh re-evaluation, effect disposition, and separate result-release decision. Minimize sensitive values, restrict access, and keep tokens, binding bodies, approval contents, raw SARC Context, and engine-native details in protected evidence stores linked by safe references.
 
    **Applicability:** Current telemetry and audit across gateway/runtime, PDP, and server roles.
 
@@ -21647,7 +26851,7 @@ Each numbered recommendation includes two qualifiers. **Applicability** names th
 
    **Finding basis:** [KF 36](#finding-36) (tokens may carry personal data across jurisdictions).
 
-38. **Implement the Tasks Draft around a durable, re-evaluated authority record.** On server-directed task creation, bind `taskId` to issuer, resource, the operation's actual subject and current actor, separate client/workload identity, tenant, originating method, applicable grant or consent evidence, scopes or authorization details, historical-lineage reference, budget, extension version, revocation policy, and result-access policy. Apply that record to every get, update, cancel, input, notification, and result operation; define transfer and delegation explicitly; deny unknown or unauthorized task operations without object-existence leakage.
+38. **Implement the current Tasks Draft around a durable, re-evaluated authority record.** On server-directed task creation, bind `taskId` to issuer, resource, the operation's actual subject and current actor, separate client/workload identity, tenant, originating method, applicable grant/approval evidence, scopes or authorization details, historical lineage, budget, extension version, revocation policy, and result-access policy. Apply it to `tasks/get`, `tasks/update`, `tasks/cancel`, in-task input, notifications, retention, and terminal result in task state; do not invent `tasks/list` recovery or a separate `tasks/result`. If a pinned SEP-2848 experiment binds an MCP task to an ARAP task, keep both server-side artifacts distinct, claim execution atomically, preserve cancellation/effect races, and define transfer/delegation explicitly.
 
    **Applicability:** Exact pinned `io.modelcontextprotocol/tasks` Draft extension.
 
@@ -21686,14 +26890,14 @@ This matrix is an evidence-to-decision checksum. Read each row from left to righ
 | Finding | Core Insight | Recommendation(s) | Open Question(s) |
 |:--------|:-------------|:-------------------|:-----------------|
 | **[KF 1](#finding-1)** — Request security unit | Current MCP authorizes independent requests and explicit state | Rec 1, 24, 31 | [OQ 4](#oq-4) (WebSocket governance); [OQ 5](#oq-5) (handle semantics); [OQ 6](#oq-6) (version skew) |
-| **[KF 2](#finding-2)** — OAuth plane and local authorization | Discovery and resource-bound tokens do not authorize tools or handles | Rec 1, 4, 10 | [OQ 1](#oq-1) (structured authorization profile); [OQ 7](#oq-7) (normative conflicts) |
+| **[KF 2](#finding-2)** — OAuth plane and local authorization | Resource-bound tokens, AuthZEN decisions, and COAZ mappings remain separate contracts and do not prove effects | Rec 1, 4, 10 | [OQ 1](#oq-1) (structured authorization profile); [OQ 7](#oq-7) (normative conflicts) |
 | **[KF 3](#finding-3)** — Human-plus-agent delegation | Every hop preserves principal, actor, audience, and scope | Rec 3, 11, 36 | [OQ 9](#oq-9) (chain limits); [OQ 11](#oq-11) (sub-agent consent); [OQ 14](#oq-14) (multi-user authority); [OQ 16](#oq-16) (A2A identity) |
 | **[KF 4](#finding-4)** — Continuation authority | Refresh and offline continuation are policy choices | Rec 3, 21, 38 | [OQ 13](#oq-13) (revocation cascade); [OQ 17](#oq-17) (task transfer) |
 | **[KF 5](#finding-5)** — Layered agent identity | No single portable profile covers every identity layer | Rec 6, 18, 25–27 | [OQ 10](#oq-10) (registration); [OQ 12](#oq-12) (software provenance); [OQ 15](#oq-15) (metadata harmonization) |
 | **[KF 6](#finding-6)** — Local task policy | TBAC is a deployment composition, not a standard grant | Rec 5, 9, 34 | [OQ 1](#oq-1) (structured authorization); [OQ 17](#oq-17) (task transfer); [OQ 33](#oq-33) (budget portability) |
-| **[KF 7](#finding-7)** — Three tool decisions | Visibility, invocation, and backend entitlement remain separate | Rec 4, 7, 8, 17, 29 | [OQ 1](#oq-1) (structured authorization); [OQ 2](#oq-2) (URI policy); [OQ 8](#oq-8) (subscriptions) |
-| **[KF 8](#finding-8)** — Durable consent evidence | Token possession does not preserve the approval lifecycle | Rec 14–16 | [OQ 11](#oq-11) (sub-agent consent); [OQ 13](#oq-13) (revocation cascade); [OQ 27](#oq-27) (disclosure evidence) |
-| **[KF 9](#finding-9)** — RAR without an MCP profile | Structured authorization is available but not profiled for MCP | Rec 4, 5 | [OQ 1](#oq-1) (structured authorization profile) |
+| **[KF 7](#finding-7)** — Three tool decisions | Visibility, invocation, and backend entitlement remain separate; COAZ mapping is interpretation, not authority | Rec 4, 7, 8, 17, 29 | [OQ 1](#oq-1) (structured authorization); [OQ 2](#oq-2) (URI policy); [OQ 8](#oq-8) (subscriptions) |
+| **[KF 8](#finding-8)** — Durable consent evidence | ARAP structures requestable approval, but approval still needs fresh decision and effect evidence | Rec 14–16 | [OQ 11](#oq-11) (sub-agent consent); [OQ 13](#oq-13) (revocation cascade); [OQ 27](#oq-27) (disclosure evidence) |
+| **[KF 9](#finding-9)** — RAR without an MCP profile | RAR `-05` is the projected remediation model; MCP carrier and agent extensions remain unsettled | Rec 4–6 | [OQ 1](#oq-1) (structured authorization profile) |
 | **[KF 10](#finding-10)** — Gateway authority boundary | A gateway enforces only authorities explicitly integrated into it | Rec 2, 9, 10, 12 | [OQ 23](#oq-23) (gateway conformance) |
 | **[KF 11](#finding-11)** — Custody versus conformance | Credential isolation and protocol correctness are independent | Rec 12, 13, 20 | [OQ 23](#oq-23) (gateway conformance); [OQ 25](#oq-25) (adoption evidence) |
 | **[KF 12](#finding-12)** — Exact product contract | Purpose-built filters still require version and lifecycle evidence | Rec 1, 6, 12, 31 | [OQ 6](#oq-6) (version skew); [OQ 23](#oq-23) (gateway conformance); [OQ 25](#oq-25) (adoption evidence) |
@@ -21718,10 +26922,10 @@ This matrix is an evidence-to-decision checksum. Read each row from left to righ
 | **[KF 31](#finding-31)** — Non-transitive registry trust | Discovery, provenance, certification, conformance, and runtime trust differ | Rec 12, 32 | [OQ 22](#oq-22) (registry federation); [OQ 24](#oq-24) (registry incident response) |
 | **[KF 32](#finding-32)** — Graduated access response | Re-evaluation must reach surviving state and streams | Rec 29, 33 | [OQ 8](#oq-8) (subscriptions); [OQ 32](#oq-32) (event timing); [OQ 36](#oq-36) (cache sharing) |
 | **[KF 33](#finding-33)** — Budget authority | Cumulative spend belongs in durable policy state | Rec 5, 8, 34 | [OQ 33](#oq-33) (budget portability) |
-| **[KF 34](#finding-34)** — Decision provenance | A permit/deny trace without policy context is incomplete | Rec 10, 16, 35 | [OQ 7](#oq-7) (normative conflicts); [OQ 34](#oq-34) (telemetry conventions) |
+| **[KF 34](#finding-34)** — Decision provenance | Mapping, evaluation, approval, re-evaluation, effect, and release evidence must remain joinable and distinct | Rec 10, 16, 35 | [OQ 7](#oq-7) (normative conflicts); [OQ 34](#oq-34) (telemetry conventions) |
 | **[KF 35](#finding-35)** — Framework identity loss | Orchestration context is not portable delegation evidence | Rec 11, 36 | [OQ 16](#oq-16) (A2A identity) |
 | **[KF 36](#finding-36)** — Jurisdictional token data | Delegation claims may create regulated transfers | Rec 16, 23, 30, 37 | [OQ 26](#oq-26) (legal roles); [OQ 27](#oq-27) (disclosure); [OQ 28](#oq-28) (impact assessment); [OQ 29](#oq-29) (agent payments); [OQ 31](#oq-31) (cross-border evidence) |
-| **[KF 37](#finding-37)** — Tasks authority record | Current Tasks operations do not standardize durable authority or transfer | Rec 5, 24, 33, 34, 38 | [OQ 5](#oq-5) (handle semantics); [OQ 6](#oq-6) (version skew); [OQ 8](#oq-8) (subscriptions); [OQ 17](#oq-17) (task transfer) |
+| **[KF 37](#finding-37)** — Tasks authority record | Current Tasks and proposed ARAP binding do not standardize durable cross-server purpose or transfer | Rec 5, 24, 33, 34, 38 | [OQ 5](#oq-5) (handle semantics); [OQ 6](#oq-6) (version skew); [OQ 8](#oq-8) (subscriptions); [OQ 17](#oq-17) (task transfer) |
 | **[KF 38](#finding-38)** — Closed-loop behavioral trust | A score has meaning only inside its decision loop | Rec 9, 33, 39 | [OQ 18](#oq-18) (risk-signal interoperability) |
 | **[KF 39](#finding-39)** — Guardrail/authorization contract | Detection and authorization have different owners and semantics | Rec 9, 10, 17, 35, 40 | [OQ 19](#oq-19) (guardrail/PDP contract) |
 | **[KF 40](#finding-40)** — Per-component resilience | Each dependency needs its own safe degraded mode | Rec 9, 10, 33, 41 | [OQ 35](#oq-35) (resilience evidence) |
@@ -21767,9 +26971,9 @@ flowchart LR
 ##### 27.1.1 OQ-1: Structured Authorization Profile Across MCP Primitives
 <a id="oq-1"></a>
 
-Should interoperable structured authorization for tools, prompts, resources, application handles, and Tasks use an MCP-specific RFC 9396 profile, an official extension, or a separately negotiated authorization-server contract? The open issue is the shared schema and negotiation mechanism—not whether deployments may use local `authorization_details` today.
+Should interoperable structured authorization for tools, prompts, resources, application handles, and Tasks use an MCP-specific RFC 9396 profile, an official extension, or a separately negotiated authorization-server contract? RAR Metadata `-05` now offers a coherent discovery/remediation/reference model and canonical vocabulary, while SEP-2643 offers an earlier MCP carrier with legacy aliases and no allocated numeric error. The open issue is the shared schema, carrier, negotiation, and standards ownership—not whether deployments may use local `authorization_details` or the projected adapter today.
 
-**Resolution evidence:** A versioned profile with issuer/resource negotiation, field semantics, error behavior, privacy rules, and cross-implementation tests.
+**Resolution evidence:** A versioned profile with issuer/resource negotiation, authorization-detail schemas, canonical remediation names, allocated error behavior, reference privacy/collision rules, alias retirement, exact retry semantics, and negative cross-implementation tests among clients, resources, authorization servers, and MCP intermediaries.
 
 ##### 27.1.2 OQ-2: URI and Cross-Primitive Resource Authorization
 <a id="oq-2"></a>
@@ -21795,9 +26999,9 @@ If WebSocket remains available through SDK or extension surfaces, what protocol 
 ##### 27.1.5 OQ-5: Explicit Application-State Handle Authorization Semantics
 <a id="oq-5"></a>
 
-What minimum authority tuple must accompany an application handle across independent modern requests: issuer, resource, actual subject/current actor, client, workload, tenant, originating method, governing grant or consent evidence, historical-lineage reference, policy version, expiry, and transfer rules? The modern core makes handles explicit but does not define one portable ownership and delegation model for application state.
+What minimum authority tuple must accompany an application handle across independent modern requests: issuer, resource, actual subject/current actor, client, workload, tenant, originating method, immutable purpose, governing grant/approval evidence, historical and parent/child lineage, policy version, expiry, expansion, revocation, and transfer rules? The modern core makes handles explicit, while OAuth tokens, AuthZEN decisions, ARAP/MCP tasks and approvals, and correlation IDs each cover narrower roles. None defines one portable ownership and cross-server purpose-governance model for application state.
 
-**Resolution evidence:** A normative profile or interoperable implementation contract with creation, use, rotation, delegation, revocation, expiry, collision, and confused-deputy tests.
+**Resolution evidence:** A normative profile or interoperable implementation contract with issuer/verifier roles, canonical purpose and participant/resource semantics, creation, use, projection, rotation, expansion/reapproval, delegation/attenuation, transfer, cross-server revocation acknowledgement, expiry, privacy/selective disclosure, audit joining, collision, and confused-deputy tests.
 
 ##### 27.1.6 OQ-6: Core and Extension Version-Skew Signaling
 <a id="oq-6"></a>
@@ -21881,9 +27085,9 @@ What interoperable envelope carries user-plus-agent authority across A2A and orc
 ##### 27.2.9 OQ-17: Task-Handle Delegation, Transfer, and Re-Authorization
 <a id="oq-17"></a>
 
-The current Tasks Draft defines server-directed creation plus `tasks/get`, `tasks/update`, and `tasks/cancel`, but not a portable authority-transfer model. Can a `taskId` move to another client, agent, tenant, or user; which fields are immutable; and when must new input or changed authority create a new decision rather than mutate the original record?
+The current Tasks Draft defines server-directed creation plus `tasks/get`, `tasks/update`, `tasks/cancel`, notifications, input, and terminal result in task state, but not enumeration or a portable authority-transfer model. ARAP separately defines access-request workflow tasks, and SEP-2848 proposes—but does not standardize—a server-side binding between an ARAP task and an MCP task. Can either handle move to another client, agent, tenant, user, or server; which fields are immutable; how are child tasks attenuated; and when must new input, purpose expansion, approval change, or authority drift produce a new decision rather than mutate the original record?
 
-**Resolution evidence:** Extension text and interoperable fixtures for creation, handoff, delegated access, `input_required`, result access, cancellation, revocation, and extension-version skew, using only the operation set published by the selected Tasks version.
+**Resolution evidence:** Accepted extension/profile text and interoperable fixtures for creation, ARAP/MCP binding, handoff, delegated/child access, `input_required`, result access, retention, task loss without enumeration, cancellation/effect races, revocation acknowledgement, purpose expansion/reapproval, and extension-version skew, using only the operation set published by the selected Tasks version.
 
 ##### 27.2.10 OQ-18: Behavioral-Risk Signal Interoperability
 <a id="oq-18"></a>
@@ -22006,9 +27210,9 @@ Can a task budget move across gateways and execution services without embedding 
 ##### 27.5.3 OQ-34: Authorization-Decision Telemetry Conventions
 <a id="oq-34"></a>
 
-Should OpenTelemetry or an authorization-specific standard define common attributes for decision, policy and data versions, obligations, reason, subject/actor context, and evaluation latency? Portability must be balanced against minimization and the risk of copying sensitive policy inputs into traces.
+Should OpenTelemetry or an authorization-specific standard define common attributes for decision, policy/data versions, obligations, reason, subject/actor context, evaluation latency, mapping identity/digest/source, initial and fresh evaluation lineage, privacy-safe request-task/approval references, execution disposition, and result-release decision? Portability must be balanced against minimization, cross-tenant correlation, and the risk of copying tokens, denial bindings, approval content, or sensitive policy inputs into traces.
 
-**Resolution evidence:** Accepted semantic conventions and privacy guidance demonstrated across multiple policy engines and telemetry backends.
+**Resolution evidence:** Accepted semantic conventions, custody/privacy guidance, and positive/negative evidence-joining fixtures demonstrated across multiple PEPs, PDPs, mapping implementations, approval services, MCP servers, and telemetry backends.
 
 ##### 27.5.4 OQ-35: Portable Authorization-Resilience Evidence
 <a id="oq-35"></a>
@@ -28276,7 +33480,7 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [Cloudflare — Browser Run adds WebMCP support](https://developers.cloudflare.com/changelog/post/2026-04-15-br-webmcp/) — Browser Run WebMCP support; typed website-tool execution and human confirmation on sensitive actions (April 15, 2026) ([§14.5](#145-is-user-consent-always-required), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff), [§20.7](#207-web-bot-authentication))
 - [CVE-2026-26118 — Azure MCP Server SSRF](https://www.cve.org/CVERecord?id=CVE-2026-26118) — Server-Side Request Forgery in Azure MCP Server allowing an authorized attacker to elevate privileges over a network (CVSS 8.8, disclosed March 2026; patched in Azure.Mcp ≥1.0.2 / ≥2.0.0-beta.17). See [§A](#appendix-a-azure-apim-as-mcp-ai-gateway-protocol-level-deep-dive) for affected ranges and server-boundary implications.
 - [DIF — Trusted AI Agents Working Group (TAIAWG)](https://identity.foundation/) — Decentralized Identity Foundation working group (launched September 2025) defining interoperable specifications for agentic identity, agentic registries, trusted agent communication, and access control using DIDs/VCs; first deliverable: Agentic Authority Use Cases ([§6.5](#65-decentralized-identity-didvc-for-agent-identity))
-- [draft-ietf-httpapi-privacy-06 — Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) — HTTPAPI WG Best Current Practice in the RFC Editor queue; requires credential-bearing requests to begin on secure transport and avoid validity-oracle behavior after insecure disclosure ([§1.2](#12-trust-boundaries-and-authorization-artifacts), [§18.3.8](#1838-openid-authorization-api-10-peppdp-interoperability), Recommendation 20)
+- [draft-ietf-httpapi-privacy-06 — Protecting Credentials with HTTP APIs](https://datatracker.ietf.org/doc/draft-ietf-httpapi-privacy/) — HTTPAPI WG Best Current Practice in the RFC Editor queue; requires credential-bearing requests to begin on secure transport and avoid validity-oracle behavior after insecure disclosure ([§1.2](#12-trust-boundaries-and-authorization-artifacts), [§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability), Recommendation 20)
 - [draft-ietf-oauth-browser-based-apps-27 — OAuth 2.0 for Browser-Based Applications](https://datatracker.ietf.org/doc/draft-ietf-oauth-browser-based-apps/) — OAuth WG Best Current Practice in the RFC Editor queue; distinguishes BFF, token-mediating backend, and browser-held token patterns and their residual risks ([§11.3](#113-composable-custody-and-release-patterns), [§14.8](#148-multi-round-trip-elicitation-and-external-browser-handoff))
 - [draft-ietf-oauth-cross-device-security-16 — Cross-Device Flows: Security Best Current Practice](https://datatracker.ietf.org/doc/draft-ietf-oauth-cross-device-security/) — OAuth WG Best Current Practice in the RFC Editor queue; separates cross-device consent phishing from session phishing and defines prevention, disruption, and recovery controls ([§15.5.5](#1555-token-types-from-ciba))
 - [draft-ietf-oauth-identity-assertion-authz-grant-04 — Identity Assertion JWT Authorization Grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) — OAuth WG profile of Identity Chaining for enterprise SSO; updated May 21, 2026 ([§1.6](#16-enterprise-managed-authorization-alternative-grant-profile))
@@ -28296,8 +33500,14 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [ISO/IEC 42006:2025 — Requirements for AIMS audit and certification bodies](https://www.iso.org/standard/42006) — Additional requirements for bodies auditing and certifying ISO/IEC 42001 management systems; not product or request certification ([§24.5](#245-iso-ai-governance-risk-impact-and-assurance-map))
 - [ISO/IEC TS 27560:2023 — Consent record information structure](https://www.iso.org/standard/80392.html) — Interoperable records and receipts for a PII principal's consent to PII processing; not a general business-approval or OAuth-grant schema ([§14.7](#147-approval-grant-and-consent-persistence-architecture))
 - [JARM — JWT Secured Authorization Response Mode](https://openid.net/specs/oauth-v2-jarm.html) — JWT-encoded authorization responses with signing and encryption (Final Specification, November 2022) (§1.8)
+- [Karl McGuinness — Closing the Gaps in Least-Privilege MCP Tool Calls](https://notes.karlmcguinness.com/notes/closing-the-gaps-least-privilege-mcp-tool-calls/) — Analytical comparison of resource-side and authorization-server-side placement, AuthZEN/COAZ/ARAP and companion proposals, and the missing governed cross-server purpose object; useful design analysis, not a standards artifact ([§17.4](#174-durable-task-lifecycle); [§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor); [§20.1](#201-deployment-status-use-profile-or-monitor))
+- [Karl McGuinness — Least-Privilege MCP Tool Calls](https://notes.karlmcguinness.com/notes/least-privilege-mcp-tool-calls/) — Part 1 analysis of token-side versus resource-side least-privilege authorization placement ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor))
 - [MCP Authorization Extensions](https://github.com/modelcontextprotocol/ext-auth) — Optional, additive, composable auth extensions for MCP
 - [MCP Authorization Spec (Draft)](https://modelcontextprotocol.io/specification/draft/basic/authorization) — Current draft spec
+- [MCP `2026-07-28` Final release](https://github.com/modelcontextprotocol/modelcontextprotocol/releases/tag/2026-07-28) — Approved DR-0001 core floor, published July 28, 2026
+- [MCP Tasks extension](https://tasks.extensions.modelcontextprotocol.io/) — Independently versioned Draft contract for server-directed creation, `tasks/get`, `tasks/update`, `tasks/cancel`, notifications, in-task input, retention, and terminal result in task state ([§10.6](#106-mcp-tasks-extension-authorization-for-durable-async-workflows); [§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract))
+- [MCP SEP-2643 — Structured Authorization Denials](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2643) — Open proposal for an MCP JSON-RPC denial/remediation carrier; monitored behind the RAR Metadata `-05` vocabulary adapter ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract))
+- [MCP SEP-2848 — Asynchronous Approval for Tool Calls](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2848) — Open experimental proposal composing server-side ARAP with MCP held work; not an accepted extension ([§17.5.1](#1751-asynchronous-approval-and-batch-reliability-contract))
 - [MCP Security Best Practices (Draft)](https://modelcontextprotocol.io/specification/draft/basic/security_best_practices) — Current draft
 - [NIST SP 800-162 — Guide to Attribute Based Access Control (ABAC) Definition and Considerations](https://csrc.nist.gov/pubs/sp/800/162/upd2/final) — Foundational NIST guide defining ABAC methodology and the PEP/PDP/PIP architecture for attribute-based authorization decisions; establishes the logical access control framework referenced throughout the policy engine analysis (January 2014, updated August 2019) ([§18](#18-authorization-models-and-policy-engines-pattern-synthesis))
 - [NIST SP 800-178 — A Comparison of ABAC Standards for Data Services: XACML and NGAC](https://csrc.nist.gov/pubs/sp/800/178/final) — Next Generation Access Control formal framework; graph-based policy model combining attributes and relationships
@@ -28307,7 +33517,14 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [OAuth 2.1 IETF Draft (v15)](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-15) — Foundation for MCP auth (March 2, 2026)
 - [OAuth Client ID Metadata Documents (draft-ietf-oauth-client-id-metadata-document-02)](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/) — URL-based `client_id` with hosted metadata; OAuth WG draft updated July 6, 2026
 - [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) — Client Initiated Backchannel Authentication, OpenID Foundation (finalized September 1, 2021) (§15.5)
-- [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) — Final OpenID Foundation specification for Subject–Action–Resource–Context PDP/PEP interoperability; approved January 12, 2026 ([§18.3.8](#1838-openid-authorization-api-10-peppdp-interoperability))
+- [OpenID Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html) — Final OpenID Foundation specification for Subject–Action–Resource–Context PDP/PEP interoperability; published January 11, 2026 ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability))
+- [OpenID AuthZEN COAZ Framework Draft 1](https://openid.github.io/authzen/authzen-coaz-framework-1_0.html) — AuthZEN Working Group Draft mapping protocol inputs into Authorization API SARC evaluations; published February 13, 2026 ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability))
+- [OpenID AuthZEN COAZ-MCP Binding Draft 1](https://openid.github.io/authzen/authzen-coaz-mcp-binding-1_0.html) — AuthZEN Working Group Draft for MCP defaults and `inputSchema.x-authzen-mapping`; profiled behind current-Tasks and token/mapping compatibility controls ([§18.3.8](#1838-authzen-authorization-api-10-and-coaz-decision-and-mapping-interoperability))
+- [OpenID AuthZEN Access Request and Approval Profile (ARAP) Draft 1](https://openid.github.io/authzen/authzen-access-request-approval-profile-1_0.html) — AuthZEN Working Group Draft for requestable denial, access-request tasks, approval, and fresh evaluation; published July 23, 2026 ([§15.9.2](#1592-authzen-evaluation-arap-and-approval-re-evaluation))
+- [OpenID AuthZEN Access Request OAuth Profile (AROP) PR #531](https://github.com/openid/authzen/pull/531) — Open proposal for ARAP-backed OAuth token issuance; not an approved Working Group Draft ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor))
+- [OpenID Foundation — AuthZEN at Identiverse 2026](https://openid.net/authzen-at-identiverse-2026-authorization-in-the-agent-era/) — July 14, 2026 Foundation article presenting the AuthZEN/COAZ/ARAP direction and composition with SSF/CAEP and Transaction Tokens; institutional-visibility evidence, not exact-profile adoption ([§20.1](#201-deployment-status-use-profile-or-monitor))
+- [OpenID Foundation — New AuthZEN Working Group Drafts](https://openid.net/openid-foundation-advances-authorization-for-the-agent-era-with-new-authzen-working-group-drafts/) — June 15, 2026 Working Group Draft announcement for the agent-authorization family ([§20.1](#201-deployment-status-use-profile-or-monitor))
+- [OpenID Foundation — Authorization Interoperability Results](https://www.openid.net/authorization-interop-results/) — Core AuthZEN implementation/interoperability evidence; does not establish COAZ-MCP or ARAP conformance ([§20.1](#201-deployment-status-use-profile-or-monitor))
 - [OpenID CAEP Interoperability Profile 1.0 draft 01](https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html) — Working-group draft profiling interoperable SSF transmitter/receiver endpoints and core CAEP session-event use cases; published July 21, 2026 ([§20.1](#201-deployment-status-use-profile-or-monitor), [§20.6](#206-policy-evidence-and-verified-authority))
 - [OpenID Continuous Access Evaluation Profile (CAEP) 1.0](https://openid.net/specs/openid-caep-1_0-final.html) — Final profile defining continuous-access events for human or robotic users, devices, sessions, and applications ([§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.6](#126-receiver-processing-stream-health-and-reconciliation))
 - [OpenID Shared Signals Framework (SSF) 1.0](https://openid.net/specs/openid-sharedsignals-framework-1_0-final.html) — Final framework for managed SET event streams; receiver validation, application, and reconciliation remain required ([§§12.5](#125-event-subjects-provisioning-events-and-continuous-signals)–[12.6](#126-receiver-processing-stream-health-and-reconciliation))
@@ -28348,8 +33565,9 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 > This subsection intentionally tracks active IETF and related draft work because agent authorization design is still moving quickly. Draft names, fields, and even problem decomposition may change or disappear before standardization, so references here should be read as signals of emerging design direction rather than deployment-safe commitments.
 
 - [draft-chen-agent-decoupled-authorization-model-00](https://datatracker.ietf.org/doc/draft-chen-agent-decoupled-authorization-model/) — Decoupled authorization model for Agent2Agent with intent-based JIT permissions (M. Chen, L. Su)
-- [draft-chen-oauth-rar-agent-extensions-01](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) — Individual Policy and Lifecycle Extensions proposal for OAuth Rich Authorization Requests; updated April 22, 2026, with no formal IETF standing ([§19.4](#194-rar-agent-extensions-monitor-not-baseline))
+- [draft-chen-oauth-rar-agent-extensions-01](https://datatracker.ietf.org/doc/draft-chen-oauth-rar-agent-extensions/) — Individual Policy and Lifecycle Extensions proposal for OAuth Rich Authorization Requests; updated April 22, 2026, with no formal IETF standing ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor))
 - [draft-chen-oauth-scope-agent-extensions-00](https://datatracker.ietf.org/doc/draft-chen-oauth-scope-agent-extensions/) — Structured scope syntax for AI agent Modular Capability Units (skills)
+- [draft-gerber-oauth-deferred-token-response-00](https://datatracker.ietf.org/doc/draft-gerber-oauth-deferred-token-response/) — Individual Deferred Token Response proposal, published June 23, 2026 and expiring December 25, 2026; asynchronous token-endpoint polling/callback and sender-bound one-time redemption ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor))
 - [draft-jia-oauth-scope-aggregation-00](https://datatracker.ietf.org/doc/draft-jia-oauth-scope-aggregation/) — OAuth scope aggregation for multi-step AI agent workflows
 - [draft-klrc-aiagent-auth-03](https://datatracker.ietf.org/doc/draft-klrc-aiagent-auth/) — Individual AI Agent Authentication and Authorization proposal using WIMSE (AIMS model); updated July 6, 2026, with no formal IETF standing
 - [draft-liu-agent-operation-authorization-02](https://datatracker.ietf.org/doc/draft-liu-agent-operation-authorization/) — Agent Operation Authorization: structured authorization proposal + authorization token model binding user, agent, and operation; presented at IETF 125 OAuth materials (March 2026)
@@ -28357,6 +33575,8 @@ This lets MCP clients use LiteLLM's public gateway endpoint while LiteLLM mediat
 - [draft-nennemann-wimse-ect-00](https://datatracker.ietf.org/doc/draft-nennemann-wimse-ect/) — Execution Context Tokens for distributed agentic workflows (WIMSE)
 - [draft-ni-wimse-ai-agent-identity-02](https://datatracker.ietf.org/doc/draft-ni-wimse-ai-agent-identity/) — WIMSE applicability for AI agent identity and credential management
 - [draft-ietf-oauth-transaction-tokens-09](https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/) — OAuth WG Transaction Tokens draft for trust-domain service graphs; in Working Group Last Call as of July 2026
+- [draft-rosomakho-oauth-txn-challenge-00](https://datatracker.ietf.org/doc/draft-rosomakho-oauth-txn-challenge/) — Individual Transaction Authorization Challenge proposal, published June 25, 2026 and expiring December 27, 2026; resource-signed challenge and transaction-bound token ([§19.4](#194-rar-metadata-and-requestable-authorization-proposals-projected-profile-and-monitor))
+- [draft-zehavi-oauth-rar-metadata-05](https://datatracker.ietf.org/doc/draft-zehavi-oauth-rar-metadata/) — Individual RAR Metadata and Error Remediation proposal, published July 4, 2026 and expiring January 5, 2027; six-revision projected convergence vocabulary/model, not OAuth WG adopted
 - [draft-araut-oauth-transaction-tokens-for-agents-02](https://datatracker.ietf.org/doc/draft-araut-oauth-transaction-tokens-for-agents/) — Individual proposal that preserves `sub`/`act` and adds `agentic_ctx` for agent traceability and operational lineage; updated May 21, 2026, with no formal IETF standing
 - [draft-hardt-oauth-aauth-protocol-09](https://datatracker.ietf.org/doc/draft-hardt-oauth-aauth-protocol/) — Individual AAuth protocol proposal defining identity-based, resource-managed, Person-Server-asserted, and federated access modes with HTTP Message Signatures; updated July 4, 2026, with no formal IETF standing
 - [draft-mora-oauth-entity-profiles-01](https://datatracker.ietf.org/doc/draft-mora-oauth-entity-profiles/) — Individual OAuth 2.0 Entity Profiles proposal for `client_profile`/`sub_profile` JWT claims, including a proposed `ai_agent` registry entry; published April 15, 2026, with no formal IETF standing ([§20.6](#206-policy-evidence-and-verified-authority))

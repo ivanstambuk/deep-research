@@ -11,32 +11,31 @@ records:
     title: MCP 2026-07-28 protocol revision
     artifact_type: protocol_release
     lifecycle_decision: forward_floor
-    external_status: Locked release candidate tagged 2026-07-28-RC at commit 9d700ed; accepted pre-final schema snapshot 7634684; final publication scheduled for 2026-07-28
-    verified_on: 2026-07-25
+    external_status: Final protocol release published 2026-07-28; repository main verified at commit 04d603e3de66ca8c4b1f79b4cd15568a12f72493
+    verified_on: 2026-07-28
     primary_sources:
-      - https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/releases/tag/2026-07-28-RC
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/commit/9d700ed
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/blob/7634684382c3d14cf7e9f14073fe40a2d8ace3fa/schema/draft/schema.ts
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2907
-      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/3002
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/releases/tag/2026-07-28
+      - https://modelcontextprotocol.io/specification/2026-07-28
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/commit/04d603e3de66ca8c4b1f79b4cd15568a12f72493
     current_dr_use:
       - Minimum approved core for new deployments
       - Stateless per-request protocol and independently versioned extension baseline
     non_claims:
-      - Final publication had already occurred on the verification date
       - Product support or conformance follows from the release announcement
+      - Independently versioned extensions are Final or automatically compatible with this core
+      - A Final core release supplies application authorization, durable task authority, or extension interoperability by itself
     adoption_triggers:
-      - Confirm final publication and compare the final text with the locked release candidate
+      - Errata, patch release, or a later dated core revision
+      - Published compatibility constraints or conformance results for independently versioned extensions
     fallback_controls:
       - Reject older protocol shapes for new deployments
       - Isolate unavoidable migration compatibility under an expiring exception
     responsible_domain: protocol-architecture
-    next_review_on: 2026-07-29
+    next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["1.1"]
-    match_terms: ["2026-07-28", "Current-Only Protocol Admission"]
+        sections: ["1.1", "20.1"]
+    match_terms: ["2026-07-28", "Current-Only Protocol Admission", "MCP core"]
     status_history:
       - on: 2026-05-21
         status: Release candidate locked
@@ -44,6 +43,368 @@ records:
         status: Release candidate tagged 2026-07-28-RC at commit 9d700ed
       - on: 2026-07-25
         status: Accepted pre-final schema reconciled through commit 7634684, including PRs 2907 and 3002
+      - on: 2026-07-28
+        status: Final protocol release published; DR-0001 retained it as the forward floor
+
+  - id: authzen-authorization-api-1-0-final
+    title: AuthZEN Authorization API 1.0
+    artifact_type: oidf_final_specification
+    lifecycle_decision: forward_floor
+    external_status: OpenID Final Specification, published 2026-01-11
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://openid.net/specs/authorization-api-1_0.html
+      - https://www.openid.net/authorization-interop-results/
+    current_dr_use:
+      - Stable PEP/PDP Subject-Action-Resource-Context evaluation contract
+      - Baseline for Boolean decisions, batch evaluation, search, and PDP metadata where selected
+    non_claims:
+      - Standard policy language, token format, approval workflow, execution protocol, or durable task authority
+      - Universal schema for Context, reasons, obligations, or enforcement evidence
+      - Core interoperability or certification evidence applies automatically to COAZ-MCP or ARAP
+    adoption_triggers:
+      - Errata or a later Final specification
+      - New core certification profiles or material interoperability results
+      - Product-specific support and policy-equivalence evidence for the selected PDP
+    fallback_controls:
+      - Retain a versioned local PEP/PDP adapter with the same SARC semantics
+      - Fail closed on malformed responses or unknown mandatory obligations
+      - Preserve origin enforcement and separate effect/result-release evidence
+    responsible_domain: authorization-architecture
+    next_review_on: 2026-10-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["4.1", "9.1", "15.9.2", "18.3.8", "20.1"]
+    match_terms: ["AuthZEN", "Authorization API"]
+    status_history:
+      - on: 2026-01-11
+        status: Authorization API 1.0 published as an OpenID Final Specification
+      - on: 2026-07-28
+        status: Final status and core interoperability evidence revalidated; selected as DR-0001 decision-interface floor
+
+  - id: authzen-coaz-framework-draft-1
+    title: AuthZEN Common Authorization Framework Draft 1
+    artifact_type: oidf_working_group_draft
+    lifecycle_decision: profile
+    external_status: AuthZEN Working Group Draft 1, published 2026-02-13; repository snapshot 6fb7fa85c86acda14710f9f0f161da9aaa801a45
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://openid.github.io/authzen/authzen-coaz-framework-1_0.html
+      - https://github.com/openid/authzen/tree/6fb7fa85c86acda14710f9f0f161da9aaa801a45
+    current_dr_use:
+      - Revision-pinned protocol-neutral mapping from admitted operation inputs to AuthZEN SARC requests
+      - Declarative mapping envelope with a bounded and profiled expression language
+    non_claims:
+      - OpenID Final Specification or stable cross-vendor wire contract
+      - Proof that mapped inputs are trustworthy, policy is correct, or a successful mapping is a permit
+      - Standard mapping signature, cache invalidation, rollback, or MCP-specific method coverage
+    adoption_triggers:
+      - Implementer Draft, Final Specification, or another stable AuthZEN WG milestone
+      - Independent mapping implementations with shared positive and negative fixtures
+      - Stable trust-anchor, expression-limit, version, digest, and upgrade behavior
+    fallback_controls:
+      - Pin Draft 1 and the complete admitted mapping digest
+      - Use a local direct-SARC adapter when the mapping profile is unsupported
+      - Bound expression evaluation and reject untrusted values in protected positions
+    responsible_domain: authorization-mapping
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["18.3.8", "20.1"]
+    match_terms: ["COAZ", "Common Authorization"]
+    status_history:
+      - on: 2026-02-13
+        status: COAZ Framework Draft 1 published by the AuthZEN Working Group
+      - on: 2026-07-28
+        status: Revision-pinned DR-0001 profile and promotion gates integrated
+
+  - id: authzen-coaz-mcp-binding-draft-1
+    title: AuthZEN COAZ-MCP Binding Draft 1
+    artifact_type: oidf_working_group_draft
+    lifecycle_decision: profile
+    external_status: AuthZEN Working Group Draft 1; repository snapshot 6fb7fa85c86acda14710f9f0f161da9aaa801a45
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://openid.github.io/authzen/authzen-coaz-mcp-binding-1_0.html
+      - https://github.com/openid/authzen/tree/6fb7fa85c86acda14710f9f0f161da9aaa801a45
+      - https://tasks.extensions.modelcontextprotocol.io/
+    current_dr_use:
+      - Revision-pinned MCP-to-AuthZEN mapping profile using inputSchema.x-authzen-mapping
+      - Projected convergence adapter using current Tasks methods and bounded notification policy
+    non_claims:
+      - Accepted MCP extension, OpenID Final Specification, or profile-specific certification
+      - Opaque-token compatibility from the current decoded-JWT token input
+      - Trust in client/server-authored mapping values, unrestricted notification pass-through, or gateway-only entitlement
+      - Current Draft 1 task defaults already match tasks/get, tasks/update, tasks/cancel, terminal result in task, and no tasks/list
+    adoption_triggers:
+      - Stable AuthZEN WG milestone and explicit compatibility with the admitted MCP core and Tasks extension
+      - Allocated non-conflicting errors and a standardized opaque-token or explicit JWT-only profile
+      - Mapping version/digest/cache/invalidation semantics and independent gateway/server interoperability
+      - Positive and negative tools/list, tools/call, notification, result-release, and dual-PEP fixtures
+    fallback_controls:
+      - Terminate older tasks/list and tasks/result surfaces at a revision adapter; never expose enumeration
+      - Add authenticated introspection/enrichment for opaque tokens or use direct SARC construction
+      - Pin mapping source/digest and retain origin-side authorization plus rollback
+    responsible_domain: mcp-authorization-mapping
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["9.1", "17.2.1", "17.5.1", "18.3.8", "20.1"]
+    match_terms: ["COAZ", "x-authzen-mapping"]
+    status_history:
+      - on: 2026-07-28
+        status: Draft 1 profiled behind the current-Tasks, token-input, notification, mapping-integrity, and rollback adapter
+
+  - id: authzen-arap-draft-1
+    title: AuthZEN Access Request and Approval Profile Draft 1
+    artifact_type: oidf_working_group_draft
+    lifecycle_decision: profile
+    external_status: AuthZEN Working Group Draft 1, published 2026-07-23; repository snapshot 6fb7fa85c86acda14710f9f0f161da9aaa801a45
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://openid.github.io/authzen/authzen-access-request-approval-profile-1_0.html
+      - https://github.com/openid/authzen/tree/6fb7fa85c86acda14710f9f0f161da9aaa801a45
+    current_dr_use:
+      - Revision-pinned requestable-denial, bound Access Request, workflow task, approval, and fresh-evaluation profile
+      - Canonical standards-facing lifecycle for resource-side approval with local reliability and effect controls
+    non_claims:
+      - OpenID Final Specification or profile-specific interoperability/certification evidence
+      - Workflow engine, approval UI, entitlement fulfillment, execution, effect atomicity, or durable MCP task authority
+      - Approval is a bearer permit or can bypass fresh policy evaluation
+    adoption_triggers:
+      - Stable OIDF milestone and at least two independent PEP and Access Request Service implementations
+      - Binding/JWS/key-rotation, context matching, idempotency, callback/poll, cancellation, expiry, bulk, and partial-result fixtures
+      - Form/catalog authorization, SSRF/privacy, task-operation authorization, and post-approval denial tests
+    fallback_controls:
+      - Preserve decision false until a verified approval is supplied to a fresh evaluation
+      - Pin metadata, endpoint, signer, schema, and exact-match/reuse behavior
+      - Keep local workflow, idempotency, effect, cancellation, and result-release controls
+    responsible_domain: approval-architecture
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["15.9.2", "17.5.1", "20.1"]
+    match_terms: ["ARAP", "Access Request"]
+    status_history:
+      - on: 2026-07-23
+        status: ARAP Draft 1 published by the AuthZEN Working Group
+      - on: 2026-07-28
+        status: Revision-pinned DR-0001 approval profile and conformance gates integrated
+
+  - id: authzen-arop-pr-531
+    title: AuthZEN Access Request OAuth Profile proposal
+    artifact_type: openid_repository_proposal
+    lifecycle_decision: monitor
+    external_status: Open and unmerged AuthZEN pull request 531; head 483abc2b91b0984e6a47a6ec94df85c7a7c2dfd5; updated 2026-07-24
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://github.com/openid/authzen/pull/531
+    current_dr_use:
+      - Monitor-stage model for composing ARAP resolution with OAuth token issuance
+      - Layering rule that the OAuth token response, not a client-visible ARAP result.mode, is completion
+    non_claims:
+      - Merged AuthZEN text, Working Group Draft, Implementer Draft, or Final Specification
+      - Production dependency, stable completion syntax, or independent interoperability evidence
+      - Authorization-server approval removes resource-side current authorization
+    adoption_triggers:
+      - Pull request merge and explicit AuthZEN WG status
+      - Reconciliation with current ARAP, RAR, and selected OAuth completion transports
+      - Independent implementation and cancellation, replay, expiry, refresh, and exchange conformance
+    fallback_controls:
+      - Keep AROP-specific state behind the authorization server
+      - Use stable OAuth grants plus local approval policy without exposing draft wire behavior
+      - Require resource-side token and operation authorization after issuance
+    responsible_domain: oauth-approval-composition
+    next_review_on: 2026-08-11
+    affected_sections:
+      - document: DR-0001
+        sections: ["19.4", "20.1"]
+    match_terms: ["AROP", "Access Request OAuth"]
+    status_history:
+      - on: 2026-07-24
+        status: Pull request updated at reviewed head 483abc2b
+      - on: 2026-07-28
+        status: Monitor decision and OAuth token-response completion boundary integrated
+
+  - id: mcp-sep-2643-structured-authorization-denials
+    title: MCP SEP-2643 Structured Authorization Denials
+    artifact_type: mcp_sep_proposal
+    lifecycle_decision: monitor
+    external_status: Open, unmerged, unsponsored Extensions Track proposal; head b4dff73347c9c7f5c2a0152593e7539ca6b4698f; updated 2026-07-28
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2643
+      - https://datatracker.ietf.org/doc/draft-zehavi-oauth-rar-metadata/
+    current_dr_use:
+      - Monitor-stage MCP JSON-RPC carrier for structured authorization denial and remediation hints
+      - Compatibility input normalized immediately to RAR Metadata revision 05 vocabulary
+    non_claims:
+      - Accepted SEP extension, Final MCP contract, allocated authorization-denial error code, or conformance profile
+      - Legacy insufficient_authorization_details or authorization_hint names are canonical output
+      - authorizationContextId, authorization_reference, or descriptive remediation text is authority
+    adoption_triggers:
+      - SEP acceptance into a named versioned extension
+      - Allocated non-conflicting JSON-RPC error and reconciliation with current RAR Metadata vocabulary
+      - Cross-transport positive and negative conformance for loops, conflicts, privacy, and exact retries
+    fallback_controls:
+      - Accept legacy aliases only from pinned peers; reject conflicting dual forms
+      - Emit insufficient_authorization, authorization_remediation, and authorization_reference only
+      - Keep the JSON-RPC numeric error local until allocated and retain ordinary OAuth challenge handling
+    responsible_domain: mcp-authorization-errors
+    next_review_on: 2026-08-11
+    affected_sections:
+      - document: DR-0001
+        sections: ["17.5.1", "19.4", "20.1"]
+    match_terms: ["SEP-2643", "Structured Authorization Denials", "MCP carrier"]
+    status_history:
+      - on: 2026-07-28
+        status: Open proposal revalidated; RAR revision 05 adapter boundary selected
+
+  - id: mcp-sep-2848-async-tool-approval
+    title: MCP SEP-2848 Asynchronous Approval for Tool Calls
+    artifact_type: mcp_sep_proposal
+    lifecycle_decision: monitor
+    external_status: Open, unmerged, unsponsored experimental Extensions Track proposal; head 8d12c29576979d7e771475fd128f37e9a80daa50; updated 2026-06-15
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2848
+      - https://tasks.extensions.modelcontextprotocol.io/
+      - https://openid.github.io/authzen/authzen-access-request-approval-profile-1_0.html
+    current_dr_use:
+      - Monitor-stage design signal for server-brokered ARAP exposed as ordinary MCP held work
+      - Projected composition uses the current Tasks Draft rather than stale companion task methods
+    non_claims:
+      - Accepted MCP extension, reference implementation, conformance result, or production dependency
+      - MCP task and ARAP task are the same object or either is authority by possession
+      - Proposal supplies at-most-once effects, task recovery/enumeration, durable authority transfer, or result-release policy
+    adoption_triggers:
+      - SEP acceptance into a named versioned extension
+      - Explicit alignment with tasks/get, tasks/update, tasks/cancel, notifications, terminal result in task, and no tasks/list
+      - Interoperable task-loss, quota, TTL, cancellation-race, disposition, idempotency, and result-release fixtures
+    fallback_controls:
+      - Keep approval artifacts server-side and expose only the pinned Tasks contract
+      - Preserve the local task-authority record, execution claim, idempotency/effect ledger, and non-enumeration rule
+      - Fall back to an ordinary denied call or a separately governed external approval workflow
+    responsible_domain: mcp-task-approval
+    next_review_on: 2026-08-11
+    affected_sections:
+      - document: DR-0001
+        sections: ["17.5.1", "20.1"]
+    match_terms: ["SEP-2848", "Asynchronous Approval"]
+    status_history:
+      - on: 2026-06-15
+        status: Proposal head last updated at reviewed commit 8d12c295
+      - on: 2026-07-28
+        status: Monitor decision integrated over the current independently versioned Tasks Draft
+
+  - id: oauth-deferred-token-response-00
+    title: OAuth Deferred Token Response
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Individual Internet-Draft revision 00, published 2026-06-23; expires 2026-12-25; no OAuth WG adoption
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-gerber-oauth-deferred-token-response/
+      - https://www.ietf.org/archive/id/draft-gerber-oauth-deferred-token-response-00.html
+    current_dr_use:
+      - Monitor-stage asynchronous token-endpoint completion transport for the proposed AROP composition
+      - Analysis of sender-constrained polling, authenticated callback hints, one-time redemption, cancellation, and delivery races
+    non_claims:
+      - OAuth WG document, RFC, stable production contract, or MCP task protocol
+      - deferral_code is a resource access token, approval object, or reusable bearer grant
+      - Cancellation revokes a token already delivered before cancellation
+    adoption_triggers:
+      - OAuth WG adoption or equivalent stable change control
+      - Independent implementations and sender/key/callback/poll/redemption/cancellation negative fixtures
+      - Reconciliation with current AROP, ARAP, and OAuth error/metadata contracts
+    fallback_controls:
+      - Use synchronous OAuth token responses or a stable selected OAuth grant
+      - Keep pending issuance state and callback credentials at the authorization server
+      - Bind handles to client and sender key, enforce one-time redemption, and apply RFC 7009 semantics
+    responsible_domain: oauth-deferred-issuance
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["19.4", "20.1"]
+    match_terms: ["Deferred Token Response", "DTR"]
+    status_history:
+      - on: 2026-06-23
+        status: Revision 00 published as an individual Internet-Draft
+      - on: 2026-07-28
+        status: Monitor-only AROP transport analysis integrated
+
+  - id: oauth-txn-challenge-00
+    title: OAuth Transaction Authorization Challenge
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: monitor
+    external_status: Individual Internet-Draft revision 00, published 2026-06-25; expires 2026-12-27; no OAuth WG adoption
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-rosomakho-oauth-txn-challenge/
+      - https://www.ietf.org/archive/id/draft-rosomakho-oauth-txn-challenge-00.html
+    current_dr_use:
+      - Monitor-stage resource-authored signed exact-transaction challenge model
+      - Analysis of AS validation, exact user display/disclosure, polling, transaction-bound tokens, replay, and single-use effects
+    non_claims:
+      - OAuth WG document, RFC, stable production contract, or general business-approval mechanism
+      - Signed challenge alone proves user understanding, approval, token issuance, or resource effect
+      - CIBA can approve a different principal merely because a decoupled device is used
+    adoption_triggers:
+      - OAuth WG adoption or equivalent stable change control
+      - Stable RS/AS trust metadata, key lifecycle, privacy, replay, and single-use rules
+      - Independent resource, authorization-server, client, and verifier implementations with negative fixtures
+    fallback_controls:
+      - Use resource-side AuthZEN/ARAP re-evaluation or a stable OAuth grant under local transaction binding
+      - Pin RS and AS keys/trust, validate exact claims before display, and require exact operation retry
+      - Keep approval, token issuance, resource acceptance, and effect evidence separate
+    responsible_domain: oauth-transaction-approval
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["19.4", "20.1"]
+    match_terms: ["Transaction Authorization Challenge", "transaction_challenge"]
+    status_history:
+      - on: 2026-06-25
+        status: Revision 00 published as an individual Internet-Draft
+      - on: 2026-07-28
+        status: Monitor-only hybrid transaction-approval analysis integrated
+
+  - id: oauth-rar-metadata-05
+    title: OAuth RAR Metadata and Error Remediation
+    artifact_type: ietf_individual_draft
+    lifecycle_decision: profile
+    external_status: Individual Internet-Draft revision 05, published 2026-07-04; expires 2027-01-05; six revisions; no OAuth WG adoption
+    verified_on: 2026-07-28
+    primary_sources:
+      - https://datatracker.ietf.org/doc/draft-zehavi-oauth-rar-metadata/
+      - https://www.ietf.org/archive/id/draft-zehavi-oauth-rar-metadata-05.html
+      - https://www.rfc-editor.org/rfc/rfc9396.html
+    current_dr_use:
+      - Projected convergence profile for authorization-details type metadata, insufficient_authorization, authorization_remediation, and authorization_reference
+      - Canonical internal/output vocabulary for resource remediation and credential selection
+    non_claims:
+      - OAuth WG adopted document, RFC, or institutional maturity above an individual draft
+      - Unsigned remediation is trusted authority or authorization_reference is a permission or credential
+      - MCP defines the carrier, numeric JSON-RPC error, or an RFC 9396 tool authorization_details type
+    adoption_triggers:
+      - OAuth WG adoption or equivalent stable change control
+      - Stable IANA, metadata, challenge, remediation, reference, and processing rules
+      - Independent metadata/resource/client/authorization-server implementations with collision, type-confusion, disclosure, downgrade, and loop tests
+    fallback_controls:
+      - Retain RFC 9396 as the stable structured-authorization base
+      - Pin revision 05, validate metadata and remediation against trusted type policy, and minimize sensitive detail
+      - Accept legacy SEP aliases only at the adapter, reject conflicts, and validate selected/issued credentials normally
+    responsible_domain: oauth-rar-remediation
+    next_review_on: 2026-08-28
+    affected_sections:
+      - document: DR-0001
+        sections: ["17.5.1", "19.4", "20.1"]
+    match_terms: ["RAR Metadata", "authorization_remediation", "insufficient_authorization"]
+    status_history:
+      - on: 2026-07-04
+        status: Revision 05 published as an individual Internet-Draft
+      - on: 2026-07-28
+        status: Selected as the revision-pinned projected convergence vocabulary while retaining individual-draft status
 
   - id: oauth-client-id-metadata-document-02
     title: OAuth Client ID Metadata Document
@@ -116,14 +477,16 @@ records:
     artifact_type: oidf_working_group_draft
     lifecycle_decision: profile
     external_status: OpenID Shared Signals WG Standards Track draft, published 2026-07-21
-    verified_on: 2026-07-25
+    verified_on: 2026-07-28
     primary_sources:
       - https://openid.net/specs/openid-caep-interoperability-profile-1_0-01.html
     current_dr_use:
       - Revision-pinned interoperability profile for SSF transmitters and receivers
+      - Security-state input to the AuthZEN/ARAP composition through the existing validated-event and lifecycle-convergence pipeline
     non_claims:
       - Final OpenID specification
       - Source of MCP task, subscription, or handle semantics
+      - A CAEP event is an authorization decision, policy command, revocation effect, or convergence proof
     adoption_triggers:
       - Implementer Draft or Final approval
       - Interoperability evidence for the selected transmitter and receiver products
@@ -131,11 +494,16 @@ records:
       - Use final SSF and CAEP specifications with a deployment-local endpoint and event profile
       - Retain local task and object authorization rules
     responsible_domain: continuous-access
-    next_review_on: 2026-08-25
+    next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
         sections: ["20.1", "20.6"]
     match_terms: ["CAEP Interoperability Profile"]
+    status_history:
+      - on: 2026-07-21
+        status: Draft 01 published by the OpenID Shared Signals Working Group
+      - on: 2026-07-28
+        status: Revision and status revalidated; AuthZEN composition retains the existing object-action and read-back boundary
 
   - id: oauth-identity-chaining-17
     title: OAuth Identity and Authorization Chaining Across Domains
@@ -404,15 +772,17 @@ records:
     title: OAuth Transaction Tokens
     artifact_type: ietf_working_group_draft
     lifecycle_decision: profile
-    external_status: Revision 09; OAuth WG document in Working Group Last Call
-    verified_on: 2026-07-25
+    external_status: Revision 09, published 2026-07-06 and expiring 2027-01-07; OAuth WG document in Working Group Last Call
+    verified_on: 2026-07-28
     primary_sources:
       - https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/
     current_dr_use:
       - Revision-pinned trust-domain transaction credential profile
+      - Bounded internal propagation after a current AuthZEN/ARAP decision composition
     non_claims:
       - Published RFC
       - Replacement for external authorization or application-object authorization
+      - ARAP workflow state, cross-domain durable task authority, standardized Mission, or proof of downstream effect
     adoption_triggers:
       - IESG progression or RFC publication
       - Interoperable implementation evidence for the selected trust-domain profile
@@ -420,11 +790,16 @@ records:
       - Exchange external credentials only at the trust boundary
       - Use short-lived audience-bound internal credentials under a local profile
     responsible_domain: credential-architecture
-    next_review_on: 2026-08-25
+    next_review_on: 2026-08-28
     affected_sections:
       - document: DR-0001
-        sections: ["20.1", "20.3"]
-    match_terms: ["Transaction Tokens"]
+        sections: ["18.3.8", "20.1", "20.3"]
+    match_terms: ["Transaction Tokens", "Transaction Token"]
+    status_history:
+      - on: 2026-07-06
+        status: Revision 09 published
+      - on: 2026-07-28
+        status: Working Group Last Call status revalidated; AuthZEN/ARAP composition cross-reference added without broadening the trust-domain boundary
 
   - id: oauth-spiffe-client-auth-02
     title: OAuth SPIFFE Client Authentication
